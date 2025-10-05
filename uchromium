@@ -1,0 +1,25 @@
+#!/bin/sh
+set -e
+
+APPDIR="$(dirname "$(realpath "$0")")"
+
+if [ -n "$ELECTRON_RUN_AS_NODE" ]; then
+  unset ELECTRON_RUN_AS_NODE
+fi
+
+ELECTRON_BIN=""
+
+if [ -x "$APPDIR/node_modules/electron/dist/electron" ]; then
+  ELECTRON_BIN="$APPDIR/node_modules/electron/dist/electron"
+elif [ -x "$APPDIR/node_modules/.bin/electron" ]; then
+  ELECTRON_BIN="$APPDIR/node_modules/.bin/electron"
+else
+  ELECTRON_BIN="$(command -v electron || true)"
+fi
+
+if [ -z "$ELECTRON_BIN" ]; then
+  printf '%s\n' "uChromium: electron binary not found. Run 'npm install' first." >&2
+  exit 1
+fi
+
+exec "$ELECTRON_BIN" "$APPDIR/electron/main.js" "$@"

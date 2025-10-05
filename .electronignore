@@ -1,0 +1,16 @@
+# виключаємо результати попередніх збірок і службові папки
+build/
+app-bin/
+tools/
+clickable.json
+*.click
+*.log
+.git/
+.gitignore
+.vscode/
+.idea/
+# (джерела кліків і метадані нам не потрібні у app.asar)
+manifest.json
+app.desktop
+uchromium.apparmor
+# при потребі: src/ і electron/ теж можна виключити, якщо все вже збирається в dist/

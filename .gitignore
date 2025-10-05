@@ -1,0 +1,40 @@
+# Node / package managers
+node_modules/
+npm-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+# (залишаємо lock-файли під контролем версій)
+# package-lock.json
+# yarn.lock
+# pnpm-lock.yaml
+
+# Build artifacts (frontend + electron)
+dist/
+app/
+app-bin/
+build/
+click-build/
+*.asar
+*.click
+
+# Clickable / Ubuntu Touch
+.clickable/
+build/aarch64-linux-gnu/
+# логи/трейси
+*.log
+
+# Tools / локальні скрипти (якщо не хочеш тримати в репо — ігноруй)
+# tools/
+
+# IDE / OS noise
+.vscode/
+.idea/
+*.swp
+*~
+.DS_Store
+Thumbs.db
+
+# Caches / temp
+.cache/
+coverage/
+tmp/

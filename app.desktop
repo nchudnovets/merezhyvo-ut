@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=uChromium
+Comment=Minimal Chromium-based browser for Ubuntu Touch
+Exec=env OZONE_PLATFORM=wayland ./app/uchromium --fullscreen
+Icon=merezhyvo_256.png
+Terminal=false
+Type=Application
+Categories=Network;WebBrowser;
+X-Ubuntu-Touch=true
