@@ -1,8 +1,8 @@
 - - -
 
-# uChromium
+# merezhyvo
 
-uChromium — мінімалістичний Chromium-браузер для **Ubuntu Touch (Lomiri)**. Це повноекранне вікно Electron з легким React-UI, оптимізоване під портретний режим. Включені прапорці апаратного прискорення (VA-API, EGL) — де можливо, відео декодується на GPU.
+merezhyvo — мінімалістичний Chromium-браузер для **Ubuntu Touch (Lomiri)**. Це повноекранне вікно Electron з легким React-UI, оптимізоване під портретний режим. Включені прапорці апаратного прискорення (VA-API, EGL) — де можливо, відео декодується на GPU.
 
 > ⚠️ Безпека: пакет використовує AppArmor-профіль `unconfined`. Це **лише для особистого використання** (не пройде рев’ю OpenStore).
 
@@ -23,7 +23,7 @@ bash
 
 Копіювати код
 
-`uChromium/ ├─ electron/main.js        # головний процес Electron ├─ src/ │  ├─ App.js │  ├─ index.html │  └─ index.js            # React renderer ├─ app.desktop             # Lomiri desktop-файл ├─ manifest.json           # Click manifest ├─ uchromium.apparmor      # AppArmor (unconfined) ├─ package.json            # Node/Electron налаштування ├─ merezhyvo_256.png                # іконка застосунку ├─ tools/ │  └─ build-click.sh       # скрипт повної збірки (.click) ├─ .electronignore └─ .gitignore`
+`merezhyvo/ ├─ electron/main.js        # головний процес Electron ├─ src/ │  ├─ App.js │  ├─ index.html │  └─ index.js            # React renderer ├─ app.desktop             # Lomiri desktop-файл ├─ manifest.json           # Click manifest ├─ merezhyvo.apparmor      # AppArmor (unconfined) ├─ package.json            # Node/Electron налаштування ├─ merezhyvo_256.png                # іконка застосунку ├─ tools/ │  └─ build-click.sh       # скрипт повної збірки (.click) ├─ .electronignore └─ .gitignore`
 
 ## Prerequisites (на робочій машині)
 
@@ -84,7 +84,7 @@ arduino
 
 Копіювати код
 
-`build/uchromium.naz.r_0.1.0_arm64.click`
+`build/merezhyvo.naz.r_0.1.0_arm64.click`
 
 > Маніфест використовує `framework: "ubuntu-sdk-20.04"` та `architecture: ["@CLICK_ARCH@"]`. Це сумісно з UT 24.04, а Clickable автоматично підставить `arm64`.
 
@@ -96,23 +96,23 @@ bash
 
 Копіювати код
 
-`click install /path/to/uchromium.naz.r_0.1.0_arm64.click`
+`click install /path/to/merezhyvo.naz.r_0.1.0_arm64.click`
 
-Після встановлення шукай іконку **uChromium**. Якщо запуск із лаунчера мовчить — подивись лог вручну:
+Після встановлення шукай іконку **merezhyvo**. Якщо запуск із лаунчера мовчить — подивись лог вручну:
 
 bash
 
 Копіювати код
 
-`adb shell cd /opt/click.ubuntu.com/uchromium.naz.r/current ./app/uchromium`
+`adb shell cd /opt/click.ubuntu.com/merezhyvo.naz.r/current ./app/merezhyvo`
 
 ### Підказки по рендеру
 
 Якщо чорний екран/миготіння — спробуй змінити Exec у `app.desktop`:
 
-*   з `env OZONE_PLATFORM=wayland ./app/uchromium --fullscreen`
+*   з `env OZONE_PLATFORM=wayland ./app/merezhyvo --fullscreen`
     
-*   на просто `./app/uchromium --fullscreen` (без OZONE),
+*   на просто `./app/merezhyvo --fullscreen` (без OZONE),
     
 *   або навпаки додати `--enable-features=UseOzonePlatform`.
     

@@ -1,13 +1,13 @@
 {
-  "name": "uchromium.naz.r",
-  "title": "uChromium",
+  "name": "merezhyvo.naz.r",
+  "title": "merezhyvo",
   "version": "0.1.0",
   "maintainer": "Naz R <naz@example.com>",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "architecture": "@CLICK_ARCH@",
   "hooks": {
-    "uchromium": {
-      "apparmor": "uchromium.apparmor",
+    "merezhyvo": {
+      "apparmor": "merezhyvo.apparmor",
       "desktop": "app.desktop"
     }
   },

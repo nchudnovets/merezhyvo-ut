@@ -1,7 +1,7 @@
 [Desktop Entry]
-Name=uChromium
+Name=merezhyvo
 Comment=Minimal Chromium-based browser for Ubuntu Touch
-Exec=env OZONE_PLATFORM=wayland ./app/uchromium --fullscreen
+Exec=env OZONE_PLATFORM=wayland ./app/merezhyvo --fullscreen
 Icon=merezhyvo_256.png
 Terminal=false
 Type=Application

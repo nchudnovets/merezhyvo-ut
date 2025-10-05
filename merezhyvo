@@ -18,7 +18,7 @@ else
 fi
 
 if [ -z "$ELECTRON_BIN" ]; then
-  printf '%s\n' "uChromium: electron binary not found. Run 'npm install' first." >&2
+  printf '%s\n' "merezhyvo: electron binary not found. Run 'npm install' first." >&2
   exit 1
 fi
 

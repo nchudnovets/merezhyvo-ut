@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-APP_NAME="uchromium.naz.r"
+APP_NAME="merezhyvo.naz.r"
 ARCH="arm64"
 OUT_DIR="build"
 
@@ -15,8 +15,8 @@ echo "==> Step 2/3: npm run package (build React + pack Electron for ${ARCH})"
 npm run package
 
 # sanity-check: бінар має існувати
-if [ ! -f "./app/uchromium" ]; then
-  echo "ERROR: ./app/uchromium не знайдено після 'npm run package'."
+if [ ! -f "./app/merezhyvo" ]; then
+  echo "ERROR: ./app/merezhyvo не знайдено після 'npm run package'."
   exit 1
 fi
 

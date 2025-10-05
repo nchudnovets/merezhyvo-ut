@@ -7,7 +7,7 @@ let mainWindow;
 
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('use-gl', 'egl');
-app.setAppUserModelId('dev.naz.r.uchromium');
+app.setAppUserModelId('dev.naz.r.merezhyvo');
 
 Menu.setApplicationMenu(null);
 
@@ -41,7 +41,7 @@ const parseLaunchConfig = () => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
   let url = DEFAULT_URL;
-  const envFullscreen = (process.env.UCHROMIUM_FULLSCREEN || '').toLowerCase();
+  const envFullscreen = (process.env.MEREZHYVO_FULLSCREEN || '').toLowerCase();
   let fullscreen = ['1', 'true', 'yes'].includes(envFullscreen);
 
   for (const rawArg of args) {
@@ -76,7 +76,7 @@ const createMainWindow = () => {
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
 
   if (!existsSync(distIndex)) {
-    console.error('[uChromium] Missing renderer bundle at', distIndex);
+    console.error('[merezhyvo] Missing renderer bundle at', distIndex);
   }
 
   const window = new BrowserWindow({
@@ -88,7 +88,7 @@ const createMainWindow = () => {
     fullscreenable: true,
     show: false,
     backgroundColor: '#101218',
-    title: 'uChromium',
+    title: 'merezhyvo',
     autoHideMenuBar: true,
     resizable: true,
     useContentSize: true,

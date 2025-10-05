@@ -5,7 +5,7 @@ import App from './App';
 const container = document.getElementById('root');
 
 if (!container) {
-  throw new Error('uChromium: missing root element');
+  throw new Error('merezhyvo: missing root element');
 }
 
 const root = createRoot(container);

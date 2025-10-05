@@ -1,7 +1,7 @@
 {
   "clickable_minimum_required": "8.0.0",
   "builder": "precompiled",
-  "kill": "uchromium",
+  "kill": "merezhyvo",
   "build": [
     "bash -lc 'true'"
   ],

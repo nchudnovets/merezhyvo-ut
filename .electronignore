@@ -12,5 +12,5 @@ clickable.json
 # (джерела кліків і метадані нам не потрібні у app.asar)
 manifest.json
 app.desktop
-uchromium.apparmor
+merezhyvo.apparmor
 # при потребі: src/ і electron/ теж можна виключити, якщо все вже збирається в dist/
