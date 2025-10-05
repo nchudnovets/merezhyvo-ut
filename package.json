@@ -1,6 +1,6 @@
 {
   "name": "merezhyvo",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "author": "Naz.R",
   "license": "MIT",
@@ -18,8 +18,8 @@
     "stage": "mkdirp app && cp -r app-bin/merezhyvo-linux-arm64/* app/",
     "package": "npm run package:electron && npm run stage",
     "start": "npm run build && electron electron/main.js",
-    "start:fs": "npm run build && electron electron/main.js --fullscreen",
-    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js --fullscreen"
+    "start:fs": "npm run build && electron electron/main.js",
+    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js"
   },
   "dependencies": {
     "react": "^18.3.1",

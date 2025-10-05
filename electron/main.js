@@ -7,9 +7,6 @@ let mainWindow;
 
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('use-gl', 'egl');
-app.commandLine.appendSwitch('ignore-gpu-blocklist');
-app.commandLine.appendSwitch('enable-gpu-rasterization');
-app.commandLine.appendSwitch('enable-zero-copy');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
 
 Menu.setApplicationMenu(null);
@@ -101,8 +98,7 @@ const createMainWindow = () => {
       sandbox: false,
       webviewTag: true,
       spellcheck: false,
-      defaultFontSize: 16,
-      backgroundThrottling: false
+      defaultFontSize: 16
     }
   });
 
@@ -139,6 +135,43 @@ const createMainWindow = () => {
       mainWindow = null;
     }
   });
+
+  window.webContents.on('before-input-event', (event, input) => {
+  if (input.type !== 'keyDown') return;
+
+  // Toggle fullscreen: F11 або Alt+Enter
+  if (input.key === 'F11' || (input.alt && input.key === 'Enter')) {
+    event.preventDefault();
+    if (!window.isDestroyed()) window.setFullScreen(!window.isFullScreen());
+    return;
+  }
+
+  if (input.key === 'Escape') {
+    event.preventDefault();
+    if (!window.isDestroyed()) {
+      if (window.isFullScreen()) {
+        window.setFullScreen(false);
+      } else {
+        window.close();
+      }
+    }
+    return;
+  }
+
+  if (input.control && input.key.toLowerCase() === 'm') {
+    event.preventDefault();
+    if (!window.isDestroyed()) {
+      if (window.isMaximized()) window.unmaximize();
+      else window.maximize();
+    }
+    return;
+  }
+
+  if (input.control || input.meta || input.alt) {
+    event.preventDefault();
+  }
+});
+
 
   window.loadFile(distIndex, {
     query: {
