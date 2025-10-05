@@ -7,6 +7,9 @@ let mainWindow;
 
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('use-gl', 'egl');
+app.commandLine.appendSwitch('ignore-gpu-blocklist');
+app.commandLine.appendSwitch('enable-gpu-rasterization');
+app.commandLine.appendSwitch('enable-zero-copy');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
 
 Menu.setApplicationMenu(null);
@@ -98,7 +101,8 @@ const createMainWindow = () => {
       sandbox: false,
       webviewTag: true,
       spellcheck: false,
-      defaultFontSize: 16
+      defaultFontSize: 16,
+      backgroundThrottling: false
     }
   });
 
