@@ -98,7 +98,8 @@ const createMainWindow = () => {
       sandbox: false,
       webviewTag: true,
       spellcheck: false,
-      defaultFontSize: 16
+      defaultFontSize: 16,
+      preload: path.resolve(__dirname, 'preload.js')
     }
   });
 
