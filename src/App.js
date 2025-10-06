@@ -96,20 +96,47 @@ const styles = {
     outline: 'none'
   },
   goButton: {
+    width: '40px',
     height: '35px',
-    padding: '0 18px',
     borderRadius: '16px',
     border: 'none',
     backgroundColor: '#2563eb',
     color: '#f8fafc',
-    fontSize: '14px',
-    fontWeight: 600
+    fontSize: '16px',
+    fontWeight: 600,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
-  status: {
+  goButtonIcon: {
+    display: 'block',
+    width: '16px',
+    height: '16px'
+  },
+  statusIndicator: {
     minWidth: '70px',
-    textAlign: 'right',
-    fontSize: '13px',
-    color: '#94a3b8'
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'flex-end'
+  },
+  statusSvg: {
+    width: '16px',
+    height: '16px',
+    display: 'block'
+  },
+  statusIconReady: {
+    color: '#22c55e'
+  },
+  statusIconError: {
+    color: '#ef4444'
+  },
+  spinner: {
+    width: '16px',
+    height: '16px',
+    borderRadius: '50%',
+    border: '2px solid rgba(148, 163, 184, 0.45)',
+    borderTopColor: '#2563eb',
+    animation: 'app-spin 0.75s linear infinite'
   },
   webview: {
     flex: 1,
@@ -124,11 +151,43 @@ const App = () => {
   const [inputValue, setInputValue] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [isEditing, setIsEditing] = useState(false);
-  const [isLoading, setIsLoading] = useState(true);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
-  const [statusMessage, setStatusMessage] = useState('Loading…');
+  const [status, setStatus] = useState('loading');
   const isEditingRef = useRef(false);
+
+  useEffect(() => {
+    const styleElement = document.createElement('style');
+    styleElement.textContent = `
+      @keyframes app-spin {
+        from { transform: rotate(0deg); }
+        to { transform: rotate(360deg); }
+      }
+
+      ::-webkit-scrollbar {
+        width: 7px;
+        height: 7px;
+      }
+
+      ::-webkit-scrollbar-track {
+        background: #121826;
+      }
+
+      ::-webkit-scrollbar-thumb {
+        background: #2563eb;
+        border-radius: 999px;
+        border: 2px solid #121826;
+      }
+
+      ::-webkit-scrollbar-thumb:hover {
+        background: #1d4ed8;
+      }
+    `;
+    document.head.appendChild(styleElement);
+    return () => {
+      document.head.removeChild(styleElement);
+    };
+  }, []);
 
   useEffect(() => {
     isEditingRef.current = isEditing;
@@ -159,25 +218,22 @@ const App = () => {
       if (event.url) {
         syncUrl(event.url);
       }
-      setStatusMessage('Ready');
+      setStatus('ready');
       updateNavigationState();
     };
 
     const handleStart = () => {
-      setIsLoading(true);
-      setStatusMessage('Loading…');
+      setStatus('loading');
     };
 
     const handleStop = () => {
-      setIsLoading(false);
-      setStatusMessage('Ready');
+      setStatus('ready');
       syncUrl(view.getURL());
       updateNavigationState();
     };
 
     const handleFail = () => {
-      setIsLoading(false);
-      setStatusMessage('Failed to load');
+      setStatus('error');
     };
 
     const handleDomReady = () => {
@@ -217,8 +273,7 @@ const App = () => {
       const target = normalizeAddress(inputValue);
       setCurrentUrl(target);
       setInputValue(target);
-      setIsLoading(true);
-      setStatusMessage('Loading…');
+      setStatus('loading');
       view.loadURL(target);
     },
     [inputValue]
@@ -241,8 +296,7 @@ const App = () => {
   const handleReload = useCallback(() => {
     const view = webviewRef.current;
     if (view) {
-      setIsLoading(true);
-      setStatusMessage('Loading…');
+      setStatus('loading');
       view.reload();
     }
   }, []);
@@ -258,6 +312,12 @@ const App = () => {
     setIsEditing(false);
     setInputValue(currentUrl);
   }, [currentUrl]);
+
+  const statusLabelMap = {
+    loading: 'Loading',
+    ready: 'Ready',
+    error: 'Failed to load'
+  };
 
   return (
     <div style={styles.container}>
@@ -311,12 +371,71 @@ const App = () => {
             placeholder="Enter a URL or search"
             style={styles.input}
           />
-          <button type="submit" style={styles.goButton}>
-            Go
+          <button type="submit" style={styles.goButton} aria-label="Go">
+            <svg
+              viewBox="0 0 16 16"
+              style={styles.goButtonIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M3 8h10M9.5 4.5 13 8l-3.5 3.5"
+              />
+            </svg>
           </button>
         </form>
 
-        <div style={styles.status}>{statusMessage}</div>
+        <div
+          style={styles.statusIndicator}
+          role="status"
+          aria-label={statusLabelMap[status]}
+        >
+          {status === 'loading' && (
+            <span style={styles.spinner} aria-hidden="true" />
+          )}
+          {status === 'ready' && (
+            <svg
+              viewBox="0 0 16 16"
+              style={{ ...styles.statusSvg, ...styles.statusIconReady }}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M3.5 8.5 6.5 11.5 12.5 5.5"
+              />
+            </svg>
+          )}
+          {status === 'error' && (
+            <svg
+              viewBox="0 0 16 16"
+              style={{ ...styles.statusSvg, ...styles.statusIconError }}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"
+              />
+            </svg>
+          )}
+        </div>
       </div>
 
       <webview ref={webviewRef} style={styles.webview} allowpopups="true" />

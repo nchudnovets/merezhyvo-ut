@@ -19,7 +19,7 @@
     "package": "npm run package:electron && npm run stage",
     "start": "npm run build && electron electron/main.js",
     "start:fs": "npm run build && electron electron/main.js",
-    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js"
+    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=14 electron electron/main.js"
   },
   "dependencies": {
     "react": "^18.3.1",
