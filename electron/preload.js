@@ -28,3 +28,14 @@
     }
   } catch {}
 })();
+
+(function enforceYouTube720p() {
+  if (process.env.MZV_LIMIT_QUALITY !== '1') return; // увімкнеш за потреби
+  const host = location.hostname || '';
+  if (!/(^|\.)youtube\.com$/.test(host)) return;
+
+  try {
+    localStorage.setItem('yt-player-quality', JSON.stringify({data: 'hd720'}));
+    localStorage.setItem('yt-player-quality-manual', JSON.stringify({data: true}));
+  } catch {}
+})();

@@ -88,7 +88,7 @@ const createMainWindow = () => {
     fullscreenable: true,
     show: false,
     backgroundColor: '#101218',
-    title: 'merezhyvo',
+    title: 'Merezhyvo',
     autoHideMenuBar: true,
     resizable: true,
     useContentSize: true,

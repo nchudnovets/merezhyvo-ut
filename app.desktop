@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Merezhyvo
 Comment=Minimal Chromium-based browser for Ubuntu Touch
-Exec=env XCURSOR_SIZE=16 OZONE_PLATFORM=wayland ./app/merezhyvo
+Exec=env MZV_LIMIT_QUALITY=1 XCURSOR_SIZE=16 OZONE_PLATFORM=wayland ./app/merezhyvo
 Icon=merezhyvo_256.png
 Terminal=false
 Type=Application
