@@ -17,30 +17,27 @@ const parseStartUrl = () => {
 };
 
 const normalizeAddress = (value) => {
-  if (!value) {
-    return DEFAULT_URL;
-  }
+  if (!value || !value.trim()) return DEFAULT_URL;
 
   const trimmed = value.trim();
-  if (!trimmed) {
-    return DEFAULT_URL;
-  }
-
-  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) {
-    return trimmed;
-  }
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed;
 
   if (trimmed.includes(' ')) {
     return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
   }
 
+  if (!trimmed.includes('.') && trimmed.toLowerCase() !== 'localhost') {
+    return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+  }
+
   try {
-    const candidate = new URL(trimmed);
+    const candidate = new URL(`https://${trimmed}`);
     return candidate.href;
   } catch {
-    return `https://${trimmed}`;
+    return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
   }
 };
+
 
 const styles = {
   container: {
