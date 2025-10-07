@@ -11,15 +11,29 @@
   },
   "scripts": {
     "clean": "rimraf dist app-bin app build",
+
     "build:renderer": "esbuild src/index.js --bundle --outfile=dist/renderer.js --format=iife --platform=browser --target=es2020 --loader:.js=jsx",
     "build:static": "mkdirp dist && cp src/index.html dist/index.html",
     "build": "npm run clean && npm run build:static && npm run build:renderer",
+
+    "start": "npm run build && electron electron/main.js",
+    "start:fs": "npm run build && electron electron/main.js --fullscreen",
+    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=14 electron electron/main.js --fullscreen",
+
+    "start:mobile": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js",
+    "start:desktop": "npm run build && MZV_MODE=desktop electron electron/main.js",
+    "start:devtools": "npm run build && MZV_DEVTOOLS=1 electron electron/main.js --devtools",
+    "start:mob-devtools": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js --devtools",
+    "start:nogpu": "npm run build && MZV_DEV_NO_GPU=1 electron electron/main.js",
+    "start:h264": "npm run build && MZV_FORCE_H264=1 electron electron/main.js",
+
     "package:electron": "npm run build && npx electron-packager . merezhyvo --platform=linux --arch=arm64 --out=app-bin --overwrite --asar --icon=merezhyvo_256.png",
     "stage": "mkdirp app && cp -r app-bin/merezhyvo-linux-arm64/* app/",
     "package": "npm run package:electron && npm run stage",
-    "start": "npm run build && electron electron/main.js",
-    "start:fs": "npm run build && electron electron/main.js",
-    "start:wayland": "npm run build && OZONE_PLATFORM=wayland XCURSOR_SIZE=14 electron electron/main.js"
+
+    "click:build": "clickable clean || true && clickable build --arch arm64 --accept-review-errors",
+    "click:make": "npm run package && npm run click:build",
+    "click:install": "adb push build/*.click /home/phablet/Downloads/ && adb shell 'click install --allow-untrusted /home/phablet/Downloads/*.click'"
   },
   "dependencies": {
     "react": "^18.3.1",

@@ -2,7 +2,7 @@
 <html lang="en">
   <head>
     <meta charset="utf-8" />
-    <title>merezhyvo</title>
+    <title>Merezhyvo</title>
     <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
     <meta name="color-scheme" content="dark light" />
     <meta name="mobile-web-app-capable" content="yes" />
@@ -13,6 +13,19 @@
       #root { height: 100%; width: 100%; }
       button { font-family: inherit; }
       input { font-family: inherit; }
+      :root {
+        --input-font-size: '14px';
+        --status-icon-width: '14px';
+        --status-icon-height: '14px';
+      }
+      :root[data-mode="mobile"] {
+        --input-font-size: '20px';
+        --status-icon-width: '20px';
+        --status-icon-height: '20px';
+      }
+
+      .toolbar input { font-size: var(--input-font-size); }
+      .toolbar .status-svg { width: var(--status-icon-width); height: var(--status-icon-height);}
     </style>
   </head>
   <body>

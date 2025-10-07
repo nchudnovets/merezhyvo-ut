@@ -72,6 +72,11 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'center'
   },
+  navIcon: {
+    width: '18px',
+    height: '18px',
+    display: 'block'
+  },
   navButtonDisabled: {
     opacity: 0.35
   },
@@ -88,7 +93,6 @@ const styles = {
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: '#0f1729',
     color: '#f8fafc',
-    fontSize: '14px',
     padding: '0 14px',
     outline: 'none'
   },
@@ -111,14 +115,12 @@ const styles = {
     height: '16px'
   },
   statusIndicator: {
-    minWidth: '70px',
+    minWidth: '22px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'flex-end'
   },
   statusSvg: {
-    width: '16px',
-    height: '16px',
     display: 'block'
   },
   statusIconReady: {
@@ -154,35 +156,34 @@ const App = () => {
   const isEditingRef = useRef(false);
 
   useEffect(() => {
-    const styleElement = document.createElement('style');
-    styleElement.textContent = `
-      @keyframes app-spin {
-        from { transform: rotate(0deg); }
-        to { transform: rotate(360deg); }
-      }
-
-      ::-webkit-scrollbar {
-        width: 7px;
-        height: 7px;
-      }
-
-      ::-webkit-scrollbar-track {
-        background: #121826;
-      }
-
+    const css = `
+      ::-webkit-scrollbar { width: 8px; height: 8px; }
+      ::-webkit-scrollbar-track { background: #111827; }
       ::-webkit-scrollbar-thumb {
         background: #2563eb;
         border-radius: 999px;
-        border: 2px solid #121826;
+        border: 2px solid #111827;
       }
-
-      ::-webkit-scrollbar-thumb:hover {
-        background: #1d4ed8;
-      }
+      ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
     `;
-    document.head.appendChild(styleElement);
+
+    const wv = webviewRef.current;
+    if (!wv) return;
+
+    const apply = () => {
+      wv.insertCSS(css).catch(() => {});
+    };
+
+    wv.addEventListener('dom-ready', apply);
+    wv.addEventListener('did-navigate', apply);
+    wv.addEventListener('did-navigate-in-page', apply);
+
+    if (wv.isLoading && !wv.isLoading()) apply();
+
     return () => {
-      document.head.removeChild(styleElement);
+      wv.removeEventListener('dom-ready', apply);
+      wv.removeEventListener('did-navigate', apply);
+      wv.removeEventListener('did-navigate-in-page', apply);
     };
   }, []);
 
@@ -318,7 +319,7 @@ const App = () => {
 
   return (
     <div style={styles.container}>
-      <div style={styles.toolbar}>
+      <div style={styles.toolbar} className="toolbar">
         <div style={styles.navGroup}>
           <button
             type="button"
@@ -330,7 +331,22 @@ const App = () => {
               ...(canGoBack ? null : styles.navButtonDisabled)
             }}
           >
-            ←
+            <svg
+              viewBox="0 0 16 16"
+              style={styles.navIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M13 8H5M8.5 4.5L5 8l3.5 3.5"
+              />
+            </svg>
           </button>
           <button
             type="button"
@@ -342,7 +358,22 @@ const App = () => {
               ...(canGoForward ? null : styles.navButtonDisabled)
             }}
           >
-            →
+            <svg
+              viewBox="0 0 16 16"
+              style={styles.navIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M3 8h8M7.5 4.5L11 8l-3.5 3.5"
+              />
+            </svg>
           </button>
           <button
             type="button"
@@ -350,7 +381,30 @@ const App = () => {
             onClick={handleReload}
             style={styles.navButton}
           >
-            ⟳
+            <svg
+              viewBox="0 0 16 16"
+              style={styles.navIcon}
+              xmlns="http://www.w3.org/2000/svg"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M12.5 5.5A4.5 4.5 0 1 0 13 9.5"
+              />
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth="1.5"
+                d="M12.5 5.5H9.5M12.5 5.5V8.5"
+              />
+            </svg>
           </button>
         </div>
 
@@ -403,6 +457,7 @@ const App = () => {
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"
+              className="status-svg"
             >
               <path
                 fill="none"
