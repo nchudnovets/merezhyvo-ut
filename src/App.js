@@ -154,6 +154,50 @@ const App = () => {
   const [canGoForward, setCanGoForward] = useState(false);
   const [status, setStatus] = useState('loading');
   const isEditingRef = useRef(false);
+  const [showModal, setShowModal] = useState(false);
+  const [title, setTitle] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [msg, setMsg] = useState('');
+
+  const getCurrentUrl = () => {
+  try {
+    const wv = webviewRef.current;
+    if (wv && typeof wv.getURL === 'function') return wv.getURL();
+  } catch {}
+  return null;
+};
+
+const openShortcutModal = () => {
+  const url = getCurrentUrl();
+  setTitle(url ? new URL(url).hostname.replace(/^www\./, '') : 'Merezhyvo');
+  setShowModal(true);
+};
+
+const createShortcut = async () => {
+  const url = getCurrentUrl();
+  if (!url) { setMsg('Cannot detect current URL.'); return; }
+  if (!title.trim()) { setMsg('Please enter a name.'); return; }
+
+  setBusy(true); setMsg('');
+  try {
+    const res = await window.merezhyvo?.createShortcut?.({
+      title: title.trim(),
+      url,
+      single: true
+      // icon: not provided → main will fetch favicon automatically
+    });
+    if (res?.ok) {
+      setMsg(`Shortcut created:\n${res.desktopFilePath}`);
+      setShowModal(false);
+    } else {
+      setMsg(res?.error || 'Unknown error.');
+    }
+  } catch (err) {
+    setMsg(String(err));
+  } finally {
+    setBusy(false);
+  }
+};
 
   useEffect(() => {
     const css = `
@@ -422,6 +466,15 @@ const App = () => {
             placeholder="Enter a URL or search"
             style={styles.input}
           />
+          <div style={{ marginLeft: 'auto' }}>
+            <button
+              className="btn btn--makeapp"
+              onClick={openShortcutModal}
+              title="Create app shortcut from this site"
+            >
+              ➕ App
+            </button>
+          </div>
           <button type="submit" style={styles.goButton} aria-label="Go">
             <svg
               viewBox="0 0 16 16"
@@ -489,6 +542,37 @@ const App = () => {
           )}
         </div>
       </div>
+      {showModal && (
+        <div className="modal-backdrop" /* ...styles... */>
+          <div className="modal" /* ...styles... */>
+            <h3>Create app shortcut</h3>
+
+            <p style={{ opacity: 0.8, marginTop: -6 }}>
+              The icon will be fetched automatically from the site (favicon). If it fails,
+              a default Merezhyvo icon will be used.
+            </p>
+
+            <label style={{ display: 'block', marginBottom: 12 }}>
+              Name
+              <input
+                value={title}
+                onChange={e => setTitle(e.target.value)}
+                placeholder="YouTube Music"
+                style={{ width: '100%', marginTop: 4 }}
+              />
+            </label>
+
+            {msg && <pre style={{ whiteSpace: 'pre-wrap', fontSize: 12, opacity: 0.9 }}>{msg}</pre>}
+
+            <div style={{ display: 'flex', gap: 8, justifyContent: 'flex-end', marginTop: 12 }}>
+              <button onClick={() => setShowModal(false)} disabled={busy}>Cancel</button>
+              <button onClick={createShortcut} disabled={busy}>
+                {busy ? 'Creating…' : 'Create'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       <webview ref={webviewRef} style={styles.webview} allowpopups="true" />
     </div>
