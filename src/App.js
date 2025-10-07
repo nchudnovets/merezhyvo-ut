@@ -86,14 +86,19 @@ const styles = {
     gap: '10px',
     flex: 1
   },
+  addressField: {
+    position: 'relative',
+    width: '100%',
+  },
   input: {
     flex: 1,
     height: '30px',
+    width: '100%',
     borderRadius: '16px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: '#0f1729',
     color: '#f8fafc',
-    padding: '0 14px',
+    padding: '0 52px 0 14px',
     outline: 'none'
   },
   goButton: {
@@ -453,26 +458,50 @@ const createShortcut = async () => {
         </div>
 
         <form onSubmit={handleSubmit} style={styles.form}>
-          <input
-            type="text"
-            value={inputValue}
-            onChange={(event) => setInputValue(event.target.value)}
-            onFocus={handleInputFocus}
-            onBlur={handleInputBlur}
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck="false"
-            placeholder="Enter a URL or search"
-            style={styles.input}
-          />
-          <div style={{ marginLeft: 'auto' }}>
+          <div style={styles.addressField}>
+            <input
+              type="text"
+              value={inputValue}
+              onChange={(event) => setInputValue(event.target.value)}
+              onFocus={handleInputFocus}
+              onBlur={handleInputBlur}
+              inputMode="url"
+              autoCapitalize="none"
+              autoCorrect="off"
+              spellCheck="false"
+              placeholder="Enter a URL or search"
+              style={styles.input}
+            />
             <button
+              type="button"
               className="btn btn--makeapp"
               onClick={openShortcutModal}
               title="Create app shortcut from this site"
+              aria-label="Create app shortcut from this site"
             >
-              ➕ App
+              <svg
+                viewBox="0 0 16 16"
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+                focusable="false"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M8 2v6m0 0-2.5-2.5M8 8l2.5-2.5"
+                />
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M4 9.5h8V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5"
+                />
+              </svg>
             </button>
           </div>
           <button type="submit" style={styles.goButton} aria-label="Go">
@@ -543,8 +572,8 @@ const createShortcut = async () => {
         </div>
       </div>
       {showModal && (
-        <div className="modal-backdrop" /* ...styles... */>
-          <div className="modal" /* ...styles... */>
+        <div className="modal-backdrop">
+          <div className="modal">
             <h3>Create app shortcut</h3>
 
             <p style={{ opacity: 0.8, marginTop: -6 }}>

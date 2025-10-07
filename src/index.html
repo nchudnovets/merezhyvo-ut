@@ -26,6 +26,125 @@
 
       .toolbar input { font-size: var(--input-font-size); }
       .toolbar .status-svg { width: var(--status-icon-width); height: var(--status-icon-height);}
+
+      .modal-backdrop {
+        position: fixed;
+        inset: 0;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        padding: 32px;
+        background: rgba(15, 17, 26, 0.76);
+        backdrop-filter: blur(8px);
+        z-index: 1000;
+      }
+
+      .modal {
+        width: min(440px, 92vw);
+        background: #121826;
+        border-radius: 20px;
+        border: 1px solid rgba(148, 163, 184, 0.25);
+        padding: 28px 32px 30px;
+        box-shadow: 0 24px 48px rgba(3, 8, 20, 0.55);
+        color: #e2e8f0;
+      }
+
+      .modal h3 {
+        margin: 0 0 12px;
+        font-size: 18px;
+        font-weight: 600;
+        color: #f8fafc;
+      }
+
+      .modal label {
+        font-size: 14px;
+        font-weight: 500;
+        color: #cbd5f5;
+      }
+
+      .modal input {
+        margin-top: 6px;
+        background: #0f1729;
+        border: 1px solid rgba(148, 163, 184, 0.35);
+        border-radius: 14px;
+        padding: 10px 14px;
+        color: inherit;
+        font-size: 14px;
+        width: 100%;
+      }
+
+      .modal button {
+        background: #2563eb;
+        color: #f8fafc;
+        border: none;
+        border-radius: 12px;
+        padding: 8px 18px;
+        font-weight: 600;
+        cursor: pointer;
+        transition: background-color 0.2s ease, opacity 0.2s ease;
+      }
+
+      .modal button:first-child {
+        background: rgba(148, 163, 184, 0.16);
+        color: #e2e8f0;
+      }
+
+      .modal button:hover:not([disabled]) {
+        background: #1d4ed8;
+      }
+
+      .modal button:first-child:hover:not([disabled]) {
+        background: rgba(148, 163, 184, 0.24);
+      }
+
+      .modal button[disabled] {
+        opacity: 0.65;
+        cursor: default;
+      }
+
+      .btn--makeapp {
+        position: absolute;
+        top: 50%;
+        right: 2px;
+        transform: translateY(-50%);
+        width: 36px;
+        height: 26px;
+        padding: 0;
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        background: transparent;
+        border: 1px solid rgba(37, 99, 235, 0.7);
+        border-radius: 12px;
+        color: #93c5fd;
+        cursor: pointer;
+        transition: background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease;
+        box-shadow: 0 0 0 rgba(37, 99, 235, 0.1);
+      }
+
+      .btn--makeapp svg {
+        width: 16px;
+        height: 16px;
+      }
+
+      .btn--makeapp:hover {
+        background: rgba(37, 99, 235, 0.15);
+        border-color: #3b82f6;
+        color: #bfdbfe;
+        box-shadow: 0 6px 16px rgba(37, 99, 235, 0.25);
+      }
+
+      .btn--makeapp:active {
+        background: rgba(30, 64, 175, 0.25);
+        border-color: #2563eb;
+        color: #e0f2fe;
+      }
+
+      .btn--makeapp:disabled {
+        opacity: 0.5;
+        cursor: default;
+        box-shadow: none;
+      }
     </style>
   </head>
   <body>
