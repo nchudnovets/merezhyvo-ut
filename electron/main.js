@@ -2,22 +2,27 @@
 
 const { app, BrowserWindow, Menu, screen, ipcMain } = require('electron');
 const path = require('path');
-const { existsSync } = require('fs');
-const { resolveMode } = require('./mode');
 const fs = require('fs');
+const { existsSync } = fs;
 const https = require('https');
 const http = require('http');
+const { resolveMode } = require('./mode');
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 let mainWindow;
 
+// --- Chromium/Electron flags ---
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('use-gl', 'egl');
+app.commandLine.appendSwitch('enable-pinch'); // жест pinch у webview
 
+// ID для системи
 app.setAppUserModelId('dev.naz.r.merezhyvo');
 
+// без глобального меню
 Menu.setApplicationMenu(null);
 
+// ---------- utils ----------
 const slugify = (s) =>
   (s || '')
     .toString()
@@ -26,9 +31,7 @@ const slugify = (s) =>
     .replace(/^-+|-+$/g, '')
     .slice(0, 60) || 'merezhyvo';
 
-const ensureDir = (dir) => {
-  try { fs.mkdirSync(dir, { recursive: true }); } catch {}
-};
+const ensureDir = (dir) => { try { fs.mkdirSync(dir, { recursive: true }); } catch {} };
 
 function downloadBinary(url, { timeoutMs = 6000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -54,62 +57,63 @@ function downloadBinary(url, { timeoutMs = 6000 } = {}) {
 async function tryFetchFaviconFor(hostname) {
   if (!hostname) return null;
 
+  // 1) Google S2
   const s2 = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=128`;
   try {
     const { buffer, contentType } = await downloadBinary(s2);
-    if (contentType.startsWith('image/')) {
-      return { buffer, ext: contentType.includes('png') ? 'png' :
-                         contentType.includes('jpeg') ? 'jpg' :
-                         contentType.includes('svg') ? 'svg' :
-                         contentType.includes('ico') ? 'ico' : 'img' };
+    if ((contentType || '').toLowerCase().startsWith('image/')) {
+      return {
+        buffer,
+        ext: contentType.includes('png') ? 'png'
+          : contentType.includes('jpeg') ? 'jpg'
+          : contentType.includes('svg') ? 'svg'
+          : contentType.includes('ico') ? 'ico' : 'img'
+      };
     }
   } catch {}
 
+  // 2) /favicon.ico
   try {
     const icoUrl = `https://${hostname}/favicon.ico`;
     const { buffer, contentType } = await downloadBinary(icoUrl);
-    if (contentType.startsWith('image/')) {
-      return { buffer, ext: contentType.includes('png') ? 'png' :
-                         contentType.includes('jpeg') ? 'jpg' :
-                         contentType.includes('svg') ? 'svg' :
-                         'ico' };
+    if ((contentType || '').toLowerCase().startsWith('image/')) {
+      return {
+        buffer,
+        ext: contentType.includes('png') ? 'png'
+          : contentType.includes('jpeg') ? 'jpg'
+          : contentType.includes('svg') ? 'svg' : 'ico'
+      };
     }
   } catch {}
 
+  // 3) /favicon.png
   try {
     const pngUrl = `https://${hostname}/favicon.png`;
     const { buffer, contentType } = await downloadBinary(pngUrl);
-    if (contentType.startsWith('image/')) {
-      return { buffer, ext: contentType.includes('png') ? 'png' :
-                         contentType.includes('jpeg') ? 'jpg' : 'img' };
+    if ((contentType || '').toLowerCase().startsWith('image/')) {
+      return {
+        buffer,
+        ext: contentType.includes('png') ? 'png'
+          : contentType.includes('jpeg') ? 'jpg' : 'img'
+      };
     }
   } catch {}
 
   return null;
 }
 
-/**
- * Smart address normalization:
- * - already has scheme => return as-is
- * - contains spaces => search query
- * - single token w/o dot (and not 'localhost') => search query
- * - otherwise try https:// + token
- */
 const normalizeAddress = (value) => {
   if (!value || !value.trim()) return DEFAULT_URL;
-
   const trimmed = value.trim();
 
-  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed;
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed; // схема є
 
   if (trimmed.includes(' ')) {
     return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
   }
-
   if (!trimmed.includes('.') && trimmed.toLowerCase() !== 'localhost') {
     return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
   }
-
   try {
     const candidate = new URL(`https://${trimmed}`);
     return candidate.href;
@@ -125,34 +129,36 @@ const parseLaunchConfig = () => {
   const envFullscreen = (process.env.MEREZHYVO_FULLSCREEN || '').toLowerCase();
   let fullscreen = ['1', 'true', 'yes'].includes(envFullscreen);
   let devtools = process.env.MZV_DEVTOOLS === '1';
+  let modeOverride = (process.env.MZV_MODE || '').toLowerCase(); // optional
 
   for (const rawArg of args) {
     if (!rawArg) continue;
-
     if (rawArg === '--fullscreen') { fullscreen = true; continue; }
     if (rawArg === '--no-fullscreen') { fullscreen = false; continue; }
     if (rawArg === '--devtools') { devtools = true; continue; }
 
-    if (/^-/.test(rawArg)) continue;
+    const m = rawArg.match(/^--mode=(desktop|mobile)$/i);
+    if (m) { modeOverride = m[1].toLowerCase(); continue; }
 
-    if (url === DEFAULT_URL) {
-      url = normalizeAddress(rawArg);
-    }
+    if (/^-/.test(rawArg)) continue; // інші прапорці пропускаємо
+
+    if (url === DEFAULT_URL) url = normalizeAddress(rawArg);
   }
 
-  return { url, fullscreen, devtools };
+  return { url, fullscreen, devtools, modeOverride };
 };
 
+// ---------- window lifecycle ----------
 const createMainWindow = () => {
-  const { url: startUrl, fullscreen, devtools } = parseLaunchConfig();
+  const { url: startUrl, fullscreen, devtools, modeOverride } = parseLaunchConfig();
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
-  const initialMode = resolveMode();
+  const initialMode = modeOverride || resolveMode();
 
   if (!existsSync(distIndex)) {
     console.error('[Merezhyvo] Missing renderer bundle at', distIndex);
   }
 
-  const window = new BrowserWindow({
+  const win = new BrowserWindow({
     width: 600,
     height: 800,
     minWidth: 320,
@@ -176,83 +182,88 @@ const createMainWindow = () => {
     }
   });
 
-  window.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
+  // блокуємо всі window.open
+  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
 
-  window.webContents.on('before-input-event', (event, input) => {
+  // хоткеї для оболонки (не для webview)
+  win.webContents.on('before-input-event', (event, input) => {
     if (input.type !== 'keyDown') return;
 
+    // DevTools оболонки
     if (input.key === 'F12' || (input.control && input.shift && (input.key === 'I' || input.key === 'i'))) {
       event.preventDefault();
-      if (!window.isDestroyed()) {
-        if (window.webContents.isDevToolsOpened()) window.webContents.closeDevTools();
-        else window.webContents.openDevTools({ mode: 'detach' });
+      if (!win.isDestroyed()) {
+        if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools();
+        else win.webContents.openDevTools({ mode: 'detach' });
       }
       return;
     }
 
+    // Fullscreen toggle
     if (input.key === 'F11' || (input.alt && input.key === 'Enter')) {
       event.preventDefault();
-      if (!window.isDestroyed()) window.setFullScreen(!window.isFullScreen());
+      if (!win.isDestroyed()) win.setFullScreen(!win.isFullScreen());
       return;
     }
 
+    // Esc: вийти з фулскріну або закрити
     if (input.key === 'Escape') {
       event.preventDefault();
-      if (!window.isDestroyed()) {
-        if (window.isFullScreen()) window.setFullScreen(false);
-        else window.close();
+      if (!win.isDestroyed()) {
+        if (win.isFullScreen()) win.setFullScreen(false);
+        else win.close();
       }
       return;
     }
 
+    // Ctrl+M: toggle maximize
     if (input.control && (input.key.toLowerCase && input.key.toLowerCase() === 'm')) {
       event.preventDefault();
-      if (!window.isDestroyed()) {
-        if (window.isMaximized()) window.unmaximize();
-        else window.maximize();
+      if (!win.isDestroyed()) {
+        if (win.isMaximized()) win.unmaximize();
+        else win.maximize();
       }
       return;
     }
 
+    // блокуємо модифікаторні комбінації для хоста (щоб вони не масштабували оболонку)
     if (input.control || input.meta || input.alt) {
       event.preventDefault();
     }
   });
 
-  window.once('ready-to-show', () => {
-    window.show();
-    if (fullscreen) window.setFullScreen(true);
-    if (devtools) window.webContents.openDevTools({ mode: 'detach' });
-    window.focus();
+  win.once('ready-to-show', () => {
+    win.show();
+    if (fullscreen) win.setFullScreen(true);
+    if (devtools) win.webContents.openDevTools({ mode: 'detach' });
+    win.focus();
   });
 
-  window.on('closed', () => {
-    if (mainWindow === window) {
-      mainWindow = null;
-    }
+  win.on('closed', () => {
+    if (mainWindow === win) mainWindow = null;
   });
 
-  window.loadFile(distIndex, {
-    query: {
-      start: startUrl,
-      mode: initialMode
-    }
+  win.loadFile(distIndex, {
+    query: { start: startUrl, mode: initialMode }
   });
 
-  mainWindow = window;
-  mainWindow.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
-  mainWindow.webContents.on('before-input-event', (e, input) => {
+  // блок зуму оболонки (тільки для host webContents)
+  win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'mouseWheel' && (input.control || input.meta)) e.preventDefault();
   });
+
+  mainWindow = win;
 };
 
+// при зміні екранів — просто шлемо новий режим у рендерер
 const rebalance = () => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const m = resolveMode();
   try {
     mainWindow.webContents.send('merezhyvo:mode', m);
-    mainWindow.webContents.setZoomFactor(m === 'mobile' ? 1.5 : 1.0);
-  } catch { /* no-op */ }
+    // НЕ чіпаємо mainWindow.webContents.setZoomFactor — зум робимо у <webview>
+  } catch {}
 };
 
 app.whenReady().then(() => {
@@ -263,28 +274,25 @@ app.whenReady().then(() => {
   screen.on('display-metrics-changed', rebalance);
 
   app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      createMainWindow();
-    }
+    if (BrowserWindow.getAllWindows().length === 0) createMainWindow();
   });
 });
 
-app.on('browser-window-created', (_event, window) => {
-  window.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+// продублюємо блок хоста (для всіх вікон, якщо зʼявляться)
+app.on('browser-window-created', (_event, win) => {
+  win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
 });
 
+// звичайний вихід
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-
+// ---------- IPC: створення ярлика ----------
 ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
   const { title, url, single } = payload || {};
-  if (!title || !url) {
-    return { ok: false, error: 'Title and URL are required.' };
-  }
+  if (!title || !url) return { ok: false, error: 'Title and URL are required.' };
 
- 
   const home = app.getPath('home');
   const appsDir = path.join(home, '.local/share/applications');
   const iconsDir = path.join(home, '.local/share/icons');
@@ -294,10 +302,10 @@ ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
   let hostname = '';
   try { hostname = new URL(url).hostname.replace(/^www\./, ''); } catch {}
 
-  const bundledIcon = path.resolve(__dirname, '..', 'merezhyvo_256.png');
+  const bundledIcon = path.resolve(__dirname, '..', 'merezhyvo_256.png'); // перевір назву у проєкті
   let iconPath = bundledIcon;
 
-  
+  // спробуємо витягти favicon
   try {
     const fav = await tryFetchFaviconFor(hostname);
     if (fav && fav.buffer?.length) {
@@ -306,7 +314,7 @@ ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
       fs.writeFileSync(iconPath, fav.buffer);
     }
   } catch {
-    
+    // ігноруємо — лишимо bundledIcon
   }
 
   const clickBinary = '/opt/click.ubuntu.com/merezhyvo.naz.r/current/app/merezhyvo';
