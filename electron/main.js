@@ -240,6 +240,10 @@ const createMainWindow = () => {
   });
 
   mainWindow = window;
+  mainWindow.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  mainWindow.webContents.on('before-input-event', (e, input) => {
+    if (input.type === 'mouseWheel' && (input.control || input.meta)) e.preventDefault();
+  });
 };
 
 const rebalance = () => {

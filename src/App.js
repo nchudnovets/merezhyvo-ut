@@ -166,26 +166,28 @@ const modeStyles = {
   },
   mobile: {
     toolbarBtnRegular: {
-      width: '60px',
-      height: '60px'
+      width: '100px',
+      height: '100px'
     },
     toolbarBtnIcn: {
-      width: '24px',
-      height: '24px'
+      width: '50px',
+      height: '50px'
     },
     toolbarBtnDesktopOnly: {
       display: 'none'
     },
     searchInput: {
-      fontSize: '27px',
-      height: '50px',
+      fontSize: '50px',
+      height: '80px',
+      paddingRight: '60px'
     },
     makeAppBtn: {
-      height: '36px',
+      height: '60px',
+      width: '60px'
     },
     statusIcon: {
-      width: '22px',
-      height: '22px'
+      width: '32px',
+      height: '32px'
     }
   }
 }
@@ -206,46 +208,115 @@ const App = () => {
   const [msg, setMsg] = useState('');
 
   const mode = useMerezhyvoMode();
+  const targetZoom = mode === 'mobile' ? 1.25 : 1.0;
 
   const getCurrentUrl = () => {
-  try {
-    const wv = webviewRef.current;
-    if (wv && typeof wv.getURL === 'function') return wv.getURL();
-  } catch {}
-  return null;
-};
+    try {
+      const wv = webviewRef.current;
+      if (wv && typeof wv.getURL === 'function') return wv.getURL();
+    } catch {}
+    return null;
+  };
 
-const openShortcutModal = () => {
-  const url = getCurrentUrl();
-  setTitle(url ? new URL(url).hostname.replace(/^www\./, '') : 'Merezhyvo');
-  setShowModal(true);
-};
+  const openShortcutModal = () => {
+    const url = getCurrentUrl();
+    setTitle(url ? new URL(url).hostname.replace(/^www\./, '') : 'Merezhyvo');
+    setShowModal(true);
+  };
 
-const createShortcut = async () => {
-  const url = getCurrentUrl();
-  if (!url) { setMsg('Cannot detect current URL.'); return; }
-  if (!title.trim()) { setMsg('Please enter a name.'); return; }
+  const createShortcut = async () => {
+    const url = getCurrentUrl();
+    if (!url) { setMsg('Cannot detect current URL.'); return; }
+    if (!title.trim()) { setMsg('Please enter a name.'); return; }
 
-  setBusy(true); setMsg('');
-  try {
-    const res = await window.merezhyvo?.createShortcut?.({
-      title: title.trim(),
-      url,
-      single: true
-      // icon: not provided → main will fetch favicon automatically
-    });
-    if (res?.ok) {
-      setMsg(`Shortcut created:\n${res.desktopFilePath}`);
-      setShowModal(false);
-    } else {
-      setMsg(res?.error || 'Unknown error.');
+    setBusy(true); setMsg('');
+    try {
+      const res = await window.merezhyvo?.createShortcut?.({
+        title: title.trim(),
+        url,
+        single: true
+        // icon: not provided → main will fetch favicon automatically
+      });
+      if (res?.ok) {
+        setMsg(`Shortcut created:\n${res.desktopFilePath}`);
+        setShowModal(false);
+      } else {
+        setMsg(res?.error || 'Unknown error.');
+      }
+    } catch (err) {
+      setMsg(String(err));
+    } finally {
+      setBusy(false);
     }
-  } catch (err) {
-    setMsg(String(err));
-  } finally {
-    setBusy(false);
-  }
-};
+  };
+
+  const applyWebviewZoom = () => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    try {
+      if (typeof wv.setZoomFactor === 'function') {
+        wv.setZoomFactor(targetZoom);
+      } else {
+        wv.executeJavaScript(`require('electron').webFrame.setZoomFactor(${targetZoom})`).catch(() => {});
+      }
+    } catch {}
+  };
+
+  const applyWebviewZoomPolicy = () => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    try {
+      if (typeof wv.setVisualZoomLevelLimits === 'function') {
+        wv.setVisualZoomLevelLimits(1, 3);
+      }
+      if (typeof wv.setZoomFactor === 'function') {
+        wv.setZoomFactor(mode === 'mobile' ? 1.25 : 1.0);
+      }
+    } catch {}
+  };
+
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const onReady = () => applyWebviewZoom();
+    const onNav   = () => applyWebviewZoom();
+
+    wv.addEventListener('dom-ready', onReady);
+    wv.addEventListener('did-navigate', onNav);
+    wv.addEventListener('did-navigate-in-page', onNav);
+
+    if (wv.isLoading && !wv.isLoading()) applyWebviewZoom();
+
+    return () => {
+      wv.removeEventListener('dom-ready', onReady);
+      wv.removeEventListener('did-navigate', onNav);
+      wv.removeEventListener('did-navigate-in-page', onNav);
+    };
+  }, []);
+
+  useEffect(() => {
+    applyWebviewZoom();
+  }, [mode]);
+
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+
+    const onReady = () => applyWebviewZoomPolicy();
+    const onNav = () => applyWebviewZoomPolicy();
+
+    wv.addEventListener('dom-ready', onReady);
+    wv.addEventListener('did-navigate', onNav);
+    wv.addEventListener('did-navigate-in-page', onNav);
+
+    if (wv.isLoading && !wv.isLoading()) applyWebviewZoomPolicy();
+
+    return () => {
+      wv.removeEventListener('dom-ready', onReady);
+      wv.removeEventListener('did-navigate', onNav);
+      wv.removeEventListener('did-navigate-in-page', onNav);
+    };
+  }, [mode]);
 
   useEffect(() => {
     const css = `

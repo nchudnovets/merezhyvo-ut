@@ -19,14 +19,12 @@ contextBridge.exposeInMainWorld('merezhyvo', {
   },
 
   createShortcut: async ({ title, url, single = true, icon }) => {
-    // icon?: { name: string, data: ArrayBuffer }  // не обов'язково
     const payload = {
       title: String(title || '').trim(),
       url: String(url || '').trim(),
       single: !!single,
       icon: icon && icon.data && icon.name ? {
         name: String(icon.name || 'icon.png'),
-        // передамо як base64, щоб не плодити типів
         dataBase64: Buffer.from(icon.data).toString('base64')
       } : null
     };
