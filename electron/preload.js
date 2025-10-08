@@ -11,11 +11,11 @@ const { contextBridge, ipcRenderer } = require('electron');
  */
 contextBridge.exposeInMainWorld('merezhyvo', {
   onMode: (handler) => {
-    if (typeof handler === 'function') {
-      ipcRenderer.on('merezhyvo:mode', (_e, mode) => {
-        try { handler(mode); } catch { /* no-op */ }
-      });
-    }
+    if (typeof handler !== 'function') return () => {};
+    const channel = 'merezhyvo:mode';
+    const wrapped = (_e, mode) => { try { handler(mode); } catch {} };
+    ipcRenderer.on(channel, wrapped);
+    return () => ipcRenderer.removeListener(channel, wrapped);
   },
 
   createShortcut: async ({ title, url, single = true, icon }) => {

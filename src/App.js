@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import { useMerezhyvoMode } from './hooks/useMerezyvoMode';
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 
@@ -61,8 +62,6 @@ const styles = {
     gap: '6px'
   },
   navButton: {
-    width: '40px',
-    height: '40px',
     borderRadius: '14px',
     border: 'none',
     backgroundColor: '#1c2333',
@@ -73,8 +72,6 @@ const styles = {
     justifyContent: 'center'
   },
   navIcon: {
-    width: '18px',
-    height: '18px',
     display: 'block'
   },
   navButtonDisabled: {
@@ -92,7 +89,6 @@ const styles = {
   },
   input: {
     flex: 1,
-    height: '30px',
     width: '100%',
     borderRadius: '16px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
@@ -102,8 +98,6 @@ const styles = {
     outline: 'none'
   },
   goButton: {
-    width: '40px',
-    height: '35px',
     borderRadius: '16px',
     border: 'none',
     backgroundColor: '#2563eb',
@@ -116,8 +110,6 @@ const styles = {
   },
   goButtonIcon: {
     display: 'block',
-    width: '16px',
-    height: '16px'
   },
   statusIndicator: {
     minWidth: '22px',
@@ -149,6 +141,51 @@ const styles = {
   }
 };
 
+const modeStyles = {
+  desktop: {
+    toolbarBtnRegular: {
+      width: '40px',
+      height: '40px'
+    },
+    toolbarBtnIcn: {
+      width: '18px',
+      height: '18px'
+    },
+    searchInput: {
+      fontSize: '14px',
+      height: '30px',
+    },
+    makeAppBtn: {
+      height: '26px',
+    },
+    statusIcon: {
+      width: '14px',
+      height: '14px'
+    }
+  },
+  mobile: {
+    toolbarBtnRegular: {
+      width: '60px',
+      height: '60px'
+    },
+    toolbarBtnIcn: {
+      width: '24px',
+      height: '24px'
+    },
+    searchInput: {
+      fontSize: '27px',
+      height: '50px',
+    },
+    makeAppBtn: {
+      height: '36px',
+    },
+    statusIcon: {
+      width: '22px',
+      height: '22px'
+    }
+  }
+}
+
 const App = () => {
   const initialUrl = useMemo(() => normalizeAddress(parseStartUrl()), []);
   const webviewRef = useRef(null);
@@ -163,6 +200,8 @@ const App = () => {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  const mode = useMerezhyvoMode();
 
   const getCurrentUrl = () => {
   try {
@@ -377,12 +416,15 @@ const createShortcut = async () => {
             onClick={handleBack}
             style={{
               ...styles.navButton,
+              ...modeStyles[mode].toolbarBtnRegular,
               ...(canGoBack ? null : styles.navButtonDisabled)
             }}
+            className="btn-regular"
           >
             <svg
               viewBox="0 0 16 16"
-              style={styles.navIcon}
+              style={{...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn}}
+              className="btn-icn-regular"
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"
@@ -404,12 +446,15 @@ const createShortcut = async () => {
             onClick={handleForward}
             style={{
               ...styles.navButton,
+              ...modeStyles[mode].toolbarBtnRegular,
               ...(canGoForward ? null : styles.navButtonDisabled)
             }}
+            className="btn-regular"
           >
             <svg
               viewBox="0 0 16 16"
-              style={styles.navIcon}
+              style={{...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn}}
+              className="btn-icn-regular"
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"
@@ -428,11 +473,13 @@ const createShortcut = async () => {
             type="button"
             aria-label="Reload"
             onClick={handleReload}
-            style={styles.navButton}
+            style={{...styles.navButton, ...modeStyles[mode].toolbarBtnRegular}}
+            className="btn-regular"
           >
             <svg
               viewBox="0 0 16 16"
-              style={styles.navIcon}
+              style={{...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn}}
+              className="btn-icn-regular"
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"
@@ -470,11 +517,12 @@ const createShortcut = async () => {
               autoCorrect="off"
               spellCheck="false"
               placeholder="Enter a URL or search"
-              style={styles.input}
+              style={{...styles.input, ...modeStyles[mode].searchInput}}
             />
             <button
               type="button"
               className="btn btn--makeapp"
+              style={modeStyles[mode].makeAppBtn}
               onClick={openShortcutModal}
               title="Create app shortcut from this site"
               aria-label="Create app shortcut from this site"
@@ -504,10 +552,16 @@ const createShortcut = async () => {
               </svg>
             </button>
           </div>
-          <button type="submit" style={styles.goButton} aria-label="Go">
+          <button
+            type="submit"
+            style={{...styles.goButton, ...modeStyles[mode].toolbarBtnRegular}}
+            className="btn-regular"
+            aria-label="Go"
+          >
             <svg
               viewBox="0 0 16 16"
-              style={styles.goButtonIcon}
+              style={{...styles.goButtonIcon, ...modeStyles[mode].toolbarBtnIcn}}
+              className="btn-icn-regular"
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"
@@ -535,7 +589,7 @@ const createShortcut = async () => {
           {status === 'ready' && (
             <svg
               viewBox="0 0 16 16"
-              style={{ ...styles.statusSvg, ...styles.statusIconReady }}
+              style={{ ...styles.statusSvg, ...styles.statusIconReady, ...modeStyles[mode].statusIcon }}
               xmlns="http://www.w3.org/2000/svg"
               aria-hidden="true"
               focusable="false"

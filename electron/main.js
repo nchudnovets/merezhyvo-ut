@@ -247,7 +247,7 @@ const rebalance = () => {
   const m = resolveMode();
   try {
     mainWindow.webContents.send('merezhyvo:mode', m);
-    mainWindow.webContents.setZoomFactor(m === 'mobile' ? 1.25 : 1.0);
+    mainWindow.webContents.setZoomFactor(m === 'mobile' ? 1.5 : 1.0);
   } catch { /* no-op */ }
 };
 
