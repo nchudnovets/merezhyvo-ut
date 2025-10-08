@@ -151,6 +151,7 @@ const modeStyles = {
       width: '18px',
       height: '18px'
     },
+    toolbarBtnDesktopOnly: {},
     searchInput: {
       fontSize: '14px',
       height: '30px',
@@ -171,6 +172,9 @@ const modeStyles = {
     toolbarBtnIcn: {
       width: '24px',
       height: '24px'
+    },
+    toolbarBtnDesktopOnly: {
+      display: 'none'
     },
     searchInput: {
       fontSize: '27px',
@@ -447,6 +451,7 @@ const createShortcut = async () => {
             style={{
               ...styles.navButton,
               ...modeStyles[mode].toolbarBtnRegular,
+              ...modeStyles[mode].toolbarBtnDesktopOnly,
               ...(canGoForward ? null : styles.navButtonDisabled)
             }}
             className="btn-regular"
@@ -554,7 +559,11 @@ const createShortcut = async () => {
           </div>
           <button
             type="submit"
-            style={{...styles.goButton, ...modeStyles[mode].toolbarBtnRegular}}
+            style={{
+              ...styles.goButton,
+              ...modeStyles[mode].toolbarBtnRegular,
+              ...modeStyles[mode].toolbarBtnDesktopOnly
+            }}
             className="btn-regular"
             aria-label="Go"
           >
