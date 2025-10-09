@@ -22,7 +22,7 @@
 
     "start:mobile": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js",
     "start:desktop": "npm run build && MZV_MODE=desktop electron electron/main.js",
-    "start:devtools": "npm run build && MZV_DEVTOOLS=1 electron electron/main.js --devtools",
+    "start:devtools": "npm run build && MZV_MODE=desktop electron electron/main.js --devtools",
     "start:mob-devtools": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 electron electron/main.js --devtools",
     "start:nogpu": "npm run build && MZV_DEV_NO_GPU=1 electron electron/main.js",
     "start:h264": "npm run build && MZV_FORCE_H264=1 electron electron/main.js",

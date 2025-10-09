@@ -68,7 +68,11 @@ const styles = {
   navIcon: { display: 'block' },
   navButtonDisabled: { opacity: 0.35 },
   form: { display: 'flex', alignItems: 'center', gap: '10px', flex: 1 },
-  addressField: { position: 'relative', width: '100%' },
+  addressField: {
+    position: 'relative',
+    width: '100%',
+    zIndex: 0
+  },
   input: {
     flex: 1,
     width: '100%',
@@ -78,6 +82,20 @@ const styles = {
     color: '#f8fafc',
     padding: '0 52px 0 14px',
     outline: 'none'
+  },
+  makeAppBtn: {
+    position: 'absolute',
+    top: '50%',
+    right: 2,
+    transform: 'translateY(-50%)',
+    zIndex: 20, 
+    pointerEvents: 'auto',
+    border: 'none',
+    borderRadius: 12,
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   goButton: {
     borderRadius: '16px',
@@ -108,7 +126,38 @@ const styles = {
     borderTopColor: '#2563eb',
     animation: 'app-spin 0.75s linear infinite'
   },
-  webview: { flex: 1, border: 'none', backgroundColor: '#05070f' }
+  webview: { flex: 1, border: 'none', backgroundColor: '#05070f', position: 'relative', zIndex: 0 },
+  bottomToolbar: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '4px 50px',
+    backgroundColor: '#121826',
+    borderTop: '1px solid rgba(148, 163, 184, 0.18)'
+  },
+  zoomLabel: {
+    fontSize: '12px',
+    letterSpacing: '0.05em',
+    textTransform: 'uppercase',
+    color: '#94a3b8'
+  },
+  zoomSliderContainer: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    zIndex: 30,
+    pointerEvents: 'auto'
+  },
+  zoomSlider: {
+    flex: 1,
+    minWidth: 0
+  },
+  zoomValue: {
+    fontSize: '12px',
+    color: '#f8fafc',
+    fontVariantNumeric: 'tabular-nums'
+  }
 };
 
 const modeStyles = {
@@ -116,17 +165,23 @@ const modeStyles = {
     toolbarBtnRegular: { width: '40px', height: '40px' },
     toolbarBtnIcn: { width: '18px', height: '18px' },
     toolbarBtnDesktopOnly: {},
-    searchInput: { fontSize: '14px', height: '30px' },
-    makeAppBtn: { height: '26px' },
-    statusIcon: { width: '14px', height: '14px' }
+    searchInput: { fontSize: '14px', height: '30px', paddingRight: '56px' },
+    makeAppBtn: { width: '40px', height: '40px' },
+    makeAppBtnIcn: {},
+    statusIcon: { width: '14px', height: '14px' },
+    zoomSlider: { height: '4px' },
+    zoomValue: { minWidth: '48px', textAlign: 'right' }
   },
   mobile: {
     toolbarBtnRegular: { width: '100px', height: '100px' },
     toolbarBtnIcn: { width: '50px', height: '50px' },
     toolbarBtnDesktopOnly: { display: 'none' },
-    searchInput: { fontSize: '50px', height: '80px', paddingRight: '60px' },
-    makeAppBtn: { height: '60px', width: '60px' },
-    statusIcon: { width: '32px', height: '32px' }
+    searchInput: { fontSize: '50px', height: '80px', paddingRight: '88px' },
+    makeAppBtn: { height: '72px', width: '72px' },
+    makeAppBtnIcn: { height: '60px', width: '60px' },
+    statusIcon: { width: '32px', height: '32px' },
+    zoomSlider: { height: '22px' },
+    zoomValue: { minWidth: '90px', textAlign: 'right', fontSize: '24px' }
   }
 };
 
@@ -154,26 +209,38 @@ const App = () => {
   const mode = useMerezhyvoMode();
 
   // Локальне значення зуму (без читання з webview, щоб не ловити "could not be cloned")
-  const zoomRef = useRef(mode === 'mobile' ? 1.20 : 1.00);
-  useEffect(() => {
-    zoomRef.current = mode === 'mobile' ? 1.20 : 1.00;
-  }, [mode]);
+  const zoomRef = useRef(mode === 'mobile' ? 1.2 : 1.0);
+  const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
   // ---- ЗУМ + PINCH всередині webview (без getZoomFactor) ----
   const setZoomClamped = useCallback((val) => {
+    const numeric = Number(val);
+    if (!Number.isFinite(numeric)) {
+      return;
+    }
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
+    const rounded = Math.round(clamped * 100) / 100;
     const wv = webviewRef.current;
-    if (!wv) return;
-    const next = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, +val.toFixed(2)));
-    try {
-      if (typeof wv.setZoomFactor === 'function') {
-        wv.setZoomFactor(next);
-      } else {
-        // fallback у guest-контексті
-        wv.executeJavaScript(`require('electron').webFrame.setZoomFactor(${next})`).catch(() => {});
-      }
-      zoomRef.current = next;
-    } catch {}
+    if (wv) {
+      try {
+        if (typeof wv.setZoomFactor === 'function') {
+          wv.setZoomFactor(rounded);
+        } else {
+          // fallback у guest-контексті
+          wv.executeJavaScript(`require('electron').webFrame.setZoomFactor(${rounded})`).catch(() => {});
+        }
+      } catch {}
+    }
+    zoomRef.current = rounded;
+    setZoomLevel(rounded);
   }, []);
+
+  useEffect(() => {
+    const base = mode === 'mobile' ? 1.2 : 1.0;
+    zoomRef.current = base;
+    setZoomLevel(base);
+    setZoomClamped(base);
+  }, [mode, setZoomClamped]);
 
   const applyZoomPolicy = useCallback(() => {
     const wv = webviewRef.current;
@@ -191,12 +258,22 @@ const App = () => {
     if (!wv) return;
 
     const onReady = () => applyZoomPolicy();
-    const onNav   = () => applyZoomPolicy();
+    const onNav = () => applyZoomPolicy();
+    const onZoomChanged = (event) => {
+      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : wv.getZoomFactor?.();
+      if (typeof raw !== 'number' || Number.isNaN(raw)) {
+        return;
+      }
+      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
+      zoomRef.current = normalized;
+      setZoomLevel(normalized);
+    };
 
     wv.addEventListener('dom-ready', onReady);
     wv.addEventListener('did-frame-finish-load', onReady);
     wv.addEventListener('did-navigate', onNav);
     wv.addEventListener('did-navigate-in-page', onNav);
+    wv.addEventListener('zoom-changed', onZoomChanged);
 
     if (wv.isLoading && !wv.isLoading()) applyZoomPolicy();
 
@@ -205,12 +282,18 @@ const App = () => {
       wv.removeEventListener('did-frame-finish-load', onReady);
       wv.removeEventListener('did-navigate', onNav);
       wv.removeEventListener('did-navigate-in-page', onNav);
+      wv.removeEventListener('zoom-changed', onZoomChanged);
     };
   }, [applyZoomPolicy]);
 
-  // Кнопки A- / A+
-  const zoomOut = useCallback(() => setZoomClamped(zoomRef.current - ZOOM_STEP), [setZoomClamped]);
-  const zoomIn  = useCallback(() => setZoomClamped(zoomRef.current + ZOOM_STEP), [setZoomClamped]);
+  const handleZoomSliderChange = useCallback(
+    (event) => {
+      const { valueAsNumber, value } = event.target;
+      const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
+      setZoomClamped(candidate);
+    },
+    [setZoomClamped]
+  );
 
   // ---- Кастомні скролбари всередині webview ----
   useEffect(() => {
@@ -377,8 +460,10 @@ const App = () => {
     error: 'Failed to load'
   };
 
+  const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
+
   return (
-    <div style={styles.container} className={`app app--${mode}`}>
+    <div style={styles.container}>
       <div style={styles.toolbar} className="toolbar">
         <div style={styles.navGroup}>
           <button
@@ -458,12 +543,12 @@ const App = () => {
             <button
               type="button"
               className="btn btn--makeapp"
-              style={modeStyles[mode].makeAppBtn}
+              style={{ ...styles.makeAppBtn, ...modeStyles[mode].makeAppBtn }}
               onClick={openShortcutModal}
               title="Create app shortcut from this site"
               aria-label="Create app shortcut from this site"
             >
-              <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg">
+              <svg viewBox="0 0 16 16" xmlns="http://www.w3.org/2000/svg" style={ modeStyles[mode].makeAppBtnIcn }>
                 <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
                       d="M8 2v6m0 0-2.5-2.5M8 8l2.5-2.5"/>
                 <path fill="none" stroke="currentColor" strokeLinecap="round" strokeLinejoin="round" strokeWidth="1.5"
@@ -490,30 +575,6 @@ const App = () => {
             </svg>
           </button>
         </form>
-
-        {/* Zoom controls */}
-        <div style={styles.navGroup}>
-          <button
-            type="button"
-            aria-label="Zoom out"
-            onClick={zoomOut}
-            style={{ ...styles.navButton, ...modeStyles[mode].toolbarBtnRegular }}
-            className="btn-regular"
-            title="Zoom out"
-          >
-            A−
-          </button>
-          <button
-            type="button"
-            aria-label="Zoom in"
-            onClick={zoomIn}
-            style={{ ...styles.navButton, ...modeStyles[mode].toolbarBtnRegular }}
-            className="btn-regular"
-            title="Zoom in"
-          >
-            A+
-          </button>
-        </div>
 
         <div style={styles.statusIndicator} role="status" aria-label={statusLabelMap[status]}>
           {status === 'loading' && <span style={styles.spinner} aria-hidden="true" />}
@@ -542,7 +603,8 @@ const App = () => {
             <h3>Create app shortcut</h3>
             <p style={{ opacity: 0.8, marginTop: -6 }}>
               The icon will be fetched automatically from the site (favicon). If it fails,
-              a default Merezhyvo icon will be used.
+              a default Merezhyvo icon will be used.<br />
+              Please refresh app launcher after the installation, or reboot your device.
             </p>
             <label style={{ display: 'block', marginBottom: 12 }}>
               Name
@@ -567,6 +629,24 @@ const App = () => {
         style={styles.webview}
         allowpopups="true"
       />
+
+      <div className="zoom-toolbar" style={styles.bottomToolbar}>
+        <span style={styles.zoomLabel}>Zoom</span>
+        <div style={styles.zoomSliderContainer}>
+          <input
+            type="range"
+            min={ZOOM_MIN}
+            max={ZOOM_MAX}
+            step={ZOOM_STEP}
+            value={zoomLevel}
+            onChange={handleZoomSliderChange}
+            aria-label="Zoom level"
+            className="zoom-slider"
+            style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
+          />
+        </div>
+        <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
+      </div>
     </div>
   );
 };
