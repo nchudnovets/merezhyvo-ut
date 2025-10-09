@@ -5,9 +5,8 @@ const { contextBridge, ipcRenderer } = require('electron');
 /**
  * Expose a minimal, safe API to the renderer.
  * Usage in renderer:
- *   if (window.merezhyvo?.onMode) {
- *     window.merezhyvo.onMode((mode) => { /* apply mode */ /* });
- *   }
+ *   const off = window.merezhyvo?.onMode((mode) => { /* apply mode *\/ });
+ *   off && off(); // to unsubscribe
  */
 contextBridge.exposeInMainWorld('merezhyvo', {
   onMode: (handler) => {
@@ -15,20 +14,33 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     const channel = 'merezhyvo:mode';
     const wrapped = (_e, mode) => { try { handler(mode); } catch {} };
     ipcRenderer.on(channel, wrapped);
-    return () => ipcRenderer.removeListener(channel, wrapped);
+    return () => {
+      try { ipcRenderer.removeListener(channel, wrapped); } catch {}
+    };
   },
 
+  /**
+   * Ask main process to create a .desktop shortcut for the current site.
+   * `icon` is optional and usually omitted (main tries to fetch favicon itself).
+   */
   createShortcut: async ({ title, url, single = true, icon }) => {
     const payload = {
       title: String(title || '').trim(),
       url: String(url || '').trim(),
       single: !!single,
-      icon: icon && icon.data && icon.name ? {
-        name: String(icon.name || 'icon.png'),
-        dataBase64: Buffer.from(icon.data).toString('base64')
-      } : null
+      icon: (icon && icon.data && icon.name)
+        ? {
+            name: String(icon.name || 'icon.png'),
+            // `Buffer` is available in preload (Node in preload is enabled)
+            dataBase64: Buffer.from(icon.data).toString('base64')
+          }
+        : null
     };
-    return ipcRenderer.invoke('merezhyvo:createShortcut', payload);
+    try {
+      return await ipcRenderer.invoke('merezhyvo:createShortcut', payload);
+    } catch (err) {
+      return { ok: false, error: String(err) };
+    }
   }
 });
 
@@ -40,7 +52,8 @@ contextBridge.exposeInMainWorld('merezhyvo', {
   try {
     const deny = (type = '') => /(webm|vp9|av01|av1)/i.test(type);
 
-    const origMSE = globalThis.MediaSource && globalThis.MediaSource.isTypeSupported;
+    const origMSE =
+      globalThis.MediaSource && globalThis.MediaSource.isTypeSupported;
     if (origMSE) {
       Object.defineProperty(MediaSource, 'isTypeSupported', {
         value: (type) => (!deny(type) && origMSE.call(MediaSource, type)),
@@ -60,7 +73,10 @@ contextBridge.exposeInMainWorld('merezhyvo', {
 
     // (UA override not used; left here as a safe no-op placeholder.)
     try {
-      const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
+      const desc = Object.getOwnPropertyDescriptor(
+        Navigator.prototype,
+        'userAgent'
+      );
       if (desc && desc.get) {
         // const ua = desc.get.call(navigator);
         // no UA mutation in preload
@@ -79,7 +95,13 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     const host = (location.hostname || '').toLowerCase();
     if (!/(^|\.)youtube\.com$/.test(host)) return;
 
-    localStorage.setItem('yt-player-quality', JSON.stringify({ data: 'hd720' }));
-    localStorage.setItem('yt-player-quality-manual', JSON.stringify({ data: true }));
+    localStorage.setItem(
+      'yt-player-quality',
+      JSON.stringify({ data: 'hd720' })
+    );
+    localStorage.setItem(
+      'yt-player-quality-manual',
+      JSON.stringify({ data: true })
+    );
   } catch {}
 })();

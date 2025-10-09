@@ -11,16 +11,24 @@ const { resolveMode } = require('./mode');
 const DEFAULT_URL = 'https://duckduckgo.com';
 let mainWindow;
 
-// --- Chromium/Electron flags ---
+// ---------- Chromium/Electron flags ----------
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
 app.commandLine.appendSwitch('use-gl', 'egl');
-app.commandLine.appendSwitch('enable-pinch'); // жест pinch у webview
+app.commandLine.appendSwitch('enable-pinch'); // enable pinch gestures in the webview
+// Optional: force device scale if hit testing drifts
+// if (process.env.MZV_FORCE_SCALE === '1') {
+//   app.commandLine.appendSwitch('force-device-scale-factor', '1');
+// }
 
-// ID для системи
+// Application identifier for the host OS
 app.setAppUserModelId('dev.naz.r.merezhyvo');
 
-// без глобального меню
+// Remove the default application menu
 Menu.setApplicationMenu(null);
+
+// ---------- safe insets (workaround for Ubuntu Touch / Lomiri) ----------
+const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
+const SAFE_RIGHT  = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT  || '0', 10));
 
 // ---------- utils ----------
 const slugify = (s) =>
@@ -106,7 +114,7 @@ const normalizeAddress = (value) => {
   if (!value || !value.trim()) return DEFAULT_URL;
   const trimmed = value.trim();
 
-  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed; // схема є
+  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed; // already includes a scheme
 
   if (trimmed.includes(' ')) {
     return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
@@ -140,7 +148,7 @@ const parseLaunchConfig = () => {
     const m = rawArg.match(/^--mode=(desktop|mobile)$/i);
     if (m) { modeOverride = m[1].toLowerCase(); continue; }
 
-    if (/^-/.test(rawArg)) continue; // інші прапорці пропускаємо
+    if (/^-/.test(rawArg)) continue; // ignore unrelated flags
 
     if (url === DEFAULT_URL) url = normalizeAddress(rawArg);
   }
@@ -182,62 +190,38 @@ const createMainWindow = () => {
     }
   });
 
-  // блокуємо всі window.open
-  win.webContents.setWindowOpenHandler(() => ({ action: 'deny' }));
-
-  // хоткеї для оболонки (не для webview)
-  win.webContents.on('before-input-event', (event, input) => {
-    if (input.type !== 'keyDown') return;
-
-    // DevTools оболонки
-    if (input.key === 'F12' || (input.control && input.shift && (input.key === 'I' || input.key === 'i'))) {
-      event.preventDefault();
-      if (!win.isDestroyed()) {
-        if (win.webContents.isDevToolsOpened()) win.webContents.closeDevTools();
-        else win.webContents.openDevTools({ mode: 'detach' });
-      }
-      return;
-    }
-
-    // Fullscreen toggle
-    if (input.key === 'F11' || (input.alt && input.key === 'Enter')) {
-      event.preventDefault();
-      if (!win.isDestroyed()) win.setFullScreen(!win.isFullScreen());
-      return;
-    }
-
-    // Esc: вийти з фулскріну або закрити
-    if (input.key === 'Escape') {
-      event.preventDefault();
-      if (!win.isDestroyed()) {
-        if (win.isFullScreen()) win.setFullScreen(false);
-        else win.close();
-      }
-      return;
-    }
-
-    // Ctrl+M: toggle maximize
-    if (input.control && (input.key.toLowerCase && input.key.toLowerCase() === 'm')) {
-      event.preventDefault();
-      if (!win.isDestroyed()) {
-        if (win.isMaximized()) win.unmaximize();
-        else win.maximize();
-      }
-      return;
-    }
-
-    // блокуємо модифікаторні комбінації для хоста (щоб вони не масштабували оболонку)
-    if (input.control || input.meta || input.alt) {
-      event.preventDefault();
-    }
-  });
+  // Helper for pseudo-fullscreen on mobile taking safe insets into account
+  const applyMobileBounds = (w) => {
+    try {
+      const display = screen.getPrimaryDisplay();
+      const base = display.size || display.workArea || { width: 0, height: 0 };
+      const targetW = Math.max(w.getMinimumSize()[0], base.width  - SAFE_RIGHT  - 1);
+      const targetH = Math.max(w.getMinimumSize()[1], base.height - SAFE_BOTTOM - 1);
+      w.setFullScreen(false);
+      w.setBounds({ x: 0, y: 0, width: targetW, height: targetH }, false);
+    } catch {}
+  };
 
   win.once('ready-to-show', () => {
-    win.show();
-    if (fullscreen) win.setFullScreen(true);
+    // On mobile avoid true fullscreen and instead resize using SAFE_* offsets
+    if (initialMode === 'mobile') {
+      applyMobileBounds(win);
+    } else if (fullscreen) {
+      win.setFullScreen(true);
+    }
+
     if (devtools) win.webContents.openDevTools({ mode: 'detach' });
+    win.show();
     win.focus();
   });
+
+  // Re-apply bounds whenever display metrics change
+  const rebalanceBounds = () => {
+    if (initialMode === 'mobile') applyMobileBounds(win);
+  };
+  screen.on('display-metrics-changed', rebalanceBounds);
+  screen.on('display-added', rebalanceBounds);
+  screen.on('display-removed', rebalanceBounds);
 
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
@@ -247,8 +231,16 @@ const createMainWindow = () => {
     query: { start: startUrl, mode: initialMode }
   });
 
-  // блок зуму оболонки (тільки для host webContents)
-  win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  // Block zooming on the host webContents (only allow it inside the <webview>)
+  win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+  const resetHostZoom = () => {
+    if (win.isDestroyed()) return;
+    const current = win.webContents.getZoomFactor();
+    if (typeof current === 'number' && Math.abs(current - 1) > 1e-3) {
+      win.webContents.setZoomFactor(1);
+    }
+  };
+  win.webContents.on('zoom-changed', resetHostZoom);
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'mouseWheel' && (input.control || input.meta)) e.preventDefault();
   });
@@ -256,13 +248,13 @@ const createMainWindow = () => {
   mainWindow = win;
 };
 
-// при зміні екранів — просто шлемо новий режим у рендерер
+// When displays change send a refreshed mode to the renderer
 const rebalance = () => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const m = resolveMode();
   try {
     mainWindow.webContents.send('merezhyvo:mode', m);
-    // НЕ чіпаємо mainWindow.webContents.setZoomFactor — зум робимо у <webview>
+    // Leave host zoom alone — zoom is managed inside the <webview>
   } catch {}
 };
 
@@ -278,17 +270,24 @@ app.whenReady().then(() => {
   });
 });
 
-// продублюємо блок хоста (для всіх вікон, якщо зʼявляться)
+// Apply the same zoom policy to any newly created window
 app.on('browser-window-created', (_event, win) => {
-  win.webContents.setVisualZoomLevelLimits(1, 1).catch(() => {});
+  win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+  win.webContents.on('zoom-changed', () => {
+    if (win.isDestroyed()) return;
+    const current = win.webContents.getZoomFactor();
+    if (typeof current === 'number' && Math.abs(current - 1) > 1e-3) {
+      win.webContents.setZoomFactor(1);
+    }
+  });
 });
 
-// звичайний вихід
+// Standard quit behaviour
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-// ---------- IPC: створення ярлика ----------
+// ---------- IPC: shortcut creation ----------
 ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
   const { title, url, single } = payload || {};
   if (!title || !url) return { ok: false, error: 'Title and URL are required.' };
@@ -302,10 +301,10 @@ ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
   let hostname = '';
   try { hostname = new URL(url).hostname.replace(/^www\./, ''); } catch {}
 
-  const bundledIcon = path.resolve(__dirname, '..', 'merezhyvo_256.png'); // перевір назву у проєкті
+  const bundledIcon = path.resolve(__dirname, '..', 'merezhyvo_256.png'); // ensure the asset name matches the project
   let iconPath = bundledIcon;
 
-  // спробуємо витягти favicon
+  // Attempt to fetch a favicon for the site
   try {
     const fav = await tryFetchFaviconFor(hostname);
     if (fav && fav.buffer?.length) {
@@ -314,7 +313,7 @@ ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
       fs.writeFileSync(iconPath, fav.buffer);
     }
   } catch {
-    // ігноруємо — лишимо bundledIcon
+    // If anything fails keep the bundled icon
   }
 
   const clickBinary = '/opt/click.ubuntu.com/merezhyvo.naz.r/current/app/merezhyvo';

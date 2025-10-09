@@ -1,29 +1,49 @@
-// src/index.js
 import React from 'react';
 import { createRoot } from 'react-dom/client';
 import App from './App';
 
-// Apply UI mode (affects CSS via [data-mode] on <html>)
-function applyMode(mode) {
-  const m = mode === 'mobile' || mode === 'desktop' ? mode : 'desktop';
-  document.documentElement.dataset.mode = m;
+/**
+ * Minimal bootstrap:
+ * - keeps Electron-specific imports out of the renderer bundle
+ * - logs helpful errors if something goes wrong
+ */
+
+function mount() {
+  try {
+    const rootEl = document.getElementById('root');
+    if (!rootEl) {
+      console.error('[Merezhyvo] #root not found in DOM');
+      return;
+    }
+
+    // React to mode changes (desktop/mobile) sent from the main process
+    if (window.merezhyvo?.onMode) {
+      window.merezhyvo.onMode((mode) => {
+        try {
+          document.documentElement.dataset.mode = mode || 'desktop';
+        } catch {}
+      });
+    }
+
+    // Allow overriding the mode via ?mode=...
+    try {
+      const params = new URLSearchParams(location.search);
+      const mode = params.get('mode');
+      if (mode) {
+        document.documentElement.dataset.mode = mode;
+      }
+    } catch {}
+
+    const root = createRoot(rootEl);
+    root.render(<App />);
+  } catch (err) {
+    console.error('[Merezhyvo] renderer bootstrap failed:', err);
+  }
 }
 
-// initial mode from query (?mode=desktop|mobile)
-const params = new URLSearchParams(location.search);
-applyMode(params.get('mode') || 'desktop');
-
-// mount React
-const container = document.getElementById('root');
-if (!container) {
-  throw new Error('merezhyvo: missing root element');
-}
-const root = createRoot(container);
-root.render(<App />);
-
-// subscribe to mode changes from main via preload bridge
-if (window.merezhyvo?.onMode) {
-  window.merezhyvo.onMode((mode) => {
-    try { applyMode(mode); } catch { /* no-op */ }
-  });
+// Wait for DOM readiness (important on Ubuntu Touch)
+if (document.readyState === 'loading') {
+  document.addEventListener('DOMContentLoaded', mount, { once: true });
+} else {
+  mount();
 }
