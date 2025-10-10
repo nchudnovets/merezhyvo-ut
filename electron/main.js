@@ -1,6 +1,6 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, screen, ipcMain } = require('electron');
+const { app, BrowserWindow, Menu, screen, ipcMain, session } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { existsSync } = fs;
@@ -9,6 +9,8 @@ const http = require('http');
 const { resolveMode } = require('./mode');
 
 const DEFAULT_URL = 'https://duckduckgo.com';
+const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
+const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0';
 let mainWindow;
 
 // ---------- Chromium/Electron flags ----------
@@ -189,6 +191,16 @@ const createMainWindow = () => {
       preload: path.resolve(__dirname, 'preload.js')
     }
   });
+  const resolvedMode = initialMode === 'desktop' ? 'desktop' : 'mobile';
+  const ua = resolvedMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  try {
+    win.webContents.setUserAgent(ua);
+  } catch {}
+  win.webContents.on('did-attach-webview', (_event, contents) => {
+    try {
+      contents.setUserAgent(resolvedMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT);
+    } catch {}
+  });
 
   // Helper for pseudo-fullscreen on mobile taking safe insets into account
   const applyMobileBounds = (w) => {
@@ -259,6 +271,11 @@ const rebalance = () => {
 };
 
 app.whenReady().then(() => {
+  const currentMode = resolveMode();
+  const initialUA = currentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  try {
+    session.defaultSession?.setUserAgent(initialUA);
+  } catch {}
   createMainWindow();
 
   screen.on('display-added', rebalance);
@@ -280,6 +297,11 @@ app.on('browser-window-created', (_event, win) => {
       win.webContents.setZoomFactor(1);
     }
   });
+  const mode = resolveMode();
+  const ua = mode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  try {
+    win.webContents.setUserAgent(ua);
+  } catch {}
 });
 
 // Standard quit behaviour
