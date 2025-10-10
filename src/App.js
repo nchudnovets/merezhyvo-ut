@@ -13,6 +13,18 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
 const ZOOM_STEP = 0.1;
 const KB_HEIGHT = 650;
+const NON_TEXT_INPUT_TYPES = new Set([
+  'button',
+  'submit',
+  'reset',
+  'checkbox',
+  'radio',
+  'range',
+  'color',
+  'file',
+  'image',
+  'hidden'
+]);
 
 const styles = {
   container: {
@@ -342,6 +354,26 @@ const App = () => {
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+
+  const isEditableElement = useCallback((element) => {
+    if (!element) return false;
+    if (element === inputRef.current) return true;
+    if (typeof element.isContentEditable === 'boolean' && element.isContentEditable) {
+      return true;
+    }
+    const tag = (element.tagName || '').toLowerCase();
+    if (tag === 'textarea') {
+      return !element.disabled && !element.readOnly;
+    }
+    if (tag === 'input') {
+      const type = (element.getAttribute('type') || '').toLowerCase();
+      if (NON_TEXT_INPUT_TYPES.has(type)) {
+        return false;
+      }
+      return !element.disabled && !element.readOnly;
+    }
+    return false;
+  }, [inputRef]);
 
   const closeShortcutModal = useCallback(() => {
     setShowModal(false);
@@ -734,6 +766,10 @@ const App = () => {
     if (view) { setStatus('loading'); view.reload(); }
   }, []);
 
+  const handleInputPointerDown = useCallback(() => {
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
   const handleInputFocus = useCallback((event) => {
     isEditingRef.current = true;
     setIsEditing(true);
@@ -744,8 +780,16 @@ const App = () => {
   const handleInputBlur = useCallback(() => {
     isEditingRef.current = false;
     setIsEditing(false);
-    setInputValue(currentUrl);
-  }, [currentUrl]);
+    if (mode !== 'mobile') return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+      if (isSoftKey || isEditableElement(active)) {
+        return;
+      }
+      setKbVisible(false);
+    });
+  }, [mode, isEditableElement]);
 
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = () => {
@@ -920,7 +964,15 @@ const App = () => {
       if (mode === 'mobile') setKbVisible(true);
     };
     const handleBlur = () => {
-      if (mode === 'mobile') setKbVisible(false);
+      if (mode !== 'mobile') return;
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+        if (isSoftKey || isEditableElement(active)) {
+          return;
+        }
+        setKbVisible(false);
+      });
     };
     const handlePointerDown = () => {
       if (mode === 'mobile') setKbVisible(true);
@@ -935,7 +987,7 @@ const App = () => {
       wv.removeEventListener('blur', handleBlur);
       wv.removeEventListener('pointerdown', handlePointerDown);
     };
-  }, [mode]);
+  }, [mode, isEditableElement]);
 
   return (
     <div style={styles.container} className={`app app--${mode}`}>
@@ -1037,6 +1089,7 @@ const App = () => {
               type="text"
               value={inputValue}
               onChange={(e) => setInputValue(e.target.value)}
+              onPointerDown={handleInputPointerDown}
               onFocus={handleInputFocus}
               onBlur={handleInputBlur}
               inputMode="url"

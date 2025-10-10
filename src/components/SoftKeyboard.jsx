@@ -298,7 +298,7 @@ export default function SoftKeyboard({
   };
 
   return (
-    <div style={containerStyle}>
+    <div style={containerStyle} data-soft-keyboard="true">
       <div style={headerStyle}>
         <div style={feedbackStyle}>{feedback}</div>
         <button
