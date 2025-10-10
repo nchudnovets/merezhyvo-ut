@@ -12,7 +12,7 @@ const DEFAULT_URL = 'https://duckduckgo.com';
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
 const ZOOM_STEP = 0.1;
-const KB_HEIGHT = 260;
+const KB_HEIGHT = 650;
 
 const styles = {
   container: {
@@ -252,7 +252,7 @@ const App = () => {
   }, [kbLayout]);
 
   // --- Zoom management inside the webview ---
-  const zoomRef = useRef(mode === 'mobile' ? 1.2 : 1.0);
+  const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
  const setZoomClamped = useCallback((val) => {
@@ -519,6 +519,62 @@ const App = () => {
     try { await wv.executeJavaScript(js); } catch {}
   }, []);
 
+  const injectArrowToWeb = useCallback(async (direction) => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const js = `
+      (function(dir){
+        try {
+          const el = document.activeElement;
+          if (!el) return false;
+          const isEditable = el.isContentEditable || (typeof el.value === 'string');
+          if (!isEditable) return false;
+          const moveBackward = dir === 'ArrowLeft';
+
+          if (el.isContentEditable) {
+            const sel = window.getSelection();
+            if (!sel || sel.rangeCount === 0) return false;
+            if (!sel.isCollapsed) {
+              moveBackward ? sel.collapseToStart() : sel.collapseToEnd();
+            }
+            if (typeof sel.modify === 'function') {
+              sel.modify('move', moveBackward ? 'backward' : 'forward', 'character');
+            } else {
+              const range = sel.getRangeAt(0);
+              const node = range.startContainer;
+              let offset = range.startOffset + (moveBackward ? -1 : 1);
+              if (node.nodeType === Node.TEXT_NODE) {
+                const length = node.textContent?.length ?? 0;
+                offset = Math.max(0, Math.min(length, offset));
+                range.setStart(node, offset);
+                range.collapse(true);
+              }
+            }
+            const evt = new Event('selectionchange', { bubbles: true });
+            document.dispatchEvent(evt);
+            return true;
+          } else {
+            const length = el.value.length;
+            const start = el.selectionStart ?? length;
+            const end = el.selectionEnd ?? length;
+            let pos;
+            if (start !== end) {
+              pos = moveBackward ? Math.min(start, end) : Math.max(start, end);
+            } else {
+              pos = moveBackward ? Math.max(0, start - 1) : Math.min(length, start + 1);
+            }
+            el.selectionStart = el.selectionEnd = pos;
+            el.focus();
+            const evt = new Event('selectionchange', { bubbles: true });
+            document.dispatchEvent(evt);
+            return true;
+          }
+        } catch (e) { return false; }
+      })(${JSON.stringify(direction)});
+    `;
+    try { await wv.executeJavaScript(js); } catch {}
+  }, []);
+
   // --- Toolbar event handlers ---
   const handleSubmit = useCallback((event) => {
     event.preventDefault();
@@ -596,13 +652,40 @@ const App = () => {
 
   const sendKeyToWeb = useCallback(async (key) => {
     if (isEditingRef.current && inputRef.current) {
+      const inputEl = inputRef.current;
+      const value = inputEl.value ?? '';
+      const rawStart = inputEl.selectionStart ?? value.length;
+      const rawEnd = inputEl.selectionEnd ?? value.length;
+      const selectionStart = Math.min(rawStart, rawEnd);
+      const selectionEnd = Math.max(rawStart, rawEnd);
+      const setCaret = (pos) => {
+        setTimeout(() => {
+          inputEl.selectionStart = inputEl.selectionEnd = pos;
+        }, 0);
+      };
+
       if (key === 'Backspace') {
-        setInputValue((value) => value.slice(0, -1));
+        if (selectionStart === 0 && selectionEnd === 0) {
+          if (kbShift && !kbCaps) setKbShift(false);
+          return;
+        }
+        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
+        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
+        setInputValue(nextValue);
+        setCaret(deleteStart);
       } else if (key === 'Enter') {
         const fake = { preventDefault: () => {} };
         handleSubmit(fake);
+      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const nextPos = key === 'ArrowLeft'
+          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
+          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
+        setCaret(nextPos);
       } else {
-        setInputValue((value) => value + key);
+        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
+        const nextPos = selectionStart + key.length;
+        setInputValue(nextValue);
+        setCaret(nextPos);
       }
       if (kbShift && !kbCaps) setKbShift(false);
       return;
@@ -612,11 +695,13 @@ const App = () => {
       await injectBackspaceToWeb();
     } else if (key === 'Enter') {
       await injectTextToWeb('\n');
+    } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+      await injectArrowToWeb(key);
     } else {
       await injectTextToWeb(key);
     }
     if (kbShift && !kbCaps) setKbShift(false);
-  }, [handleSubmit, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps]);
+  }, [handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps]);
 
   const handleShortcutPointerDown = useCallback((event) => {
     event.preventDefault();
@@ -647,7 +732,6 @@ const App = () => {
     error: 'Failed to load'
   };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
-  const keyboardPadding = mode === 'mobile' && kbVisible ? KB_HEIGHT + 8 : 0;
 
   // --- Ensure the internal <iframe> created by <webview> fills the host ---
   useEffect(() => {
@@ -719,13 +803,7 @@ const App = () => {
   }, [mode]);
 
   return (
-    <div
-      style={{
-        ...styles.container,
-        paddingBottom: keyboardPadding
-      }}
-      className={`app app--${mode}`}
-    >
+    <div style={styles.container} className={`app app--${mode}`}>
       <div style={styles.toolbar} className="toolbar">
         <div style={styles.navGroup}>
           <button

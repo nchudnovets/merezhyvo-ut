@@ -185,7 +185,7 @@ const createMainWindow = () => {
       sandbox: false,
       webviewTag: true,
       spellcheck: false,
-      defaultFontSize: initialMode === 'mobile' ? 22 : 16,
+      defaultFontSize: initialMode === 'mobile' ? 28 : 16,
       preload: path.resolve(__dirname, 'preload.js')
     }
   });
