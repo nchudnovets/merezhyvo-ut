@@ -1,4 +1,4 @@
-import React, { useMemo, useState, useRef, useEffect } from 'react';
+import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
 import { layouts as builtinLayouts, SPECIAL_KEYS } from '../keyboard/layouts';
 
 const {
@@ -13,6 +13,8 @@ const {
 } = SPECIAL_KEYS;
 
 const SPECIAL_TOKEN_SET = new Set(Object.values(SPECIAL_KEYS));
+const SMALL_LABELS = new Set(['ABC']);
+const SMALL_ACTIONS = new Set(['backspace']);
 
 export default function SoftKeyboard({
   visible = false,
@@ -30,13 +32,9 @@ export default function SoftKeyboard({
 
   const [activeKeyId, setActiveKeyId] = useState(null);
   const [feedback, setFeedback] = useState('');
+  const [keyFontSize, setKeyFontSize] = useState(null);
   const feedbackTimer = useRef(null);
-
-  useEffect(() => () => {
-    if (feedbackTimer.current) {
-      clearTimeout(feedbackTimer.current);
-    }
-  }, []);
+  const rowsContainerRef = useRef(null);
 
   const rows = useMemo(() => {
     const isShifted = shift || caps;
@@ -128,7 +126,7 @@ export default function SoftKeyboard({
               id: `enter-${rowIndex}-${colIndex}`,
               type: 'action',
               action: 'enter',
-              label: 'Enter',
+              label: '⏎',
               colSpan: 1,
               feedback: 'Enter'
             };
@@ -145,6 +143,34 @@ export default function SoftKeyboard({
       });
     });
   }, [layout, layoutId, shift, caps]);
+
+  useEffect(() => () => {
+    if (feedbackTimer.current) {
+      clearTimeout(feedbackTimer.current);
+    }
+  }, []);
+  const measureKeySize = useCallback(() => {
+    const container = rowsContainerRef.current;
+    if (!container) return;
+    const sample = container.querySelector('button[data-key-measure="true"]');
+    if (!sample) return;
+    const rect = sample.getBoundingClientRect();
+    if (!rect || !rect.height) return;
+    const nextSize = Math.max(20, Math.round(rect.height * 0.8));
+    setKeyFontSize((prev) => (prev && Math.abs(prev - nextSize) < 1 ? prev : nextSize));
+  }, []);
+
+  useLayoutEffect(() => {
+    if (!visible) return;
+    measureKeySize();
+  }, [visible, rows, measureKeySize]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const handleResize = () => measureKeySize();
+    window.addEventListener('resize', handleResize);
+    return () => window.removeEventListener('resize', handleResize);
+  }, [visible, measureKeySize]);
 
   const handleButtonClick = (key) => {
     if (!key) return;
@@ -199,7 +225,7 @@ export default function SoftKeyboard({
     boxSizing: 'border-box',
     background: '#1c2333',
     color: '#f8fafc',
-    fontSize: 'clamp(18px, 2.6vw, 26px)',
+    fontSize: keyFontSize ? `${keyFontSize}px` : 'clamp(26px, 6vw, 46px)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -313,7 +339,7 @@ export default function SoftKeyboard({
         </button>
       </div>
 
-      <div style={rowsContainerStyle}>
+      <div style={rowsContainerStyle} ref={rowsContainerRef}>
         {rows.map((row, rowIndex) => {
           const totalColumns = row.reduce((sum, key) => sum + (key.colSpan || 1), 0);
           return (
@@ -329,8 +355,20 @@ export default function SoftKeyboard({
                 alignItems: 'stretch'
               }}
             >
-              {row.map((key) => {
+              {row.map((key, keyIndex) => {
                 const isActive = activeKeyId === key.id || (key.action === 'shift' && (shift || caps));
+                const isSampleKey = rowIndex === 0 && keyIndex === 0;
+                const isSmallFont = SMALL_LABELS.has(key.label) || (key.action && SMALL_ACTIONS.has(key.action));
+                const computedStyle = {
+                  ...baseButton,
+                  ...(key.colSpan > 1 ? { gridColumn: `span ${key.colSpan}` } : null),
+                  ...(isActive ? activeStyle : null)
+                };
+                if (isSmallFont) {
+                  computedStyle.fontSize = keyFontSize
+                    ? `${Math.max(14, Math.round(keyFontSize * 0.6))}px`
+                    : 'clamp(16px, 4vw, 32px)';
+                }
                 return (
                   <button
                     type="button"
@@ -340,11 +378,8 @@ export default function SoftKeyboard({
                     onPointerLeave={handlePressEnd}
                     onPointerCancel={handlePressEnd}
                     onClick={() => handleButtonClick(key)}
-                    style={{
-                      ...baseButton,
-                      ...(key.colSpan > 1 ? { gridColumn: `span ${key.colSpan}` } : null),
-                      ...(isActive ? activeStyle : null)
-                    }}
+                    style={computedStyle}
+                    data-key-measure={isSampleKey ? 'true' : undefined}
                   >
                     {key.label}
                   </button>

@@ -13,6 +13,7 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
 const ZOOM_STEP = 0.1;
 const KB_HEIGHT = 650;
+const FOCUS_POST_MESSAGE = '__mzrEditFocus';
 const NON_TEXT_INPUT_TYPES = new Set([
   'button',
   'submit',
@@ -440,7 +441,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const base = mode === 'mobile' ? 1.2 : 1.0;
+    const base = mode === 'mobile' ? 1.5 : 1.0;
     zoomRef.current = base;
     setZoomLevel(base);
     setZoomClamped(base);
@@ -791,6 +792,144 @@ const App = () => {
     });
   }, [mode, isEditableElement]);
 
+  useEffect(() => {
+    const wv = webviewRef.current;
+    if (!wv) return undefined;
+
+    const script = `
+      (function installMerezhyvoFocusBridge() {
+        if (window.__mzrFocusBridgeInstalled) return;
+        window.__mzrFocusBridgeInstalled = true;
+
+        const post = (payload) => {
+          try {
+            const target = window.parent || window;
+            target.postMessage(payload, '*');
+          } catch {}
+        };
+
+        const nonTextTypes = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
+        const isEditable = (el) => {
+          if (!el) return false;
+          if (el.isContentEditable) return true;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea') return !el.disabled && !el.readOnly;
+          if (tag === 'input') {
+            const type = (el.getAttribute('type') || '').toLowerCase();
+            if (nonTextTypes.has(type)) return false;
+            return !el.disabled && !el.readOnly;
+          }
+          return false;
+        };
+
+        const notify = (active) => post({ ${JSON.stringify(FOCUS_POST_MESSAGE)}: true, active: !!active });
+
+        const handleFocusIn = (event) => {
+          if (isEditable(event.target)) notify(true);
+        };
+
+        const handleFocusOut = (event) => {
+          if (!isEditable(event.target)) return;
+          setTimeout(() => {
+            notify(isEditable(document.activeElement));
+          }, 0);
+        };
+
+        const handlePointerDown = (event) => {
+          const target = event.target;
+          if (isEditable(target)) {
+            notify(true);
+          } else {
+            setTimeout(() => {
+              notify(isEditable(document.activeElement));
+            }, 0);
+          }
+        };
+
+        document.addEventListener('focusin', handleFocusIn, true);
+        document.addEventListener('focusout', handleFocusOut, true);
+        document.addEventListener('pointerdown', handlePointerDown, true);
+        window.addEventListener('blur', () => notify(false));
+
+        // Do not auto-open the keyboard on initial programmatic focus.
+      })();
+    `;
+
+    const install = () => {
+      try {
+        const result = wv.executeJavaScript(script, false);
+        if (result && typeof result.then === 'function') {
+          result.catch(() => {});
+        }
+      } catch {}
+    };
+
+    install();
+    wv.addEventListener('dom-ready', install);
+    wv.addEventListener('did-navigate', install);
+    wv.addEventListener('did-navigate-in-page', install);
+    wv.addEventListener('did-frame-finish-load', install);
+
+    return () => {
+      wv.removeEventListener('dom-ready', install);
+      wv.removeEventListener('did-navigate', install);
+      wv.removeEventListener('did-navigate-in-page', install);
+      wv.removeEventListener('did-frame-finish-load', install);
+    };
+  }, []);
+
+  useEffect(() => {
+    const handler = (event) => {
+      const data = event.data;
+      if (!data || data[FOCUS_POST_MESSAGE] !== true) return;
+      if (mode !== 'mobile') return;
+
+      if (data.active) {
+        setKbVisible(true);
+        return;
+      }
+
+      requestAnimationFrame(() => {
+        const active = document.activeElement;
+        const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+        if (isSoftKey || isEditableElement(active)) {
+          return;
+        }
+        setKbVisible(false);
+      });
+    };
+
+    window.addEventListener('message', handler);
+    return () => window.removeEventListener('message', handler);
+  }, [mode, isEditableElement]);
+
+  const blurActiveInWebview = useCallback(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const js = `
+      (function(){
+        try {
+          const el = document.activeElement;
+          if (el && typeof el.blur === 'function') el.blur();
+        } catch {}
+      })();
+    `;
+    try {
+      const result = wv.executeJavaScript(js, false);
+      if (result && typeof result.then === 'function') {
+        result.catch(() => {});
+      }
+    } catch {}
+  }, []);
+
+  const closeKeyboard = useCallback(() => {
+    setKbVisible(false);
+    if (isEditingRef.current && inputRef.current) {
+      try { inputRef.current.blur(); } catch {}
+    }
+    blurActiveInWebview();
+  }, [blurActiveInWebview]);
+
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = () => {
     try { return webviewRef.current?.getURL?.() || null; } catch { return null; }
@@ -952,42 +1091,6 @@ const App = () => {
       observer.disconnect();
     };
   }, []);
-
-  // --- Toggle keyboard visibility when interacting with the webview ---
-  useEffect(() => {
-    const wv = webviewRef.current;
-    if (!wv) {
-      return undefined;
-    }
-
-    const handleFocus = () => {
-      if (mode === 'mobile') setKbVisible(true);
-    };
-    const handleBlur = () => {
-      if (mode !== 'mobile') return;
-      requestAnimationFrame(() => {
-        const active = document.activeElement;
-        const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-        if (isSoftKey || isEditableElement(active)) {
-          return;
-        }
-        setKbVisible(false);
-      });
-    };
-    const handlePointerDown = () => {
-      if (mode === 'mobile') setKbVisible(true);
-    };
-
-    wv.addEventListener('focus', handleFocus);
-    wv.addEventListener('blur', handleBlur);
-    wv.addEventListener('pointerdown', handlePointerDown);
-
-    return () => {
-      wv.removeEventListener('focus', handleFocus);
-      wv.removeEventListener('blur', handleBlur);
-      wv.removeEventListener('pointerdown', handlePointerDown);
-    };
-  }, [mode, isEditableElement]);
 
   return (
     <div style={styles.container} className={`app app--${mode}`}>
@@ -1314,7 +1417,7 @@ const App = () => {
         shift={kbShift}
         caps={kbCaps}
         onKey={sendKeyToWeb}
-        onClose={() => setKbVisible(false)}
+        onClose={closeKeyboard}
         onToggleShift={toggleShift}
         onToggleCaps={toggleCaps}
         onToggleSymbols={toggleSymbols}
