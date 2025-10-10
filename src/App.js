@@ -168,6 +168,110 @@ const styles = {
     fontSize: '12px',
     color: '#f8fafc',
     fontVariantNumeric: 'tabular-nums'
+  },
+  modalBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(5, 7, 15, 0.76)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+    zIndex: 200
+  },
+  modal: {
+    width: 'min(420px, 92vw)',
+    borderRadius: '20px',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '24px',
+    gap: '20px'
+  },
+  modalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px'
+  },
+  modalTitle: {
+    margin: 0,
+    fontSize: '20px',
+    fontWeight: 600
+  },
+  modalClose: {
+    width: '40px',
+    height: '40px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'transparent',
+    color: '#94a3b8',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  modalForm: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px'
+  },
+  modalField: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  modalLabel: {
+    fontSize: '14px',
+    color: '#cbd5f5'
+  },
+  modalInput: {
+    height: '44px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: '#0f1729',
+    color: '#f8fafc',
+    padding: '0 14px',
+    fontSize: '16px',
+    outline: 'none'
+  },
+  modalMsg: {
+    fontSize: '13px',
+    lineHeight: 1.4,
+    whiteSpace: 'pre-wrap',
+    borderRadius: '14px',
+    border: '1px solid rgba(59, 130, 246, 0.45)',
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    color: '#bfdbfe',
+    padding: '12px 14px'
+  },
+  modalActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
+  modalButton: {
+    minWidth: '120px',
+    height: '42px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.65)',
+    color: '#e2e8f0',
+    fontSize: '15px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  modalButtonPrimary: {
+    border: 'none',
+    background: 'rgba(37, 99, 235, 0.92)',
+    color: '#f8fafc'
+  },
+  modalButtonDisabled: {
+    opacity: 0.6,
+    cursor: 'wait'
   }
 };
 
@@ -224,6 +328,7 @@ const App = () => {
   const initialUrl = useMemo(() => normalizeAddress(parseStartUrl()), []);
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
+  const modalInputRef = useRef(null);
 
   const [inputValue, setInputValue] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
@@ -238,6 +343,11 @@ const App = () => {
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
 
+  const closeShortcutModal = useCallback(() => {
+    setShowModal(false);
+    setBusy(false);
+  }, []);
+
   const mode = useMerezhyvoMode();
 
   // --- Soft keyboard state ---
@@ -251,11 +361,34 @@ const App = () => {
     try { localStorage.setItem('mzr.kbLayout', kbLayout); } catch {}
   }, [kbLayout]);
 
+  useEffect(() => {
+    if (!showModal) {
+      return undefined;
+    }
+    const frame = requestAnimationFrame(() => {
+      if (modalInputRef.current) {
+        modalInputRef.current.focus();
+        modalInputRef.current.select();
+      }
+    });
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeShortcutModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+      cancelAnimationFrame(frame);
+    };
+  }, [showModal, closeShortcutModal]);
+
   // --- Zoom management inside the webview ---
   const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
- const setZoomClamped = useCallback((val) => {
+  const setZoomClamped = useCallback((val) => {
     const numeric = Number(val);
     if (!Number.isFinite(numeric)) return;
     const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
@@ -622,6 +755,9 @@ const App = () => {
   const openShortcutModal = () => {
     const viewUrl = getCurrentViewUrl();
     setTitle(viewUrl ? new URL(viewUrl).hostname.replace(/^www\./, '') : 'Merezhyvo');
+    setMsg('');
+    setBusy(false);
+    setKbVisible(false);
     setShowModal(true);
   };
 
@@ -639,7 +775,6 @@ const App = () => {
       });
       if (res?.ok) {
         setMsg(`Shortcut created:\n${res.desktopFilePath}`);
-        setShowModal(false);
       } else {
         setMsg(res?.error || 'Unknown error.');
       }
@@ -1033,6 +1168,91 @@ const App = () => {
         </div>
         <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
       </div>
+
+      {showModal && (
+        <div
+          style={styles.modalBackdrop}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeShortcutModal();
+            }
+          }}
+        >
+          <div
+            style={styles.modal}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="shortcut-modal-title"
+          >
+            <div style={styles.modalHeader}>
+              <h2 id="shortcut-modal-title" style={styles.modalTitle}>
+                Create App Shortcut
+              </h2>
+              <button
+                type="button"
+                aria-label="Close shortcut dialog"
+                style={styles.modalClose}
+                onClick={closeShortcutModal}
+              >
+                ✕
+              </button>
+            </div>
+            <form
+              style={styles.modalForm}
+              onSubmit={(event) => {
+                event.preventDefault();
+                if (!busy) {
+                  createShortcut();
+                }
+              }}
+            >
+              <div style={styles.modalField}>
+                <label htmlFor="shortcut-title" style={styles.modalLabel}>
+                  Title
+                </label>
+                <input
+                  id="shortcut-title"
+                  ref={modalInputRef}
+                  type="text"
+                  value={title}
+                  onChange={(event) => setTitle(event.target.value)}
+                  style={styles.modalInput}
+                  disabled={busy}
+                />
+              </div>
+
+              {msg && (
+                <div style={styles.modalMsg} role="status">
+                  {msg}
+                </div>
+              )}
+
+              <div style={styles.modalActions}>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.modalButton
+                  }}
+                  onClick={closeShortcutModal}
+                >
+                  Close
+                </button>
+                <button
+                  type="submit"
+                  style={{
+                    ...styles.modalButton,
+                    ...styles.modalButtonPrimary,
+                    ...(busy ? styles.modalButtonDisabled : null)
+                  }}
+                  disabled={busy}
+                >
+                  {busy ? 'Creating…' : 'Create Shortcut'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       <SoftKeyboard
         visible={mode === 'mobile' && kbVisible}
