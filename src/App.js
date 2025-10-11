@@ -744,35 +744,89 @@ const App = () => {
     const wv = webviewRef.current;
     if (!wv) return;
     const js = `
-      (function(txt){
+      (function(rawText){
         try {
           const el = document.activeElement;
           if (!el) return false;
           const isEditable = el.isContentEditable || (typeof el.value === 'string');
           if (!isEditable) return false;
+          const text = String(rawText ?? '');
+          if (!text) return false;
 
+          const isEnter = text === '\\n';
+          const key = isEnter ? 'Enter' : text;
+          const firstCodePoint = text.codePointAt ? text.codePointAt(0) || 0 : (text.length ? text.charCodeAt(0) : 0);
+          const keyCode = isEnter ? 13 : (firstCodePoint > 0xffff ? 0 : firstCodePoint);
+          const code = (() => {
+            if (isEnter) return 'Enter';
+            if (text.length === 1) {
+              const ch = text;
+              if (ch === ' ') return 'Space';
+              if (/[0-9]/.test(ch)) return 'Digit' + ch;
+              if (/[a-zA-Z]/.test(ch)) return 'Key' + ch.toUpperCase();
+              if (ch === '.') return 'Period';
+              if (ch === ',') return 'Comma';
+              if (ch === '-') return 'Minus';
+              if (ch === '+') return 'Equal';
+              if (ch === '/') return 'Slash';
+              if (ch === '*') return 'NumpadMultiply';
+            }
+            return key.length === 1 ? 'Key' + key.toUpperCase() : key || 'Unidentified';
+          })();
+
+          const fireKeyEvent = (type) => {
+            const event = new KeyboardEvent(type, {
+              key,
+              code,
+              location: 0,
+              bubbles: true,
+              cancelable: type !== 'keyup',
+              composed: true
+            });
+            try {
+              Object.defineProperty(event, 'keyCode', { get: () => keyCode });
+              Object.defineProperty(event, 'which', { get: () => keyCode });
+              Object.defineProperty(event, 'charCode', { get: () => type === 'keypress' ? keyCode : 0 });
+            } catch {}
+            el.dispatchEvent(event);
+          };
+
+          fireKeyEvent('keydown');
+          if (key !== 'Unidentified') {
+            fireKeyEvent('keypress');
+          }
+
+          let success = false;
           if (el.isContentEditable) {
             const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0) return false;
-            const range = sel.getRangeAt(0);
-            range.deleteContents();
-            range.insertNode(document.createTextNode(txt));
-            range.collapse(false);
-            const evt = new InputEvent('input', {inputType:'insertText', data: txt, bubbles:true});
-            el.dispatchEvent(evt);
-            return true;
+            if (sel && sel.rangeCount > 0) {
+              const range = sel.getRangeAt(0);
+              range.deleteContents();
+              range.insertNode(document.createTextNode(text));
+              range.collapse(false);
+              const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
+              el.dispatchEvent(inputEvt);
+              success = true;
+            }
           } else {
             const start = el.selectionStart ?? el.value.length;
             const end   = el.selectionEnd   ?? el.value.length;
             const before = el.value.slice(0, start);
             const after  = el.value.slice(end);
-            el.value = before + txt + after;
-            const pos = before.length + txt.length;
-            el.selectionStart = el.selectionEnd = pos;
-            const evt = new InputEvent('input', {inputType:'insertText', data: txt, bubbles:true});
-            el.dispatchEvent(evt);
-            return true;
+            el.value = before + text + after;
+            const pos = before.length + text.length;
+            if (typeof el.setSelectionRange === 'function') {
+              el.setSelectionRange(pos, pos);
+            } else {
+              el.selectionStart = el.selectionEnd = pos;
+            }
+            const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
+            el.dispatchEvent(inputEvt);
+            success = true;
           }
+
+          fireKeyEvent('keyup');
+          return success;
         } catch(e) { return false; }
       })(${JSON.stringify(text)});
     `;
@@ -790,32 +844,66 @@ const App = () => {
           const isEditable = el.isContentEditable || (typeof el.value === 'string');
           if (!isEditable) return false;
 
+          const fire = (type) => {
+            const event = new KeyboardEvent(type, {
+              key: 'Backspace',
+              code: 'Backspace',
+              location: 0,
+              bubbles: true,
+              cancelable: type !== 'keyup',
+              composed: true
+            });
+            try {
+              Object.defineProperty(event, 'keyCode', { get: () => 8 });
+              Object.defineProperty(event, 'which', { get: () => 8 });
+              Object.defineProperty(event, 'charCode', { get: () => 0 });
+            } catch {}
+            el.dispatchEvent(event);
+          };
+
+          fire('keydown');
+
+          let success = false;
+
           if (el.isContentEditable) {
             const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0) return false;
-            const range = sel.getRangeAt(0);
-            if (!range.collapsed) {
-              range.deleteContents();
-            } else {
-              range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
-              range.deleteContents();
+            if (sel && sel.rangeCount > 0) {
+              const range = sel.getRangeAt(0);
+              if (!range.collapsed) {
+                range.deleteContents();
+              } else {
+                range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
+                range.deleteContents();
+              }
+              const inputEvt = new InputEvent('deleteContentBackward', { bubbles: true });
+              el.dispatchEvent(inputEvt);
+              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+              success = true;
             }
-            const evt = new InputEvent('deleteContentBackward', {bubbles:true});
-            el.dispatchEvent(evt);
-            return true;
           } else {
             const start = el.selectionStart ?? el.value.length;
             const end   = el.selectionEnd   ?? el.value.length;
-            if (start === 0 && end === 0) return true;
-            const before = el.value.slice(0, Math.max(0, start - (start === end ? 1 : 0)));
-            const after  = el.value.slice(end);
-            el.value = before + after;
-            const pos = before.length;
-            el.selectionStart = el.selectionEnd = pos;
-            const evt = new InputEvent('deleteContentBackward', {bubbles:true});
-            el.dispatchEvent(evt);
-            return true;
+            if (!(start === 0 && end === 0)) {
+              const deleteStart = start === end ? Math.max(0, start - 1) : Math.min(start, end);
+              const deleteEnd = Math.max(start, end);
+              const before = el.value.slice(0, deleteStart);
+              const after  = el.value.slice(deleteEnd);
+              el.value = before + after;
+              const pos = before.length;
+              if (typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(pos, pos);
+              } else {
+                el.selectionStart = el.selectionEnd = pos;
+              }
+              const inputEvt = new InputEvent('deleteContentBackward', { bubbles: true });
+              el.dispatchEvent(inputEvt);
+              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+            }
+            success = true;
           }
+
+          fire('keyup');
+          return success;
         } catch(e) { return false; }
       })();
     `;
@@ -833,29 +921,52 @@ const App = () => {
           const isEditable = el.isContentEditable || (typeof el.value === 'string');
           if (!isEditable) return false;
           const moveBackward = dir === 'ArrowLeft';
+          const key = moveBackward ? 'ArrowLeft' : 'ArrowRight';
+          const keyCode = moveBackward ? 37 : 39;
+
+          const fire = (type) => {
+            const event = new KeyboardEvent(type, {
+              key,
+              code: key,
+              location: 0,
+              bubbles: true,
+              cancelable: type !== 'keyup',
+              composed: true
+            });
+            try {
+              Object.defineProperty(event, 'keyCode', { get: () => keyCode });
+              Object.defineProperty(event, 'which', { get: () => keyCode });
+              Object.defineProperty(event, 'charCode', { get: () => 0 });
+            } catch {}
+            el.dispatchEvent(event);
+          };
+
+          fire('keydown');
+
+          let success = false;
 
           if (el.isContentEditable) {
             const sel = window.getSelection();
-            if (!sel || sel.rangeCount === 0) return false;
-            if (!sel.isCollapsed) {
-              moveBackward ? sel.collapseToStart() : sel.collapseToEnd();
-            }
-            if (typeof sel.modify === 'function') {
-              sel.modify('move', moveBackward ? 'backward' : 'forward', 'character');
-            } else {
-              const range = sel.getRangeAt(0);
-              const node = range.startContainer;
-              let offset = range.startOffset + (moveBackward ? -1 : 1);
-              if (node.nodeType === Node.TEXT_NODE) {
-                const length = node.textContent?.length ?? 0;
-                offset = Math.max(0, Math.min(length, offset));
-                range.setStart(node, offset);
-                range.collapse(true);
+            if (sel && sel.rangeCount > 0) {
+              if (!sel.isCollapsed) {
+                moveBackward ? sel.collapseToStart() : sel.collapseToEnd();
               }
+              if (typeof sel.modify === 'function') {
+                sel.modify('move', moveBackward ? 'backward' : 'forward', 'character');
+              } else {
+                const range = sel.getRangeAt(0);
+                const node = range.startContainer;
+                let offset = range.startOffset + (moveBackward ? -1 : 1);
+                if (node.nodeType === Node.TEXT_NODE) {
+                  const length = node.textContent?.length ?? 0;
+                  offset = Math.max(0, Math.min(length, offset));
+                  range.setStart(node, offset);
+                  range.collapse(true);
+                }
+              }
+              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+              success = true;
             }
-            const evt = new Event('selectionchange', { bubbles: true });
-            document.dispatchEvent(evt);
-            return true;
           } else {
             const length = el.value.length;
             const start = el.selectionStart ?? length;
@@ -868,10 +979,12 @@ const App = () => {
             }
             el.selectionStart = el.selectionEnd = pos;
             el.focus();
-            const evt = new Event('selectionchange', { bubbles: true });
-            document.dispatchEvent(evt);
-            return true;
+            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+            success = true;
           }
+
+          fire('keyup');
+          return success;
         } catch (e) { return false; }
       })(${JSON.stringify(direction)});
     `;
