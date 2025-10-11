@@ -211,6 +211,9 @@ const styles = {
     justifyContent: 'space-between',
     gap: '16px'
   },
+  modalBody: {
+    fontSize: '20px',
+  },
   modalTitle: {
     margin: 0,
     fontSize: '20px',
@@ -307,6 +310,9 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 'calc(3vw)'
+  },
+  modalBodyMobile: {
+    fontSize: 'clamp(28px, 4.5vw, 44px)',
   },
   modalTitleMobile: {
     margin: 0,
@@ -1441,11 +1447,7 @@ const App = () => {
               <h2 id="shortcut-modal-title" style={mode === 'mobile' ? styles.modalTitleMobile : styles.modalTitle}>
                 Create App Shortcut
               </h2>
-              <p>
-                You are about to save this page as a separate application. Please give it a name.
-                <br />
-                After saving, you may need to refresh the application launcher or restart your device.
-              </p>
+              
               <button
                 type="button"
                 aria-label="Close shortcut dialog"
@@ -1455,6 +1457,11 @@ const App = () => {
                 ✕
               </button>
             </div>
+            <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
+              You are about to save this page as a separate application. Please give it a name.
+              <br />
+              After saving, you may need to refresh the application launcher or restart your device.
+            </p>
             <form
               style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
               onSubmit={(event) => {

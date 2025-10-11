@@ -290,7 +290,7 @@ export default function SoftKeyboard({
     height: 48,
     borderRadius: 12,
     border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: feedback ? 'rgba(59, 130, 246, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+    background: feedback ? 'rgba(90, 149, 245, 0.16)' : 'rgba(15, 23, 42, 0.65)',
     color: '#f8fafc',
     fontSize: 20,
     display: 'flex',
