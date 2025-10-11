@@ -637,7 +637,7 @@ const App = () => {
     setZoomClamped(candidate);
   }, [setZoomClamped]);
 
-  // --- Inject custom scrollbars into the webview ---
+  // --- Inject custom css into the webview ---
   useEffect(() => {
     const css = `
       ::-webkit-scrollbar { width: 8px; height: 8px; }
@@ -650,6 +650,63 @@ const App = () => {
       ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
       input, textarea, [contenteditable='true'] {
         caret-color: #60a5fa !important;
+      }
+        :root {
+        --mzr-caret-accent: #22d3ee;
+        --mzr-focus-ring:   #60a5fa; 
+        --mzr-sel-bg:       rgba(34,211,238,.28);
+        --mzr-sel-fg:       #0b1020; 
+      }
+      @media (prefers-color-scheme: dark) {
+        :root {
+          --mzr-caret-accent: #7dd3fc;
+          --mzr-sel-bg:       rgba(125,211,252,.3);
+          --mzr-sel-fg:       #0a0f1f;
+          --mzr-focus-ring:   #93c5fd;
+        }
+      }
+      @media (prefers-color-scheme: light) {
+        :root {
+          --mzr-caret-accent: #0ea5e9;
+          --mzr-sel-bg:       rgba(14,165,233,.25);
+          --mzr-sel-fg:       #0b1020;
+          --mzr-focus-ring:   #3b82f6;
+        }
+      }
+      input[type="text"],
+      input[type="search"],
+      input[type="url"],
+      input[type="email"],
+      input[type="tel"],
+      input[type="password"],
+      textarea,
+      [contenteditable=""],
+      [contenteditable="true"] {
+        caret-color: var(--mzr-caret-accent) !important;
+      }
+
+      ::selection {
+        background: var(--mzr-sel-bg) !important;
+        color: var(--mzr-sel-fg) !important;
+      }
+      ::-moz-selection {
+        background: var(--mzr-sel-bg) !important;
+        color: var(--mzr-sel-fg) !important;
+      }
+
+      input[type="text"]:focus-visible,
+      input[type="search"]:focus-visible,
+      input[type="url"]:focus-visible,
+      input[type="email"]:focus-visible,
+      input[type="tel"]:focus-visible,
+      input[type="password"]:focus-visible,
+      textarea:focus-visible,
+      [contenteditable=""]:focus-visible,
+      [contenteditable="true"]:focus-visible {
+        outline: 2px solid var(--mzr-focus-ring) !important;
+        outline-offset: 2px !important;
+        /* мʼяка тінь як підсвітка, не змінює розмір елемента */
+        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mzr-focus-ring) 35%, transparent) !important;
       }
     `;
     const wv = webviewRef.current;
@@ -791,9 +848,30 @@ const App = () => {
             el.dispatchEvent(event);
           };
 
+          const initialValue = el.isContentEditable ? null : (typeof el.value === 'string' ? String(el.value) : '');
+          const initialStart = el.isContentEditable ? null : (typeof el.selectionStart === 'number' ? el.selectionStart : (initialValue ? initialValue.length : 0));
+          const initialEnd = el.isContentEditable ? null : (typeof el.selectionEnd === 'number' ? el.selectionEnd : initialStart);
+
           fireKeyEvent('keydown');
           if (key !== 'Unidentified') {
             fireKeyEvent('keypress');
+          }
+
+          if (!el.isContentEditable) {
+            const currentValue = typeof el.value === 'string' ? String(el.value) : '';
+            const currentStart = typeof el.selectionStart === 'number' ? el.selectionStart : currentValue.length;
+            const currentEnd = typeof el.selectionEnd === 'number' ? el.selectionEnd : currentStart;
+            const handledByPage = currentValue !== initialValue || currentStart !== initialStart || currentEnd !== initialEnd;
+            if (handledByPage) {
+              fireKeyEvent('keyup');
+              return true;
+            }
+          }
+
+          const beforeInputEvt = new InputEvent('beforeinput', { inputType: 'insertText', data: text, bubbles: true, cancelable: true });
+          if (!el.dispatchEvent(beforeInputEvt)) {
+            fireKeyEvent('keyup');
+            return true;
           }
 
           let success = false;
@@ -807,22 +885,26 @@ const App = () => {
               const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
               el.dispatchEvent(inputEvt);
               success = true;
+              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
             }
           } else {
-            const start = el.selectionStart ?? el.value.length;
-            const end   = el.selectionEnd   ?? el.value.length;
-            const before = el.value.slice(0, start);
-            const after  = el.value.slice(end);
-            el.value = before + text + after;
-            const pos = before.length + text.length;
-            if (typeof el.setSelectionRange === 'function') {
-              el.setSelectionRange(pos, pos);
+            if (typeof el.setRangeText === 'function') {
+              el.setRangeText(text, initialStart, initialEnd, 'end');
             } else {
-              el.selectionStart = el.selectionEnd = pos;
+              const before = initialValue.slice(0, initialStart);
+              const after  = initialValue.slice(initialEnd);
+              el.value = before + text + after;
+              const posFallback = before.length + text.length;
+              if (typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(posFallback, posFallback);
+              } else {
+                el.selectionStart = el.selectionEnd = posFallback;
+              }
             }
             const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
             el.dispatchEvent(inputEvt);
             success = true;
+            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
           }
 
           fireKeyEvent('keyup');
@@ -861,7 +943,28 @@ const App = () => {
             el.dispatchEvent(event);
           };
 
+          const initialValue = el.isContentEditable ? null : (typeof el.value === 'string' ? String(el.value) : '');
+          const initialStart = el.isContentEditable ? null : (typeof el.selectionStart === 'number' ? el.selectionStart : (initialValue ? initialValue.length : 0));
+          const initialEnd = el.isContentEditable ? null : (typeof el.selectionEnd === 'number' ? el.selectionEnd : initialStart);
+
           fire('keydown');
+
+          if (!el.isContentEditable) {
+            const currentValue = typeof el.value === 'string' ? String(el.value) : '';
+            const currentStart = typeof el.selectionStart === 'number' ? el.selectionStart : currentValue.length;
+            const currentEnd = typeof el.selectionEnd === 'number' ? el.selectionEnd : currentStart;
+            const handledByPage = currentValue !== initialValue || currentStart !== initialStart || currentEnd !== initialEnd;
+            if (handledByPage) {
+              fire('keyup');
+              return true;
+            }
+          }
+
+          const beforeInputEvt = new InputEvent('beforeinput', { inputType: 'deleteContentBackward', data: null, bubbles: true, cancelable: true });
+          if (!el.dispatchEvent(beforeInputEvt)) {
+            fire('keyup');
+            return true;
+          }
 
           let success = false;
 
@@ -875,30 +978,34 @@ const App = () => {
                 range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
                 range.deleteContents();
               }
-              const inputEvt = new InputEvent('deleteContentBackward', { bubbles: true });
+              const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
               el.dispatchEvent(inputEvt);
               document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
               success = true;
             }
           } else {
-            const start = el.selectionStart ?? el.value.length;
-            const end   = el.selectionEnd   ?? el.value.length;
-            if (!(start === 0 && end === 0)) {
-              const deleteStart = start === end ? Math.max(0, start - 1) : Math.min(start, end);
-              const deleteEnd = Math.max(start, end);
-              const before = el.value.slice(0, deleteStart);
-              const after  = el.value.slice(deleteEnd);
-              el.value = before + after;
-              const pos = before.length;
-              if (typeof el.setSelectionRange === 'function') {
-                el.setSelectionRange(pos, pos);
-              } else {
-                el.selectionStart = el.selectionEnd = pos;
-              }
-              const inputEvt = new InputEvent('deleteContentBackward', { bubbles: true });
-              el.dispatchEvent(inputEvt);
-              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+            if (initialStart === 0 && initialEnd === 0) {
+              fire('keyup');
+              return true;
             }
+            const deleteStart = initialStart === initialEnd ? Math.max(0, initialStart - 1) : Math.min(initialStart, initialEnd);
+            const deleteEnd = Math.max(initialStart, initialEnd);
+            if (typeof el.setRangeText === 'function') {
+              el.setRangeText('', deleteStart, deleteEnd, 'end');
+            } else {
+              const before = initialValue.slice(0, deleteStart);
+              const after  = initialValue.slice(deleteEnd);
+              el.value = before + after;
+              const posFallback = before.length;
+              if (typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(posFallback, posFallback);
+              } else {
+                el.selectionStart = el.selectionEnd = posFallback;
+              }
+            }
+            const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
+            el.dispatchEvent(inputEvt);
+            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
             success = true;
           }
 
