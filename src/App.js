@@ -10,7 +10,7 @@ import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3.0;
+const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
 const KB_HEIGHT = 650;
 const FOCUS_CONSOLE_ACTIVE = '__MZR_FOCUS_ACTIVE__';
@@ -34,6 +34,7 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     height: '100vh',
+    boxSizing: 'border-box',
     minHeight: 0,
     backgroundColor: '#0f111a',
     color: '#f8fafc',
@@ -574,7 +575,7 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const base = mode === 'mobile' ? 1.5 : 1.0;
+    const base = mode === 'mobile' ? 2.0 : 1.0;
     zoomRef.current = base;
     setZoomLevel(base);
     setZoomClamped(base);
@@ -955,11 +956,22 @@ const App = () => {
     });
   }, [mode, isEditableElement]);
 
+  const containerStyle = useMemo(() => {
+    if (mode !== 'mobile') return styles.container;
+    return {
+      ...styles.container,
+      paddingBottom: kbVisible ? KB_HEIGHT : 0,
+      transition: 'padding-bottom 160ms ease'
+    };
+  }, [mode, kbVisible]);
+
   const modalBackdropStyle = useMemo(() => {
     const base = { ...styles.modalBackdrop, zIndex: 45 + (kbVisible ? 60 : 0) };
     if (mode === 'mobile') {
       base.alignItems = 'flex-end';
-      base.paddingBottom = 24 + (kbVisible ? KB_HEIGHT : 0);
+      base.paddingBottom = 24;
+      base.bottom = kbVisible ? KB_HEIGHT : 0;
+      base.transition = 'bottom 160ms ease';
     }
     return base;
   }, [mode, kbVisible]);
@@ -1292,7 +1304,7 @@ const App = () => {
   }, []);
 
   return (
-    <div style={styles.container} className={`app app--${mode}`}>
+    <div style={containerStyle} className={`app app--${mode}`}>
       <div style={styles.toolbar} className="toolbar">
         <div style={styles.navGroup}>
           <button
