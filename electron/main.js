@@ -11,7 +11,39 @@ const { resolveMode } = require('./mode');
 const DEFAULT_URL = 'https://duckduckgo.com';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0';
+const isMessengerDomain = (url) => {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '');
+    return hostname === 'messenger.com' || hostname.endsWith('.messenger.com');
+  } catch {
+    return false;
+  }
+};
+
+const installUserAgentOverride = (session) => {
+  if (!session || session.__mzrUAOverrideInstalled) return;
+  session.__mzrUAOverrideInstalled = true;
+  session.webRequest.onBeforeSendHeaders((details, callback) => {
+    const headers = { ...details.requestHeaders };
+    if (isMessengerDomain(details.url)) {
+      headers['User-Agent'] = DESKTOP_USER_AGENT;
+    } else {
+      headers['User-Agent'] = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+    }
+    callback({ cancel: false, requestHeaders: headers });
+  });
+};
+
 let mainWindow;
+const applyUserAgentForUrl = (contents, url) => {
+  if (!contents) return;
+  const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  const ua = isMessengerDomain(url) ? DESKTOP_USER_AGENT : baseUA;
+  try { contents.setUserAgent(ua); } catch {}
+};
+
+
+let currentUserAgentMode = 'desktop';
 
 // ---------- Chromium/Electron flags ----------
 app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
@@ -168,6 +200,9 @@ const createMainWindow = () => {
     console.error('[Merezhyvo] Missing renderer bundle at', distIndex);
   }
 
+  const resolvedMode = initialMode === 'desktop' ? 'desktop' : 'mobile';
+  currentUserAgentMode = resolvedMode;
+  installUserAgentOverride(session.defaultSession);
   const win = new BrowserWindow({
     width: 600,
     height: 800,
@@ -191,15 +226,16 @@ const createMainWindow = () => {
       preload: path.resolve(__dirname, 'preload.js')
     }
   });
-  const resolvedMode = initialMode === 'desktop' ? 'desktop' : 'mobile';
-  const ua = resolvedMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
   try {
-    win.webContents.setUserAgent(ua);
+    applyUserAgentForUrl(win.webContents, startUrl);
   } catch {}
   win.webContents.on('did-attach-webview', (_event, contents) => {
     try {
-      contents.setUserAgent(resolvedMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT);
+      applyUserAgentForUrl(contents, contents.getURL ? contents.getURL() : '');
     } catch {}
+    contents.on('did-start-navigation', (_evt, url, isInPlace, isMainFrame) => {
+      if (isMainFrame) applyUserAgentForUrl(contents, url);
+    });
   });
 
   // Helper for pseudo-fullscreen on mobile taking safe insets into account
@@ -256,6 +292,9 @@ const createMainWindow = () => {
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'mouseWheel' && (input.control || input.meta)) e.preventDefault();
   });
+  win.webContents.on('did-start-navigation', (_event, url, isInPlace, isMainFrame) => {
+    if (isMainFrame) applyUserAgentForUrl(win.webContents, url);
+  });
 
   mainWindow = win;
 };
@@ -271,11 +310,10 @@ const rebalance = () => {
 };
 
 app.whenReady().then(() => {
-  const currentMode = resolveMode();
-  const initialUA = currentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  try {
-    session.defaultSession?.setUserAgent(initialUA);
-  } catch {}
+  currentUserAgentMode = resolveMode();
+  const initialUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  try { session.defaultSession?.setUserAgent(initialUA); } catch {}
+  installUserAgentOverride(session.defaultSession);
   createMainWindow();
 
   screen.on('display-added', rebalance);
@@ -298,9 +336,9 @@ app.on('browser-window-created', (_event, win) => {
     }
   });
   const mode = resolveMode();
-  const ua = mode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+  currentUserAgentMode = mode;
   try {
-    win.webContents.setUserAgent(ua);
+    applyUserAgentForUrl(win.webContents, win.webContents.getURL());
   } catch {}
 });
 

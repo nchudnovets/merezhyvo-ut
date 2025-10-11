@@ -1218,7 +1218,7 @@ const App = () => {
       await injectTextToWeb(key);
     }
     if (kbShift && !kbCaps) setKbShift(false);
-  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps]);
+  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setTitle]);
 
   const handleShortcutPointerDown = useCallback((event) => {
     event.preventDefault();
