@@ -211,13 +211,16 @@ const styles = {
     justifyContent: 'space-between',
     gap: '16px'
   },
-  modalBody: {
-    fontSize: '20px',
-  },
   modalTitle: {
     margin: 0,
     fontSize: '20px',
     fontWeight: 600
+  },
+  modalBody: {
+    fontSize: '16px',
+    color: '#cbd5f5',
+    lineHeight: 1.5,
+    margin: '8px 0'
   },
   modalClose: {
     width: '40px',
@@ -312,7 +315,10 @@ const styles = {
     gap: 'calc(3vw)'
   },
   modalBodyMobile: {
-    fontSize: 'clamp(28px, 4.5vw, 44px)',
+    fontSize: 'clamp(22px, 3.4vw, 32px)',
+    color: '#dbeafe',
+    lineHeight: 1.6,
+    margin: 'clamp(10px, 2vh, 24px) 0'
   },
   modalTitleMobile: {
     margin: 0,
@@ -447,6 +453,7 @@ const App = () => {
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
   const modalInputRef = useRef(null);
+  const activeInputRef = useRef(null);
 
   const [inputValue, setInputValue] = useState(initialUrl);
   const [currentUrl, setCurrentUrl] = useState(initialUrl);
@@ -481,12 +488,33 @@ const App = () => {
     return false;
   }, [inputRef]);
 
+  const mode = useMerezhyvoMode();
+
+  const blurActiveInWebview = useCallback(() => {
+    const wv = webviewRef.current;
+    if (!wv) return;
+    const js = `
+      (function(){
+        try {
+          const el = document.activeElement;
+          if (el && typeof el.blur === 'function') el.blur();
+        } catch {}
+      })();
+    `;
+    try {
+      const result = wv.executeJavaScript(js, false);
+      if (result && typeof result.then === 'function') {
+        result.catch(() => {});
+      }
+    } catch {}
+  }, []);
   const closeShortcutModal = useCallback(() => {
     setShowModal(false);
     setBusy(false);
-  }, []);
-
-  const mode = useMerezhyvoMode();
+    activeInputRef.current = null;
+    blurActiveInWebview();
+    if (mode === 'mobile') setKbVisible(false);
+  }, [mode, blurActiveInWebview]);
 
   // --- Soft keyboard state ---
   const [kbVisible, setKbVisible] = useState(false);
@@ -873,12 +901,14 @@ const App = () => {
   }, []);
 
   const handleInputPointerDown = useCallback(() => {
+    activeInputRef.current = 'url';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
 
   const handleInputFocus = useCallback((event) => {
     isEditingRef.current = true;
     setIsEditing(true);
+    activeInputRef.current = 'url';
     event.target.select();
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
@@ -886,6 +916,7 @@ const App = () => {
   const handleInputBlur = useCallback(() => {
     isEditingRef.current = false;
     setIsEditing(false);
+    if (activeInputRef.current === 'url') activeInputRef.current = null;
     if (mode !== 'mobile') return;
     requestAnimationFrame(() => {
       const active = document.activeElement;
@@ -896,6 +927,41 @@ const App = () => {
       setKbVisible(false);
     });
   }, [mode, isEditableElement]);
+
+
+  const handleModalInputPointerDown = useCallback(() => {
+    activeInputRef.current = 'modal';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleModalInputFocus = useCallback(() => {
+    activeInputRef.current = 'modal';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleModalInputBlur = useCallback(() => {
+    if (activeInputRef.current === 'modal') activeInputRef.current = null;
+    if (mode !== 'mobile') return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+      if (isSoftKey || isEditableElement(active)) {
+        return;
+      }
+      setKbVisible(false);
+    });
+  }, [mode, isEditableElement]);
+
+  const modalBackdropStyle = useMemo(() => {
+    const base = { ...styles.modalBackdrop, zIndex: 45 + (kbVisible ? 60 : 0) };
+    if (mode === 'mobile') {
+      base.alignItems = 'flex-end';
+      base.paddingBottom = 24 + (kbVisible ? KB_HEIGHT : 0);
+    }
+    return base;
+  }, [mode, kbVisible]);
+
+
 
   useEffect(() => {
     const wv = webviewRef.current;
@@ -1006,24 +1072,7 @@ const App = () => {
     };
   }, [mode, isEditableElement]);
 
-  const blurActiveInWebview = useCallback(() => {
-    const wv = webviewRef.current;
-    if (!wv) return;
-    const js = `
-      (function(){
-        try {
-          const el = document.activeElement;
-          if (el && typeof el.blur === 'function') el.blur();
-        } catch {}
-      })();
-    `;
-    try {
-      const result = wv.executeJavaScript(js, false);
-      if (result && typeof result.then === 'function') {
-        result.catch(() => {});
-      }
-    } catch {}
-  }, []);
+
 
   const closeKeyboard = useCallback(() => {
     setKbVisible(false);
@@ -1072,7 +1121,9 @@ const App = () => {
   };
 
   const sendKeyToWeb = useCallback(async (key) => {
-    if (isEditingRef.current && inputRef.current) {
+    const activeTarget = activeInputRef.current;
+
+    if (activeTarget === 'url' && inputRef.current) {
       const inputEl = inputRef.current;
       const value = inputEl.value ?? '';
       const rawStart = inputEl.selectionStart ?? value.length;
@@ -1112,6 +1163,47 @@ const App = () => {
       return;
     }
 
+    if (activeTarget === 'modal' && modalInputRef.current) {
+      const inputEl = modalInputRef.current;
+      const value = inputEl.value ?? '';
+      const rawStart = inputEl.selectionStart ?? value.length;
+      const rawEnd = inputEl.selectionEnd ?? value.length;
+      const selectionStart = Math.min(rawStart, rawEnd);
+      const selectionEnd = Math.max(rawStart, rawEnd);
+      const setCaret = (pos) => {
+        setTimeout(() => {
+          inputEl.selectionStart = inputEl.selectionEnd = pos;
+        }, 0);
+      };
+
+      if (key === 'Backspace') {
+        if (selectionStart === 0 && selectionEnd === 0) {
+          if (kbShift && !kbCaps) setKbShift(false);
+          return;
+        }
+        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
+        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
+        setTitle(nextValue);
+        setCaret(deleteStart);
+      } else if (key === 'Enter') {
+        if (!busy) {
+          createShortcut();
+        }
+      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const nextPos = key === 'ArrowLeft'
+          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
+          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
+        setCaret(nextPos);
+      } else {
+        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
+        const nextPos = selectionStart + key.length;
+        setTitle(nextValue);
+        setCaret(nextPos);
+      }
+      if (kbShift && !kbCaps) setKbShift(false);
+      return;
+    }
+
     if (key === 'Backspace') {
       await injectBackspaceToWeb();
     } else if (key === 'Enter') {
@@ -1122,7 +1214,7 @@ const App = () => {
       await injectTextToWeb(key);
     }
     if (kbShift && !kbCaps) setKbShift(false);
-  }, [handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps]);
+  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps]);
 
   const handleShortcutPointerDown = useCallback((event) => {
     event.preventDefault();
@@ -1430,7 +1522,7 @@ const App = () => {
 
       {showModal && (
         <div
-          style={styles.modalBackdrop}
+          style={modalBackdropStyle}
           onClick={(event) => {
             if (event.target === event.currentTarget) {
               closeShortcutModal();
@@ -1447,7 +1539,7 @@ const App = () => {
               <h2 id="shortcut-modal-title" style={mode === 'mobile' ? styles.modalTitleMobile : styles.modalTitle}>
                 Create App Shortcut
               </h2>
-              
+
               <button
                 type="button"
                 aria-label="Close shortcut dialog"
@@ -1479,7 +1571,10 @@ const App = () => {
                   id="shortcut-title"
                   ref={modalInputRef}
                   type="text"
-                  value={title.charAt(0).toUpperCase() + title.slice(1).split('.')[0]}
+                  value={title}
+                  onPointerDown={handleModalInputPointerDown}
+                  onFocus={handleModalInputFocus}
+                  onBlur={handleModalInputBlur}
                   onChange={(event) => setTitle(event.target.value)}
                   style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
                   disabled={busy}

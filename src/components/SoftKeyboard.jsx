@@ -33,6 +33,7 @@ export default function SoftKeyboard({
   const [activeKeyId, setActiveKeyId] = useState(null);
   const [feedback, setFeedback] = useState('');
   const [keyFontSize, setKeyFontSize] = useState(null);
+  const [keySize, setKeySize] = useState({ width: null, height: null });
   const feedbackTimer = useRef(null);
   const rowsContainerRef = useRef(null);
 
@@ -158,6 +159,12 @@ export default function SoftKeyboard({
     if (!rect || !rect.height) return;
     const nextSize = Math.max(20, Math.round(rect.height * 0.8));
     setKeyFontSize((prev) => (prev && Math.abs(prev - nextSize) < 1 ? prev : nextSize));
+    setKeySize((prev) => {
+      const width = rect.width;
+      const height = rect.height;
+      if (prev.width === width && prev.height === height) return prev;
+      return { width, height };
+    });
   }, []);
 
   useLayoutEffect(() => {
@@ -271,42 +278,50 @@ export default function SoftKeyboard({
     padding: '16px 16px 50px',
     background: 'rgba(18, 24, 38, 0.98)',
     boxShadow: '0 -6px 24px rgba(0, 0, 0, 0.35)',
-    zIndex: 40,
+    zIndex: 500,
     display: 'flex',
     flexDirection: 'column',
     boxSizing: 'border-box',
-    position: 'relative'
+    position: 'fixed',
+    left: 0,
+    right: 0,
+    bottom: 0
   };
 
   const headerStyle = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    marginBottom: 16
+    marginBottom: 16,
+    gap: 12
   };
 
   const feedbackStyle = {
-    minWidth: 120,
-    height: 48,
+    minWidth: keySize.width ? Math.max(keySize.width * 2, 120) : 120,
+    height: keySize.height ?? 62,
     borderRadius: 12,
     border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: feedback ? 'rgba(90, 149, 245, 0.16)' : 'rgba(15, 23, 42, 0.65)',
+    background: feedback ? 'rgba(59, 130, 246, 0.16)' : 'rgba(15, 23, 42, 0.65)',
     color: '#f8fafc',
-    fontSize: 20,
+    fontSize: keyFontSize ? `${keyFontSize}px` : 'clamp(26px, 6vw, 46px)',
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-start',
+    justifyContent: 'center',
     padding: '0 16px',
     boxSizing: 'border-box',
-    fontWeight: 600
+    fontWeight: 600,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   };
 
   const closeButtonStyle = {
     ...baseButton,
-    width: 56,
-    height: 48,
-    fontSize: 24,
-    margin: 0
+    width: keySize.width ?? 62,
+    height: keySize.height ?? 62,
+    fontSize: keyFontSize ? `${keyFontSize}px` : 'clamp(26px, 6vw, 46px)',
+    margin: 0,
+    flex: '0 0 auto'
   };
 
   const rowsContainerStyle = {
