@@ -315,19 +315,19 @@ const styles = {
     gap: 'calc(3vw)'
   },
   modalBodyMobile: {
-    fontSize: 'clamp(22px, 3.4vw, 32px)',
+    fontSize: 'clamp(33px, 5.1vw, 48px)',
     color: '#dbeafe',
     lineHeight: 1.6,
     margin: 'clamp(10px, 2vh, 24px) 0'
   },
   modalTitleMobile: {
     margin: 0,
-    fontSize: 'clamp(28px, 4.5vw, 44px)',
+    fontSize: 'clamp(42px, 6.75vw, 66px)',
     fontWeight: 600
   },
   modalCloseMobile: {
-    width: 'clamp(48px, 7vw, 64px)',
-    height: 'clamp(48px, 7vw, 64px)',
+    width: 'clamp(72px, 10.5vw, 96px)',
+    height: 'clamp(72px, 10.5vw, 96px)',
     borderRadius: '18px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     background: 'transparent',
@@ -335,56 +335,56 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 'clamp(28px, 4vw, 36px)',
+    fontSize: 'clamp(42px, 6vw, 54px)',
     cursor: 'pointer'
   },
   modalFormMobile: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'clamp(16px, 3vh, 40px)'
+    gap: 'clamp(24px, 4.5vh, 60px)'
   },
   modalFieldMobile: {
     display: 'flex',
     flexDirection: 'column',
-    gap: 'clamp(12px, 2vh, 24px)'
+    gap: 'clamp(18px, 3vh, 36px)'
   },
   modalLabelMobile: {
-    fontSize: 'clamp(24px, 3.6vw, 34px)',
+    fontSize: 'clamp(36px, 5.4vw, 51px)',
     color: '#e2e8f0'
   },
   modalInputMobile: {
-    height: 'clamp(70px, 9vh, 96px)',
-    borderRadius: '20px',
+    height: 'clamp(105px, 13.5vh, 144px)',
+    borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: 'rgba(9, 12, 22, 0.92)',
     color: '#f8fafc',
-    padding: '0 clamp(18px, 4vw, 32px)',
-    fontSize: 'clamp(28px, 4vw, 36px)',
+    padding: '0 clamp(27px, 6vw, 48px)',
+    fontSize: 'clamp(42px, 6vw, 54px)',
     outline: 'none'
   },
   modalMsgMobile: {
-    fontSize: 'clamp(22px, 3.3vw, 30px)',
+    fontSize: 'clamp(33px, 4.95vw, 45px)',
     lineHeight: 1.4,
     whiteSpace: 'pre-wrap',
-    borderRadius: '20px',
+    borderRadius: '24px',
     border: '1px solid rgba(59, 130, 246, 0.45)',
     backgroundColor: 'rgba(59, 130, 246, 0.12)',
     color: '#bfdbfe',
-    padding: 'clamp(16px, 3.2vw, 28px) clamp(20px, 4vw, 36px)'
+    padding: 'clamp(24px, 4.8vw, 42px) clamp(30px, 6vw, 54px)'
   },
   modalActionsMobile: {
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: 'clamp(16px, 4vw, 36px)'
+    gap: 'clamp(24px, 6vw, 54px)'
   },
   modalButtonMobile: {
-    minWidth: 'clamp(140px, 25vw, 220px)',
-    height: 'clamp(70px, 9vh, 96px)',
-    borderRadius: '20px',
+    minWidth: 'clamp(210px, 37.5vw, 330px)',
+    height: 'clamp(105px, 13.5vh, 144px)',
+    borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     background: 'rgba(15, 23, 42, 0.75)',
     color: '#e2e8f0',
-    fontSize: 'clamp(26px, 3.8vw, 34px)',
+    fontSize: 'clamp(39px, 5.7vw, 51px)',
     fontWeight: 600,
     cursor: 'pointer'
   },
@@ -647,6 +647,9 @@ const App = () => {
         border: 2px solid #111827;
       }
       ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
+      input, textarea, [contenteditable='true'] {
+        caret-color: #60a5fa !important;
+      }
     `;
     const wv = webviewRef.current;
     if (!wv) return;
@@ -1076,6 +1079,7 @@ const App = () => {
 
   const closeKeyboard = useCallback(() => {
     setKbVisible(false);
+    activeInputRef.current = null;
     if (isEditingRef.current && inputRef.current) {
       try { inputRef.current.blur(); } catch {}
     }
