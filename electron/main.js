@@ -1,12 +1,14 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, screen, ipcMain, session } = require('electron');
+const { app, BrowserWindow, Menu, screen, ipcMain, session, nativeTheme } = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { existsSync } = fs;
 const https = require('https');
 const http = require('http');
 const { resolveMode } = require('./mode');
+
+try { nativeTheme.themeSource = 'dark'; } catch {}
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
@@ -44,15 +46,6 @@ const applyUserAgentForUrl = (contents, url) => {
 
 
 let currentUserAgentMode = 'desktop';
-
-// ---------- Chromium/Electron flags ----------
-app.commandLine.appendSwitch('enable-features', 'VaapiVideoDecoder');
-app.commandLine.appendSwitch('use-gl', 'egl');
-app.commandLine.appendSwitch('enable-pinch'); // enable pinch gestures in the webview
-// Optional: force device scale if hit testing drifts
-// if (process.env.MZV_FORCE_SCALE === '1') {
-//   app.commandLine.appendSwitch('force-device-scale-factor', '1');
-// }
 
 // Application identifier for the host OS
 app.setAppUserModelId('dev.naz.r.merezhyvo');
@@ -172,9 +165,13 @@ const parseLaunchConfig = () => {
   let fullscreen = ['1', 'true', 'yes'].includes(envFullscreen);
   let devtools = process.env.MZV_DEVTOOLS === '1';
   let modeOverride = (process.env.MZV_MODE || '').toLowerCase(); // optional
+  const envForceDark = (process.env.MZV_FORCE_DARK || '').toLowerCase();
+  let forceDark = ['1', 'true', 'yes'].includes(envForceDark);
 
   for (const rawArg of args) {
     if (!rawArg) continue;
+    if (rawArg === '--force-dark') { forceDark = true; continue; }
+    if (rawArg === '--no-force-dark') { forceDark = false; continue; }
     if (rawArg === '--fullscreen') { fullscreen = true; continue; }
     if (rawArg === '--no-fullscreen') { fullscreen = false; continue; }
     if (rawArg === '--devtools') { devtools = true; continue; }
@@ -187,12 +184,27 @@ const parseLaunchConfig = () => {
     if (url === DEFAULT_URL) url = normalizeAddress(rawArg);
   }
 
-  return { url, fullscreen, devtools, modeOverride };
+  return { url, fullscreen, devtools, modeOverride, forceDark };
 };
+
+const launchConfig = parseLaunchConfig();
+
+// ---------- Chromium/Electron flags ----------
+const featureFlags = ['VaapiVideoDecoder'];
+if (launchConfig.forceDark) {
+  featureFlags.push('WebContentsForceDark');
+}
+app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
+app.commandLine.appendSwitch('use-gl', 'egl');
+app.commandLine.appendSwitch('enable-pinch'); // enable pinch gestures in the webview
+// Optional: force device scale if hit testing drifts
+// if (process.env.MZV_FORCE_SCALE === '1') {
+//   app.commandLine.appendSwitch('force-device-scale-factor', '1');
+// }
 
 // ---------- window lifecycle ----------
 const createMainWindow = () => {
-  const { url: startUrl, fullscreen, devtools, modeOverride } = parseLaunchConfig();
+  const { url: startUrl, fullscreen, devtools, modeOverride } = launchConfig;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
   const initialMode = modeOverride || resolveMode();
 

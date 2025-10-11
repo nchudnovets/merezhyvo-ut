@@ -640,6 +640,10 @@ const App = () => {
   // --- Inject custom css into the webview ---
   useEffect(() => {
     const css = `
+      :root, html { color-scheme: dark; }
+      @media (prefers-color-scheme: light) {
+        /* no-op: we still prefer dark by nativeTheme, but keep CSS minimal */
+      }
       ::-webkit-scrollbar { width: 8px; height: 8px; }
       ::-webkit-scrollbar-track { background: #111827; }
       ::-webkit-scrollbar-thumb {
