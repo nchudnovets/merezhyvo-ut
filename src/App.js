@@ -13,7 +13,8 @@ const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.0;
 const ZOOM_STEP = 0.1;
 const KB_HEIGHT = 650;
-const FOCUS_POST_MESSAGE = '__mzrEditFocus';
+const FOCUS_CONSOLE_ACTIVE = '__MZR_FOCUS_ACTIVE__';
+const FOCUS_CONSOLE_INACTIVE = '__MZR_FOCUS_INACTIVE__';
 const NON_TEXT_INPUT_TYPES = new Set([
   'button',
   'submit',
@@ -154,7 +155,7 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '6px 28px',
+    padding: '6px 50px',
     backgroundColor: '#121826',
     borderTop: '1px solid rgba(148, 163, 184, 0.18)',
     position: 'relative',
@@ -283,6 +284,104 @@ const styles = {
     color: '#f8fafc'
   },
   modalButtonDisabled: {
+    opacity: 0.6,
+    cursor: 'wait'
+  },
+  modalMobile: {
+    width: '100%',
+    height: 'min(100vh, 600px)',
+    minHeight: '50vh',
+    borderRadius: '28px 28px 0 0',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 'calc(3vh) calc(4vw)',
+    gap: 'calc(2vh)',
+    boxSizing: 'border-box'
+  },
+  modalHeaderMobile: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 'calc(3vw)'
+  },
+  modalTitleMobile: {
+    margin: 0,
+    fontSize: 'clamp(28px, 4.5vw, 44px)',
+    fontWeight: 600
+  },
+  modalCloseMobile: {
+    width: 'clamp(48px, 7vw, 64px)',
+    height: 'clamp(48px, 7vw, 64px)',
+    borderRadius: '18px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'transparent',
+    color: '#cbd5f5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    fontSize: 'clamp(28px, 4vw, 36px)',
+    cursor: 'pointer'
+  },
+  modalFormMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(16px, 3vh, 40px)'
+  },
+  modalFieldMobile: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 'clamp(12px, 2vh, 24px)'
+  },
+  modalLabelMobile: {
+    fontSize: 'clamp(24px, 3.6vw, 34px)',
+    color: '#e2e8f0'
+  },
+  modalInputMobile: {
+    height: 'clamp(70px, 9vh, 96px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'rgba(9, 12, 22, 0.92)',
+    color: '#f8fafc',
+    padding: '0 clamp(18px, 4vw, 32px)',
+    fontSize: 'clamp(28px, 4vw, 36px)',
+    outline: 'none'
+  },
+  modalMsgMobile: {
+    fontSize: 'clamp(22px, 3.3vw, 30px)',
+    lineHeight: 1.4,
+    whiteSpace: 'pre-wrap',
+    borderRadius: '20px',
+    border: '1px solid rgba(59, 130, 246, 0.45)',
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    color: '#bfdbfe',
+    padding: 'clamp(16px, 3.2vw, 28px) clamp(20px, 4vw, 36px)'
+  },
+  modalActionsMobile: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: 'clamp(16px, 4vw, 36px)'
+  },
+  modalButtonMobile: {
+    minWidth: 'clamp(140px, 25vw, 220px)',
+    height: 'clamp(70px, 9vh, 96px)',
+    borderRadius: '20px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.75)',
+    color: '#e2e8f0',
+    fontSize: 'clamp(26px, 3.8vw, 34px)',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  modalButtonPrimaryMobile: {
+    border: 'none',
+    background: 'rgba(37, 99, 235, 0.92)',
+    color: '#f8fafc'
+  },
+  modalButtonDisabledMobile: {
     opacity: 0.6,
     cursor: 'wait'
   }
@@ -801,13 +900,6 @@ const App = () => {
         if (window.__mzrFocusBridgeInstalled) return;
         window.__mzrFocusBridgeInstalled = true;
 
-        const post = (payload) => {
-          try {
-            const target = window.parent || window;
-            target.postMessage(payload, '*');
-          } catch {}
-        };
-
         const nonTextTypes = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
         const isEditable = (el) => {
           if (!el) return false;
@@ -822,7 +914,11 @@ const App = () => {
           return false;
         };
 
-        const notify = (active) => post({ ${JSON.stringify(FOCUS_POST_MESSAGE)}: true, active: !!active });
+        const notify = (active) => {
+          try {
+            console.info(active ? ${JSON.stringify(FOCUS_CONSOLE_ACTIVE)} : ${JSON.stringify(FOCUS_CONSOLE_INACTIVE)});
+          } catch {}
+        };
 
         const handleFocusIn = (event) => {
           if (isEditable(event.target)) notify(true);
@@ -849,9 +945,6 @@ const App = () => {
         document.addEventListener('focusin', handleFocusIn, true);
         document.addEventListener('focusout', handleFocusOut, true);
         document.addEventListener('pointerdown', handlePointerDown, true);
-        window.addEventListener('blur', () => notify(false));
-
-        // Do not auto-open the keyboard on initial programmatic focus.
       })();
     `;
 
@@ -879,28 +972,32 @@ const App = () => {
   }, []);
 
   useEffect(() => {
-    const handler = (event) => {
-      const data = event.data;
-      if (!data || data[FOCUS_POST_MESSAGE] !== true) return;
-      if (mode !== 'mobile') return;
+    const wv = webviewRef.current;
+    if (!wv) return undefined;
 
-      if (data.active) {
+    const handler = (event) => {
+      if (mode !== 'mobile') return;
+      const message = event?.message;
+      if (message === FOCUS_CONSOLE_ACTIVE) {
         setKbVisible(true);
         return;
       }
-
-      requestAnimationFrame(() => {
-        const active = document.activeElement;
-        const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-        if (isSoftKey || isEditableElement(active)) {
-          return;
-        }
-        setKbVisible(false);
-      });
+      if (message === FOCUS_CONSOLE_INACTIVE) {
+        requestAnimationFrame(() => {
+          const active = document.activeElement;
+          const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+          if (isSoftKey || isEditableElement(active)) {
+            return;
+          }
+          setKbVisible(false);
+        });
+      }
     };
 
-    window.addEventListener('message', handler);
-    return () => window.removeEventListener('message', handler);
+    wv.addEventListener('console-message', handler);
+    return () => {
+      wv.removeEventListener('console-message', handler);
+    };
   }, [mode, isEditableElement]);
 
   const blurActiveInWebview = useCallback(() => {
@@ -1335,26 +1432,31 @@ const App = () => {
           }}
         >
           <div
-            style={styles.modal}
+            style={mode === 'mobile' ? styles.modalMobile : styles.modal}
             role="dialog"
             aria-modal="true"
             aria-labelledby="shortcut-modal-title"
           >
-            <div style={styles.modalHeader}>
-              <h2 id="shortcut-modal-title" style={styles.modalTitle}>
+            <div style={mode === 'mobile' ? styles.modalHeaderMobile : styles.modalHeader}>
+              <h2 id="shortcut-modal-title" style={mode === 'mobile' ? styles.modalTitleMobile : styles.modalTitle}>
                 Create App Shortcut
               </h2>
+              <p>
+                You are about to save this page as a separate application. Please give it a name.
+                <br />
+                After saving, you may need to refresh the application launcher or restart your device.
+              </p>
               <button
                 type="button"
                 aria-label="Close shortcut dialog"
-                style={styles.modalClose}
+                style={mode === 'mobile' ? styles.modalCloseMobile : styles.modalClose}
                 onClick={closeShortcutModal}
               >
                 ✕
               </button>
             </div>
             <form
-              style={styles.modalForm}
+              style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
               onSubmit={(event) => {
                 event.preventDefault();
                 if (!busy) {
@@ -1362,33 +1464,31 @@ const App = () => {
                 }
               }}
             >
-              <div style={styles.modalField}>
-                <label htmlFor="shortcut-title" style={styles.modalLabel}>
+              <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
+                <label htmlFor="shortcut-title" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
                   Title
                 </label>
                 <input
                   id="shortcut-title"
                   ref={modalInputRef}
                   type="text"
-                  value={title}
+                  value={title.charAt(0).toUpperCase() + title.slice(1).split('.')[0]}
                   onChange={(event) => setTitle(event.target.value)}
-                  style={styles.modalInput}
+                  style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
                   disabled={busy}
                 />
               </div>
 
               {msg && (
-                <div style={styles.modalMsg} role="status">
+                <div style={mode === 'mobile' ? styles.modalMsgMobile : styles.modalMsg} role="status">
                   {msg}
                 </div>
               )}
 
-              <div style={styles.modalActions}>
+              <div style={mode === 'mobile' ? styles.modalActionsMobile : styles.modalActions}>
                 <button
                   type="button"
-                  style={{
-                    ...styles.modalButton
-                  }}
+                  style={mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton}
                   onClick={closeShortcutModal}
                 >
                   Close
@@ -1396,9 +1496,9 @@ const App = () => {
                 <button
                   type="submit"
                   style={{
-                    ...styles.modalButton,
-                    ...styles.modalButtonPrimary,
-                    ...(busy ? styles.modalButtonDisabled : null)
+                    ...(mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton),
+                    ...(mode === 'mobile' ? styles.modalButtonPrimaryMobile : styles.modalButtonPrimary),
+                    ...(busy ? (mode === 'mobile' ? styles.modalButtonDisabledMobile : styles.modalButtonDisabled) : null)
                   }}
                   disabled={busy}
                 >
