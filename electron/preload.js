@@ -41,6 +41,52 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     } catch (err) {
       return { ok: false, error: String(err) };
     }
+  },
+
+  session: {
+    load: async () => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:session:load');
+      } catch (err) {
+        console.error('[merezhyvo] session.load failed', err);
+        return null;
+      }
+    },
+    save: async (data) => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:session:save', data);
+      } catch (err) {
+        console.error('[merezhyvo] session.save failed', err);
+        return { ok: false, error: String(err) };
+      }
+    }
+  },
+
+  power: {
+    start: async () => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:power:start');
+      } catch (err) {
+        console.error('[merezhyvo] power.start failed', err);
+        return null;
+      }
+    },
+    stop: async (id) => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:power:stop', id ?? null);
+      } catch (err) {
+        console.error('[merezhyvo] power.stop failed', err);
+        return null;
+      }
+    },
+    isStarted: async (id) => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:power:isStarted', id ?? null);
+      } catch (err) {
+        console.error('[merezhyvo] power.isStarted failed', err);
+        return false;
+      }
+    }
   }
 });
 

@@ -7,8 +7,9 @@ import React, {
 } from 'react';
 import SoftKeyboard from './components/SoftKeyboard';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
+import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
 
-const DEFAULT_URL = 'https://duckduckgo.com';
+const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
@@ -112,19 +113,6 @@ const styles = {
     transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
     boxShadow: '0 0 0 rgba(37, 99, 235, 0.1)'
   },
-  goButton: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    height: '36px',
-    borderRadius: '16px',
-    border: 'none',
-    backgroundColor: '#2563eb',
-    color: '#f8fafc',
-    fontSize: '16px',
-    fontWeight: 600
-  },
-  goButtonIcon: { display: 'block' },
   statusIndicator: {
     minWidth: '24px',
     display: 'flex',
@@ -134,6 +122,55 @@ const styles = {
   statusSvg: { display: 'block' },
   statusIconReady: { color: '#22c55e' },
   statusIconError: { color: '#ef4444' },
+  tabsButton: {
+    position: 'relative',
+    width: '42px',
+    height: '42px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: '#1c2333',
+    color: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    flexShrink: 0,
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
+  },
+  tabsButtonDisabled: {
+    opacity: 0.55,
+    cursor: 'not-allowed'
+  },
+  tabsButtonSquare: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    width: '24px',
+    height: '24px',
+    borderRadius: '8px',
+    border: '1px solid rgba(148, 163, 184, 0.45)',
+    backgroundColor: 'rgba(59, 130, 246, 0.16)',
+    color: '#f8fafc',
+    boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.18)',
+    flexShrink: 0
+  },
+  tabsButtonCount: {
+    fontSize: '12px',
+    fontWeight: 600,
+    fontVariantNumeric: 'tabular-nums',
+    lineHeight: 1,
+    textAlign: 'center'
+  },
+  visuallyHidden: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    padding: 0,
+    margin: -1,
+    overflow: 'hidden',
+    clip: 'rect(0,0,0,0)',
+    border: 0
+  },
   spinner: {
     width: '16px',
     height: '16px',
@@ -193,6 +230,199 @@ const styles = {
     justifyContent: 'center',
     padding: '24px',
     zIndex: 200
+  },
+  tabsPanelBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(4, 7, 17, 0.82)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '24px',
+    zIndex: 160
+  },
+  tabsPanel: {
+    width: 'min(480px, 94vw)',
+    maxHeight: 'min(560px, 86vh)',
+    borderRadius: '24px',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '24px',
+    gap: '16px',
+    overflow: 'hidden'
+  },
+  tabsPanelMobile: {
+    width: '100%',
+    height: '100vh',
+    minHeight: '100vh',
+    borderRadius: 0,
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 'calc(2vh) calc(4vw)',
+    gap: 'calc(2vh)',
+    boxSizing: 'border-box'
+  },
+  tabsPanelHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px'
+  },
+  tabsPanelTitle: {
+    margin: 0,
+    fontSize: '20px',
+    fontWeight: 600
+  },
+  tabsPanelBody: {
+    flex: 1,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    overflowY: 'auto',
+    paddingRight: '4px'
+  },
+  tabsSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  tabsSectionTitle: {
+    margin: 0,
+    fontSize: '12px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#94a3b8'
+  },
+  tabsList: {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  tabRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '10px 14px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    backgroundColor: 'rgba(17, 24, 39, 0.6)',
+    cursor: 'pointer',
+    transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
+  },
+  tabRowActive: {
+    borderColor: 'rgba(59, 130, 246, 0.65)',
+    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.25)'
+  },
+  tabInfo: {
+    flex: 1,
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    minWidth: 0
+  },
+  tabFaviconWrap: {
+    width: '20px',
+    height: '20px',
+    borderRadius: '6px',
+    backgroundColor: 'rgba(148, 163, 184, 0.18)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    overflow: 'hidden',
+    flexShrink: 0
+  },
+  tabFavicon: {
+    width: '100%',
+    height: '100%',
+    objectFit: 'cover'
+  },
+  tabFaviconFallback: {
+    fontSize: '11px',
+    color: '#94a3b8',
+    fontWeight: 600
+  },
+  tabTexts: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '2px',
+    minWidth: 0
+  },
+  tabTitle: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#f8fafc',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  tabSubtitle: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  tabActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  tabIconButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '10px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.65)',
+    color: '#cbd5f5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  tabIconButtonActive: {
+    borderColor: 'rgba(59, 130, 246, 0.7)',
+    background: 'rgba(37, 99, 235, 0.22)',
+    color: '#e0f2fe'
+  },
+  tabIcon: {
+    width: '16px',
+    height: '16px'
+  },
+  newTabButton: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    height: '38px',
+    borderRadius: '14px',
+    border: '1px solid rgba(59, 130, 246, 0.45)',
+    background: 'rgba(37, 99, 235, 0.15)',
+    color: '#f8fafc',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  newTabButtonMobile: {
+    height: 'clamp(105px, 13.5vh, 144px)',
+    borderRadius: '24px',
+    border: '1px solid rgba(59, 130, 246, 0.45)',
+    background: 'rgba(37, 99, 235, 0.22)',
+    color: '#f8fafc',
+    fontSize: 'clamp(39px, 5.7vw, 51px)',
+    fontWeight: 600,
+    cursor: 'pointer'
   },
   modal: {
     width: 'min(420px, 92vw)',
@@ -296,8 +526,8 @@ const styles = {
   },
   modalMobile: {
     width: '100%',
-    height: 'min(100vh, 600px)',
-    minHeight: '50vh',
+    height: 'min(92vh, 600px)',
+    minHeight: '45vh',
     borderRadius: '28px 28px 0 0',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.98)',
@@ -305,9 +535,10 @@ const styles = {
     color: '#f8fafc',
     display: 'flex',
     flexDirection: 'column',
-    padding: 'calc(3vh) calc(4vw)',
+    padding: 'calc(2vh) calc(4vw)',
     gap: 'calc(2vh)',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    marginTop: 'clamp(24px, 4vh, 48px)'
   },
   modalHeaderMobile: {
     display: 'flex',
@@ -327,16 +558,16 @@ const styles = {
     fontWeight: 600
   },
   modalCloseMobile: {
-    width: 'clamp(72px, 10.5vw, 96px)',
-    height: 'clamp(72px, 10.5vw, 96px)',
-    borderRadius: '18px',
+    width: 'clamp(56px, 8vw, 80px)',
+    height: 'clamp(56px, 8vw, 80px)',
+    borderRadius: '16px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     background: 'transparent',
     color: '#cbd5f5',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    fontSize: 'clamp(42px, 6vw, 54px)',
+    fontSize: 'clamp(33px, 5vw, 44px)',
     cursor: 'pointer'
   },
   modalFormMobile: {
@@ -410,26 +641,125 @@ const modeStyles = {
     makeAppBtnIcn: { width: '16px', height: '16px' },
     statusIcon: { width: '14px', height: '14px' },
     zoomSlider: { height: '4px' },
-    zoomValue: { minWidth: '48px', textAlign: 'right' }
+    zoomValue: { minWidth: '48px', textAlign: 'right' },
+    tabsButton: {},
+    tabsButtonSquare: {},
+    tabsButtonCount: {},
+    tabRow: {},
+    tabTitle: {},
+    tabSubtitle: {},
+    tabFaviconWrap: {},
+    tabFaviconFallback: {},
+    tabIconButton: {},
+    tabIcon: {},
+    tabActions: {},
+    newTabButton: {}
   },
   mobile: {
-    toolbarBtnRegular: { width: '80px', height: '80px' },
-    toolbarBtnIcn: { width: '44px', height: '44px' },
+    toolbarBtnRegular: {
+      width: 'clamp(72px, 10vw, 96px)',
+      height: 'clamp(72px, 10vw, 96px)'
+    },
+    toolbarBtnIcn: {
+      width: 'clamp(36px, 5vw, 48px)',
+      height: 'clamp(36px, 5vw, 48px)'
+    },
     toolbarBtnDesktopOnly: { display: 'none' },
-    searchInput: { fontSize: '40px', height: '72px', paddingRight: '120px' },
-    makeAppBtn: { width: '64px', height: '64px' },
-    makeAppBtnIcn: { width: '40px', height: '40px' },
-    statusIcon: { width: '28px', height: '28px' },
-    zoomSlider: { height: '22px' },
-    zoomValue: { minWidth: '90px', textAlign: 'right', fontSize: '24px' }
+    searchInput: {
+      fontSize: '36px',
+      height: 'clamp(72px, 10vw, 96px)',
+      paddingRight: 'clamp(120px, 16vw, 144px)'
+    },
+    makeAppBtn: {
+      width: 'clamp(60px, 9vw, 84px)',
+      height: 'clamp(60px, 9vw, 84px)'
+    },
+    makeAppBtnIcn: {
+      width: 'clamp(32px, 5vw, 42px)',
+      height: 'clamp(32px, 5vw, 42px)'
+    },
+    statusIcon: {
+      width: 'clamp(22px, 3.5vw, 28px)',
+      height: 'clamp(22px, 3.5vw, 28px)'
+    },
+    zoomSlider: { height: 'clamp(14px, 2.2vw, 20px)' },
+    zoomValue: {
+      minWidth: 'clamp(80px, 12vw, 108px)',
+      textAlign: 'right',
+      fontSize: 'clamp(22px, 3.3vw, 26px)'
+    },
+    tabsButton: {
+      width: 'clamp(72px, 10vw, 96px)',
+      height: 'clamp(72px, 10vw, 96px)',
+      borderRadius: '24px'
+    },
+    tabsButtonSquare: {
+      width: 'clamp(44px, 6.5vw, 60px)',
+      height: 'clamp(44px, 6.5vw, 60px)',
+      borderRadius: '16px',
+      border: '2px solid rgba(148, 163, 184, 0.55)'
+    },
+    tabsButtonCount: {
+      fontSize: 'clamp(30px, 4.8vw, 38px)'
+    },
+    tabsPanelTitle: {
+      fontSize: 'clamp(54px, 7vw, 66px)'
+    },
+    tabsPanelBody: {
+      gap: 'clamp(24px, 4vh, 36px)'
+    },
+    tabsSectionTitle: {
+      fontSize: 'clamp(30px, 4.5vw, 39px)'
+    },
+    tabRow: {
+      padding: 'clamp(30px, 5vw, 48px)',
+      borderRadius: '28px'
+    },
+    tabFaviconWrap: {
+      width: 'clamp(66px, 10vw, 84px)',
+      height: 'clamp(66px, 10vw, 84px)',
+      borderRadius: '20px'
+    },
+    tabFaviconFallback: {
+      fontSize: 'clamp(27px, 4vw, 36px)'
+    },
+    tabTitle: {
+      fontSize: 'clamp(42px, 6vw, 54px)'
+    },
+    tabSubtitle: {
+      fontSize: 'clamp(30px, 4.8vw, 42px)'
+    },
+    tabIconButton: {
+      width: 'clamp(96px, 14vw, 120px)',
+      height: 'clamp(96px, 14vw, 120px)',
+      borderRadius: '24px'
+    },
+    tabIcon: {
+      width: 'clamp(42px, 6vw, 54px)',
+      height: 'clamp(42px, 6vw, 54px)'
+    },
+    tabActions: {
+      gap: 'clamp(30px, 5vw, 45px)'
+    },
+    newTabButton: {
+      height: 'clamp(120px, 14vh, 168px)',
+      borderRadius: '32px',
+      fontSize: 'clamp(42px, 6vw, 54px)'
+    }
   }
 };
 
 const parseStartUrl = () => {
   const params = new URLSearchParams(window.location.search);
   const raw = params.get('start');
-  if (!raw) return DEFAULT_URL;
-  try { return decodeURIComponent(raw); } catch { return raw; }
+  if (!raw) {
+    return { url: DEFAULT_URL, hasStartParam: false };
+  }
+  try {
+    return { url: decodeURIComponent(raw), hasStartParam: true };
+  } catch {
+    return { url: raw, hasStartParam: true };
+  }
 };
 
 const normalizeAddress = (value) => {
@@ -450,24 +780,127 @@ const normalizeAddress = (value) => {
 };
 
 const App = () => {
-  const initialUrl = useMemo(() => normalizeAddress(parseStartUrl()), []);
+  const { url: parsedStartUrl, hasStartParam } = useMemo(() => parseStartUrl(), []);
+  const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
   const modalInputRef = useRef(null);
   const activeInputRef = useRef(null);
+  const webviewReadyRef = useRef(false);
+
+  const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
+  const tabCount = tabs.length;
 
   const [inputValue, setInputValue] = useState(initialUrl);
-  const [currentUrl, setCurrentUrl] = useState(initialUrl);
   const [isEditing, setIsEditing] = useState(false);
   const isEditingRef = useRef(false);
   const [canGoBack, setCanGoBack] = useState(false);
   const [canGoForward, setCanGoForward] = useState(false);
   const [status, setStatus] = useState('loading');
+  const [webviewReady, setWebviewReady] = useState(false);
 
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
+  const [showTabsPanel, setShowTabsPanel] = useState(false);
+
+  const tabsReadyRef = useRef(tabsReady);
+
+  const startUrlAppliedRef = useRef(false);
+  const activeIdRef = useRef(activeId);
+  const activeTabRef = useRef(activeTab);
+  const lastLoadedRef = useRef({ id: null, url: null });
+
+  const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
+  const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
+  const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
+
+  const {
+    newTab: newTabAction,
+    closeTab: closeTabAction,
+    activateTab: activateTabAction,
+    pinTab: pinTabAction,
+    navigateActive: navigateActiveAction,
+    reloadActive: reloadActiveAction,
+    updateMeta: updateMetaAction
+  } = tabsActions;
+
+  useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
+  useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
+  useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
+
+  useEffect(() => {
+    const styleId = 'mzr-modal-scroll-style';
+    if (document.getElementById(styleId)) return undefined;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .tabs-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
+      .tabs-modal-body::-webkit-scrollbar-track { background: #111827; }
+      .tabs-modal-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
+        border-radius: 6px;
+        border: 1px solid rgba(15, 23, 42, 0.6);
+      }
+      .tabs-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
+      .tabs-modal-body { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      try {
+        if (style.parentNode) style.parentNode.removeChild(style);
+      } catch {}
+    };
+  }, []);
+
+  const getActiveWebview = () => webviewRef.current;
+
+  useEffect(() => {
+    if (!tabsReady) return;
+    if (isEditingRef.current) return;
+    setInputValue(activeUrl);
+  }, [tabsReady, activeUrl]);
+
+  useEffect(() => {
+    if (!tabsReady || !hasStartParam) return;
+    if (startUrlAppliedRef.current) return;
+    startUrlAppliedRef.current = true;
+    const trimmed = (initialUrl || '').trim();
+    if (!trimmed) return;
+    navigateActiveAction(trimmed);
+  }, [tabsReady, hasStartParam, initialUrl, navigateActiveAction]);
+
+  const hostnameFromUrl = useCallback((value) => {
+    if (!value) return '';
+    try {
+      return new URL(value).hostname.replace(/^www\./, '');
+    } catch {
+      return String(value || '');
+    }
+  }, []);
+
+  const displayTitleForTab = useCallback((tab) => {
+    if (!tab) return 'New Tab';
+    const title = (tab.title || '').trim();
+    if (title) return title;
+    const host = hostnameFromUrl(tab.url);
+    return host || 'New Tab';
+  }, [hostnameFromUrl]);
+
+  const displaySubtitleForTab = useCallback((tab) => {
+    if (!tab) return '';
+    const host = hostnameFromUrl(tab.url);
+    if (host) return host;
+    const url = (tab.url || '').trim();
+    return url && url !== DEFAULT_URL ? url : '';
+  }, [hostnameFromUrl]);
+
+  const fallbackInitialForTab = useCallback((tab) => {
+    const label = displayTitleForTab(tab);
+    const first = label.trim().charAt(0);
+    return first ? first.toUpperCase() : '•';
+  }, [displayTitleForTab]);
 
   const isEditableElement = useCallback((element) => {
     if (!element) return false;
@@ -572,7 +1005,7 @@ const App = () => {
     }
     zoomRef.current = rounded;
     setZoomLevel(rounded);
-  }, []);
+  }, [updateMetaAction]);
 
   useEffect(() => {
     const base = mode === 'mobile' ? 2.0 : 1.0;
@@ -752,32 +1185,101 @@ const App = () => {
   useEffect(() => {
     const view = webviewRef.current;
     if (!view) return;
+    if ('isConnected' in view && !view.isConnected) return;
+
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
 
     const updateNavigationState = () => {
-      setCanGoBack(view.canGoBack());
-      setCanGoForward(view.canGoForward());
+      try {
+        setCanGoBack(view.canGoBack());
+        setCanGoForward(view.canGoForward());
+      } catch {
+        setCanGoBack(false);
+        setCanGoForward(false);
+      }
     };
 
-    const syncUrl = (nextUrl) => {
+    const applyUrlUpdate = (nextUrl) => {
       if (!nextUrl) return;
-      setCurrentUrl(nextUrl);
-      if (!isEditingRef.current) setInputValue(nextUrl);
+      const activeIdCurrent = activeIdRef.current;
+      if (!activeIdCurrent) return;
+      const cleanUrl = nextUrl.trim();
+      if (tabsReadyRef.current) {
+        updateMetaAction(activeIdCurrent, {
+          url: cleanUrl,
+          discarded: false,
+          lastUsedAt: Date.now()
+        });
+        lastLoadedRef.current = { id: activeIdCurrent, url: cleanUrl };
+        if (!isEditingRef.current) setInputValue(cleanUrl);
+      }
     };
 
     const handleNavigate = (event) => {
-      if (event.url) syncUrl(event.url);
+      if (event?.url) applyUrlUpdate(event.url);
       setStatus('ready');
       updateNavigationState();
     };
 
-    const handleStart = () => setStatus('loading');
+    const handleStart = () => {
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+      setStatus('loading');
+    };
+
     const handleStop = () => {
       setStatus('ready');
-      try { syncUrl(view.getURL()); } catch {}
+      try { applyUrlUpdate(view.getURL()); } catch {}
       updateNavigationState();
+      if (!webviewReadyRef.current) {
+        webviewReadyRef.current = true;
+        setWebviewReady(true);
+      }
     };
-    const handleFail = () => setStatus('error');
-    const handleDomReady = () => { updateNavigationState(); try { view.focus(); } catch {} };
+
+    const handleFail = () => {
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+      setStatus('error');
+    };
+
+    const handleDomReady = () => {
+      webviewReadyRef.current = true;
+      setWebviewReady(true);
+      updateNavigationState();
+      try { view.focus(); } catch {}
+    };
+
+    const handleTitle = (event) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const title = typeof event?.title === 'string' ? event.title : '';
+      if (title && tabsReadyRef.current) {
+        updateMetaAction(id, { title, lastUsedAt: Date.now() });
+      }
+    };
+
+    const handleFavicon = (event) => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      const favicons = Array.isArray(event?.favicons) ? event.favicons : [];
+      const favicon = favicons.find((href) => typeof href === 'string' && href.trim());
+      if (favicon && tabsReadyRef.current) {
+        updateMetaAction(id, { favicon: favicon.trim() });
+      }
+    };
+
+    const handleMediaState = () => {
+      const id = activeIdRef.current;
+      if (!id) return;
+      try {
+        const muted = typeof view.isAudioMuted === 'function' ? view.isAudioMuted() : false;
+        if (tabsReadyRef.current) {
+          updateMetaAction(id, { muted });
+        }
+      } catch {}
+    };
 
     view.addEventListener('did-navigate', handleNavigate);
     view.addEventListener('did-navigate-in-page', handleNavigate);
@@ -785,10 +1287,17 @@ const App = () => {
     view.addEventListener('did-stop-loading', handleStop);
     view.addEventListener('did-fail-load', handleFail);
     view.addEventListener('dom-ready', handleDomReady);
+    view.addEventListener('page-title-updated', handleTitle);
+    view.addEventListener('page-favicon-updated', handleFavicon);
+    view.addEventListener('media-started-playing', handleMediaState);
+    view.addEventListener('media-paused', handleMediaState);
 
-    if (!view.getAttribute('src')) {
-      view.setAttribute('src', initialUrl);
-    }
+    try {
+      if (typeof view.isLoading === 'function' && !view.isLoading()) {
+        webviewReadyRef.current = true;
+        setWebviewReady(true);
+      }
+    } catch {}
 
     return () => {
       view.removeEventListener('did-navigate', handleNavigate);
@@ -797,8 +1306,34 @@ const App = () => {
       view.removeEventListener('did-stop-loading', handleStop);
       view.removeEventListener('did-fail-load', handleFail);
       view.removeEventListener('dom-ready', handleDomReady);
+      view.removeEventListener('page-title-updated', handleTitle);
+      view.removeEventListener('page-favicon-updated', handleFavicon);
+      view.removeEventListener('media-started-playing', handleMediaState);
+      view.removeEventListener('media-paused', handleMediaState);
     };
-  }, [initialUrl]);
+  }, []);
+
+  useEffect(() => {
+    const view = webviewRef.current;
+    if (!view || !tabsReady || !activeTab) return;
+    if ('isConnected' in view && !view.isConnected) return;
+    const targetUrl = (activeTab.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
+    const { id: loadedId, url: loadedUrl } = lastLoadedRef.current;
+    if (loadedId === activeTab.id && loadedUrl === targetUrl) {
+      return;
+    }
+    lastLoadedRef.current = { id: activeTab.id, url: targetUrl };
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    setStatus('loading');
+    try {
+      view.loadURL(targetUrl);
+    } catch {
+      try {
+        view.setAttribute('src', targetUrl);
+      } catch {}
+    }
+  }, [tabsReady, activeTab]);
 
   // --- Text injection helpers (used by the soft keyboard) ---
   const injectTextToWeb = useCallback(async (text) => {
@@ -1108,12 +1643,18 @@ const App = () => {
     const view = webviewRef.current;
     if (!view) return;
     const target = normalizeAddress(inputValue);
-    setCurrentUrl(target);
     setInputValue(target);
     setStatus('loading');
-    view.loadURL(target);
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    const activeIdCurrent = activeIdRef.current;
+    if (activeIdCurrent) {
+      navigateActiveAction(target);
+      lastLoadedRef.current = { id: activeIdCurrent, url: target };
+    }
+    try { view.loadURL(target); } catch {}
     setKbVisible(false);
-  }, [inputValue]);
+  }, [inputValue, navigateActiveAction]);
 
   const handleBack = useCallback(() => {
     const view = webviewRef.current;
@@ -1125,8 +1666,26 @@ const App = () => {
   }, []);
   const handleReload = useCallback(() => {
     const view = webviewRef.current;
-    if (view) { setStatus('loading'); view.reload(); }
-  }, []);
+    if (!view) return;
+    if ('isConnected' in view && !view.isConnected) return;
+    const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
+    setStatus('loading');
+    reloadActiveAction();
+    const wasReady = webviewReadyRef.current;
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    try {
+      if (wasReady) {
+        view.reload();
+      } else {
+        view.loadURL(activeUrlCurrent);
+      }
+    } catch {
+      try {
+        view.setAttribute('src', activeUrlCurrent);
+      } catch {}
+    }
+  }, [reloadActiveAction]);
 
   const handleInputPointerDown = useCallback(() => {
     activeInputRef.current = 'url';
@@ -1192,8 +1751,23 @@ const App = () => {
   const modalBackdropStyle = useMemo(() => {
     const base = { ...styles.modalBackdrop, zIndex: 45 + (kbVisible ? 60 : 0) };
     if (mode === 'mobile') {
-      base.alignItems = 'flex-end';
+      base.alignItems = 'flex-start';
+      base.paddingTop = 24;
       base.paddingBottom = 24;
+      base.top = 0;
+      base.bottom = kbVisible ? KB_HEIGHT : 0;
+      base.transition = 'bottom 160ms ease';
+    }
+    return base;
+  }, [mode, kbVisible]);
+
+  const tabsPanelBackdropStyle = useMemo(() => {
+    const base = { ...styles.tabsPanelBackdrop, zIndex: 55 + (kbVisible ? 60 : 0) };
+    if (mode === 'mobile') {
+      base.alignItems = 'flex-start';
+      base.paddingTop = 0;
+      base.paddingBottom = 0;
+      base.top = 0;
       base.bottom = kbVisible ? KB_HEIGHT : 0;
       base.transition = 'bottom 160ms ease';
     }
@@ -1324,7 +1898,11 @@ const App = () => {
 
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = () => {
-    try { return webviewRef.current?.getURL?.() || null; } catch { return null; }
+    try {
+      const direct = webviewRef.current?.getURL?.();
+      if (direct) return direct;
+    } catch {}
+    return activeTabRef.current?.url || activeUrl || null;
   };
 
   const openShortcutModal = () => {
@@ -1479,6 +2057,176 @@ const App = () => {
   const toggleShift = useCallback(() => setKbShift((shift) => !shift), []);
   const toggleCaps = useCallback(() => setKbCaps((caps) => !caps), []);
 
+  const openTabsPanel = useCallback(() => {
+    if (!tabsReady) return;
+    setShowTabsPanel(true);
+    activeInputRef.current = null;
+    blurActiveInWebview();
+    if (mode === 'mobile') setKbVisible(false);
+  }, [tabsReady, blurActiveInWebview, mode]);
+
+  const closeTabsPanel = useCallback(() => {
+    setShowTabsPanel(false);
+    if (mode === 'mobile') setKbVisible(false);
+  }, [mode]);
+
+  const handleActivateTab = useCallback((id) => {
+    if (!id) return;
+    activateTabAction(id);
+    setShowTabsPanel(false);
+    blurActiveInWebview();
+    if (mode === 'mobile') setKbVisible(false);
+  }, [activateTabAction, blurActiveInWebview, mode]);
+
+  const handleCloseTab = useCallback((id) => {
+    if (!id) return;
+    closeTabAction(id);
+  }, [closeTabAction]);
+
+  const handleTogglePin = useCallback((id) => {
+    if (!id) return;
+    pinTabAction(id);
+  }, [pinTabAction]);
+
+  const handleNewTab = useCallback(() => {
+    newTabAction(DEFAULT_URL);
+    setShowTabsPanel(false);
+    blurActiveInWebview();
+    if (mode === 'mobile') setKbVisible(false);
+    requestAnimationFrame(() => {
+      try { inputRef.current?.focus?.(); } catch {}
+    });
+  }, [mode, blurActiveInWebview, newTabAction]);
+
+  useEffect(() => {
+    if (!showTabsPanel) return undefined;
+    const handleKey = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeTabsPanel();
+      }
+    };
+    window.addEventListener('keydown', handleKey);
+    return () => window.removeEventListener('keydown', handleKey);
+  }, [showTabsPanel, closeTabsPanel]);
+
+  const renderTabItem = useCallback((tab) => {
+    const isActive = tab.id === activeId;
+    const subtitle = displaySubtitleForTab(tab);
+    const tabRowStyle = {
+      ...styles.tabRow,
+      ...(modeStyles[mode].tabRow || {}),
+      ...(isActive ? styles.tabRowActive : null)
+    };
+    const pinButtonStyle = {
+      ...styles.tabIconButton,
+      ...(modeStyles[mode].tabIconButton || {}),
+      ...(tab.pinned ? styles.tabIconButtonActive : null)
+    };
+    const closeButtonStyle = {
+      ...styles.tabIconButton,
+      ...(modeStyles[mode].tabIconButton || {})
+    };
+
+    return (
+      <div
+        key={tab.id}
+        role="button"
+        tabIndex={0}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => handleActivateTab(tab.id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            handleActivateTab(tab.id);
+          }
+        }}
+        style={tabRowStyle}
+      >
+        <span style={styles.tabInfo}>
+          <span style={{ ...styles.tabFaviconWrap, ...(modeStyles[mode].tabFaviconWrap || {}) }}>
+            {tab.favicon ? (
+              <img src={tab.favicon} alt="" style={styles.tabFavicon} />
+            ) : (
+              <span style={{ ...styles.tabFaviconFallback, ...(modeStyles[mode].tabFaviconFallback || {}) }}>
+                {fallbackInitialForTab(tab)}
+              </span>
+            )}
+          </span>
+          <span style={styles.tabTexts}>
+            <span style={{ ...styles.tabTitle, ...(modeStyles[mode].tabTitle || {}) }}>
+              {displayTitleForTab(tab)}
+            </span>
+            {subtitle ? (
+              <span style={{ ...styles.tabSubtitle, ...(modeStyles[mode].tabSubtitle || {}) }}>
+                {subtitle}
+              </span>
+            ) : null}
+          </span>
+        </span>
+        <span style={{ ...styles.tabActions, ...(modeStyles[mode].tabActions || {}) }}>
+          <button
+            type="button"
+            aria-label={tab.pinned ? 'Unpin tab' : 'Pin tab'}
+            onClick={(event) => {
+              event.stopPropagation();
+              handleTogglePin(tab.id);
+            }}
+            style={pinButtonStyle}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill={tab.pinned ? 'currentColor' : 'none'}
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M6.25 2.5h3.5a1 1 0 0 1 1 1v2.586l1.657 1.657a1 1 0 0 1-.707 1.707H10v3.3l-2 1.5-2-1.5V9.45H4.3a1 1 0 0 1-.707-1.707L5.25 6.086V3.5a1 1 0 0 1 1-1z"
+              />
+            </svg>
+          </button>
+          <button
+            type="button"
+            aria-label="Close tab"
+            onClick={(event) => {
+              event.stopPropagation();
+              handleCloseTab(tab.id);
+            }}
+            style={closeButtonStyle}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.6"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"
+              />
+            </svg>
+          </button>
+        </span>
+      </div>
+    );
+  }, [
+    activeId,
+    mode,
+    displayTitleForTab,
+    displaySubtitleForTab,
+    fallbackInitialForTab,
+    handleActivateTab,
+    handleTogglePin,
+    handleCloseTab
+  ]);
+
   const statusLabelMap = {
     loading: 'Loading',
     ready: 'Ready',
@@ -1592,7 +2340,12 @@ const App = () => {
             type="button"
             aria-label="Reload"
             onClick={handleReload}
-            style={{ ...styles.navButton, ...modeStyles[mode].toolbarBtnRegular }}
+            disabled={!webviewReady}
+            style={{
+              ...styles.navButton,
+              ...modeStyles[mode].toolbarBtnRegular,
+              ...(webviewReady ? null : styles.navButtonDisabled)
+            }}
             className="btn-regular"
           >
             <svg
@@ -1671,29 +2424,36 @@ const App = () => {
             </button>
           </div>
           <button
-            type="submit"
+            type="button"
+            aria-label={`Open tabs (${tabCount})`}
+            aria-haspopup="dialog"
+            onClick={openTabsPanel}
+            disabled={!tabsReady}
             style={{
-              ...styles.goButton,
-              ...modeStyles[mode].toolbarBtnRegular,
-              ...modeStyles[mode].toolbarBtnDesktopOnly
+              ...styles.tabsButton,
+              ...(modeStyles[mode].tabsButton || {}),
+              ...(!tabsReady ? styles.tabsButtonDisabled : null)
             }}
-            className="btn-regular"
-            aria-label="Go"
           >
-            <svg
-              viewBox="0 0 16 16"
-              style={{ ...styles.goButtonIcon, ...modeStyles[mode].toolbarBtnIcn }}
-              xmlns="http://www.w3.org/2000/svg"
+            <span style={styles.visuallyHidden}>
+              Open tabs ({tabCount})
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                ...styles.tabsButtonSquare,
+                ...(modeStyles[mode].tabsButtonSquare || {})
+              }}
             >
-              <path
-                fill="none"
-                stroke="currentColor"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth="1.5"
-                d="M3 8h10M9.5 4.5 13 8l-3.5 3.5"
-              />
-            </svg>
+              <span
+                style={{
+                  ...styles.tabsButtonCount,
+                  ...(modeStyles[mode].tabsButtonCount || {})
+                }}
+              >
+                {tabCount}
+              </span>
+            </span>
           </button>
         </form>
 
@@ -1759,6 +2519,112 @@ const App = () => {
         </div>
         <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
       </div>
+
+      {showTabsPanel && (
+        <div
+          style={tabsPanelBackdropStyle}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeTabsPanel();
+            }
+          }}
+        >
+          <div
+            style={mode === 'mobile' ? styles.tabsPanelMobile : styles.tabsPanel}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="tabs-panel-title"
+          >
+            <div style={styles.tabsPanelHeader}>
+              <h2
+                id="tabs-panel-title"
+                style={{
+                  ...styles.tabsPanelTitle,
+                  ...(modeStyles[mode].tabsPanelTitle || {})
+                }}
+              >
+                Tabs
+              </h2>
+              <button
+                type="button"
+                aria-label="Close tabs dialog"
+                style={mode === 'mobile' ? styles.modalCloseMobile : styles.modalClose}
+                onClick={closeTabsPanel}
+              >
+                ✕
+              </button>
+            </div>
+
+            <button
+              type="button"
+              style={{
+                ...styles.newTabButton,
+                ...(mode === 'mobile' ? styles.newTabButtonMobile : null),
+                ...(modeStyles[mode].newTabButton || {})
+              }}
+              onClick={handleNewTab}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 3v10M3 8h10"
+                />
+              </svg>
+              <span>New Tab</span>
+            </button>
+
+            <div
+              className="tabs-modal-body"
+              style={{
+                ...styles.tabsPanelBody,
+                ...(modeStyles[mode].tabsPanelBody || {})
+              }}
+            >
+              {pinnedTabs.length > 0 && (
+                <div style={styles.tabsSection}>
+                  <p
+                    style={{
+                      ...styles.tabsSectionTitle,
+                      ...(modeStyles[mode].tabsSectionTitle || {})
+                    }}
+                  >
+                    Pinned
+                  </p>
+                  <div style={styles.tabsList}>
+                    {pinnedTabs.map(renderTabItem)}
+                  </div>
+                </div>
+              )}
+
+              {regularTabs.length > 0 && (
+                <div style={styles.tabsSection}>
+                  {pinnedTabs.length > 0 && (
+                    <p
+                      style={{
+                        ...styles.tabsSectionTitle,
+                        ...(modeStyles[mode].tabsSectionTitle || {})
+                      }}
+                    >
+                      Others
+                    </p>
+                  )}
+                  <div style={styles.tabsList}>
+                    {regularTabs.map(renderTabItem)}
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {showModal && (
         <div

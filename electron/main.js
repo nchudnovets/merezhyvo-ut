@@ -1,9 +1,19 @@
 'use strict';
 
-const { app, BrowserWindow, Menu, screen, ipcMain, session, nativeTheme } = require('electron');
+const {
+  app,
+  BrowserWindow,
+  Menu,
+  screen,
+  ipcMain,
+  session,
+  nativeTheme,
+  powerSaveBlocker
+} = require('electron');
 const path = require('path');
 const fs = require('fs');
 const { existsSync } = fs;
+const fsp = fs.promises;
 const https = require('https');
 const http = require('http');
 const { resolveMode } = require('./mode');
@@ -37,6 +47,23 @@ const installUserAgentOverride = (session) => {
 };
 
 let mainWindow;
+let playbackBlockerId = null;
+
+const stopPlaybackBlocker = (id) => {
+  const blockerId = typeof id === 'number' ? id : playbackBlockerId;
+  if (typeof blockerId === 'number') {
+    try {
+      if (powerSaveBlocker.isStarted(blockerId)) {
+        powerSaveBlocker.stop(blockerId);
+      }
+    } catch (err) {
+      console.warn('[merezhyvo] power blocker stop failed:', err);
+    }
+    if (playbackBlockerId === blockerId) {
+      playbackBlockerId = null;
+    }
+  }
+};
 const applyUserAgentForUrl = (contents, url) => {
   if (!contents) return;
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
@@ -67,6 +94,101 @@ const slugify = (s) =>
     .slice(0, 60) || 'merezhyvo';
 
 const ensureDir = (dir) => { try { fs.mkdirSync(dir, { recursive: true }); } catch {} };
+
+const SESSION_SCHEMA = 1;
+
+const getProfileDir = () => {
+  const dir = path.join(app.getPath('userData'), 'profiles', 'default');
+  ensureDir(dir);
+  return dir;
+};
+
+const getSessionFilePath = () => path.join(getProfileDir(), 'session.json');
+
+const makeSessionTabId = () => `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+
+const createDefaultSessionState = () => {
+  const id = makeSessionTabId();
+  const now = Date.now();
+  return {
+    schema: SESSION_SCHEMA,
+    activeId: id,
+    tabs: [
+      {
+        id,
+        url: DEFAULT_URL,
+        title: 'DuckDuckGo',
+        favicon: '',
+        pinned: false,
+        muted: false,
+        discarded: false,
+        lastUsedAt: now
+      }
+    ]
+  };
+};
+
+const sanitizeSessionPayload = (payload) => {
+  const now = Date.now();
+  if (!payload || typeof payload !== 'object' || payload.schema !== SESSION_SCHEMA) {
+    return createDefaultSessionState();
+  }
+
+  const sourceTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
+  const tabs = [];
+
+  for (const raw of sourceTabs) {
+    if (!raw || typeof raw !== 'object') continue;
+    const id =
+      typeof raw.id === 'string' && raw.id.trim().length ? raw.id.trim() : makeSessionTabId();
+    const url =
+      typeof raw.url === 'string' && raw.url.trim().length ? raw.url.trim() : DEFAULT_URL;
+    const title = typeof raw.title === 'string' ? raw.title : '';
+    const favicon = typeof raw.favicon === 'string' ? raw.favicon : '';
+    const pinned = !!raw.pinned;
+    const muted = !!raw.muted;
+    const discarded = !!raw.discarded;
+    const lastUsedAt =
+      typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
+        ? raw.lastUsedAt
+        : now;
+
+    tabs.push({
+      id,
+      url,
+      title,
+      favicon,
+      pinned,
+      muted,
+      discarded,
+      lastUsedAt
+    });
+  }
+
+  if (!tabs.length) {
+    return createDefaultSessionState();
+  }
+
+  const activeId =
+    typeof payload.activeId === 'string' && tabs.some((tab) => tab.id === payload.activeId)
+      ? payload.activeId
+      : tabs[0].id;
+
+  const normalizedTabs = tabs.map((tab) => {
+    if (tab.id === activeId) {
+      if (!tab.discarded) return tab;
+      return { ...tab, discarded: false };
+    }
+    if (tab.discarded) return tab;
+    return { ...tab, discarded: true };
+  });
+
+  return {
+    schema: SESSION_SCHEMA,
+    activeId,
+    tabs: normalizedTabs
+  };
+};
 
 function downloadBinary(url, { timeoutMs = 6000 } = {}) {
   return new Promise((resolve, reject) => {
@@ -357,6 +479,78 @@ app.on('browser-window-created', (_event, win) => {
 // Standard quit behaviour
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+// ---------- Session persistence ----------
+ipcMain.handle('merezhyvo:session:load', async () => {
+  try {
+    const sessionFile = getSessionFilePath();
+    let parsed = null;
+    try {
+      const raw = await fsp.readFile(sessionFile, 'utf8');
+      parsed = JSON.parse(raw);
+    } catch (err) {
+      if (err && err.code !== 'ENOENT') {
+        console.warn('[merezhyvo] session load: falling back after read failure', err);
+      }
+    }
+
+    const sanitized = sanitizeSessionPayload(parsed);
+    try {
+      await fsp.writeFile(sessionFile, JSON.stringify(sanitized, null, 2), 'utf8');
+    } catch (err) {
+      console.error('[merezhyvo] session load: failed to write sanitized session', err);
+    }
+    return sanitized;
+  } catch (err) {
+    console.error('[merezhyvo] session load failed', err);
+    const fallback = createDefaultSessionState();
+    try {
+      await fsp.writeFile(getSessionFilePath(), JSON.stringify(fallback, null, 2), 'utf8');
+    } catch (writeErr) {
+      console.error('[merezhyvo] unable to write fallback session', writeErr);
+    }
+    return fallback;
+  }
+});
+
+ipcMain.handle('merezhyvo:session:save', async (_event, payload) => {
+  try {
+    const sanitized = sanitizeSessionPayload(payload);
+    const sessionFile = getSessionFilePath();
+    await fsp.writeFile(sessionFile, JSON.stringify(sanitized, null, 2), 'utf8');
+    return { ok: true };
+  } catch (err) {
+    console.error('[merezhyvo] session save failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:power:start', () => {
+  try {
+    if (typeof playbackBlockerId === 'number') {
+      if (powerSaveBlocker.isStarted(playbackBlockerId)) {
+        return playbackBlockerId;
+      }
+      stopPlaybackBlocker(playbackBlockerId);
+    }
+    playbackBlockerId = powerSaveBlocker.start('prevent-app-suspension');
+    return playbackBlockerId;
+  } catch (err) {
+    console.error('[merezhyvo] power blocker start failed:', err);
+    playbackBlockerId = null;
+    return null;
+  }
+});
+
+ipcMain.handle('merezhyvo:power:stop', (_event, explicitId) => {
+  stopPlaybackBlocker(explicitId);
+  return true;
+});
+
+ipcMain.handle('merezhyvo:power:isStarted', (_event, explicitId) => {
+  const id = typeof explicitId === 'number' ? explicitId : playbackBlockerId;
+  return typeof id === 'number' && powerSaveBlocker.isStarted(id);
 });
 
 // ---------- IPC: shortcut creation ----------
