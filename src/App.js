@@ -29,6 +29,79 @@ const NON_TEXT_INPUT_TYPES = new Set([
   'hidden'
 ]);
 
+const WEBVIEW_BASE_CSS = `
+  :root, html { color-scheme: dark; }
+  @media (prefers-color-scheme: light) {
+  }
+  ::-webkit-scrollbar { width: 8px; height: 8px; }
+  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-thumb {
+    background: #2563eb;
+    border-radius: 999px;
+    border: 2px solid #111827;
+  }
+  ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
+  input, textarea, [contenteditable='true'] {
+    caret-color: #60a5fa !important;
+  }
+  :root {
+    --mzr-caret-accent: #22d3ee;
+    --mzr-focus-ring:   #60a5fa;
+    --mzr-sel-bg:       rgba(34,211,238,.28);
+    --mzr-sel-fg:       #0b1020;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --mzr-caret-accent: #7dd3fc;
+      --mzr-sel-bg:       rgba(125,211,252,.3);
+      --mzr-sel-fg:       #0a0f1f;
+      --mzr-focus-ring:   #93c5fd;
+    }
+  }
+  @media (prefers-color-scheme: light) {
+    :root {
+      --mzr-caret-accent: #0ea5e9;
+      --mzr-sel-bg:       rgba(14,165,233,.25);
+      --mzr-sel-fg:       #0b1020;
+      --mzr-focus-ring:   #3b82f6;
+    }
+  }
+  input[type="text"],
+  input[type="search"],
+  input[type="url"],
+  input[type="email"],
+  input[type="tel"],
+  input[type="password"],
+  textarea,
+  [contenteditable=""],
+  [contenteditable="true"] {
+    caret-color: var(--mzr-caret-accent) !important;
+  }
+
+  ::selection {
+    background: var(--mzr-sel-bg) !important;
+    color: var(--mzr-sel-fg) !important;
+  }
+  ::-moz-selection {
+    background: var(--mzr-sel-bg) !important;
+    color: var(--mzr-sel-fg) !important;
+  }
+
+  input[type="text"]:focus-visible,
+  input[type="search"]:focus-visible,
+  input[type="url"]:focus-visible,
+  input[type="email"]:focus-visible,
+  input[type="tel"]:focus-visible,
+  input[type="password"]:focus-visible,
+  textarea:focus-visible,
+  [contenteditable=""]:focus-visible,
+  [contenteditable="true"]:focus-visible {
+    outline: 2px solid var(--mzr-focus-ring) !important;
+    outline-offset: 2px !important;
+    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mzr-focus-ring) 35%, transparent) !important;
+  }
+`;
+
 const styles = {
   container: {
     position: 'relative',
@@ -963,6 +1036,11 @@ const App = () => {
   const mountInBackgroundHost = useCallback((view) => {
     const host = backgroundHostRef.current;
     if (!host || !view) return;
+    for (const child of Array.from(host.children)) {
+      if (child !== view) {
+        try { host.removeChild(child); } catch {}
+      }
+    }
     if (view.parentElement !== host) {
       try { host.appendChild(view); } catch {}
     }
@@ -1069,6 +1147,15 @@ const App = () => {
   }, []);
 
   const attachWebviewListeners = useCallback((view, tabId) => {
+    const injectBaseCss = () => {
+      try {
+        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
+        if (maybe && typeof maybe.catch === 'function') {
+          maybe.catch(() => {});
+        }
+      } catch {}
+    };
+
     const applyUrlUpdate = (nextUrl) => {
       if (!nextUrl) return;
       const cleanUrl = nextUrl.trim();
@@ -1171,6 +1258,11 @@ const App = () => {
       }
     };
 
+    injectBaseCss();
+    view.addEventListener('dom-ready', injectBaseCss);
+    view.addEventListener('did-navigate', injectBaseCss);
+    view.addEventListener('did-navigate-in-page', injectBaseCss);
+
     view.addEventListener('did-navigate', handleNavigate);
     view.addEventListener('did-navigate-in-page', handleNavigate);
     view.addEventListener('did-start-loading', handleStart);
@@ -1197,6 +1289,9 @@ const App = () => {
       view.removeEventListener('media-paused', handleMediaPaused);
       view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
       view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
+      view.removeEventListener('dom-ready', injectBaseCss);
+      view.removeEventListener('did-navigate', injectBaseCss);
+      view.removeEventListener('did-navigate-in-page', injectBaseCss);
     };
   }, [destroyTabView, refreshNavigationState, updateMetaAction, updatePowerBlocker]);
 
@@ -1432,6 +1527,8 @@ const App = () => {
   const closeShortcutModal = useCallback(() => {
     setShowModal(false);
     setBusy(false);
+    setMsg('');
+    setTitle('');
     activeInputRef.current = null;
     blurActiveInWebview();
     if (mode === 'mobile') setKbVisible(false);
@@ -1557,121 +1654,41 @@ const App = () => {
     setZoomClamped(candidate);
   }, [setZoomClamped]);
 
-  // --- Inject custom css into the webview ---
-  useEffect(() => {
-    const css = `
-      :root, html { color-scheme: dark; }
-      @media (prefers-color-scheme: light) {
-        /* no-op: we still prefer dark by nativeTheme, but keep CSS minimal */
-      }
-      ::-webkit-scrollbar { width: 8px; height: 8px; }
-      ::-webkit-scrollbar-track { background: #111827; }
-      ::-webkit-scrollbar-thumb {
-        background: #2563eb;
-        border-radius: 999px;
-        border: 2px solid #111827;
-      }
-      ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
-      input, textarea, [contenteditable='true'] {
-        caret-color: #60a5fa !important;
-      }
-        :root {
-        --mzr-caret-accent: #22d3ee;
-        --mzr-focus-ring:   #60a5fa; 
-        --mzr-sel-bg:       rgba(34,211,238,.28);
-        --mzr-sel-fg:       #0b1020; 
-      }
-      @media (prefers-color-scheme: dark) {
-        :root {
-          --mzr-caret-accent: #7dd3fc;
-          --mzr-sel-bg:       rgba(125,211,252,.3);
-          --mzr-sel-fg:       #0a0f1f;
-          --mzr-focus-ring:   #93c5fd;
-        }
-      }
-      @media (prefers-color-scheme: light) {
-        :root {
-          --mzr-caret-accent: #0ea5e9;
-          --mzr-sel-bg:       rgba(14,165,233,.25);
-          --mzr-sel-fg:       #0b1020;
-          --mzr-focus-ring:   #3b82f6;
-        }
-      }
-      input[type="text"],
-      input[type="search"],
-      input[type="url"],
-      input[type="email"],
-      input[type="tel"],
-      input[type="password"],
-      textarea,
-      [contenteditable=""],
-      [contenteditable="true"] {
-        caret-color: var(--mzr-caret-accent) !important;
-      }
-
-      ::selection {
-        background: var(--mzr-sel-bg) !important;
-        color: var(--mzr-sel-fg) !important;
-      }
-      ::-moz-selection {
-        background: var(--mzr-sel-bg) !important;
-        color: var(--mzr-sel-fg) !important;
-      }
-
-      input[type="text"]:focus-visible,
-      input[type="search"]:focus-visible,
-      input[type="url"]:focus-visible,
-      input[type="email"]:focus-visible,
-      input[type="tel"]:focus-visible,
-      input[type="password"]:focus-visible,
-      textarea:focus-visible,
-      [contenteditable=""]:focus-visible,
-      [contenteditable="true"]:focus-visible {
-        outline: 2px solid var(--mzr-focus-ring) !important;
-        outline-offset: 2px !important;
-        /* мʼяка тінь як підсвітка, не змінює розмір елемента */
-        box-shadow: 0 0 0 2px color-mix(in srgb, var(--mzr-focus-ring) 35%, transparent) !important;
-      }
-    `;
-    const wv = getActiveWebview();
-    if (!wv) return;
-
-    const apply = () => {
-      try {
-        const maybePromise = wv.insertCSS(css);
-        if (maybePromise && typeof maybePromise.catch === 'function') {
-          maybePromise.catch(() => {});
-        }
-      } catch {}
-    };
-
-    wv.addEventListener('dom-ready', apply);
-    wv.addEventListener('did-navigate', apply);
-    wv.addEventListener('did-navigate-in-page', apply);
-
-    const isLoading = () => {
-      try {
-        return typeof wv.isLoading === 'function' ? wv.isLoading() : false;
-      } catch {
-        return false;
-      }
-    };
-
-    if (!isLoading()) apply();
-
-    return () => {
-      wv.removeEventListener('dom-ready', apply);
-      wv.removeEventListener('did-navigate', apply);
-      wv.removeEventListener('did-navigate-in-page', apply);
-    };
-  }, [getActiveWebview]);
-
   // --- Status, navigation and address synchronisation ---
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
   useEffect(() => {
     refreshNavigationState();
   }, [activeId, refreshNavigationState, tabsReady]);
+
+  useEffect(() => {
+    if (!isEditingRef.current) return;
+    const node = inputRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      try {
+        const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
+        const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
+        if (start === end) {
+          node.scrollLeft = node.scrollWidth;
+        }
+      } catch {}
+    });
+  }, [inputValue]);
+
+  useEffect(() => {
+    const node = modalInputRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      try {
+        const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
+        const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
+        if (start === end) {
+          node.scrollLeft = node.scrollWidth;
+        }
+      } catch {}
+    });
+  }, [title]);
 
   // --- Text injection helpers (used by the soft keyboard) ---
   const injectTextToWeb = useCallback(async (text) => {
@@ -2166,9 +2183,36 @@ const App = () => {
           }
         };
 
+        const ensureFieldScroll = (el) => {
+          if (!el) return;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag !== 'input' && tag !== 'textarea') return;
+          requestAnimationFrame(() => {
+            try {
+              if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return;
+              if (el.selectionStart === el.selectionEnd) {
+                el.scrollLeft = el.scrollWidth;
+              }
+            } catch {}
+          });
+        };
+
+        const handleInput = (event) => {
+          ensureFieldScroll(event.target);
+        };
+
+        const handleKeyup = (event) => {
+          const key = event?.key;
+          if (key === 'ArrowRight' || key === 'ArrowLeft' || key === 'End') {
+            ensureFieldScroll(event.target);
+          }
+        };
+
         document.addEventListener('focusin', handleFocusIn, true);
         document.addEventListener('focusout', handleFocusOut, true);
         document.addEventListener('pointerdown', handlePointerDown, true);
+        document.addEventListener('input', handleInput, true);
+        document.addEventListener('keyup', handleKeyup, true);
       })();
     `;
 
@@ -2266,7 +2310,8 @@ const App = () => {
         single: true
       });
       if (res?.ok) {
-        setMsg(`Shortcut created:\n${res.desktopFilePath}`);
+        closeShortcutModal();
+        return;
       } else {
         setMsg(res?.error || 'Unknown error.');
       }
@@ -3038,6 +3083,8 @@ export default App;
 
 const singleStyles = {
   container: {
+    display: 'flex',
+    flexDirection: 'column',
     position: 'relative',
     width: '100vw',
     height: '100vh',
@@ -3045,12 +3092,14 @@ const singleStyles = {
     overflow: 'hidden'
   },
   webview: {
+    flex: 1,
     width: '100%',
     height: '100%',
     border: 'none',
     backgroundColor: '#000'
   },
   webviewFullscreen: {
+    flex: 1,
     width: '100%',
     height: '100%',
     border: 'none',
@@ -3078,6 +3127,8 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
   const [status, setStatus] = useState('loading');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const powerBlockerIdRef = useRef(null);
+  const zoomRef = useRef(mode === 'mobile' ? 2 : 1);
+  const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
   const startPowerBlocker = useCallback(async () => {
     if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
@@ -3109,6 +3160,30 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
     powerBlockerIdRef.current = null;
   }, []);
 
+  const setZoomClamped = useCallback((value) => {
+    const numeric = Number(value);
+    if (!Number.isFinite(numeric)) return;
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
+    const rounded = Math.round(clamped * 100) / 100;
+    const view = webviewRef.current;
+    if (view) {
+      try {
+        if (typeof view.setZoomFactor === 'function') {
+          view.setZoomFactor(rounded);
+        }
+      } catch {}
+    }
+    zoomRef.current = rounded;
+    setZoomLevel(rounded);
+  }, []);
+
+  useEffect(() => {
+    const base = mode === 'mobile' ? 2 : 1;
+    zoomRef.current = base;
+    setZoomLevel(base);
+    setZoomClamped(base);
+  }, [mode, setZoomClamped]);
+
   useEffect(() => {
     const view = webviewRef.current;
     if (!view) return undefined;
@@ -3127,12 +3202,85 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
 
     view.addEventListener('did-start-loading', handleStart);
     view.addEventListener('did-stop-loading', handleStop);
+    const applyZoomPolicy = () => {
+      try {
+        if (typeof view.setVisualZoomLevelLimits === 'function') {
+          view.setVisualZoomLevelLimits(1, 3);
+        }
+        if (typeof view.setZoomFactor === 'function') {
+          view.setZoomFactor(zoomRef.current);
+        }
+      } catch {}
+    };
+
+    const handleZoomChanged = (event) => {
+      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : view.getZoomFactor?.();
+      if (typeof raw !== 'number' || Number.isNaN(raw)) return;
+      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
+      zoomRef.current = normalized;
+      setZoomLevel(normalized);
+    };
+
+    const injectBaseCss = () => {
+      try {
+        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
+        if (maybe && typeof maybe.catch === 'function') {
+          maybe.catch(() => {});
+        }
+      } catch {}
+    };
+
+    const installInputScroll = () => {
+      const script = `
+        (function(){
+          try {
+            if (window.__mzrSingleInputScrollInstalled) return;
+            window.__mzrSingleInputScrollInstalled = true;
+            const ensureFieldScroll = (el) => {
+              if (!el) return;
+              const tag = (el.tagName || '').toLowerCase();
+              if (tag !== 'input' && tag !== 'textarea') return;
+              requestAnimationFrame(() => {
+                try {
+                  if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return;
+                  if (el.selectionStart === el.selectionEnd) {
+                    el.scrollLeft = el.scrollWidth;
+                  }
+                } catch {}
+              });
+            };
+            document.addEventListener('input', (event) => ensureFieldScroll(event.target), true);
+            document.addEventListener('keyup', (event) => {
+              const key = event?.key;
+              if (key === 'ArrowRight' || key === 'ArrowLeft' || key === 'End') {
+                ensureFieldScroll(event.target);
+              }
+            }, true);
+          } catch {}
+        })();
+      `;
+      try { view.executeJavaScript(script, false).catch?.(() => {}); } catch {}
+    };
+
+    injectBaseCss();
+    installInputScroll();
+
     view.addEventListener('did-fail-load', handleFail);
     view.addEventListener('dom-ready', handleDomReady);
     view.addEventListener('media-started-playing', handleMediaStarted);
     view.addEventListener('media-paused', handleMediaPaused);
     view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
     view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
+    view.addEventListener('dom-ready', applyZoomPolicy);
+    view.addEventListener('did-frame-finish-load', applyZoomPolicy);
+    view.addEventListener('did-navigate', applyZoomPolicy);
+    view.addEventListener('did-navigate-in-page', applyZoomPolicy);
+    view.addEventListener('zoom-changed', handleZoomChanged);
+    view.addEventListener('dom-ready', injectBaseCss);
+    view.addEventListener('did-navigate', injectBaseCss);
+    view.addEventListener('did-navigate-in-page', injectBaseCss);
+
+    applyZoomPolicy();
 
     return () => {
       view.removeEventListener('did-start-loading', handleStart);
@@ -3143,9 +3291,17 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
       view.removeEventListener('media-paused', handleMediaPaused);
       view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
       view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
+      view.removeEventListener('dom-ready', applyZoomPolicy);
+      view.removeEventListener('did-frame-finish-load', applyZoomPolicy);
+      view.removeEventListener('did-navigate', applyZoomPolicy);
+      view.removeEventListener('did-navigate-in-page', applyZoomPolicy);
+      view.removeEventListener('zoom-changed', handleZoomChanged);
+      view.removeEventListener('dom-ready', injectBaseCss);
+      view.removeEventListener('did-navigate', injectBaseCss);
+      view.removeEventListener('did-navigate-in-page', injectBaseCss);
       void stopPowerBlocker();
     };
-  }, [startPowerBlocker, stopPowerBlocker]);
+  }, [setZoomClamped, startPowerBlocker, stopPowerBlocker]);
 
   useEffect(() => {
     const view = webviewRef.current;
@@ -3167,6 +3323,15 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
   const statusStyle = status === 'error'
     ? { ...singleStyles.statusBadge, ...singleStyles.statusBadgeError }
     : singleStyles.statusBadge;
+  const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
+  const handleZoomSliderChange = useCallback((event) => {
+    const { valueAsNumber, value } = event.target;
+    const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
+    setZoomClamped(candidate);
+  }, [setZoomClamped]);
+  const handleZoomSliderPointerDown = useCallback((event) => {
+    event.stopPropagation();
+  }, []);
 
   return (
     <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
@@ -3174,6 +3339,27 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
       {status !== 'ready' && (
         <div style={statusStyle}>
           {status === 'loading' ? 'Loading…' : 'Load failed'}
+        </div>
+      )}
+      {!isFullscreen && (
+        <div className="zoom-toolbar" style={styles.bottomToolbar}>
+          <span style={styles.zoomLabel}>Zoom</span>
+          <div style={styles.zoomSliderContainer}>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              value={zoomLevel}
+              onPointerDown={handleZoomSliderPointerDown}
+              onInput={handleZoomSliderChange}
+              onChange={handleZoomSliderChange}
+              aria-label="Zoom level"
+              className="zoom-slider"
+              style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
+            />
+          </div>
+          <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
         </div>
       )}
     </div>
