@@ -189,6 +189,23 @@ const styles = {
     backgroundColor: '#05070f',
     touchAction: 'pan-x pan-y pinch-zoom'
   },
+  webviewMount: {
+    position: 'relative',
+    flex: 1,
+    minHeight: 0,
+    width: '100%',
+    height: '100%',
+    overflow: 'hidden'
+  },
+  backgroundShelf: {
+    position: 'absolute',
+    width: 1,
+    height: 1,
+    left: -10000,
+    top: -10000,
+    overflow: 'hidden',
+    pointerEvents: 'none'
+  },
   bottomToolbar: {
     display: 'flex',
     alignItems: 'center',
@@ -750,15 +767,29 @@ const modeStyles = {
 };
 
 const parseStartUrl = () => {
-  const params = new URLSearchParams(window.location.search);
-  const raw = params.get('start');
-  if (!raw) {
-    return { url: DEFAULT_URL, hasStartParam: false };
-  }
   try {
-    return { url: decodeURIComponent(raw), hasStartParam: true };
+    const params = new URLSearchParams(window.location.search);
+    const raw = params.get('start');
+    const singleParam = params.get('single');
+
+    let url = DEFAULT_URL;
+    let hasStartParam = false;
+    if (raw) {
+      try {
+        url = decodeURIComponent(raw);
+      } catch {
+        url = raw;
+      }
+      hasStartParam = true;
+    }
+
+    const single = typeof singleParam === 'string'
+      ? singleParam === '' || singleParam === '1' || singleParam.toLowerCase() === 'true'
+      : false;
+
+    return { url, hasStartParam, single };
   } catch {
-    return { url: raw, hasStartParam: true };
+    return { url: DEFAULT_URL, hasStartParam: false, single: false };
   }
 };
 
@@ -780,8 +811,16 @@ const normalizeAddress = (value) => {
 };
 
 const App = () => {
-  const { url: parsedStartUrl, hasStartParam } = useMemo(() => parseStartUrl(), []);
+  const { url: parsedStartUrl, hasStartParam, single: isSingleWindow } = useMemo(() => parseStartUrl(), []);
   const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
+  const mode = useMerezhyvoMode();
+
+  if (isSingleWindow) {
+    return (
+      <SingleWindowApp initialUrl={initialUrl} mode={mode} />
+    );
+  }
+
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
   const modalInputRef = useRef(null);
@@ -806,6 +845,16 @@ const App = () => {
   const [showTabsPanel, setShowTabsPanel] = useState(false);
 
   const tabsReadyRef = useRef(tabsReady);
+  const tabsRef = useRef(tabs);
+  const previousActiveTabRef = useRef(activeTab);
+  const webviewHostRef = useRef(null);
+  const backgroundHostRef = useRef(null);
+  const tabViewsRef = useRef(new Map());
+  const backgroundTabRef = useRef(null);
+  const [isHtmlFullscreen, setIsHtmlFullscreen] = useState(false);
+  const fullscreenTabRef = useRef(null);
+  const powerBlockerIdRef = useRef(null);
+  const playingTabsRef = useRef(new Set());
 
   const startUrlAppliedRef = useRef(false);
   const activeIdRef = useRef(activeId);
@@ -829,7 +878,14 @@ const App = () => {
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
-
+  useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+  useEffect(() => { previousActiveTabRef.current = activeTab; }, [activeTab]);
+  useEffect(() => {
+    if (fullscreenTabRef.current && fullscreenTabRef.current !== activeId) {
+      fullscreenTabRef.current = null;
+      setIsHtmlFullscreen(false);
+    }
+  }, [activeId]);
   useEffect(() => {
     const styleId = 'mzr-modal-scroll-style';
     if (document.getElementById(styleId)) return undefined;
@@ -854,7 +910,420 @@ const App = () => {
     };
   }, []);
 
-  const getActiveWebview = () => webviewRef.current;
+  const getActiveWebview = useCallback(() => webviewRef.current, []);
+
+  const startPowerBlocker = useCallback(async () => {
+    if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
+    try {
+      const startFn = window.merezhyvo?.power?.start;
+      if (!startFn) return null;
+      const id = await startFn();
+      if (typeof id === 'number') {
+        powerBlockerIdRef.current = id;
+        return id;
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] power blocker start failed', err);
+    }
+    return null;
+  }, []);
+
+  const stopPowerBlocker = useCallback(async () => {
+    const id = powerBlockerIdRef.current;
+    if (id == null) return;
+    try {
+      const stopFn = window.merezhyvo?.power?.stop;
+      if (stopFn) {
+        await stopFn(id);
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] power blocker stop failed', err);
+    }
+    powerBlockerIdRef.current = null;
+  }, []);
+
+  const findTabById = useCallback((id) => {
+    if (!id) return null;
+    return tabsRef.current.find((tab) => tab.id === id) || null;
+  }, []);
+
+  const mountInActiveHost = useCallback((view) => {
+    const host = webviewHostRef.current;
+    if (!host || !view) return;
+    for (const child of Array.from(host.children)) {
+      if (child !== view) {
+        try { host.removeChild(child); } catch {}
+      }
+    }
+    if (view.parentElement !== host) {
+      try { host.appendChild(view); } catch {}
+    }
+  }, []);
+
+  const mountInBackgroundHost = useCallback((view) => {
+    const host = backgroundHostRef.current;
+    if (!host || !view) return;
+    if (view.parentElement !== host) {
+      try { host.appendChild(view); } catch {}
+    }
+  }, []);
+
+  const applyActiveStyles = useCallback((view) => {
+    if (!view) return;
+    mountInActiveHost(view);
+    Object.assign(view.style, {
+      display: 'block',
+      position: 'absolute',
+      inset: '0',
+      width: '100%',
+      height: '100%',
+      opacity: '1',
+      pointerEvents: 'auto'
+    });
+  }, [mountInActiveHost]);
+
+  const updatePowerBlocker = useCallback(() => {
+    if (playingTabsRef.current.size > 0) {
+      void startPowerBlocker();
+    } else {
+      void stopPowerBlocker();
+    }
+  }, [startPowerBlocker, stopPowerBlocker]);
+
+  const destroyTabView = useCallback((tabId, { keepMeta = false } = {}) => {
+    const entry = tabViewsRef.current.get(tabId);
+    if (!entry) return;
+    try {
+      entry.cleanup?.();
+    } catch {}
+    try {
+      entry.view?.remove?.();
+    } catch {}
+    if (webviewRef.current === entry.view) {
+      webviewRef.current = null;
+    }
+    tabViewsRef.current.delete(tabId);
+    playingTabsRef.current.delete(tabId);
+    updatePowerBlocker();
+    if (!keepMeta) {
+      updateMetaAction(tabId, { isPlaying: false, discarded: true });
+    }
+    if (backgroundTabRef.current === tabId) {
+      backgroundTabRef.current = null;
+    }
+    if (fullscreenTabRef.current === tabId) {
+      fullscreenTabRef.current = null;
+      setIsHtmlFullscreen(false);
+    }
+  }, [updateMetaAction, updatePowerBlocker]);
+
+  const installShadowStyles = useCallback((view) => {
+    if (!view) return () => {};
+
+    const applyShadowStyles = () => {
+      try {
+        const root = view.shadowRoot;
+        if (!root) return;
+        if (!root.querySelector('#mzr-webview-host-style')) {
+          const style = document.createElement('style');
+          style.id = 'mzr-webview-host-style';
+          style.textContent = `
+            :host { display: flex !important; height: 100% !important; }
+            iframe { flex: 1 1 auto !important; width: 100% !important; height: 100% !important; min-height: 100% !important; }
+          `;
+          root.appendChild(style);
+        }
+      } catch {}
+    };
+
+    applyShadowStyles();
+    view.addEventListener('dom-ready', applyShadowStyles);
+
+    const observer = new MutationObserver(applyShadowStyles);
+    if (view.shadowRoot) {
+      try {
+        observer.observe(view.shadowRoot, { childList: true, subtree: true });
+      } catch {}
+    }
+
+    return () => {
+      view.removeEventListener('dom-ready', applyShadowStyles);
+      observer.disconnect();
+    };
+  }, []);
+
+  const refreshNavigationState = useCallback(() => {
+    const view = webviewRef.current;
+    if (!view) {
+      setCanGoBack(false);
+      setCanGoForward(false);
+      return;
+    }
+    try {
+      setCanGoBack(view.canGoBack());
+      setCanGoForward(view.canGoForward());
+    } catch {
+      setCanGoBack(false);
+      setCanGoForward(false);
+    }
+  }, []);
+
+  const attachWebviewListeners = useCallback((view, tabId) => {
+    const applyUrlUpdate = (nextUrl) => {
+      if (!nextUrl) return;
+      const cleanUrl = nextUrl.trim();
+      updateMetaAction(tabId, {
+        url: cleanUrl,
+        discarded: false,
+        lastUsedAt: Date.now()
+      });
+      if (activeIdRef.current === tabId && !isEditingRef.current) {
+        setInputValue(cleanUrl);
+        lastLoadedRef.current = { id: tabId, url: cleanUrl };
+      }
+    };
+
+    const handleNavigate = (event) => {
+      if (event?.url) applyUrlUpdate(event.url);
+      if (activeIdRef.current === tabId) {
+        setStatus('ready');
+        refreshNavigationState();
+      }
+    };
+
+    const handleStart = () => {
+      if (activeIdRef.current === tabId) {
+        webviewReadyRef.current = false;
+        setWebviewReady(false);
+        setStatus('loading');
+      }
+    };
+
+    const handleStop = () => {
+      if (activeIdRef.current === tabId) {
+        setStatus('ready');
+        refreshNavigationState();
+        if (!webviewReadyRef.current) {
+          webviewReadyRef.current = true;
+          setWebviewReady(true);
+        }
+      }
+      try { applyUrlUpdate(view.getURL()); } catch {}
+    };
+
+    const handleFail = () => {
+      if (activeIdRef.current === tabId) {
+        webviewReadyRef.current = false;
+        setWebviewReady(false);
+        setStatus('error');
+      }
+    };
+
+    const handleDomReady = () => {
+      if (activeIdRef.current === tabId) {
+        webviewReadyRef.current = true;
+        setWebviewReady(true);
+        refreshNavigationState();
+        try { view.focus(); } catch {}
+      }
+    };
+
+    const handleTitle = (event) => {
+      const titleValue = typeof event?.title === 'string' ? event.title : '';
+      if (titleValue) {
+        updateMetaAction(tabId, { title: titleValue, lastUsedAt: Date.now() });
+      }
+    };
+
+    const handleFavicon = (event) => {
+      const favicons = Array.isArray(event?.favicons) ? event.favicons : [];
+      const favicon = favicons.find((href) => typeof href === 'string' && href.trim());
+      if (favicon) {
+        updateMetaAction(tabId, { favicon: favicon.trim() });
+      }
+    };
+
+    const handleMediaStarted = () => {
+      playingTabsRef.current.add(tabId);
+      updatePowerBlocker();
+      updateMetaAction(tabId, { isPlaying: true, discarded: false });
+    };
+
+    const handleMediaPaused = () => {
+      playingTabsRef.current.delete(tabId);
+      updatePowerBlocker();
+      updateMetaAction(tabId, { isPlaying: false });
+      if (backgroundTabRef.current === tabId) {
+        destroyTabView(tabId, { keepMeta: true });
+      }
+    };
+
+    const handleEnterFullscreen = () => {
+      fullscreenTabRef.current = tabId;
+      setIsHtmlFullscreen(true);
+      setKbVisible(false);
+    };
+
+    const handleLeaveFullscreen = () => {
+      if (fullscreenTabRef.current === tabId) {
+        fullscreenTabRef.current = null;
+        setIsHtmlFullscreen(false);
+      }
+    };
+
+    view.addEventListener('did-navigate', handleNavigate);
+    view.addEventListener('did-navigate-in-page', handleNavigate);
+    view.addEventListener('did-start-loading', handleStart);
+    view.addEventListener('did-stop-loading', handleStop);
+    view.addEventListener('did-fail-load', handleFail);
+    view.addEventListener('dom-ready', handleDomReady);
+    view.addEventListener('page-title-updated', handleTitle);
+    view.addEventListener('page-favicon-updated', handleFavicon);
+    view.addEventListener('media-started-playing', handleMediaStarted);
+    view.addEventListener('media-paused', handleMediaPaused);
+    view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
+    view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
+
+    return () => {
+      view.removeEventListener('did-navigate', handleNavigate);
+      view.removeEventListener('did-navigate-in-page', handleNavigate);
+      view.removeEventListener('did-start-loading', handleStart);
+      view.removeEventListener('did-stop-loading', handleStop);
+      view.removeEventListener('did-fail-load', handleFail);
+      view.removeEventListener('dom-ready', handleDomReady);
+      view.removeEventListener('page-title-updated', handleTitle);
+      view.removeEventListener('page-favicon-updated', handleFavicon);
+      view.removeEventListener('media-started-playing', handleMediaStarted);
+      view.removeEventListener('media-paused', handleMediaPaused);
+      view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
+      view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
+    };
+  }, [destroyTabView, refreshNavigationState, updateMetaAction, updatePowerBlocker]);
+
+  const ensureHostReady = useCallback(() => {
+    if (webviewHostRef.current) return true;
+    return false;
+  }, []);
+
+  const createWebviewForTab = useCallback((tab) => {
+    if (!ensureHostReady()) return null;
+    const view = document.createElement('webview');
+    view.setAttribute('allowpopups', 'true');
+    view.setAttribute('tabindex', '-1');
+    view.style.position = 'absolute';
+    view.style.inset = '0';
+    view.style.width = '100%';
+    view.style.height = '100%';
+    view.style.border = 'none';
+    view.style.backgroundColor = '#05070f';
+    try {
+      webviewHostRef.current.appendChild(view);
+    } catch {}
+    const listenersCleanup = attachWebviewListeners(view, tab.id);
+    const shadowCleanup = installShadowStyles(view);
+    const cleanup = () => {
+      try { listenersCleanup?.(); } catch {}
+      try { shadowCleanup?.(); } catch {}
+    };
+    tabViewsRef.current.set(tab.id, {
+      view,
+      cleanup,
+      isBackground: false
+    });
+    return view;
+  }, [attachWebviewListeners, ensureHostReady, installShadowStyles]);
+
+  const loadUrlIntoView = useCallback((tab, view) => {
+    const targetUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
+    const last = lastLoadedRef.current;
+    if (last.id === tab.id && last.url === targetUrl) return;
+    lastLoadedRef.current = { id: tab.id, url: targetUrl };
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    setStatus('loading');
+    try {
+      const result = view.loadURL(targetUrl);
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {});
+      }
+    } catch {
+      try { view.setAttribute('src', targetUrl); } catch {}
+    }
+  }, []);
+
+  const activateTabView = useCallback((tab) => {
+    if (!tab) return;
+    updateMetaAction(tab.id, { discarded: false });
+    let entry = tabViewsRef.current.get(tab.id);
+    if (!entry) {
+      const created = createWebviewForTab(tab);
+      if (!created) {
+        requestAnimationFrame(() => activateTabView(tab));
+        return;
+      }
+      entry = tabViewsRef.current.get(tab.id);
+      webviewRef.current = created;
+      applyActiveStyles(created);
+      loadUrlIntoView(tab, created);
+      return;
+    }
+
+    entry.isBackground = false;
+    if (backgroundTabRef.current === tab.id) {
+      backgroundTabRef.current = null;
+    }
+    const view = entry.view;
+    if (!view) return;
+    if (view.parentElement !== webviewHostRef.current) {
+      try { webviewHostRef.current.appendChild(view); } catch {}
+    }
+    applyActiveStyles(view);
+    webviewRef.current = view;
+
+    const current = (() => {
+      try { return view.getURL(); } catch { return ''; }
+    })();
+    const target = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
+    if (!current || current !== target) {
+      loadUrlIntoView(tab, view);
+    } else {
+      setStatus('ready');
+      webviewReadyRef.current = true;
+      setWebviewReady(true);
+    }
+    refreshNavigationState();
+  }, [applyActiveStyles, createWebviewForTab, loadUrlIntoView, refreshNavigationState, updateMetaAction]);
+
+  const demoteTabView = useCallback((tab) => {
+    if (!tab) return;
+    const entry = tabViewsRef.current.get(tab.id);
+    if (!entry) return;
+    if (tab.isYouTube && tab.isPlaying) {
+      if (backgroundTabRef.current && backgroundTabRef.current !== tab.id) {
+        const previousId = backgroundTabRef.current;
+        updateMetaAction(previousId, { isPlaying: false });
+        destroyTabView(previousId, { keepMeta: true });
+      }
+      backgroundTabRef.current = tab.id;
+      entry.isBackground = true;
+      if (entry.view) {
+        mountInBackgroundHost(entry.view);
+        entry.view.style.pointerEvents = 'none';
+        entry.view.style.opacity = '0';
+      }
+    } else {
+      destroyTabView(tab.id);
+    }
+  }, [destroyTabView, mountInBackgroundHost, updateMetaAction]);
+
+  useEffect(() => {
+    const validIds = new Set(tabs.map((tab) => tab.id));
+    for (const tabId of Array.from(tabViewsRef.current.keys())) {
+      if (!validIds.has(tabId)) {
+        destroyTabView(tabId, { keepMeta: true });
+      }
+    }
+  }, [destroyTabView, tabs]);
 
   useEffect(() => {
     if (!tabsReady) return;
@@ -870,6 +1339,26 @@ const App = () => {
     if (!trimmed) return;
     navigateActiveAction(trimmed);
   }, [tabsReady, hasStartParam, initialUrl, navigateActiveAction]);
+
+  useEffect(() => {
+    if (!tabsReady) return;
+    const next = tabsRef.current.find((tab) => tab.id === activeIdRef.current) || activeTab;
+    if (!next) return;
+
+    const prev = previousActiveTabRef.current;
+    if (prev && prev.id !== next.id) {
+      demoteTabView(prev);
+    }
+
+    activateTabView(next);
+    previousActiveTabRef.current = next;
+  }, [activateTabView, activeTab, demoteTabView, tabsReady]);
+
+  useEffect(() => () => {
+    for (const tabId of Array.from(tabViewsRef.current.keys())) {
+      destroyTabView(tabId, { keepMeta: true });
+    }
+  }, [destroyTabView]);
 
   const hostnameFromUrl = useCallback((value) => {
     if (!value) return '';
@@ -922,10 +1411,8 @@ const App = () => {
     return false;
   }, [inputRef]);
 
-  const mode = useMerezhyvoMode();
-
   const blurActiveInWebview = useCallback(() => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
     const js = `
       (function(){
@@ -941,7 +1428,7 @@ const App = () => {
         result.catch(() => {});
       }
     } catch {}
-  }, []);
+  }, [getActiveWebview]);
   const closeShortcutModal = useCallback(() => {
     setShowModal(false);
     setBusy(false);
@@ -993,7 +1480,7 @@ const App = () => {
     if (!Number.isFinite(numeric)) return;
     const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
     const rounded = Math.round(clamped * 100) / 100;
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (wv) {
       try {
         if (typeof wv.setZoomFactor === 'function') {
@@ -1005,7 +1492,7 @@ const App = () => {
     }
     zoomRef.current = rounded;
     setZoomLevel(rounded);
-  }, [updateMetaAction]);
+  }, [getActiveWebview]);
 
   useEffect(() => {
     const base = mode === 'mobile' ? 2.0 : 1.0;
@@ -1015,7 +1502,7 @@ const App = () => {
   }, [mode, setZoomClamped]);
 
   const applyZoomPolicy = useCallback(() => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
     try {
       if (typeof wv.setVisualZoomLevelLimits === 'function') {
@@ -1023,10 +1510,10 @@ const App = () => {
       }
       setZoomClamped(zoomRef.current);
     } catch {}
-  }, [setZoomClamped]);
+  }, [getActiveWebview, setZoomClamped]);
 
   useEffect(() => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
 
     const isLoading = () => {
@@ -1062,7 +1549,7 @@ const App = () => {
       wv.removeEventListener('did-navigate-in-page', onNav);
       wv.removeEventListener('zoom-changed', onZoomChanged);
     };
-  }, [applyZoomPolicy]);
+  }, [applyZoomPolicy, getActiveWebview]);
 
   const handleZoomSliderChange = useCallback((event) => {
     const { valueAsNumber, value } = event.target;
@@ -1146,7 +1633,7 @@ const App = () => {
         box-shadow: 0 0 0 2px color-mix(in srgb, var(--mzr-focus-ring) 35%, transparent) !important;
       }
     `;
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
 
     const apply = () => {
@@ -1177,167 +1664,18 @@ const App = () => {
       wv.removeEventListener('did-navigate', apply);
       wv.removeEventListener('did-navigate-in-page', apply);
     };
-  }, []);
+  }, [getActiveWebview]);
 
   // --- Status, navigation and address synchronisation ---
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
   useEffect(() => {
-    const view = webviewRef.current;
-    if (!view) return;
-    if ('isConnected' in view && !view.isConnected) return;
-
-    webviewReadyRef.current = false;
-    setWebviewReady(false);
-
-    const updateNavigationState = () => {
-      try {
-        setCanGoBack(view.canGoBack());
-        setCanGoForward(view.canGoForward());
-      } catch {
-        setCanGoBack(false);
-        setCanGoForward(false);
-      }
-    };
-
-    const applyUrlUpdate = (nextUrl) => {
-      if (!nextUrl) return;
-      const activeIdCurrent = activeIdRef.current;
-      if (!activeIdCurrent) return;
-      const cleanUrl = nextUrl.trim();
-      if (tabsReadyRef.current) {
-        updateMetaAction(activeIdCurrent, {
-          url: cleanUrl,
-          discarded: false,
-          lastUsedAt: Date.now()
-        });
-        lastLoadedRef.current = { id: activeIdCurrent, url: cleanUrl };
-        if (!isEditingRef.current) setInputValue(cleanUrl);
-      }
-    };
-
-    const handleNavigate = (event) => {
-      if (event?.url) applyUrlUpdate(event.url);
-      setStatus('ready');
-      updateNavigationState();
-    };
-
-    const handleStart = () => {
-      webviewReadyRef.current = false;
-      setWebviewReady(false);
-      setStatus('loading');
-    };
-
-    const handleStop = () => {
-      setStatus('ready');
-      try { applyUrlUpdate(view.getURL()); } catch {}
-      updateNavigationState();
-      if (!webviewReadyRef.current) {
-        webviewReadyRef.current = true;
-        setWebviewReady(true);
-      }
-    };
-
-    const handleFail = () => {
-      webviewReadyRef.current = false;
-      setWebviewReady(false);
-      setStatus('error');
-    };
-
-    const handleDomReady = () => {
-      webviewReadyRef.current = true;
-      setWebviewReady(true);
-      updateNavigationState();
-      try { view.focus(); } catch {}
-    };
-
-    const handleTitle = (event) => {
-      const id = activeIdRef.current;
-      if (!id) return;
-      const title = typeof event?.title === 'string' ? event.title : '';
-      if (title && tabsReadyRef.current) {
-        updateMetaAction(id, { title, lastUsedAt: Date.now() });
-      }
-    };
-
-    const handleFavicon = (event) => {
-      const id = activeIdRef.current;
-      if (!id) return;
-      const favicons = Array.isArray(event?.favicons) ? event.favicons : [];
-      const favicon = favicons.find((href) => typeof href === 'string' && href.trim());
-      if (favicon && tabsReadyRef.current) {
-        updateMetaAction(id, { favicon: favicon.trim() });
-      }
-    };
-
-    const handleMediaState = () => {
-      const id = activeIdRef.current;
-      if (!id) return;
-      try {
-        const muted = typeof view.isAudioMuted === 'function' ? view.isAudioMuted() : false;
-        if (tabsReadyRef.current) {
-          updateMetaAction(id, { muted });
-        }
-      } catch {}
-    };
-
-    view.addEventListener('did-navigate', handleNavigate);
-    view.addEventListener('did-navigate-in-page', handleNavigate);
-    view.addEventListener('did-start-loading', handleStart);
-    view.addEventListener('did-stop-loading', handleStop);
-    view.addEventListener('did-fail-load', handleFail);
-    view.addEventListener('dom-ready', handleDomReady);
-    view.addEventListener('page-title-updated', handleTitle);
-    view.addEventListener('page-favicon-updated', handleFavicon);
-    view.addEventListener('media-started-playing', handleMediaState);
-    view.addEventListener('media-paused', handleMediaState);
-
-    try {
-      if (typeof view.isLoading === 'function' && !view.isLoading()) {
-        webviewReadyRef.current = true;
-        setWebviewReady(true);
-      }
-    } catch {}
-
-    return () => {
-      view.removeEventListener('did-navigate', handleNavigate);
-      view.removeEventListener('did-navigate-in-page', handleNavigate);
-      view.removeEventListener('did-start-loading', handleStart);
-      view.removeEventListener('did-stop-loading', handleStop);
-      view.removeEventListener('did-fail-load', handleFail);
-      view.removeEventListener('dom-ready', handleDomReady);
-      view.removeEventListener('page-title-updated', handleTitle);
-      view.removeEventListener('page-favicon-updated', handleFavicon);
-      view.removeEventListener('media-started-playing', handleMediaState);
-      view.removeEventListener('media-paused', handleMediaState);
-    };
-  }, []);
-
-  useEffect(() => {
-    const view = webviewRef.current;
-    if (!view || !tabsReady || !activeTab) return;
-    if ('isConnected' in view && !view.isConnected) return;
-    const targetUrl = (activeTab.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
-    const { id: loadedId, url: loadedUrl } = lastLoadedRef.current;
-    if (loadedId === activeTab.id && loadedUrl === targetUrl) {
-      return;
-    }
-    lastLoadedRef.current = { id: activeTab.id, url: targetUrl };
-    webviewReadyRef.current = false;
-    setWebviewReady(false);
-    setStatus('loading');
-    try {
-      view.loadURL(targetUrl);
-    } catch {
-      try {
-        view.setAttribute('src', targetUrl);
-      } catch {}
-    }
-  }, [tabsReady, activeTab]);
+    refreshNavigationState();
+  }, [activeId, refreshNavigationState, tabsReady]);
 
   // --- Text injection helpers (used by the soft keyboard) ---
   const injectTextToWeb = useCallback(async (text) => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
     const js = `
       (function(rawText){
@@ -1452,10 +1790,10 @@ const App = () => {
       })(${JSON.stringify(text)});
     `;
     try { await wv.executeJavaScript(js); } catch {}
-  }, []);
+  }, [getActiveWebview]);
 
   const injectBackspaceToWeb = useCallback(async () => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
     const js = `
       (function(){
@@ -1554,10 +1892,10 @@ const App = () => {
       })();
     `;
     try { await wv.executeJavaScript(js); } catch {}
-  }, []);
+  }, [getActiveWebview]);
 
   const injectArrowToWeb = useCallback(async (direction) => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return;
     const js = `
       (function(dir){
@@ -1635,12 +1973,12 @@ const App = () => {
       })(${JSON.stringify(direction)});
     `;
     try { await wv.executeJavaScript(js); } catch {}
-  }, []);
+  }, [getActiveWebview]);
 
   // --- Toolbar event handlers ---
   const handleSubmit = useCallback((event) => {
     event.preventDefault();
-    const view = webviewRef.current;
+    const view = getActiveWebview();
     if (!view) return;
     const target = normalizeAddress(inputValue);
     setInputValue(target);
@@ -1654,18 +1992,18 @@ const App = () => {
     }
     try { view.loadURL(target); } catch {}
     setKbVisible(false);
-  }, [inputValue, navigateActiveAction]);
+  }, [getActiveWebview, inputValue, navigateActiveAction]);
 
   const handleBack = useCallback(() => {
-    const view = webviewRef.current;
+    const view = getActiveWebview();
     if (view && view.canGoBack()) view.goBack();
-  }, []);
+  }, [getActiveWebview]);
   const handleForward = useCallback(() => {
-    const view = webviewRef.current;
+    const view = getActiveWebview();
     if (view && view.canGoForward()) view.goForward();
-  }, []);
+  }, [getActiveWebview]);
   const handleReload = useCallback(() => {
-    const view = webviewRef.current;
+    const view = getActiveWebview();
     if (!view) return;
     if ('isConnected' in view && !view.isConnected) return;
     const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
@@ -1685,7 +2023,7 @@ const App = () => {
         view.setAttribute('src', activeUrlCurrent);
       } catch {}
     }
-  }, [reloadActiveAction]);
+  }, [getActiveWebview, reloadActiveAction]);
 
   const handleInputPointerDown = useCallback(() => {
     activeInputRef.current = 'url';
@@ -1740,13 +2078,14 @@ const App = () => {
   }, [mode, isEditableElement]);
 
   const containerStyle = useMemo(() => {
+    if (isHtmlFullscreen) return styles.container;
     if (mode !== 'mobile') return styles.container;
     return {
       ...styles.container,
       paddingBottom: kbVisible ? KB_HEIGHT : 0,
       transition: 'padding-bottom 160ms ease'
     };
-  }, [mode, kbVisible]);
+  }, [isHtmlFullscreen, kbVisible, mode]);
 
   const modalBackdropStyle = useMemo(() => {
     const base = { ...styles.modalBackdrop, zIndex: 45 + (kbVisible ? 60 : 0) };
@@ -1777,7 +2116,7 @@ const App = () => {
 
 
   useEffect(() => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return undefined;
 
     const script = `
@@ -1854,10 +2193,10 @@ const App = () => {
       wv.removeEventListener('did-navigate-in-page', install);
       wv.removeEventListener('did-frame-finish-load', install);
     };
-  }, []);
+  }, [activeId, getActiveWebview]);
 
   useEffect(() => {
-    const wv = webviewRef.current;
+    const wv = getActiveWebview();
     if (!wv) return undefined;
 
     const handler = (event) => {
@@ -1883,7 +2222,7 @@ const App = () => {
     return () => {
       wv.removeEventListener('console-message', handler);
     };
-  }, [mode, isEditableElement]);
+  }, [activeId, getActiveWebview, isEditableElement, mode]);
 
 
 
@@ -1899,7 +2238,7 @@ const App = () => {
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = () => {
     try {
-      const direct = webviewRef.current?.getURL?.();
+      const direct = getActiveWebview()?.getURL?.();
       if (direct) return direct;
     } catch {}
     return activeTabRef.current?.url || activeUrl || null;
@@ -2234,51 +2573,11 @@ const App = () => {
   };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
 
-  // --- Ensure the internal <iframe> created by <webview> fills the host ---
-  useEffect(() => {
-    const wv = webviewRef.current;
-    if (!wv) {
-      return undefined;
-    }
-
-    const applyShadowStyles = () => {
-      try {
-        const root = wv.shadowRoot;
-        if (!root) {
-          return;
-        }
-        if (!root.querySelector('#mzr-webview-host-style')) {
-          const style = document.createElement('style');
-          style.id = 'mzr-webview-host-style';
-          style.textContent = `
-            :host { display: flex !important; height: 100% !important; }
-            iframe { flex: 1 1 auto !important; width: 100% !important; height: 100% !important; min-height: 100% !important; }
-          `;
-          root.appendChild(style);
-        }
-      } catch {}
-    };
-
-    applyShadowStyles();
-    wv.addEventListener('dom-ready', applyShadowStyles);
-
-    const observer = new MutationObserver(applyShadowStyles);
-    if (wv.shadowRoot) {
-      try {
-        observer.observe(wv.shadowRoot, { childList: true, subtree: true });
-      } catch {}
-    }
-
-    return () => {
-      wv.removeEventListener('dom-ready', applyShadowStyles);
-      observer.disconnect();
-    };
-  }, []);
-
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
-      <div style={styles.toolbar} className="toolbar">
-        <div style={styles.navGroup}>
+      {!isHtmlFullscreen && (
+        <div style={styles.toolbar} className="toolbar">
+          <div style={styles.navGroup}>
           <button
             type="button"
             aria-label="Back"
@@ -2491,34 +2790,34 @@ const App = () => {
               />
             </svg>
           )}
+          </div>
         </div>
-      </div>
+      )}
 
-      <webview
-        ref={webviewRef}
-        style={styles.webview}
-        allowpopups="true"
-      />
+      <div ref={webviewHostRef} style={styles.webviewMount} />
+      <div ref={backgroundHostRef} style={styles.backgroundShelf} />
 
-      <div className="zoom-toolbar" style={styles.bottomToolbar}>
-        <span style={styles.zoomLabel}>Zoom</span>
-        <div style={styles.zoomSliderContainer}>
-          <input
-            type="range"
-            min={ZOOM_MIN}
-            max={ZOOM_MAX}
-            step={ZOOM_STEP}
-            value={zoomLevel}
-            onPointerDown={handleZoomSliderPointerDown}
-            onInput={handleZoomSliderChange}
-            onChange={handleZoomSliderChange}
-            aria-label="Zoom level"
-            className="zoom-slider"
-            style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
-          />
+      {!isHtmlFullscreen && (
+        <div className="zoom-toolbar" style={styles.bottomToolbar}>
+          <span style={styles.zoomLabel}>Zoom</span>
+          <div style={styles.zoomSliderContainer}>
+            <input
+              type="range"
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              value={zoomLevel}
+              onPointerDown={handleZoomSliderPointerDown}
+              onInput={handleZoomSliderChange}
+              onChange={handleZoomSliderChange}
+              aria-label="Zoom level"
+              className="zoom-slider"
+              style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
+            />
+          </div>
+          <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
         </div>
-        <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
-      </div>
+      )}
 
       {showTabsPanel && (
         <div
@@ -2736,3 +3035,147 @@ const App = () => {
 };
 
 export default App;
+
+const singleStyles = {
+  container: {
+    position: 'relative',
+    width: '100vw',
+    height: '100vh',
+    backgroundColor: '#000',
+    overflow: 'hidden'
+  },
+  webview: {
+    width: '100%',
+    height: '100%',
+    border: 'none',
+    backgroundColor: '#000'
+  },
+  webviewFullscreen: {
+    width: '100%',
+    height: '100%',
+    border: 'none',
+    backgroundColor: '#000'
+  },
+  statusBadge: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    padding: '6px 12px',
+    borderRadius: '999px',
+    backgroundColor: 'rgba(15, 23, 42, 0.8)',
+    color: '#f8fafc',
+    fontSize: '12px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase'
+  },
+  statusBadgeError: {
+    backgroundColor: 'rgba(239, 68, 68, 0.9)'
+  }
+};
+
+const SingleWindowApp = ({ initialUrl, mode }) => {
+  const webviewRef = useRef(null);
+  const [status, setStatus] = useState('loading');
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const powerBlockerIdRef = useRef(null);
+
+  const startPowerBlocker = useCallback(async () => {
+    if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
+    try {
+      const startFn = window.merezhyvo?.power?.start;
+      if (!startFn) return null;
+      const id = await startFn();
+      if (typeof id === 'number') {
+        powerBlockerIdRef.current = id;
+        return id;
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] power blocker start failed (single)', err);
+    }
+    return null;
+  }, []);
+
+  const stopPowerBlocker = useCallback(async () => {
+    const id = powerBlockerIdRef.current;
+    if (id == null) return;
+    try {
+      const stopFn = window.merezhyvo?.power?.stop;
+      if (stopFn) {
+        await stopFn(id);
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] power blocker stop failed (single)', err);
+    }
+    powerBlockerIdRef.current = null;
+  }, []);
+
+  useEffect(() => {
+    const view = webviewRef.current;
+    if (!view) return undefined;
+
+    const handleStart = () => setStatus('loading');
+    const handleStop = () => setStatus('ready');
+    const handleFail = () => setStatus('error');
+    const handleDomReady = () => {
+      setStatus('ready');
+      try { view.focus(); } catch {}
+    };
+    const handleMediaStarted = () => { void startPowerBlocker(); };
+    const handleMediaPaused = () => { void stopPowerBlocker(); };
+    const handleEnterFullscreen = () => setIsFullscreen(true);
+    const handleLeaveFullscreen = () => setIsFullscreen(false);
+
+    view.addEventListener('did-start-loading', handleStart);
+    view.addEventListener('did-stop-loading', handleStop);
+    view.addEventListener('did-fail-load', handleFail);
+    view.addEventListener('dom-ready', handleDomReady);
+    view.addEventListener('media-started-playing', handleMediaStarted);
+    view.addEventListener('media-paused', handleMediaPaused);
+    view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
+    view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
+
+    return () => {
+      view.removeEventListener('did-start-loading', handleStart);
+      view.removeEventListener('did-stop-loading', handleStop);
+      view.removeEventListener('did-fail-load', handleFail);
+      view.removeEventListener('dom-ready', handleDomReady);
+      view.removeEventListener('media-started-playing', handleMediaStarted);
+      view.removeEventListener('media-paused', handleMediaPaused);
+      view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
+      view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
+      void stopPowerBlocker();
+    };
+  }, [startPowerBlocker, stopPowerBlocker]);
+
+  useEffect(() => {
+    const view = webviewRef.current;
+    if (!view) return;
+    const target = initialUrl && initialUrl.trim() ? initialUrl.trim() : DEFAULT_URL;
+    try {
+      const result = view.loadURL(target);
+      if (result && typeof result.catch === 'function') {
+        result.catch(() => {});
+      }
+    } catch {
+      try { view.setAttribute('src', target); } catch {}
+    }
+  }, [initialUrl]);
+
+  useEffect(() => () => { void stopPowerBlocker(); }, [stopPowerBlocker]);
+
+  const webviewStyle = isFullscreen ? singleStyles.webviewFullscreen : singleStyles.webview;
+  const statusStyle = status === 'error'
+    ? { ...singleStyles.statusBadge, ...singleStyles.statusBadgeError }
+    : singleStyles.statusBadge;
+
+  return (
+    <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
+      <webview ref={webviewRef} style={webviewStyle} allowpopups="true" />
+      {status !== 'ready' && (
+        <div style={statusStyle}>
+          {status === 'loading' ? 'Loading…' : 'Load failed'}
+        </div>
+      )}
+    </div>
+  );
+};

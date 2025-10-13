@@ -289,6 +289,7 @@ const parseLaunchConfig = () => {
   let modeOverride = (process.env.MZV_MODE || '').toLowerCase(); // optional
   const envForceDark = (process.env.MZV_FORCE_DARK || '').toLowerCase();
   let forceDark = ['1', 'true', 'yes'].includes(envForceDark);
+  let singleWindow = false;
 
   for (const rawArg of args) {
     if (!rawArg) continue;
@@ -297,6 +298,7 @@ const parseLaunchConfig = () => {
     if (rawArg === '--fullscreen') { fullscreen = true; continue; }
     if (rawArg === '--no-fullscreen') { fullscreen = false; continue; }
     if (rawArg === '--devtools') { devtools = true; continue; }
+    if (rawArg === '--single') { singleWindow = true; continue; }
 
     const m = rawArg.match(/^--mode=(desktop|mobile)$/i);
     if (m) { modeOverride = m[1].toLowerCase(); continue; }
@@ -306,7 +308,7 @@ const parseLaunchConfig = () => {
     if (url === DEFAULT_URL) url = normalizeAddress(rawArg);
   }
 
-  return { url, fullscreen, devtools, modeOverride, forceDark };
+  return { url, fullscreen, devtools, modeOverride, forceDark, single: singleWindow };
 };
 
 const launchConfig = parseLaunchConfig();
@@ -409,9 +411,11 @@ const createMainWindow = () => {
     if (mainWindow === win) mainWindow = null;
   });
 
-  win.loadFile(distIndex, {
-    query: { start: startUrl, mode: initialMode }
-  });
+  const query = { start: startUrl, mode: initialMode };
+  if (launchConfig.single) {
+    query.single = '1';
+  }
+  win.loadFile(distIndex, { query });
 
   // Block zooming on the host webContents (only allow it inside the <webview>)
   win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
@@ -430,7 +434,9 @@ const createMainWindow = () => {
     if (isMainFrame) applyUserAgentForUrl(win.webContents, url);
   });
 
-  mainWindow = win;
+  if (!launchConfig.single) {
+    mainWindow = win;
+  }
 };
 
 // When displays change send a refreshed mode to the renderer

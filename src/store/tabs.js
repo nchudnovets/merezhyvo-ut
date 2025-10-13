@@ -8,6 +8,17 @@ const YT_HOST_PATTERNS = [/\.youtube\.com$/i, /^youtube\.com$/i, /^music\.youtub
 
 const listeners = new Set();
 
+const singleWindowMode = (() => {
+  if (typeof window === 'undefined') return false;
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    const raw = params.get('single');
+    return raw === '1' || raw === '' || (raw || '').toLowerCase() === 'true';
+  } catch {
+    return false;
+  }
+})();
+
 let state = createInitialState();
 let saveTimer = null;
 let hasHydrated = false;
@@ -98,6 +109,7 @@ function setState(updater, { skipSave = false } = {}) {
 }
 
 async function saveSessionNow() {
+  if (singleWindowMode) return;
   if (!window?.merezhyvo?.session?.save) return;
   const payload = serializeState(state);
   try {
@@ -108,6 +120,7 @@ async function saveSessionNow() {
 }
 
 function scheduleSave() {
+  if (singleWindowMode) return;
   if (saveTimer) {
     clearTimeout(saveTimer);
   }
@@ -217,12 +230,13 @@ function setActiveOnTabs(tabs, activeId, timestamp = Date.now()) {
       return {
         ...tab,
         discarded: false,
+        isPlaying: tab.isPlaying ?? false,
         lastUsedAt: lastUsed
       };
     }
     if (tab.discarded) return tab;
     changed = true;
-    return { ...tab, discarded: true };
+    return { ...tab, discarded: true, isPlaying: false };
   });
   return changed ? next : tabs;
 }
@@ -238,6 +252,11 @@ function discardAllTabs(tabs) {
 }
 
 async function hydrateFromSession() {
+  if (singleWindowMode) {
+    hasHydrated = true;
+    setState((prev) => ({ ...prev, ready: true }), { skipSave: true });
+    return;
+  }
   let rawSession = null;
   if (window?.merezhyvo?.session?.load) {
     try {
@@ -370,6 +389,9 @@ function updateMeta(id, patch = {}) {
       const nextIsYouTube = isYouTubeLike(next.url);
       if (next.isYouTube !== nextIsYouTube) {
         next.isYouTube = nextIsYouTube;
+        if (!nextIsYouTube) {
+          next.isPlaying = false;
+        }
         altered = true;
       }
       altered = true;
@@ -388,6 +410,9 @@ function updateMeta(id, patch = {}) {
     }
     if (typeof patch.isYouTube === 'boolean' && patch.isYouTube !== original.isYouTube) {
       next.isYouTube = patch.isYouTube;
+      if (!patch.isYouTube) {
+        next.isPlaying = false;
+      }
       altered = true;
     }
     if (typeof patch.isPlaying === 'boolean' && patch.isPlaying !== original.isPlaying) {
