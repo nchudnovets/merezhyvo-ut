@@ -234,6 +234,29 @@ const styles = {
     lineHeight: 1,
     textAlign: 'center'
   },
+  settingsButton: {
+    height: '42px',
+    width: '42px',
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: '#1c2333',
+    color: '#f8fafc',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '10px',
+    fontSize: '13px',
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+    cursor: 'pointer',
+    flexShrink: 0,
+    transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
+  },
+  settingsButtonIcon: {
+    width: '18px',
+    height: '18px',
+    display: 'block'
+  },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
@@ -716,6 +739,194 @@ const styles = {
   modalButtonDisabledMobile: {
     opacity: 0.6,
     cursor: 'wait'
+  },
+  settingsModal: {
+    width: 'min(520px, 96vw)',
+    height: '100vh',
+    borderRadius: '24px',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '20px',
+    padding: '24px'
+  },
+  settingsModalMobile: {
+    width: '100%',
+    height: '100vh',
+    borderRadius: 0,
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: 'clamp(36px, 5vw, 48px)',
+    gap: 'clamp(30px, 4vw, 42px)'
+  },
+  settingsModalHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '16px'
+  },
+  settingsModalTitle: {
+    margin: 0,
+    fontSize: '20px',
+    fontWeight: 600
+  },
+  settingsSections: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '16px',
+    flex: 1
+  },
+  settingsBlock: {
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '18px',
+    backgroundColor: 'rgba(17, 24, 39, 0.62)',
+    padding: '18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '14px'
+  },
+  settingsBlockHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px'
+  },
+  settingsBlockTitle: {
+    margin: 0,
+    fontSize: '14px',
+    fontWeight: 600,
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#94a3b8'
+  },
+  settingsLoading: {
+    fontSize: '12px',
+    color: '#94a3b8'
+  },
+  settingsBlockBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  settingsAppList: {
+    listStyle: 'none',
+    margin: 0,
+    padding: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  settingsAppRow: {
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    borderRadius: '14px',
+    backgroundColor: 'rgba(9, 12, 22, 0.9)',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  settingsAppHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px'
+  },
+  settingsAppInfo: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    minWidth: 0
+  },
+  settingsAppTitle: {
+    fontSize: '15px',
+    fontWeight: 600,
+    color: '#f8fafc',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  settingsAppUrl: {
+    fontSize: '13px',
+    color: '#94a3b8',
+    whiteSpace: 'nowrap',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  settingsAppActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  settingsIconButton: {
+    width: '32px',
+    height: '32px',
+    borderRadius: '10px',
+    border: '1px solid rgba(248, 113, 113, 0.35)',
+    background: 'rgba(248, 113, 113, 0.12)',
+    color: '#f87171',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    flexShrink: 0
+  },
+  settingsIcon: {
+    width: '16px',
+    height: '16px'
+  },
+  settingsEmpty: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#94a3b8'
+  },
+  settingsMessage: {
+    borderRadius: '14px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'rgba(59, 130, 246, 0.12)',
+    color: '#bfdbfe',
+    padding: '12px 16px',
+    fontSize: '13px'
+  },
+  settingsConfirm: {
+    borderTop: '1px solid rgba(148, 163, 184, 0.18)',
+    paddingTop: '12px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  settingsConfirmText: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#e2e8f0',
+    lineHeight: 1.45
+  },
+  settingsConfirmActions: {
+    display: 'flex',
+    gap: '10px',
+    justifyContent: 'flex-end'
+  },
+  settingsConfirmButton: {
+    minWidth: '92px',
+    height: '34px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.75)',
+    color: '#e2e8f0',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  settingsConfirmButtonPrimary: {
+    border: 'none',
+    background: 'rgba(248, 113, 113, 0.92)',
+    color: '#fef2f2'
   }
 };
 
@@ -742,7 +953,23 @@ const modeStyles = {
     tabIconButton: {},
     tabIcon: {},
     tabActions: {},
-    newTabButton: {}
+    newTabButton: {},
+    settingsButton: {},
+    settingsButtonIcon: {},
+    settingsModalTitle: {},
+    settingsBlock: {},
+    settingsBlockTitle: {},
+    settingsAppRow: {},
+    settingsAppHeader: {},
+    settingsAppActions: {},
+    settingsAppTitle: {},
+    settingsAppUrl: {},
+    settingsMessage: {},
+    settingsConfirmText: {},
+    settingsConfirmButton: {},
+    settingsIconButton: {},
+    settingsIcon: {},
+    settingsLoading: {}
   },
   mobile: {
     toolbarBtnRegular: {
@@ -791,6 +1018,73 @@ const modeStyles = {
     },
     tabsButtonCount: {
       fontSize: 'clamp(30px, 4.8vw, 38px)'
+    },
+    settingsButton: {
+      height: 'clamp(72px, 10vw, 96px)',
+      width: 'clamp(72px, 10vw, 96px)',
+      borderRadius: '24px',
+      fontSize: 'clamp(30px, 4.8vw, 38px)'
+    },
+    settingsButtonIcon: {
+      width: 'clamp(36px, 5vw, 48px)',
+      height: 'clamp(36px, 5vw, 48px)'
+    },
+    settingsModalTitle: {
+      fontSize: 'clamp(54px, 7vw, 66px)'
+    },
+    settingsBlock: {
+      borderRadius: '30px',
+      padding: 'clamp(36px, 5vw, 48px)',
+      gap: 'clamp(30px, 4.8vw, 36px)'
+    },
+    settingsBlockTitle: {
+      fontSize: 'clamp(30px, 4.5vw, 36px)',
+      letterSpacing: '0.12em'
+    },
+    settingsAppRow: {
+      gap: 'clamp(30px, 4.5vw, 42px)',
+      padding: 'clamp(42px, 5.5vw, 54px)',
+      borderRadius: '32px'
+    },
+    settingsAppHeader: {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: 'clamp(30px, 4.5vw, 42px)'
+    },
+    settingsAppActions: {
+      justifyContent: 'flex-end'
+    },
+    settingsLoading: {
+      fontSize: 'clamp(27px, 4vw, 33px)'
+    },
+    settingsAppTitle: {
+      fontSize: 'clamp(39px, 5.7vw, 51px)'
+    },
+    settingsAppUrl: {
+      fontSize: 'clamp(30px, 4.8vw, 36px)'
+    },
+    settingsIconButton: {
+      width: 'clamp(72px, 10vw, 96px)',
+      height: 'clamp(72px, 10vw, 96px)',
+      borderRadius: '24px'
+    },
+    settingsIcon: {
+      width: 'clamp(36px, 5vw, 48px)',
+      height: 'clamp(36px, 5vw, 48px)'
+    },
+    settingsMessage: {
+      fontSize: 'clamp(30px, 4.8vw, 36px)',
+      padding: 'clamp(30px, 4.5vw, 42px)',
+      borderRadius: '30px'
+    },
+    settingsConfirmText: {
+      fontSize: 'clamp(33px, 5vw, 45px)'
+    },
+    settingsConfirmButton: {
+      minWidth: 'clamp(210px, 34vw, 280px)',
+      height: 'clamp(72px, 10vw, 96px)',
+      borderRadius: '24px',
+      fontSize: 'clamp(30px, 4.8vw, 36px)'
     },
     tabsPanelTitle: {
       fontSize: 'clamp(54px, 7vw, 66px)'
@@ -883,6 +1177,25 @@ const normalizeAddress = (value) => {
   }
 };
 
+const normalizeShortcutUrl = (value) => {
+  if (!value || !value.trim()) return null;
+  const trimmed = value.trim();
+  try {
+    const parsed = new URL(trimmed);
+    const protocol = parsed.protocol.toLowerCase();
+    if (protocol !== 'http:' && protocol !== 'https:') {
+      return null;
+    }
+    const lowerHref = parsed.href.toLowerCase();
+    if (lowerHref === 'https://mail.google.com' || lowerHref.startsWith('https://mail.google.com/')) {
+      return 'https://mail.google.com';
+    }
+    return parsed.href;
+  } catch {
+    return null;
+  }
+};
+
 const App = () => {
   const { url: parsedStartUrl, hasStartParam, single: isSingleWindow } = useMemo(() => parseStartUrl(), []);
   const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
@@ -896,7 +1209,8 @@ const App = () => {
 
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
-  const modalInputRef = useRef(null);
+  const modalTitleInputRef = useRef(null);
+  const modalUrlInputRef = useRef(null);
   const activeInputRef = useRef(null);
   const webviewReadyRef = useRef(false);
 
@@ -913,9 +1227,54 @@ const App = () => {
 
   const [showModal, setShowModal] = useState(false);
   const [title, setTitle] = useState('');
+  const [shortcutUrl, setShortcutUrl] = useState('');
   const [busy, setBusy] = useState(false);
   const [msg, setMsg] = useState('');
   const [showTabsPanel, setShowTabsPanel] = useState(false);
+  const [showSettingsModal, setShowSettingsModal] = useState(false);
+  const [installedApps, setInstalledApps] = useState([]);
+  const [installedAppsLoading, setInstalledAppsLoading] = useState(false);
+  const [settingsMsg, setSettingsMsg] = useState('');
+  const [pendingRemoval, setPendingRemoval] = useState(null);
+  const [settingsBusy, setSettingsBusy] = useState(false);
+
+  // --- Soft keyboard state ---
+  const [kbVisible, setKbVisible] = useState(false);
+  const [kbLayout, setKbLayout] = useState(() => {
+    try { return localStorage.getItem('mzr.kbLayout') || 'en'; } catch { return 'en'; }
+  });
+  const [kbShift, setKbShift] = useState(false);
+  const [kbCaps, setKbCaps] = useState(false);
+
+  const loadInstalledApps = useCallback(async ({ quiet = false } = {}) => {
+    if (!quiet) {
+      setSettingsMsg('');
+      setPendingRemoval(null);
+    }
+    setInstalledAppsLoading(true);
+    try {
+      const result = await window.merezhyvo?.settings?.installedApps?.list?.();
+      if (result?.ok && Array.isArray(result.installedApps)) {
+        setInstalledApps(result.installedApps);
+      } else if (!quiet) {
+        setSettingsMsg(result?.error || 'Failed to load installed apps.');
+      }
+      return result;
+    } catch (err) {
+      if (!quiet) {
+        setSettingsMsg(String(err));
+      }
+      return null;
+    } finally {
+      setInstalledAppsLoading(false);
+    }
+  }, []);
+
+  const installedAppsList = useMemo(() => {
+    const list = Array.isArray(installedApps) ? [...installedApps] : [];
+    list.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
+    return list;
+  }, [installedApps]);
 
   const tabsReadyRef = useRef(tabsReady);
   const tabsRef = useRef(tabs);
@@ -959,6 +1318,9 @@ const App = () => {
       setIsHtmlFullscreen(false);
     }
   }, [activeId]);
+  useEffect(() => {
+    loadInstalledApps({ quiet: true });
+  }, [loadInstalledApps]);
   useEffect(() => {
     const styleId = 'mzr-modal-scroll-style';
     if (document.getElementById(styleId)) return undefined;
@@ -1529,18 +1891,67 @@ const App = () => {
     setBusy(false);
     setMsg('');
     setTitle('');
+    setShortcutUrl('');
     activeInputRef.current = null;
+    blurActiveInWebview();
+    if (mode === 'mobile') setKbVisible(false);
+  }, [mode, blurActiveInWebview, setKbVisible]);
+
+  const openSettingsModal = useCallback(() => {
+    activeInputRef.current = null;
+    setShowSettingsModal(true);
+    setSettingsMsg('');
+    setPendingRemoval(null);
+    setSettingsBusy(false);
     blurActiveInWebview();
     if (mode === 'mobile') setKbVisible(false);
   }, [mode, blurActiveInWebview]);
 
-  // --- Soft keyboard state ---
-  const [kbVisible, setKbVisible] = useState(false);
-  const [kbLayout, setKbLayout] = useState(() => {
-    try { return localStorage.getItem('mzr.kbLayout') || 'en'; } catch { return 'en'; }
-  });
-  const [kbShift, setKbShift] = useState(false);
-  const [kbCaps, setKbCaps] = useState(false);
+  const closeSettingsModal = useCallback(() => {
+    setShowSettingsModal(false);
+    setPendingRemoval(null);
+    setSettingsMsg('');
+    setSettingsBusy(false);
+    if (mode === 'mobile') setKbVisible(false);
+  }, [mode, setKbVisible]);
+
+  const askRemoveApp = useCallback((app) => {
+    if (!app) return;
+    setPendingRemoval(app);
+    setSettingsMsg('');
+  }, [setPendingRemoval, setSettingsMsg]);
+
+  const cancelRemoveApp = useCallback(() => {
+    setPendingRemoval(null);
+  }, [setPendingRemoval]);
+
+  const confirmRemoveApp = useCallback(async () => {
+    if (!pendingRemoval) return;
+    setSettingsBusy(true);
+    setSettingsMsg('');
+    try {
+      const res = await window.merezhyvo?.settings?.installedApps?.remove?.({
+        id: pendingRemoval.id,
+        desktopFilePath: pendingRemoval.desktopFilePath
+      });
+      if (res?.ok) {
+        if (Array.isArray(res.installedApps)) {
+          setInstalledApps(res.installedApps);
+        } else {
+          setInstalledApps((apps) => apps.filter((app) => app.id !== pendingRemoval.id));
+        }
+        setPendingRemoval(null);
+        void loadInstalledApps({ quiet: true });
+      } else {
+        setSettingsMsg(res?.error || 'Failed to remove shortcut.');
+      }
+    } catch (err) {
+      setSettingsMsg(String(err));
+    } finally {
+      setSettingsBusy(false);
+    }
+  }, [loadInstalledApps, pendingRemoval, setInstalledApps, setPendingRemoval, setSettingsBusy, setSettingsMsg]);
+
   useEffect(() => {
     try { localStorage.setItem('mzr.kbLayout', kbLayout); } catch {}
   }, [kbLayout]);
@@ -1550,9 +1961,9 @@ const App = () => {
       return undefined;
     }
     const frame = requestAnimationFrame(() => {
-      if (modalInputRef.current) {
-        modalInputRef.current.focus();
-        modalInputRef.current.select();
+      if (modalTitleInputRef.current) {
+        modalTitleInputRef.current.focus();
+        modalTitleInputRef.current.select();
       }
     });
     const handleKeyDown = (event) => {
@@ -1567,6 +1978,23 @@ const App = () => {
       cancelAnimationFrame(frame);
     };
   }, [showModal, closeShortcutModal]);
+
+  useEffect(() => {
+    if (!showSettingsModal) {
+      return undefined;
+    }
+    loadInstalledApps();
+    const handleKeyDown = (event) => {
+      if (event.key === 'Escape') {
+        event.preventDefault();
+        closeSettingsModal();
+      }
+    };
+    window.addEventListener('keydown', handleKeyDown);
+    return () => {
+      window.removeEventListener('keydown', handleKeyDown);
+    };
+  }, [showSettingsModal, loadInstalledApps, closeSettingsModal]);
 
   // --- Zoom management inside the webview ---
   const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
@@ -1677,7 +2105,7 @@ const App = () => {
   }, [inputValue]);
 
   useEffect(() => {
-    const node = modalInputRef.current;
+    const node = modalTitleInputRef.current;
     if (!node) return;
     requestAnimationFrame(() => {
       try {
@@ -1689,6 +2117,20 @@ const App = () => {
       } catch {}
     });
   }, [title]);
+
+  useEffect(() => {
+    const node = modalUrlInputRef.current;
+    if (!node) return;
+    requestAnimationFrame(() => {
+      try {
+        const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
+        const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
+        if (start === end) {
+          node.scrollLeft = node.scrollWidth;
+        }
+      } catch {}
+    });
+  }, [shortcutUrl]);
 
   // --- Text injection helpers (used by the soft keyboard) ---
   const injectTextToWeb = useCallback(async (text) => {
@@ -2072,17 +2514,40 @@ const App = () => {
 
 
   const handleModalInputPointerDown = useCallback(() => {
-    activeInputRef.current = 'modal';
+    activeInputRef.current = 'modalTitle';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
 
   const handleModalInputFocus = useCallback(() => {
-    activeInputRef.current = 'modal';
+    activeInputRef.current = 'modalTitle';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
 
   const handleModalInputBlur = useCallback(() => {
-    if (activeInputRef.current === 'modal') activeInputRef.current = null;
+    if (activeInputRef.current === 'modalTitle') activeInputRef.current = null;
+    if (mode !== 'mobile') return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+      if (isSoftKey || isEditableElement(active)) {
+        return;
+      }
+      setKbVisible(false);
+    });
+  }, [mode, isEditableElement]);
+
+  const handleModalUrlPointerDown = useCallback(() => {
+    activeInputRef.current = 'modalUrl';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleModalUrlFocus = useCallback(() => {
+    activeInputRef.current = 'modalUrl';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleModalUrlBlur = useCallback(() => {
+    if (activeInputRef.current === 'modalUrl') activeInputRef.current = null;
     if (mode !== 'mobile') return;
     requestAnimationFrame(() => {
       const active = document.activeElement;
@@ -2116,6 +2581,14 @@ const App = () => {
     }
     return base;
   }, [mode, kbVisible]);
+  const settingsModalStyle = useMemo(
+    () => (mode === 'mobile' ? styles.settingsModalMobile : styles.settingsModal),
+    [mode]
+  );
+  const settingsCloseButtonStyle = useMemo(
+    () => (mode === 'mobile' ? styles.modalCloseMobile : styles.modalClose),
+    [mode]
+  );
 
   const tabsPanelBackdropStyle = useMemo(() => {
     const base = { ...styles.tabsPanelBackdrop, zIndex: 55 + (kbVisible ? 60 : 0) };
@@ -2291,6 +2764,7 @@ const App = () => {
   const openShortcutModal = () => {
     const viewUrl = getCurrentViewUrl();
     setTitle(viewUrl ? new URL(viewUrl).hostname.replace(/^www\./, '') : 'Merezhyvo');
+    setShortcutUrl(viewUrl || '');
     setMsg('');
     setBusy(false);
     setKbVisible(false);
@@ -2298,18 +2772,37 @@ const App = () => {
   };
 
   const createShortcut = async () => {
-    const viewUrl = getCurrentViewUrl();
-    if (!viewUrl) { setMsg('Cannot detect current URL.'); return; }
-    if (!title.trim()) { setMsg('Please enter a name.'); return; }
-
-    setBusy(true); setMsg('');
+    const trimmedTitle = title.trim();
+    if (!trimmedTitle) { setMsg('Please enter a name.'); return; }
+    const normalizedUrl = normalizeShortcutUrl(shortcutUrl || getCurrentViewUrl() || '');
+    if (!normalizedUrl) {
+      setMsg('Please enter a valid URL (http/https).');
+      return;
+    }
+    setShortcutUrl(normalizedUrl);
+    setMsg('');
+    setBusy(true);
     try {
       const res = await window.merezhyvo?.createShortcut?.({
-        title: title.trim(),
-        url: viewUrl,
+        title: trimmedTitle,
+        url: normalizedUrl,
         single: true
       });
       if (res?.ok) {
+        if (res.installedApp) {
+          setInstalledApps((apps) => {
+            const list = Array.isArray(apps) ? apps : [];
+            const index = list.findIndex((app) => app.id === res.installedApp.id);
+            if (index === -1) {
+              return [...list, res.installedApp];
+            }
+            const next = [...list];
+            next[index] = res.installedApp;
+            return next;
+          });
+        } else {
+          void loadInstalledApps({ quiet: true });
+        }
         closeShortcutModal();
         return;
       } else {
@@ -2365,8 +2858,8 @@ const App = () => {
       return;
     }
 
-    if (activeTarget === 'modal' && modalInputRef.current) {
-      const inputEl = modalInputRef.current;
+    if (activeTarget === 'modalTitle' && modalTitleInputRef.current) {
+      const inputEl = modalTitleInputRef.current;
       const value = inputEl.value ?? '';
       const rawStart = inputEl.selectionStart ?? value.length;
       const rawEnd = inputEl.selectionEnd ?? value.length;
@@ -2406,6 +2899,47 @@ const App = () => {
       return;
     }
 
+    if (activeTarget === 'modalUrl' && modalUrlInputRef.current) {
+      const inputEl = modalUrlInputRef.current;
+      const value = inputEl.value ?? '';
+      const rawStart = inputEl.selectionStart ?? value.length;
+      const rawEnd = inputEl.selectionEnd ?? value.length;
+      const selectionStart = Math.min(rawStart, rawEnd);
+      const selectionEnd = Math.max(rawStart, rawEnd);
+      const setCaret = (pos) => {
+        setTimeout(() => {
+          inputEl.selectionStart = inputEl.selectionEnd = pos;
+        }, 0);
+      };
+
+      if (key === 'Backspace') {
+        if (selectionStart === 0 && selectionEnd === 0) {
+          if (kbShift && !kbCaps) setKbShift(false);
+          return;
+        }
+        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
+        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
+        setShortcutUrl(nextValue);
+        setCaret(deleteStart);
+      } else if (key === 'Enter') {
+        if (!busy) {
+          createShortcut();
+        }
+      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const nextPos = key === 'ArrowLeft'
+          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
+          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
+        setCaret(nextPos);
+      } else {
+        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
+        const nextPos = selectionStart + key.length;
+        setShortcutUrl(nextValue);
+        setCaret(nextPos);
+      }
+      if (kbShift && !kbCaps) setKbShift(false);
+      return;
+    }
+
     if (key === 'Backspace') {
       await injectBackspaceToWeb();
     } else if (key === 'Enter') {
@@ -2416,7 +2950,7 @@ const App = () => {
       await injectTextToWeb(key);
     }
     if (kbShift && !kbCaps) setKbShift(false);
-  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setTitle]);
+  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setShortcutUrl, setTitle]);
 
   const handleShortcutPointerDown = useCallback((event) => {
     event.preventDefault();
@@ -2801,6 +3335,35 @@ const App = () => {
           </button>
         </form>
 
+        <button
+          type="button"
+          aria-label="Open settings"
+          className="btn btn--settings"
+          onClick={openSettingsModal}
+          style={{
+            ...styles.settingsButton,
+            ...(modeStyles[mode].settingsButton || {})
+          }}
+        >
+          <svg
+            viewBox="0 0 16 16"
+            style={{
+              ...styles.settingsButtonIcon,
+              ...(modeStyles[mode].settingsButtonIcon || {})
+            }}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+              d="M8 3.25V1.75M8 14.25v-1.5M3.6 3.6l1.06 1.06M11.34 11.34l1.06 1.06M1.75 8h1.5M12.75 8h1.5M3.6 12.4l1.06-1.06M11.34 4.66l1.06-1.06M10.25 8a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
+            />
+          </svg>
+        </button>
+
         <div style={styles.statusIndicator} role="status" aria-label={statusLabelMap[status]}>
           {status === 'loading' && <span style={styles.spinner} aria-hidden="true" />}
           {status === 'ready' && (
@@ -3019,7 +3582,7 @@ const App = () => {
                 </label>
                 <input
                   id="shortcut-title"
-                  ref={modalInputRef}
+                  ref={modalTitleInputRef}
                   type="text"
                   value={title}
                   onPointerDown={handleModalInputPointerDown}
@@ -3030,12 +3593,29 @@ const App = () => {
                   disabled={busy}
                 />
               </div>
+              <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
+                <label htmlFor="shortcut-url" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
+                  URL
+                </label>
+                <input
+                  id="shortcut-url"
+                  ref={modalUrlInputRef}
+                  type="url"
+                  value={shortcutUrl}
+                  onPointerDown={handleModalUrlPointerDown}
+                  onFocus={handleModalUrlFocus}
+                  onBlur={handleModalUrlBlur}
+                  onChange={(event) => setShortcutUrl(event.target.value)}
+                  style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
+                  disabled={busy}
+                />
+              </div>
 
-              {msg && (
-                <div style={mode === 'mobile' ? styles.modalMsgMobile : styles.modalMsg} role="status">
-                  {msg}
-                </div>
-              )}
+      {msg && (
+        <div style={mode === 'mobile' ? styles.modalMsgMobile : styles.modalMsg} role="status">
+          {msg}
+        </div>
+      )}
 
               <div style={mode === 'mobile' ? styles.modalActionsMobile : styles.modalActions}>
                 <button
@@ -3058,6 +3638,196 @@ const App = () => {
                 </button>
               </div>
             </form>
+          </div>
+        </div>
+      )}
+
+      {showSettingsModal && (
+        <div
+          style={modalBackdropStyle}
+          onClick={(event) => {
+            if (event.target === event.currentTarget) {
+              closeSettingsModal();
+            }
+          }}
+        >
+          <div
+            style={settingsModalStyle}
+            role="dialog"
+            aria-modal="true"
+            aria-labelledby="settings-modal-title"
+          >
+            <div style={styles.settingsModalHeader}>
+              <h2
+                id="settings-modal-title"
+                style={{
+                  ...styles.settingsModalTitle,
+                  ...(modeStyles[mode].settingsModalTitle || {})
+                }}
+              >
+                Settings
+              </h2>
+              <button
+                type="button"
+                aria-label="Close settings dialog"
+                style={settingsCloseButtonStyle}
+                onClick={closeSettingsModal}
+              >
+                ✕
+              </button>
+            </div>
+
+            <div style={styles.settingsSections}>
+              <section
+                style={{
+                  ...styles.settingsBlock,
+                  ...(modeStyles[mode].settingsBlock || {})
+                }}
+              >
+                <div style={styles.settingsBlockHeader}>
+                  <h3
+                    style={{
+                      ...styles.settingsBlockTitle,
+                      ...(modeStyles[mode].settingsBlockTitle || {})
+                    }}
+                  >
+                    Installed Apps
+                  </h3>
+                  {installedAppsLoading && (
+                    <span
+                      style={{
+                        ...styles.settingsLoading,
+                        ...(modeStyles[mode].settingsLoading || {})
+                      }}
+                    >
+                      Loading…
+                    </span>
+                  )}
+                </div>
+
+                <div style={styles.settingsBlockBody}>
+                  {installedAppsList.length === 0 && !installedAppsLoading ? (
+                    <p style={styles.settingsEmpty}>No installed shortcuts yet.</p>
+                  ) : (
+                    <ul style={styles.settingsAppList}>
+                      {installedAppsList.map((app) => {
+                        const isPending = pendingRemoval?.id === app.id;
+                        return (
+                          <li
+                            key={app.id}
+                            style={{
+                              ...styles.settingsAppRow,
+                              ...(modeStyles[mode].settingsAppRow || {})
+                            }}
+                          >
+                            <div style={styles.settingsAppHeader}>
+                              <div style={styles.settingsAppInfo}>
+                                <span
+                                  style={{
+                                    ...styles.settingsAppTitle,
+                                    ...(modeStyles[mode].settingsAppTitle || {})
+                                  }}
+                                >
+                                  {app.title || app.url}
+                                </span>
+                                <span
+                                  style={{
+                                    ...styles.settingsAppUrl,
+                                    ...(modeStyles[mode].settingsAppUrl || {})
+                                  }}
+                                >
+                                  {app.url}
+                                </span>
+                              </div>
+                              <div style={styles.settingsAppActions}>
+                                <button
+                                  type="button"
+                                  aria-label={`Remove ${app.title || app.url}`}
+                                  onClick={() => askRemoveApp(app)}
+                                  disabled={settingsBusy && isPending}
+                                  style={{
+                                    ...styles.settingsIconButton,
+                                    ...(modeStyles[mode].settingsIconButton || {}),
+                                    ...(settingsBusy && isPending ? styles.modalButtonDisabled : null)
+                                  }}
+                                >
+                                  <svg
+                                    viewBox="0 0 16 16"
+                                    style={{
+                                      ...styles.settingsIcon,
+                                      ...(modeStyles[mode].settingsIcon || {})
+                                    }}
+                                    xmlns="http://www.w3.org/2000/svg"
+                                  >
+                                    <path
+                                      fill="none"
+                                      stroke="currentColor"
+                                      strokeWidth="1.5"
+                                      strokeLinecap="round"
+                                      strokeLinejoin="round"
+                                      d="M3.5 4.5h9M6.5 4.5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M6 7v5m4-5v5M4.5 4.5 5.2 13a1 1 0 0 0 .998.9h3.604a1 1 0 0 0 .998-.9l.7-8.5"
+                                    />
+                                  </svg>
+                                </button>
+                              </div>
+                            </div>
+                            {isPending && (
+                              <div style={styles.settingsConfirm}>
+                                <p
+                                  style={{
+                                    ...styles.settingsConfirmText,
+                                    ...(modeStyles[mode].settingsConfirmText || {})
+                                  }}
+                                >
+                                  {`Are you sure you want to remove ${app.title || app.url}?`}
+                                </p>
+                                <div style={styles.settingsConfirmActions}>
+                                  <button
+                                    type="button"
+                                    style={{
+                                      ...styles.settingsConfirmButton,
+                                      ...(modeStyles[mode].settingsConfirmButton || {})
+                                    }}
+                                    onClick={cancelRemoveApp}
+                                    disabled={settingsBusy}
+                                  >
+                                    Cancel
+                                  </button>
+                                  <button
+                                    type="button"
+                                    style={{
+                                      ...styles.settingsConfirmButton,
+                                      ...styles.settingsConfirmButtonPrimary,
+                                      ...(modeStyles[mode].settingsConfirmButton || {})
+                                    }}
+                                    onClick={confirmRemoveApp}
+                                    disabled={settingsBusy}
+                                  >
+                                    {settingsBusy ? 'Removing…' : 'OK'}
+                                  </button>
+                                </div>
+                              </div>
+                            )}
+                          </li>
+                        );
+                      })}
+                    </ul>
+                  )}
+                </div>
+              </section>
+            </div>
+
+            {settingsMsg && (
+              <div
+                style={{
+                  ...styles.settingsMessage,
+                  ...(modeStyles[mode].settingsMessage || {})
+                }}
+                role="status"
+              >
+                {settingsMsg}
+              </div>
+            )}
           </div>
         </div>
       )}

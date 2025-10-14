@@ -62,6 +62,35 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     }
   },
 
+  settings: {
+    load: async () => {
+      try {
+        return await ipcRenderer.invoke('merezhyvo:settings:load');
+      } catch (err) {
+        console.error('[merezhyvo] settings.load failed', err);
+        return { schema: 1, installedApps: [] };
+      }
+    },
+    installedApps: {
+      list: async () => {
+        try {
+          return await ipcRenderer.invoke('merezhyvo:settings:installedApps:list');
+        } catch (err) {
+          console.error('[merezhyvo] settings.installedApps.list failed', err);
+          return { ok: false, error: String(err), installedApps: [] };
+        }
+      },
+      remove: async (idOrPayload) => {
+        try {
+          return await ipcRenderer.invoke('merezhyvo:settings:installedApps:remove', idOrPayload);
+        } catch (err) {
+          console.error('[merezhyvo] settings.installedApps.remove failed', err);
+          return { ok: false, error: String(err) };
+        }
+      }
+    }
+  },
+
   power: {
     start: async () => {
       try {
