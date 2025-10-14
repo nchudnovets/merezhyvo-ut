@@ -291,7 +291,6 @@ const styles = {
     flexShrink: 0
   },
   zoomLabel: {
-    fontSize: '12px',
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
     color: '#94a3b8'
@@ -307,7 +306,6 @@ const styles = {
     touchAction: 'none'
   },
   zoomValue: {
-    fontSize: '12px',
     color: '#f8fafc',
     fontVariantNumeric: 'tabular-nums'
   },
@@ -730,8 +728,9 @@ const modeStyles = {
     makeAppBtn: { width: '36px', height: '26px' },
     makeAppBtnIcn: { width: '16px', height: '16px' },
     statusIcon: { width: '14px', height: '14px' },
+    zoomLabel: { fontSize: '12px' },
     zoomSlider: { height: '4px' },
-    zoomValue: { minWidth: '48px', textAlign: 'right' },
+    zoomValue: { fontSize: '12px', minWidth: '48px', textAlign: 'right' },
     tabsButton: {},
     tabsButtonSquare: {},
     tabsButtonCount: {},
@@ -772,11 +771,12 @@ const modeStyles = {
       width: 'clamp(22px, 3.5vw, 28px)',
       height: 'clamp(22px, 3.5vw, 28px)'
     },
+    zoomLabel: { fontSize: 'clamp(24px, 3.3vw, 28px)' },
     zoomSlider: { height: 'clamp(14px, 2.2vw, 20px)' },
     zoomValue: {
       minWidth: 'clamp(80px, 12vw, 108px)',
       textAlign: 'right',
-      fontSize: 'clamp(22px, 3.3vw, 26px)'
+      fontSize: 'clamp(24px, 3.3vw, 28px)'
     },
     tabsButton: {
       width: 'clamp(72px, 10vw, 96px)',
