@@ -2762,8 +2762,22 @@ const App = () => {
   };
 
   const openShortcutModal = () => {
+    let appTitle;
     const viewUrl = getCurrentViewUrl();
-    setTitle(viewUrl ? new URL(viewUrl).hostname.replace(/^www\./, '') : 'Merezhyvo');
+    try{
+      const hostname = new URL(viewUrl).hostname.replace(/^www\./, '');
+      const firstPart = hostname.split('.')[0] || '';
+      if (!firstPart) {
+        appTitle = viewUrl;
+      } else {
+        const chars = Array.from(firstPart);
+        const capFirst = chars[0].toUpperCase();
+        appTitle = 'm' + capFirst + chars.slice(1).join('');
+      }      
+    } catch {
+      appTitle = '';
+    };
+    setTitle(appTitle);
     setShortcutUrl(viewUrl || '');
     setMsg('');
     setBusy(false);
@@ -3634,7 +3648,7 @@ const App = () => {
                   }}
                   disabled={busy}
                 >
-                  {busy ? 'Creating…' : 'Create Shortcut'}
+                  {busy ? 'Creating…' : 'Save'}
                 </button>
               </div>
             </form>
