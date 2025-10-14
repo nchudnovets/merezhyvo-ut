@@ -1237,6 +1237,8 @@ const App = () => {
   const [settingsMsg, setSettingsMsg] = useState('');
   const [pendingRemoval, setPendingRemoval] = useState(null);
   const [settingsBusy, setSettingsBusy] = useState(false);
+  const [shortcutCompleted, setShortcutCompleted] = useState(false);
+  const [shortcutSuccessMsg, setShortcutSuccessMsg] = useState('');
 
   // --- Soft keyboard state ---
   const [kbVisible, setKbVisible] = useState(false);
@@ -1892,6 +1894,8 @@ const App = () => {
     setMsg('');
     setTitle('');
     setShortcutUrl('');
+    setShortcutCompleted(false);
+    setShortcutSuccessMsg('');
     activeInputRef.current = null;
     blurActiveInWebview();
     if (mode === 'mobile') setKbVisible(false);
@@ -2781,6 +2785,8 @@ const App = () => {
     setShortcutUrl(viewUrl || '');
     setMsg('');
     setBusy(false);
+    setShortcutCompleted(false);
+    setShortcutSuccessMsg('');
     setKbVisible(false);
     setShowModal(true);
   };
@@ -2817,7 +2823,14 @@ const App = () => {
         } else {
           void loadInstalledApps({ quiet: true });
         }
-        closeShortcutModal();
+        setShortcutCompleted(true);
+        setShortcutSuccessMsg('Shortcut saved successfully. You can now open your new web application from the app launcher.');
+        setKbVisible(false);
+        activeInputRef.current = null;
+        const activeIdCurrent = activeIdRef.current;
+        if (activeIdCurrent) {
+          closeTabAction(activeIdCurrent);
+        }
         return;
       } else {
         setMsg(res?.error || 'Unknown error.');
@@ -3564,7 +3577,7 @@ const App = () => {
           >
             <div style={mode === 'mobile' ? styles.modalHeaderMobile : styles.modalHeader}>
               <h2 id="shortcut-modal-title" style={mode === 'mobile' ? styles.modalTitleMobile : styles.modalTitle}>
-                Create App Shortcut
+                {shortcutCompleted ? 'Shortcut Saved' : 'Create App Shortcut'}
               </h2>
 
               <button
@@ -3576,82 +3589,104 @@ const App = () => {
                 ✕
               </button>
             </div>
-            <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
-              You are about to save this page as a separate application. Please give it a title.
-              <br />
-              And update the save URL for the application as needed.
-            </p>
-            <form
-              style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
-              onSubmit={(event) => {
-                event.preventDefault();
-                if (!busy) {
-                  createShortcut();
-                }
-              }}
-            >
-              <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
-                <label htmlFor="shortcut-title" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
-                  Title
-                </label>
-                <input
-                  id="shortcut-title"
-                  ref={modalTitleInputRef}
-                  type="text"
-                  value={title}
-                  onPointerDown={handleModalInputPointerDown}
-                  onFocus={handleModalInputFocus}
-                  onBlur={handleModalInputBlur}
-                  onChange={(event) => setTitle(event.target.value)}
-                  style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
-                  disabled={busy}
-                />
-              </div>
-              <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
-                <label htmlFor="shortcut-url" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
-                  URL
-                </label>
-                <input
-                  id="shortcut-url"
-                  ref={modalUrlInputRef}
-                  type="url"
-                  value={shortcutUrl}
-                  onPointerDown={handleModalUrlPointerDown}
-                  onFocus={handleModalUrlFocus}
-                  onBlur={handleModalUrlBlur}
-                  onChange={(event) => setShortcutUrl(event.target.value)}
-                  style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
-                  disabled={busy}
-                />
-              </div>
-
-      {msg && (
-        <div style={mode === 'mobile' ? styles.modalMsgMobile : styles.modalMsg} role="status">
-          {msg}
-        </div>
-      )}
-
-              <div style={mode === 'mobile' ? styles.modalActionsMobile : styles.modalActions}>
-                <button
-                  type="button"
-                  style={mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton}
-                  onClick={closeShortcutModal}
-                >
-                  Close
-                </button>
-                <button
-                  type="submit"
-                  style={{
-                    ...(mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton),
-                    ...(mode === 'mobile' ? styles.modalButtonPrimaryMobile : styles.modalButtonPrimary),
-                    ...(busy ? (mode === 'mobile' ? styles.modalButtonDisabledMobile : styles.modalButtonDisabled) : null)
+            {shortcutCompleted ? (
+              <>
+                <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
+                  {shortcutSuccessMsg || 'Shortcut saved successfully. You can now open your new web application from the app launcher.'}
+                </p>
+                <div style={mode === 'mobile' ? styles.modalActionsMobile : styles.modalActions}>
+                  <button
+                    type="button"
+                    style={{
+                      ...(mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton),
+                      ...(mode === 'mobile' ? styles.modalButtonPrimaryMobile : styles.modalButtonPrimary)
+                    }}
+                    onClick={closeShortcutModal}
+                  >
+                    Close
+                  </button>
+                </div>
+              </>
+            ) : (
+              <>
+                <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
+                  You are about to save this page as a separate application. Please give it a title.
+                  <br />
+                  And update the save URL for the application as needed.
+                </p>
+                <form
+                  style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
+                  onSubmit={(event) => {
+                    event.preventDefault();
+                    if (!busy) {
+                      createShortcut();
+                    }
                   }}
-                  disabled={busy}
                 >
-                  {busy ? 'Creating…' : 'Save'}
-                </button>
-              </div>
-            </form>
+                  <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
+                    <label htmlFor="shortcut-title" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
+                      Title
+                    </label>
+                    <input
+                      id="shortcut-title"
+                      ref={modalTitleInputRef}
+                      type="text"
+                      value={title}
+                      onPointerDown={handleModalInputPointerDown}
+                      onFocus={handleModalInputFocus}
+                      onBlur={handleModalInputBlur}
+                      onChange={(event) => setTitle(event.target.value)}
+                      style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
+                      disabled={busy}
+                    />
+                  </div>
+                  <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>
+                    <label htmlFor="shortcut-url" style={mode === 'mobile' ? styles.modalLabelMobile : styles.modalLabel}>
+                      URL
+                    </label>
+                    <input
+                      id="shortcut-url"
+                      ref={modalUrlInputRef}
+                      type="url"
+                      value={shortcutUrl}
+                      onPointerDown={handleModalUrlPointerDown}
+                      onFocus={handleModalUrlFocus}
+                      onBlur={handleModalUrlBlur}
+                      onChange={(event) => setShortcutUrl(event.target.value)}
+                      style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
+                      disabled={busy}
+                    />
+                  </div>
+
+                  {msg && (
+                    <div style={mode === 'mobile' ? styles.modalMsgMobile : styles.modalMsg} role="status">
+                      {msg}
+                    </div>
+                  )}
+
+                  <div style={mode === 'mobile' ? styles.modalActionsMobile : styles.modalActions}>
+                    <button
+                      type="button"
+                      style={mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton}
+                      onClick={closeShortcutModal}
+                    >
+                      Close
+                    </button>
+                    <button
+                      type="submit"
+                      style={{
+                        ...(mode === 'mobile' ? styles.modalButtonMobile : styles.modalButton),
+                        ...(mode === 'mobile' ? styles.modalButtonPrimaryMobile : styles.modalButtonPrimary),
+                        ...(busy ? (mode === 'mobile' ? styles.modalButtonDisabledMobile : styles.modalButtonDisabled) : null)
+                      }}
+                      disabled={busy}
+                    >
+                      {busy ? 'Creating…' : 'Create Shortcut'}
+                    </button>
+                  </div>
+                </form>
+              </>
+            )}
           </div>
         </div>
       )}
