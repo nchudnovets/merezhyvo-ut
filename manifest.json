@@ -1,9 +1,9 @@
 {
   "name": "merezhyvo.naz.r",
   "title": "merezhyvo",
-  "version": "0.1.9",
-  "maintainer": "Naz R <naz@example.com>",
-  "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
+  "version": "0.1.9.2",
+  "maintainer": "Naz R <nchudnovets@gmail.com.com>",
+  "description": "Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "architecture": "@CLICK_ARCH@",
   "hooks": {
     "merezhyvo": {
@@ -11,6 +11,6 @@
       "desktop": "app.desktop"
     }
   },
-  "framework": "ubuntu-sdk-20.04",
+  "framework": "@CLICK_FRAMEWORK@",
   "icon": "merezhyvo_256.png"
 }

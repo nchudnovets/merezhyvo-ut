@@ -21,6 +21,7 @@ if [ ! -f "./app/merezhyvo" ]; then
 fi
 
 echo "==> Step 3/3: clickable build (.click packaging)"
+export CLICKABLE_FRAMEWORK='ubuntu-touch-24.04-1.x'
 clickable clean || true
 clickable build --arch "${ARCH}" --accept-review-errors
 

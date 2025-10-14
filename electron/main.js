@@ -600,7 +600,7 @@ ipcMain.handle('merezhyvo:createShortcut', async (_e, payload) => {
 [Desktop Entry]
 Name=${title}
 Comment=Site shortcut (${title}) via Merezhyvo
-Exec=${execPath} --fullscreen${singleFlag} "${url}"
+Exec=env OZONE_PLATFORM=wayland XCURSOR_SIZE=14 ${execPath} --fullscreen${singleFlag} "${url}"
 Icon=${iconPath}
 Terminal=false
 Type=Application
