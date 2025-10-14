@@ -637,7 +637,7 @@ const styles = {
   },
   modalMobile: {
     width: '100%',
-    height: 'min(92vh, 600px)',
+    height: 'min(92vh, 700px)',
     minHeight: '45vh',
     borderRadius: '28px 28px 0 0',
     border: '1px solid rgba(148, 163, 184, 0.25)',
@@ -647,9 +647,9 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     padding: 'calc(2vh) calc(4vw)',
-    gap: 'calc(2vh)',
+    gap: 'calc(1vh)',
     boxSizing: 'border-box',
-    marginTop: 'clamp(24px, 4vh, 48px)'
+    marginTop: 'clamp(14px, 4vh, 28px)'
   },
   modalHeaderMobile: {
     display: 'flex',
@@ -660,7 +660,7 @@ const styles = {
   modalBodyMobile: {
     fontSize: 'clamp(33px, 5.1vw, 48px)',
     color: '#dbeafe',
-    lineHeight: 1.6,
+    lineHeight: 1.2,
     margin: 'clamp(10px, 2vh, 24px) 0'
   },
   modalTitleMobile: {
@@ -696,12 +696,12 @@ const styles = {
     color: '#e2e8f0'
   },
   modalInputMobile: {
-    height: 'clamp(105px, 13.5vh, 144px)',
+    // height: 'clamp(105px, 13.5vh, 144px)',
     borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: 'rgba(9, 12, 22, 0.92)',
     color: '#f8fafc',
-    padding: '0 clamp(27px, 6vw, 48px)',
+    padding: '10 clamp(27px, 6vw, 48px)',
     fontSize: 'clamp(42px, 6vw, 54px)',
     outline: 'none'
   },
