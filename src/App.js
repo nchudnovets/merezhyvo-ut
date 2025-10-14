@@ -3000,9 +3000,9 @@ const App = () => {
               </button>
             </div>
             <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
-              You are about to save this page as a separate application. Please give it a name.
+              You are about to save this page as a separate application. Please give it a title.
               <br />
-              After saving, you may need to refresh the application launcher or restart your device.
+              And update the save URL for the application as needed.
             </p>
             <form
               style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
