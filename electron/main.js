@@ -22,11 +22,14 @@ try { nativeTheme.themeSource = 'dark'; } catch {}
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
-const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Ubuntu; Linux x86_64; rv:123.0) Gecko/20100101 Firefox/123.0';
-const isMessengerDomain = (url) => {
+const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+const isMobileExceptionDomain = (url) => {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
-    return hostname === 'messenger.com' || hostname.endsWith('.messenger.com');
+    return hostname === 'messenger.com' ||
+      hostname.endsWith('.messenger.com') ||
+      hostname === 'youtube.com' ||
+      hostname.endsWith('.youtube.com');
   } catch {
     return false;
   }
@@ -37,7 +40,7 @@ const installUserAgentOverride = (session) => {
   session.__mzrUAOverrideInstalled = true;
   session.webRequest.onBeforeSendHeaders((details, callback) => {
     const headers = { ...details.requestHeaders };
-    if (isMessengerDomain(details.url)) {
+    if (isMobileExceptionDomain(details.url)) {
       headers['User-Agent'] = DESKTOP_USER_AGENT;
     } else {
       headers['User-Agent'] = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
@@ -67,7 +70,7 @@ const stopPlaybackBlocker = (id) => {
 const applyUserAgentForUrl = (contents, url) => {
   if (!contents) return;
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  const ua = isMessengerDomain(url) ? DESKTOP_USER_AGENT : baseUA;
+  const ua = isMobileExceptionDomain(url) ? DESKTOP_USER_AGENT : baseUA;
   try { contents.setUserAgent(ua); } catch {}
 };
 

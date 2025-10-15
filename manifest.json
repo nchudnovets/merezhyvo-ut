@@ -1,8 +1,8 @@
 {
   "name": "merezhyvo.naz.r",
   "title": "merezhyvo",
-  "version": "0.2.1",
-  "maintainer": "Naz R <nchudnovets@gmail.com.com>",
+  "version": "0.2.2",
+  "maintainer": "Naz R <nchudnovets@gmail.com>",
   "description": "Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "architecture": "@CLICK_ARCH@",
   "hooks": {
