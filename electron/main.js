@@ -487,6 +487,7 @@ if (launchConfig.forceDark) {
 app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
 app.commandLine.appendSwitch('use-gl', 'egl');
 app.commandLine.appendSwitch('enable-pinch'); // enable pinch gestures in the webview
+app.commandLine.appendSwitch('autoplay-policy', 'document-user-activation-required');
 // Optional: force device scale if hit testing drifts
 // if (process.env.MZV_FORCE_SCALE === '1') {
 //   app.commandLine.appendSwitch('force-device-scale-factor', '1');
