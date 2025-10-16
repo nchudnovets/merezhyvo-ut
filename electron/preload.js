@@ -19,6 +19,16 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     };
   },
 
+  onOpenUrl: (cb) => {
+    if (typeof cb !== 'function') {
+      return () => {}
+    };
+    const ch = 'mzr:open-url';
+    const fn = (_e, url) => { try { cb(String(url)); } catch {} };
+    ipcRenderer.on(ch, fn);
+    return () => ipcRenderer.removeListener(ch, fn);
+  },
+
   /**
    * Ask main process to create a .desktop shortcut for the current site.
    * `icon` is optional and usually omitted (main tries to fetch favicon itself).

@@ -75,6 +75,21 @@ const applyUserAgentForUrl = (contents, url) => {
 };
 
 
+function sendOpenUrl(target, url) {
+  if (!url || !target) return;
+
+  try {
+    const wc = target.webContents
+      ? target.webContents 
+      : target.send
+        ? target
+        : BrowserWindow.fromWebContents?.(target)?.webContents;
+
+    if (!wc || wc.isDestroyed?.()) return;
+    wc.send('mzr:open-url', String(url));
+  } catch {}
+}
+
 let currentUserAgentMode = 'desktop';
 
 // Application identifier for the host OS
@@ -649,6 +664,38 @@ app.on('browser-window-created', (_event, win) => {
   } catch {}
 });
 
+app.on('web-contents-created', (_ev, contents) => {
+  if (contents.getType() !== 'webview') return;
+  const embedder = contents.hostWebContents;
+
+  const isSingle = (() => {
+    try {
+      const u = new URL(embedder.getURL());
+      return u.searchParams.get('single') === '1';
+    } catch { return false; }
+  })();
+
+  const openTarget = (url) => {
+    if (isSingle) {
+      if (mainWindow && !mainWindow.isDestroyed()) {
+        sendOpenUrl(mainWindow, url);
+      }
+    } else {
+      sendOpenUrl(embedder, url);
+    }
+  };
+
+  contents.setWindowOpenHandler(({ url }) => {
+    openTarget(url);
+    return { action: 'deny' };
+  });
+
+  contents.on('will-navigate', (e, url) => {
+    e.preventDefault();
+    openTarget(url);
+  });
+});
+
 // Standard quit behaviour
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
@@ -843,3 +890,15 @@ X-Ubuntu-Touch=true
     return { ok: false, error: 'Shortcut created, but saving settings failed: ' + String(err) };
   }
 });
+
+// ipcMain.handle('mzv:open-in-main', async (_e, url) => {
+//   if (mainWindow && !mainWindow.isDestroyed() && typeof url === 'string' && url) {
+//     try {
+//       mainWindow.webContents.send('mzr:open-url', url);
+//       return { ok: true };
+//     } catch (e) {
+//       return { ok: false, error: String(e) };
+//     }
+//   }
+//   return { ok: false, error: 'No main window' };
+// });

@@ -1776,6 +1776,13 @@ const App = () => {
   }, [destroyTabView, mountInBackgroundHost, updateMetaAction]);
 
   useEffect(() => {
+    window.merezhyvo?.onOpenUrl?.((url) => {
+      if (!url) return;
+      newTabAction(String(url));
+    });
+  }, [newTabAction]);
+
+  useEffect(() => {
     const validIds = new Set(tabs.map((tab) => tab.id));
     for (const tabId of Array.from(tabViewsRef.current.keys())) {
       if (!validIds.has(tabId)) {
