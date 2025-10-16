@@ -75,16 +75,43 @@ const applyUserAgentForUrl = (contents, url) => {
 };
 
 
+function isSingleWindow(win) {
+  if (!win || win.isDestroyed?.()) return false;
+  if (win.__mzrRole) return win.__mzrRole === 'single';
+  try {
+    const u = new URL(win.webContents.getURL());
+    return u.searchParams.get('single') === '1';
+  } catch { return false; }
+}
+
+function findMainWindow() {
+  if (mainWindow && !mainWindow.isDestroyed?.() && !isSingleWindow(mainWindow)) {
+    return mainWindow;
+  }
+  for (const w of BrowserWindow.getAllWindows()) {
+    if (!w.isDestroyed?.() && !isSingleWindow(w)) return w;
+  }
+  return null;
+}
+
+async function getOrCreateMainWindow() {
+  let win = findMainWindow();
+  if (win) return win;
+
+  win = createMainWindow({ role: 'main' });
+  await new Promise(res => {
+    const onReady = () => { try { win.webContents.off('did-finish-load', onReady); } catch {} ; res(); };
+    win.webContents.once('did-finish-load', onReady);
+  });
+  return win;
+}
+
 function sendOpenUrl(target, url) {
   if (!url || !target) return;
-
   try {
-    const wc = target.webContents
-      ? target.webContents 
-      : target.send
-        ? target
-        : BrowserWindow.fromWebContents?.(target)?.webContents;
-
+    const wc = target.webContents ? target.webContents
+      : target.send ? target
+      : BrowserWindow.fromWebContents?.(target)?.webContents;
     if (!wc || wc.isDestroyed?.()) return;
     wc.send('mzr:open-url', String(url));
   } catch {}
@@ -509,7 +536,7 @@ app.commandLine.appendSwitch('autoplay-policy', 'document-user-activation-requir
 // }
 
 // ---------- window lifecycle ----------
-const createMainWindow = () => {
+const createMainWindow = (opts = {}) => {
   const { url: startUrl, fullscreen, devtools, modeOverride } = launchConfig;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
   const initialMode = modeOverride || resolveMode();
@@ -540,6 +567,7 @@ const createMainWindow = () => {
       sandbox: false,
       webviewTag: true,
       spellcheck: false,
+      nativeWindowOpen: false,
       defaultFontSize: initialMode === 'mobile' ? 28 : 16,
       preload: path.resolve(__dirname, 'preload.js')
     }
@@ -592,9 +620,17 @@ const createMainWindow = () => {
   win.on('closed', () => {
     if (mainWindow === win) mainWindow = null;
   });
+  let role = 'main';
+  if (opts.role) {
+    role = opts.role;
+  }
+  else if (launchConfig.single) {
+    role = 'single';
+  }
+  win.__mzrRole = role;
 
   const query = { start: startUrl, mode: initialMode };
-  if (launchConfig.single) {
+  if (role === 'single') {
     query.single = '1';
   }
   win.loadFile(distIndex, { query });
@@ -616,9 +652,10 @@ const createMainWindow = () => {
     if (isMainFrame) applyUserAgentForUrl(win.webContents, url);
   });
 
-  if (!launchConfig.single) {
+  if (role === 'main') {
     mainWindow = win;
   }
+  return win;
 };
 
 // When displays change send a refreshed mode to the renderer
@@ -666,20 +703,16 @@ app.on('browser-window-created', (_event, win) => {
 
 app.on('web-contents-created', (_ev, contents) => {
   if (contents.getType() !== 'webview') return;
+
   const embedder = contents.hostWebContents;
+  const ownerWin = BrowserWindow.fromWebContents(embedder);
+  const inSingle = isSingleWindow(ownerWin);
 
-  const isSingle = (() => {
-    try {
-      const u = new URL(embedder.getURL());
-      return u.searchParams.get('single') === '1';
-    } catch { return false; }
-  })();
-
-  const openTarget = (url) => {
-    if (isSingle) {
-      if (mainWindow && !mainWindow.isDestroyed()) {
-        sendOpenUrl(mainWindow, url);
-      }
+  const openTarget = async (url) => {
+    if (!url) return;
+    if (inSingle) {
+      const main = await getOrCreateMainWindow();
+      sendOpenUrl(main, url);
     } else {
       sendOpenUrl(embedder, url);
     }
