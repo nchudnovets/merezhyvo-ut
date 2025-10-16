@@ -23,6 +23,9 @@ try { nativeTheme.themeSource = 'dark'; } catch {}
 const DEFAULT_URL = 'https://duckduckgo.com';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+let currentMode = null; // 'mobile' | 'desktop'
+const baseZoomFor = (mode) => (mode === 'mobile' ? 2.0 : 1.0);
+
 const isMobileExceptionDomain = (url) => {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '');
@@ -540,6 +543,7 @@ const createMainWindow = (opts = {}) => {
   const { url: startUrl, fullscreen, devtools, modeOverride } = launchConfig;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
   const initialMode = modeOverride || resolveMode();
+  currentMode = initialMode;
 
   if (!existsSync(distIndex)) {
     console.error('[Merezhyvo] Missing renderer bundle at', distIndex);
@@ -662,9 +666,9 @@ const createMainWindow = (opts = {}) => {
 const rebalance = () => {
   if (!mainWindow || mainWindow.isDestroyed()) return;
   const m = resolveMode();
+  currentMode = m;
   try {
     mainWindow.webContents.send('merezhyvo:mode', m);
-    // Leave host zoom alone — zoom is managed inside the <webview>
   } catch {}
 };
 
@@ -704,6 +708,10 @@ app.on('browser-window-created', (_event, win) => {
 app.on('web-contents-created', (_ev, contents) => {
   if (contents.getType() !== 'webview') return;
 
+  try { contents.setVisualZoomLevelLimits(1, 3); } catch {}
+  const base = baseZoomFor(currentMode);
+  try { contents.setZoomFactor(base); } catch {}
+
   const embedder = contents.hostWebContents;
   const ownerWin = BrowserWindow.fromWebContents(embedder);
   const inSingle = isSingleWindow(ownerWin);
@@ -727,6 +735,11 @@ app.on('web-contents-created', (_ev, contents) => {
     e.preventDefault();
     openTarget(url);
   });
+
+  const applyBase = () => { try { contents.setZoomFactor(baseZoomFor(currentMode)); } catch {} };
+  contents.on('dom-ready', applyBase);
+  contents.on('did-navigate', applyBase);
+  contents.on('did-navigate-in-page', applyBase);
 });
 
 // Standard quit behaviour
@@ -923,15 +936,3 @@ X-Ubuntu-Touch=true
     return { ok: false, error: 'Shortcut created, but saving settings failed: ' + String(err) };
   }
 });
-
-// ipcMain.handle('mzv:open-in-main', async (_e, url) => {
-//   if (mainWindow && !mainWindow.isDestroyed() && typeof url === 'string' && url) {
-//     try {
-//       mainWindow.webContents.send('mzr:open-url', url);
-//       return { ok: true };
-//     } catch (e) {
-//       return { ok: false, error: String(e) };
-//     }
-//   }
-//   return { ok: false, error: 'No main window' };
-// });
