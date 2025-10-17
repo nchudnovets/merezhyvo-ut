@@ -1309,6 +1309,10 @@ const App = () => {
     updateMeta: updateMetaAction
   } = tabsActions;
 
+  useEffect(() => {
+    try { window.merezhyvo?.notifyTabsReady?.(); } catch {}
+  }, []);
+
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
@@ -1776,10 +1780,13 @@ const App = () => {
   }, [destroyTabView, mountInBackgroundHost, updateMetaAction]);
 
   useEffect(() => {
-    window.merezhyvo?.onOpenUrl?.((url) => {
+    const off = window.merezhyvo?.onOpenUrl?.((arg) => {
+      const { url, activate = true } =
+        typeof arg === 'string' ? { url: arg, activate: true } : (arg || {});
       if (!url) return;
       newTabAction(String(url));
     });
+    return () => { try { off && off(); } catch {} };
   }, [newTabAction]);
 
   useEffect(() => {
@@ -3617,9 +3624,9 @@ const App = () => {
             ) : (
               <>
                 <p style={mode === 'mobile' ? styles.modalBodyMobile : styles.modalBody}>
-                  You are about to save this page as a separate application. Please give it a title.
+                  You are about to save this page as a separate application.
                   <br />
-                  And update the save URL for the application as needed.
+                  Update the save URL for the application as needed.
                 </p>
                 <form
                   style={mode === 'mobile' ? styles.modalFormMobile : styles.modalForm}
@@ -3644,7 +3651,7 @@ const App = () => {
                       onBlur={handleModalInputBlur}
                       onChange={(event) => setTitle(event.target.value)}
                       style={mode === 'mobile' ? styles.modalInputMobile : styles.modalInput}
-                      disabled={busy}
+                      disabled={true}
                     />
                   </div>
                   <div style={mode === 'mobile' ? styles.modalFieldMobile : styles.modalField}>

@@ -53,6 +53,8 @@ const installUserAgentOverride = (session) => {
 };
 
 let mainWindow;
+const pendingOpenUrls = [];
+let tabsReady = false;
 let playbackBlockerId = null;
 
 const stopPlaybackBlocker = (id) => {
@@ -97,26 +99,63 @@ function findMainWindow() {
   return null;
 }
 
-async function getOrCreateMainWindow() {
+async function openInMain(url, { activate = true } = {}) {
+  const win = await getOrCreateMainWindow({ activate });
+  if (!tabsReady || win.webContents.isLoading()) {
+    pendingOpenUrls.push(url);
+    return;
+  }
+  sendOpenUrl(win, url, /* activate */ true);
+}
+
+async function getOrCreateMainWindow({ activate = true } = {}) {
   let win = findMainWindow();
-  if (win) return win;
+  if (win) {
+    if (activate) focusMainWindow(mainWindow);
+    return win
+  };
 
   win = createMainWindow({ role: 'main' });
-  await new Promise(res => {
-    const onReady = () => { try { win.webContents.off('did-finish-load', onReady); } catch {} ; res(); };
-    win.webContents.once('did-finish-load', onReady);
+  await new Promise(resolve => {
+    const onReady = () => {
+      win.off('ready-to-show', onReady);
+      if (activate) focusMainWindow(win);
+      resolve(win);
+    };
+    if (win.isReadyToShow && win.isReadyToShow()) onReady();
+    else win.once('ready-to-show', onReady);
   });
   return win;
 }
 
-function sendOpenUrl(target, url) {
-  if (!url || !target) return;
+function focusMainWindow(win) {
+  if (!win || win.isDestroyed()) return;
   try {
-    const wc = target.webContents ? target.webContents
-      : target.send ? target
-      : BrowserWindow.fromWebContents?.(target)?.webContents;
-    if (!wc || wc.isDestroyed?.()) return;
-    wc.send('mzr:open-url', String(url));
+    if (win.isMinimized()) win.restore();
+    win.show();
+    win.focus();
+    if (typeof win.moveTop === 'function') win.moveTop();
+    win.flashFrame(true);
+    setTimeout(() => { try { win.flashFrame(false); } catch {} }, 1200);
+  } catch {}
+}
+
+function flushPendingUrls(win) {
+  if (!win || win.isDestroyed()) return;
+  if (!tabsReady) return;
+  try {
+    while (pendingOpenUrls.length) {
+      const url = pendingOpenUrls.shift();
+      sendOpenUrl(win, url, /* activate */ true);
+    }
+  } catch {}
+}
+
+function sendOpenUrl(win, url, activate = true) {
+  try {
+    if (win && !win.isDestroyed() && win.webContents) {
+      win.webContents.send('mzr:open-url', { url, activate });
+    }
   } catch {}
 }
 
@@ -648,6 +687,9 @@ const createMainWindow = (opts = {}) => {
       win.webContents.setZoomFactor(1);
     }
   };
+   win.webContents.once('did-finish-load', () => {
+    flushPendingUrls(win);
+  });
   win.webContents.on('zoom-changed', resetHostZoom);
   win.webContents.on('before-input-event', (e, input) => {
     if (input.type === 'mouseWheel' && (input.control || input.meta)) e.preventDefault();
@@ -716,24 +758,54 @@ app.on('web-contents-created', (_ev, contents) => {
   const ownerWin = BrowserWindow.fromWebContents(embedder);
   const inSingle = isSingleWindow(ownerWin);
 
-  const openTarget = async (url) => {
-    if (!url) return;
-    if (inSingle) {
-      const main = await getOrCreateMainWindow();
-      sendOpenUrl(main, url);
-    } else {
-      sendOpenUrl(embedder, url);
+  // const openTarget = async (url) => {
+  //   if (!url) return;
+  //   if (inSingle) {
+  //     const main = await getOrCreateMainWindow();
+  //     sendOpenUrl(main, url);
+  //   } else {
+  //     sendOpenUrl(embedder, url);
+  //   }
+  // };
+
+  function openTargetFromContents(contents, url) {
+  const embedder = contents.hostWebContents || contents;
+  let isSingle = false;
+  try {
+    const u = new URL(embedder.getURL());
+    isSingle = u.searchParams.get('single') === '1';
+  } catch {}
+
+  if (isSingle) {
+    openInMain(url, { activate: true });
+  } else {
+    try {
+      const win = BrowserWindow.fromWebContents(embedder);
+      if (win && !win.isDestroyed()) {
+        if (!tabsReady || win.webContents.isLoading()) {
+          pendingOpenUrls.push(url);
+          focusMainWindow(win);
+        } else {
+          sendOpenUrl(win, url, /* activate */ true);
+          focusMainWindow(win);
+        }
+      } else {
+        openInMain(url, { activate: true });
+      }
+    } catch {
+      openInMain(url, { activate: true });
     }
-  };
+  }
+}
 
   contents.setWindowOpenHandler(({ url }) => {
-    openTarget(url);
+    openTargetFromContents(contents, url);
     return { action: 'deny' };
   });
 
-  contents.on('will-navigate', (e, url) => {
+  contents.on('new-window', (e, url) => {
     e.preventDefault();
-    openTarget(url);
+    openTargetFromContents(contents, url);
   });
 
   const applyBase = () => { try { contents.setZoomFactor(baseZoomFor(currentMode)); } catch {} };
@@ -935,4 +1007,9 @@ X-Ubuntu-Touch=true
     }
     return { ok: false, error: 'Shortcut created, but saving settings failed: ' + String(err) };
   }
+});
+
+ipcMain.on('tabs:ready', () => {
+  tabsReady = true;
+  flushPendingUrls(mainWindow);
 });

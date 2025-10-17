@@ -19,12 +19,20 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     };
   },
 
+  notifyTabsReady: () => {
+    try { ipcRenderer.send('tabs:ready'); } catch {}
+  },
+
   onOpenUrl: (cb) => {
-    if (typeof cb !== 'function') {
-      return () => {}
-    };
+    if (typeof cb !== 'function') return () => {};
     const ch = 'mzr:open-url';
-    const fn = (_e, url) => { try { cb(String(url)); } catch {} };
+    const fn = (_e, payload) => {
+      try {
+        const url = typeof payload === 'string' ? payload : payload?.url;
+        const activate = typeof payload === 'object' ? !!payload.activate : true;
+        if (url) cb({ url, activate });
+      } catch {}
+    };
     ipcRenderer.on(ch, fn);
     return () => ipcRenderer.removeListener(ch, fn);
   },
