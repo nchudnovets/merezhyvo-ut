@@ -8,7 +8,8 @@ const {
   ipcMain,
   session,
   nativeTheme,
-  powerSaveBlocker
+  powerSaveBlocker,
+  clipboard
 } = require('electron');
 const path = require('path');
 const fs = require('fs');
@@ -783,16 +784,6 @@ app.on('web-contents-created', (_ev, contents) => {
   const ownerWin = BrowserWindow.fromWebContents(embedder);
   const inSingle = isSingleWindow(ownerWin);
 
-  // const openTarget = async (url) => {
-  //   if (!url) return;
-  //   if (inSingle) {
-  //     const main = await getOrCreateMainWindow();
-  //     sendOpenUrl(main, url);
-  //   } else {
-  //     sendOpenUrl(embedder, url);
-  //   }
-  // };
-
   function openTargetFromContents(contents, url) {
   const embedder = contents.hostWebContents || contents;
   let isSingle = false;
@@ -842,6 +833,102 @@ app.on('web-contents-created', (_ev, contents) => {
 // Standard quit behaviour
 app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
+});
+
+app.on('web-contents-created', (_event, contents) => {
+  contents.on('context-menu', (_e, params) => {
+    const hasLink = !!params.linkURL;
+    const linkUrl = params.linkURL || '';
+    const hasSelection = !!(params.selectionText && params.selectionText.trim());
+    const canBack = contents.canGoBack?.() || false;
+    const canForward = contents.canGoForward?.() || false;
+
+    const template = [];
+
+    if (hasLink) {
+      template.push({
+        label: 'Open link in new tab',
+        click: () => {
+          try {
+            const embedder = contents.hostWebContents || contents;
+            let isSingle = false;
+            try {
+              const u = new URL(embedder.getURL());
+              isSingle = u.searchParams.get('single') === '1';
+            } catch {}
+
+            if (isSingle) {
+              const win = getOrCreateMainWindow(); 
+              if (win && !win.isDestroyed()) {
+                win.show(); win.focus();
+                sendOpenUrl(win, linkUrl);
+              }
+            } else {
+              const ownerWin = BrowserWindow.fromWebContents(embedder) || mainWindow;
+              if (ownerWin && !ownerWin.isDestroyed()) {
+                sendOpenUrl(ownerWin, linkUrl);
+              }
+            }
+          } catch {}
+        }
+      });
+
+      template.push({
+        label: 'Copy link address',
+        click: () => {
+          try { clipboard.writeText(linkUrl); } catch {}
+        }
+      });
+
+      template.push({ type: 'separator' });
+    }
+
+    template.push({
+      label: 'Back',
+      enabled: canBack,
+      click: () => { try { contents.goBack(); } catch {} }
+    });
+    template.push({
+      label: 'Forward',
+      enabled: canForward,
+      click: () => { try { contents.goForward(); } catch {} }
+    });
+    template.push({
+      label: 'Reload',
+      click: () => { try { contents.reload(); } catch {} }
+    });
+
+    if (hasSelection) {
+      template.push({ type: 'separator' });
+      template.push({
+        label: 'Copy selection',
+        click: () => {
+          try { clipboard.writeText(params.selectionText); } catch {}
+        }
+      });
+    }
+
+    if (params.isEditable) {
+    template.push(
+      { type: 'separator' },
+      {
+        label: 'Paste',
+        enabled: !!clipboard.readText().length,
+        click: () => {
+          try {
+            contents.paste();
+          } catch {
+            const menu = Menu.buildFromTemplate([{ role: 'paste' }]);
+            menu.popup({ window: BrowserWindow.fromWebContents(contents) });
+          }
+        }
+      }
+    );
+  }
+
+    const menu = Menu.buildFromTemplate(template);
+    menu.popup({ window: BrowserWindow.fromWebContents(contents) || mainWindow });
+  });
 });
 
 // ---------- Session persistence ----------
