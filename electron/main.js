@@ -57,6 +57,30 @@ const pendingOpenUrls = [];
 let tabsReady = false;
 let playbackBlockerId = null;
 
+app.setName('Merezhyvo');
+
+if (process.platform === 'linux' && typeof app.setDesktopName === 'function') {
+  const base = 'merezhyvo.naz.r_merezhyvo';
+  const ver = (typeof app.getVersion === 'function') ? app.getVersion() : null;
+
+  let desktopName = ver ? `${base}_${ver}.desktop` : null;
+
+  if (!desktopName) {
+    try {
+      const appsDir = path.join(app.getPath('home'), '.local', 'share', 'applications');
+      const candidates = fs.readdirSync(appsDir)
+        .filter(f => f.startsWith(base + '_') && f.endsWith('.desktop'))
+        .sort()
+        .reverse();
+      if (candidates.length) desktopName = candidates[0];
+    } catch {}
+  }
+
+  if (desktopName) {
+    app.setDesktopName(desktopName);
+  }
+}
+
 const stopPlaybackBlocker = (id) => {
   const blockerId = typeof id === 'number' ? id : playbackBlockerId;
   if (typeof blockerId === 'number') {
@@ -601,6 +625,7 @@ const createMainWindow = (opts = {}) => {
     show: false,
     backgroundColor: '#101218',
     title: 'Merezhyvo',
+    icon: path.resolve(__dirname, '..', 'merezhyvo_256.png'),
     autoHideMenuBar: true,
     resizable: true,
     useContentSize: true,
@@ -979,6 +1004,7 @@ Terminal=false
 Type=Application
 Categories=Network;WebBrowser;
 X-Ubuntu-Touch=true
+StartupWMClass=Merezhyvo
 `.trim() + '\n';
 
   try {
