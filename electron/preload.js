@@ -61,6 +61,18 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     }
   },
 
+  tor: {
+    toggle: () => ipcRenderer.invoke('tor:toggle'),
+    getState: () => ipcRenderer.invoke('tor:get-state'),
+    onState: (cb) => {
+      if (typeof cb !== 'function') return () => {};
+      const ch = 'tor:state';
+      const fn = (_e, s) => { try { cb(!!s.enabled, s.reason || null); } catch {} };
+      ipcRenderer.on(ch, fn);
+      return () => ipcRenderer.removeListener(ch, fn);
+    }
+  },
+
   session: {
     load: async () => {
       try {

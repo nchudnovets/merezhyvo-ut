@@ -1351,6 +1351,9 @@ const App = () => {
     };
   }, []);
 
+  const [torEnabled, setTorEnabled] = useState(false);
+  const [torReason, setTorReason] = useState(null);
+
   const getActiveWebview = useCallback(() => webviewRef.current, []);
 
   const startPowerBlocker = useCallback(async () => {
@@ -2100,8 +2103,27 @@ const App = () => {
     setZoomClamped(candidate);
   }, [setZoomClamped]);
 
-  // --- Status, navigation and address synchronisation ---
+  const handleToggleTor = useCallback(async () => {
+    try {
+      await window.merezhyvo?.tor?.toggle?.();
+    } catch {}
+  }, []);
+
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
+
+  useEffect(() => {
+    let off = () => {};
+    if (window.merezhyvo?.tor?.onState) {
+      off = window.merezhyvo.tor.onState((enabled, reason) => {
+        setTorEnabled(!!enabled);
+        setTorReason(reason || null);
+      });
+    }
+    window.merezhyvo?.tor?.getState?.().then(s => {
+      if (s) { setTorEnabled(!!s.enabled); setTorReason(s.reason || null); }
+    }).catch(() => {});
+    return () => off && off();
+  }, []);
 
   useEffect(() => {
     refreshNavigationState();
@@ -3403,6 +3425,23 @@ const App = () => {
               d="M8 3.25V1.75M8 14.25v-1.5M3.6 3.6l1.06 1.06M11.34 11.34l1.06 1.06M1.75 8h1.5M12.75 8h1.5M3.6 12.4l1.06-1.06M11.34 4.66l1.06-1.06M10.25 8a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
             />
           </svg>
+        </button>
+
+        <button
+          type="button"
+          onClick={handleToggleTor}
+          title={torEnabled ? 'Disable Tor' : 'Enable Tor'}
+          aria-pressed={torEnabled ? 'true' : 'false'}
+          style={{
+            ...styles.navButton,
+            ...modeStyles[mode].toolbarBtnRegular,
+            border: torEnabled ? '1px solid #2563eb' : '1px solid rgba(148,163,184,.35)',
+            backgroundColor: torEnabled ? '#11331e' : '#1c2333',
+          }}
+        >
+          <span style={{ fontWeight: 700, fontSize: mode === 'mobile' ? 38 : 14, letterSpacing: 1 }}>
+            T
+          </span>
         </button>
 
         <div style={styles.statusIndicator} role="status" aria-label={statusLabelMap[status]}>
