@@ -6,10 +6,11 @@ import React, {
   MouseEvent,
   FormEvent
 } from 'react';
+import type { Mode } from '../../types/models';
+import { shortcutModalStyles } from './createShortcutStyles';
 
 interface CreateShortcutProps {
-  mode: string;
-  styles: any;
+  mode: Mode;
   modalBackdropStyle: any;
   shortcutCompleted: boolean;
   shortcutSuccessMsg: string;
@@ -33,7 +34,6 @@ interface CreateShortcutProps {
 
 const CreateShortcut: React.FC<CreateShortcutProps> = ({
   mode,
-  styles,
   modalBackdropStyle,
   shortcutCompleted,
   shortcutSuccessMsg,
@@ -54,6 +54,7 @@ const CreateShortcut: React.FC<CreateShortcutProps> = ({
   onUrlFocus,
   onUrlBlur
 }) => {
+  const styles = shortcutModalStyles;
   const handleBackdropClick = (event: MouseEvent<HTMLDivElement>) => {
     if (event.target === event.currentTarget) {
       onClose();

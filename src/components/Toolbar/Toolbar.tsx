@@ -2,11 +2,11 @@ import React, { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
 import StatusIndicator from './StatusIndicator';
+import type { Mode } from '../../types/models';
+import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface ToolbarProps {
-  mode: string;
-  styles: any;
-  modeStyles: Record<string, any>;
+  mode: Mode;
   canGoBack: boolean;
   canGoForward: boolean;
   webviewReady: boolean;
@@ -34,8 +34,6 @@ interface ToolbarProps {
 
 const Toolbar: React.FC<ToolbarProps> = ({
   mode,
-  styles,
-  modeStyles,
   canGoBack,
   canGoForward,
   webviewReady,
@@ -59,12 +57,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenTabsPanel,
   onToggleTor,
   onOpenSettings
-}) => (
-  <div style={styles.toolbar} className="toolbar">
+}) => {
+  const modeStyles = toolbarModeStyles[mode];
+
+  return (
+  <div style={toolbarStyles.toolbar} className="toolbar">
     <NavButtons
       mode={mode}
-      styles={styles}
-      modeStyles={modeStyles}
       canGoBack={canGoBack}
       canGoForward={canGoForward}
       webviewReady={webviewReady}
@@ -75,8 +74,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
     <AddressBar
       mode={mode}
-      styles={styles}
-      modeStyles={modeStyles}
       inputRef={inputRef}
       value={inputValue}
       tabCount={tabCount}
@@ -97,8 +94,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
       title={torEnabled ? 'Disable Tor' : 'Enable Tor'}
       aria-pressed={torEnabled ? 'true' : 'false'}
       style={{
-        ...styles.navButton,
-        ...modeStyles[mode].toolbarBtnRegular,
+        ...toolbarStyles.navButton,
+        ...(modeStyles.toolbarBtnRegular ?? {}),
         border: torEnabled ? '1px solid #2563eb' : '1px solid rgba(148,163,184,.35)',
         backgroundColor: torEnabled ? '#259cebff' : '#1c2333'
       }}
@@ -121,15 +118,15 @@ const Toolbar: React.FC<ToolbarProps> = ({
       className="btn btn--settings"
       onClick={onOpenSettings}
       style={{
-        ...styles.settingsButton,
-        ...(modeStyles[mode].settingsButton || {})
+        ...toolbarStyles.settingsButton,
+        ...(modeStyles.settingsButton || {})
       }}
     >
       <svg
         viewBox="0 0 16 16"
         style={{
-          ...styles.settingsButtonIcon,
-          ...(modeStyles[mode].settingsButtonIcon || {})
+          ...toolbarStyles.settingsButtonIcon,
+          ...(modeStyles.settingsButtonIcon || {})
         }}
         xmlns="http://www.w3.org/2000/svg"
       >
@@ -146,12 +143,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
     <StatusIndicator
       mode={mode}
-      styles={styles}
-      modeStyles={modeStyles}
       status={status}
       label={statusLabel}
     />
   </div>
 );
+};
 
 export default Toolbar;

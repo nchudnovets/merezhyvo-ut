@@ -1,9 +1,9 @@
 import React from 'react';
+import type { Mode } from '../../types/models';
+import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface NavButtonsProps {
-  mode: string;
-  styles: any;
-  modeStyles: Record<string, any>;
+  mode: Mode;
   canGoBack: boolean;
   canGoForward: boolean;
   webviewReady: boolean;
@@ -14,31 +14,31 @@ interface NavButtonsProps {
 
 const NavButtons: React.FC<NavButtonsProps> = ({
   mode,
-  styles,
-  modeStyles,
   canGoBack,
   canGoForward,
   webviewReady,
   onBack,
   onForward,
   onReload
-}) => (
-  <div style={styles.navGroup}>
-    <button
-      type="button"
-      aria-label="Back"
-      disabled={!canGoBack}
-      onClick={onBack}
+}) => {
+  const modeStyles = toolbarModeStyles[mode];
+  return (
+    <div style={toolbarStyles.navGroup}>
+      <button
+        type="button"
+        aria-label="Back"
+        disabled={!canGoBack}
+        onClick={onBack}
       style={{
-        ...styles.navButton,
-        ...modeStyles[mode].toolbarBtnRegular,
-        ...(canGoBack ? null : styles.navButtonDisabled)
+        ...toolbarStyles.navButton,
+        ...(modeStyles.toolbarBtnRegular ?? {}),
+        ...(canGoBack ? {} : toolbarStyles.navButtonDisabled)
       }}
       className="btn-regular"
     >
       <svg
         viewBox="0 0 16 16"
-        style={{ ...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn }}
+        style={{ ...toolbarStyles.navIcon, ...(modeStyles.toolbarBtnIcn ?? {}) }}
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
@@ -58,16 +58,16 @@ const NavButtons: React.FC<NavButtonsProps> = ({
       disabled={!canGoForward}
       onClick={onForward}
       style={{
-        ...styles.navButton,
-        ...modeStyles[mode].toolbarBtnRegular,
-        ...modeStyles[mode].toolbarBtnDesktopOnly,
-        ...(canGoForward ? null : styles.navButtonDisabled)
+        ...toolbarStyles.navButton,
+        ...(modeStyles.toolbarBtnRegular ?? {}),
+        ...(modeStyles.toolbarBtnDesktopOnly ?? {}),
+        ...(canGoForward ? {} : toolbarStyles.navButtonDisabled)
       }}
       className="btn-regular"
     >
       <svg
         viewBox="0 0 16 16"
-        style={{ ...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn }}
+        style={{ ...toolbarStyles.navIcon, ...(modeStyles.toolbarBtnIcn ?? {}) }}
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
@@ -87,15 +87,15 @@ const NavButtons: React.FC<NavButtonsProps> = ({
       onClick={onReload}
       disabled={!webviewReady}
       style={{
-        ...styles.navButton,
-        ...modeStyles[mode].toolbarBtnRegular,
-        ...(webviewReady ? null : styles.navButtonDisabled)
+        ...toolbarStyles.navButton,
+        ...(modeStyles.toolbarBtnRegular ?? {}),
+        ...(webviewReady ? {} : toolbarStyles.navButtonDisabled)
       }}
       className="btn-regular"
     >
       <svg
         viewBox="0 0 16 16"
-        style={{ ...styles.navIcon, ...modeStyles[mode].toolbarBtnIcn }}
+        style={{ ...toolbarStyles.navIcon, ...(modeStyles.toolbarBtnIcn ?? {}) }}
         xmlns="http://www.w3.org/2000/svg"
       >
         <path
@@ -116,7 +116,8 @@ const NavButtons: React.FC<NavButtonsProps> = ({
         />
       </svg>
     </button>
-  </div>
-);
+    </div>
+  );
+};
 
 export default NavButtons;

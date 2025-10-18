@@ -10,6 +10,7 @@ import Toolbar from './components/Toolbar/Toolbar';
 import WebViewPane from './components/WebViewPane/WebViewPane';
 import ZoomBar from './components/ZoomBar/ZoomBar';
 import CreateShortcutModal from './components/Modals/CreateShortcut';
+import { zoomBarStyles, zoomBarModeStyles } from './components/ZoomBar/zoomBarStyles';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { useContextMenu } from './hooks/useContextMenu';
 import { ipc } from './services/ipc';
@@ -3187,8 +3188,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       {!isHtmlFullscreen && (
         <Toolbar
           mode={mode}
-          styles={styles}
-          modeStyles={modeStyles}
           canGoBack={canGoBack}
           canGoForward={canGoForward}
           webviewReady={webviewReady}
@@ -3225,8 +3224,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       {!isHtmlFullscreen && (
         <ZoomBar
           mode={mode}
-          styles={styles}
-          modeStyles={modeStyles}
           zoomLevel={zoomLevel}
           zoomDisplay={zoomDisplay}
           min={ZOOM_MIN}
@@ -3346,7 +3343,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       {showModal && (
         <CreateShortcutModal
           mode={mode}
-          styles={styles}
           modalBackdropStyle={modalBackdropStyle}
           shortcutCompleted={shortcutCompleted}
           shortcutSuccessMsg={shortcutSuccessMsg}
@@ -3853,9 +3849,9 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
         </div>
       )}
       {!isFullscreen && (
-        <div className="zoom-toolbar" style={styles.bottomToolbar}>
-          <span style={styles.zoomLabel}>Zoom</span>
-          <div style={styles.zoomSliderContainer}>
+        <div className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
+          <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
+          <div style={zoomBarStyles.zoomSliderContainer}>
             <input
               type="range"
               min={ZOOM_MIN}
@@ -3867,10 +3863,10 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
               onChange={handleZoomSliderChange}
               aria-label="Zoom level"
               className="zoom-slider"
-              style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
+              style={{ ...zoomBarStyles.zoomSlider, ...(zoomBarModeStyles[mode].zoomSlider || {}) }}
             />
           </div>
-          <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
+          <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
         </div>
       )}
     </div>

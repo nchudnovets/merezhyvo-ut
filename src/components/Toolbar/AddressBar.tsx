@@ -1,9 +1,9 @@
 import React, { RefObject, ChangeEvent, PointerEvent, FocusEvent, FormEvent } from 'react';
+import type { Mode } from '../../types/models';
+import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface AddressBarProps {
-  mode: string;
-  styles: any;
-  modeStyles: Record<string, any>;
+  mode: Mode;
   inputRef: RefObject<HTMLInputElement>;
   value: string;
   tabCount: number;
@@ -20,8 +20,6 @@ interface AddressBarProps {
 
 const AddressBar: React.FC<AddressBarProps> = ({
   mode,
-  styles,
-  modeStyles,
   inputRef,
   value,
   tabCount,
@@ -35,8 +33,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onOpenShortcutModal,
   onOpenTabsPanel
 }) => (
-  <form onSubmit={onSubmit} style={styles.form}>
-    <div style={styles.addressField}>
+  <form onSubmit={onSubmit} style={toolbarStyles.form}>
+    <div style={toolbarStyles.addressField}>
       <input
         ref={inputRef}
         type="text"
@@ -50,12 +48,12 @@ const AddressBar: React.FC<AddressBarProps> = ({
         autoCorrect="off"
         spellCheck="false"
         placeholder="Enter a URL or search"
-        style={{ ...styles.input, ...modeStyles[mode].searchInput }}
+        style={{ ...toolbarStyles.input, ...(toolbarModeStyles[mode].searchInput ?? {}) }}
       />
       <button
         type="button"
         className="btn btn--makeapp"
-        style={{ ...styles.makeAppBtn, ...modeStyles[mode].makeAppBtn }}
+        style={{ ...toolbarStyles.makeAppBtn, ...(toolbarModeStyles[mode].makeAppBtn ?? {}) }}
         onPointerDown={onShortcutPointerDown}
         onClick={onOpenShortcutModal}
         title="Create app shortcut from this site"
@@ -64,7 +62,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
         <svg
           viewBox="0 0 16 16"
           xmlns="http://www.w3.org/2000/svg"
-          style={modeStyles[mode].makeAppBtnIcn}
+          style={toolbarModeStyles[mode].makeAppBtnIcn}
         >
           <path
             fill="none"
@@ -93,23 +91,23 @@ const AddressBar: React.FC<AddressBarProps> = ({
       onClick={onOpenTabsPanel}
       disabled={!tabsReady}
       style={{
-        ...styles.tabsButton,
-        ...(modeStyles[mode].tabsButton || {}),
-        ...(!tabsReady ? styles.tabsButtonDisabled : null)
+        ...toolbarStyles.tabsButton,
+        ...(toolbarModeStyles[mode].tabsButton || {}),
+        ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
       }}
     >
-      <span style={styles.visuallyHidden}>Open tabs ({tabCount})</span>
+      <span style={toolbarStyles.visuallyHidden}>Open tabs ({tabCount})</span>
       <span
         aria-hidden="true"
         style={{
-          ...styles.tabsButtonSquare,
-          ...(modeStyles[mode].tabsButtonSquare || {})
+          ...toolbarStyles.tabsButtonSquare,
+          ...(toolbarModeStyles[mode].tabsButtonSquare || {})
         }}
       >
         <span
           style={{
-            ...styles.tabsButtonCount,
-            ...(modeStyles[mode].tabsButtonCount || {})
+            ...toolbarStyles.tabsButtonCount,
+            ...(toolbarModeStyles[mode].tabsButtonCount || {})
           }}
         >
           {tabCount}

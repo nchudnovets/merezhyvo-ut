@@ -1,9 +1,9 @@
 import React, { PointerEvent, ChangeEvent } from 'react';
+import type { Mode } from '../../types/models';
+import { zoomBarStyles, zoomBarModeStyles } from './zoomBarStyles';
 
 interface ZoomBarProps {
-  mode: string;
-  styles: any;
-  modeStyles: Record<string, any>;
+  mode: Mode;
   zoomLevel: number;
   zoomDisplay: string;
   min: number;
@@ -15,8 +15,6 @@ interface ZoomBarProps {
 
 const ZoomBar: React.FC<ZoomBarProps> = ({
   mode,
-  styles,
-  modeStyles,
   zoomLevel,
   zoomDisplay,
   min,
@@ -25,9 +23,9 @@ const ZoomBar: React.FC<ZoomBarProps> = ({
   onPointerDown,
   onChange
 }) => (
-  <div className="zoom-toolbar" style={styles.bottomToolbar}>
-    <span style={styles.zoomLabel}>Zoom</span>
-    <div style={styles.zoomSliderContainer}>
+  <div className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
+    <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
+    <div style={zoomBarStyles.zoomSliderContainer}>
       <input
         type="range"
         min={min}
@@ -39,10 +37,10 @@ const ZoomBar: React.FC<ZoomBarProps> = ({
         onChange={onChange}
         aria-label="Zoom level"
         className="zoom-slider"
-        style={{ ...styles.zoomSlider, ...modeStyles[mode].zoomSlider }}
+        style={{ ...zoomBarStyles.zoomSlider, ...(zoomBarModeStyles[mode].zoomSlider || {}) }}
       />
     </div>
-    <span style={{ ...styles.zoomValue, ...modeStyles[mode].zoomValue }}>{zoomDisplay}</span>
+    <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
   </div>
 );
 
