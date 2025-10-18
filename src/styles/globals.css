@@ -1,0 +1,96 @@
+/* Global styling scaffold moved from inline/index usage.
+ * Existing inline styles remain in place to avoid behavioural changes;
+ * this file will be wired into the bundle during a later refactor. */
+
+html,
+body {
+  height: 100%;
+}
+
+body {
+  margin: 0;
+  background: #0f111a;
+  color: #e5e7eb;
+}
+
+#root {
+  height: 100%;
+}
+
+/* Scrollbar styling parity with WEBVIEW_BASE_CSS */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+::-webkit-scrollbar-track {
+  background: #111827;
+}
+
+::-webkit-scrollbar-thumb {
+  background: #2563eb;
+  border-radius: 999px;
+  border: 2px solid #111827;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+}
+
+.modal-backdrop {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 60;
+}
+
+.modal {
+  background: #0f1729;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 12px;
+  padding: 16px;
+  width: min(520px, 92vw);
+  box-shadow: 0 12px 40px rgba(0, 0, 0, 0.4);
+}
+
+.modal input {
+  background: #0b1020;
+  color: #e5e7eb;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  border-radius: 10px;
+  padding: 10px 12px;
+  outline: none;
+  width: 100%;
+}
+
+.mzr-kb {
+  position: fixed;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 260px;
+  background: #0b1020;
+  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  z-index: 40;
+  touch-action: manipulation;
+}
+
+.mzr-kb .row {
+  display: flex;
+  gap: 6px;
+  padding: 6px 8px;
+}
+
+.mzr-kb button {
+  flex: 1 1 auto;
+  padding: 10px 0;
+  border-radius: 10px;
+  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: #121826;
+  color: #e5e7eb;
+  font-size: 16px;
+}
