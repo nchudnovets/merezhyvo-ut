@@ -3473,10 +3473,10 @@ const App = () => {
             ...styles.navButton,
             ...modeStyles[mode].toolbarBtnRegular,
             border: torEnabled ? '1px solid #2563eb' : '1px solid rgba(148,163,184,.35)',
-            backgroundColor: torEnabled ? '#11331e' : '#1c2333',
+            backgroundColor: '#1c2333',
           }}
         >
-          <svg fill="#ffffffff"
+          <svg fill={torEnabled ? "#2563eb" : "#ffffffff"}
             width="80%"
             height="80%"
             viewBox="0 0 32 32"
