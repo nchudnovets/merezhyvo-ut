@@ -11,6 +11,10 @@ import WebViewPane from './components/WebViewPane/WebViewPane';
 import ZoomBar from './components/ZoomBar/ZoomBar';
 import CreateShortcutModal from './components/Modals/CreateShortcut';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
+import { useContextMenu } from './hooks/useContextMenu';
+import { ipc } from './services/ipc';
+import { torService } from './services/tor';
+import { windowHelpers } from './services/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
 
 const DEFAULT_URL = defaultTabUrl;
@@ -20,19 +24,6 @@ const ZOOM_STEP = 0.1;
 const KB_HEIGHT = 650;
 const FOCUS_CONSOLE_ACTIVE = '__MZR_FOCUS_ACTIVE__';
 const FOCUS_CONSOLE_INACTIVE = '__MZR_FOCUS_INACTIVE__';
-const NON_TEXT_INPUT_TYPES = new Set([
-  'button',
-  'submit',
-  'reset',
-  'checkbox',
-  'radio',
-  'range',
-  'color',
-  'file',
-  'image',
-  'hidden'
-]);
-
 const WEBVIEW_BASE_CSS = `
   :root, html { color-scheme: dark; }
   @media (prefers-color-scheme: light) {
@@ -775,7 +766,8 @@ const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '16px'
+    gap: '16px',
+    marginTop: '24px'
   },
   settingsModalTitle: {
     margin: 0,
@@ -1260,7 +1252,7 @@ const App = () => {
     }
     setInstalledAppsLoading(true);
     try {
-      const result = await window.merezhyvo?.settings?.installedApps?.list?.();
+      const result = await ipc.settings.loadInstalledApps();
       if (result?.ok && Array.isArray(result.installedApps)) {
         setInstalledApps(result.installedApps);
       } else if (!quiet) {
@@ -1313,9 +1305,10 @@ const App = () => {
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
+  const { attach: attachContextMenu } = useContextMenu();
 
   useEffect(() => {
-    try { window.merezhyvo?.notifyTabsReady?.(); } catch {}
+    ipc.notifyTabsReady();
   }, []);
 
   useEffect(() => { activeIdRef.current = activeId; }, [activeId]);
@@ -1364,9 +1357,7 @@ const App = () => {
   const startPowerBlocker = useCallback(async () => {
     if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
     try {
-      const startFn = window.merezhyvo?.power?.start;
-      if (!startFn) return null;
-      const id = await startFn();
+      const id = await ipc.power.start();
       if (typeof id === 'number') {
         powerBlockerIdRef.current = id;
         return id;
@@ -1381,10 +1372,7 @@ const App = () => {
     const id = powerBlockerIdRef.current;
     if (id == null) return;
     try {
-      const stopFn = window.merezhyvo?.power?.stop;
-      if (stopFn) {
-        await stopFn(id);
-      }
+      await ipc.power.stop(id);
     } catch (err) {
       console.error('[Merezhyvo] power blocker stop failed', err);
     }
@@ -1455,6 +1443,7 @@ const App = () => {
     } catch {}
     if (webviewRef.current === entry.view) {
       webviewRef.current = null;
+      attachContextMenu(null);
     }
     tabViewsRef.current.delete(tabId);
     playingTabsRef.current.delete(tabId);
@@ -1469,7 +1458,7 @@ const App = () => {
       fullscreenTabRef.current = null;
       setIsHtmlFullscreen(false);
     }
-  }, [updateMetaAction, updatePowerBlocker]);
+  }, [attachContextMenu, updateMetaAction, updatePowerBlocker]);
 
   const installShadowStyles = useCallback((view) => {
     if (!view) return () => {};
@@ -1734,6 +1723,7 @@ const App = () => {
       }
       entry = tabViewsRef.current.get(tab.id);
       webviewRef.current = created;
+      attachContextMenu(created);
       applyActiveStyles(created);
       loadUrlIntoView(tab, created);
       return;
@@ -1750,6 +1740,7 @@ const App = () => {
     }
     applyActiveStyles(view);
     webviewRef.current = view;
+    attachContextMenu(view);
 
     const current = (() => {
       try { return view.getURL(); } catch { return ''; }
@@ -1763,7 +1754,7 @@ const App = () => {
       setWebviewReady(true);
     }
     refreshNavigationState();
-  }, [applyActiveStyles, createWebviewForTab, loadUrlIntoView, refreshNavigationState, updateMetaAction]);
+  }, [applyActiveStyles, attachContextMenu, createWebviewForTab, loadUrlIntoView, refreshNavigationState, updateMetaAction]);
 
   const demoteTabView = useCallback((tab) => {
     if (!tab) return;
@@ -1788,7 +1779,7 @@ const App = () => {
   }, [destroyTabView, mountInBackgroundHost, updateMetaAction]);
 
   useEffect(() => {
-    const off = window.merezhyvo?.onOpenUrl?.((arg) => {
+    const off = ipc.onOpenUrl((arg) => {
       const { url, activate = true } =
         typeof arg === 'string' ? { url: arg, activate: true } : (arg || {});
       if (!url) return;
@@ -1841,70 +1832,6 @@ const App = () => {
     }
   }, [destroyTabView]);
 
-  useEffect(() => {
-  const wv = webviewRef.current;
-  if (!wv) return;
-
-  let pressTimer = null;
-  let startX = 0, startY = 0;
-  let moved = false;
-
-  const openAt = (clientX, clientY) => {
-    const dpr = window.devicePixelRatio || 1;
-    window.merezhyvo?.openContextMenuAt?.(clientX, clientY, dpr);
-  };
-
-  const onContextMenu = (ev) => {
-    ev.preventDefault();
-    openAt(ev.clientX, ev.clientY);
-  };
-
-  const onTouchStart = (ev) => {
-    if (!ev.touches || ev.touches.length !== 1) return;
-    moved = false;
-    const t = ev.touches[0];
-    startX = t.clientX;
-    startY = t.clientY;
-
-    pressTimer = setTimeout(() => {
-      pressTimer = null;
-      ev.preventDefault();
-      openAt(startX, startY);
-    }, 500);
-  };
-
-  const onTouchMove = (ev) => {
-    if (!pressTimer) return;
-    const t = ev.touches && ev.touches[0];
-    if (!t) return;
-    const dx = Math.abs(t.clientX - startX);
-    const dy = Math.abs(t.clientY - startY);
-    if (dx > 10 || dy > 10) {
-      moved = true;
-      clearTimeout(pressTimer);
-      pressTimer = null;
-    }
-  };
-
-  const cancel = () => {
-    if (pressTimer) { clearTimeout(pressTimer); pressTimer = null; }
-  };
-
-  wv.addEventListener('contextmenu', onContextMenu);
-  wv.addEventListener('touchstart', onTouchStart, { passive: false });
-  wv.addEventListener('touchmove', onTouchMove, { passive: false });
-  wv.addEventListener('touchend', cancel);
-  wv.addEventListener('touchcancel', cancel);
-
-  return () => {
-    wv.removeEventListener('contextmenu', onContextMenu);
-    wv.removeEventListener('touchstart', onTouchStart);
-    wv.removeEventListener('touchmove', onTouchMove);
-    wv.removeEventListener('touchend', cancel);
-    wv.removeEventListener('touchcancel', cancel);
-  };
-}, [webviewRef]);
-
   const hostnameFromUrl = useCallback((value) => {
     if (!value) return '';
     try {
@@ -1939,21 +1866,7 @@ const App = () => {
   const isEditableElement = useCallback((element) => {
     if (!element) return false;
     if (element === inputRef.current) return true;
-    if (typeof element.isContentEditable === 'boolean' && element.isContentEditable) {
-      return true;
-    }
-    const tag = (element.tagName || '').toLowerCase();
-    if (tag === 'textarea') {
-      return !element.disabled && !element.readOnly;
-    }
-    if (tag === 'input') {
-      const type = (element.getAttribute('type') || '').toLowerCase();
-      if (NON_TEXT_INPUT_TYPES.has(type)) {
-        return false;
-      }
-      return !element.disabled && !element.readOnly;
-    }
-    return false;
+    return windowHelpers.isEditableElement(element);
   }, [inputRef]);
 
   const blurActiveInWebview = useCallback(() => {
@@ -2020,7 +1933,7 @@ const App = () => {
     setSettingsBusy(true);
     setSettingsMsg('');
     try {
-      const res = await window.merezhyvo?.settings?.installedApps?.remove?.({
+      const res = await ipc.settings.removeInstalledApp({
         id: pendingRemoval.id,
         desktopFilePath: pendingRemoval.desktopFilePath
       });
@@ -2174,24 +2087,26 @@ const App = () => {
 
   const handleToggleTor = useCallback(async () => {
     try {
-      await window.merezhyvo?.tor?.toggle?.();
+      await torService.toggle();
     } catch {}
   }, []);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
   useEffect(() => {
-    let off = () => {};
-    if (window.merezhyvo?.tor?.onState) {
-      off = window.merezhyvo.tor.onState((enabled, reason) => {
-        setTorEnabled(!!enabled);
-        setTorReason(reason || null);
-      });
-    }
-    window.merezhyvo?.tor?.getState?.().then(s => {
-      if (s) { setTorEnabled(!!s.enabled); setTorReason(s.reason || null); }
-    }).catch(() => {});
-    return () => off && off();
+    const off = torService.subscribe((enabled, reason) => {
+      setTorEnabled(!!enabled);
+      setTorReason(reason || null);
+    });
+    torService.getState()
+      .then((state) => {
+        if (state) {
+          setTorEnabled(!!state.enabled);
+          setTorReason(state.reason || null);
+        }
+      })
+      .catch(() => {});
+    return () => { if (typeof off === 'function') off(); };
   }, []);
 
   useEffect(() => {
@@ -2908,7 +2823,7 @@ const App = () => {
     setMsg('');
     setBusy(true);
     try {
-      const res = await window.merezhyvo?.createShortcut?.({
+      const res = await ipc.createShortcut({
         title: trimmedTitle,
         url: normalizedUrl,
         single: true
@@ -3732,9 +3647,7 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
   const startPowerBlocker = useCallback(async () => {
     if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
     try {
-      const startFn = window.merezhyvo?.power?.start;
-      if (!startFn) return null;
-      const id = await startFn();
+      const id = await ipc.power.start();
       if (typeof id === 'number') {
         powerBlockerIdRef.current = id;
         return id;
@@ -3749,10 +3662,7 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
     const id = powerBlockerIdRef.current;
     if (id == null) return;
     try {
-      const stopFn = window.merezhyvo?.power?.stop;
-      if (stopFn) {
-        await stopFn(id);
-      }
+      await ipc.power.stop(id);
     } catch (err) {
       console.error('[Merezhyvo] power blocker stop failed (single)', err);
     }

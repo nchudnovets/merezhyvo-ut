@@ -1,63 +1,36 @@
-type MerezhyvoUnsubscribe = () => void;
+import type {
+  InstalledApp,
+  OpenUrlPayload,
+  SessionState,
+  SettingsState,
+  ShortcutIcon,
+  ShortcutRequest,
+  ShortcutResult,
+  TorState,
+  Unsubscribe
+} from './models';
 
-export interface MerezhyvoOpenUrlPayload {
-  url: string;
-  activate: boolean;
-}
+type MerezhyvoUnsubscribe = Unsubscribe;
 
-export interface MerezhyvoShortcutIcon {
-  name: string;
-  data: ArrayBuffer | Uint8Array | string;
-}
+export type MerezhyvoOpenUrlPayload = OpenUrlPayload;
 
-export interface MerezhyvoShortcutRequest {
-  title: string;
-  url: string;
-  single?: boolean;
-  icon?: MerezhyvoShortcutIcon | null;
-}
+export type MerezhyvoShortcutIcon = ShortcutIcon;
 
-export interface MerezhyvoShortcutResult {
-  ok: boolean;
-  error?: string | null;
-  desktopFilePath?: string;
-  iconPath?: string;
-  installedApp?: unknown;
-}
+export type MerezhyvoShortcutRequest = ShortcutRequest;
 
-export interface MerezhyvoTorState {
-  enabled: boolean;
-  starting?: boolean;
-  reason?: string | null;
-}
+export type MerezhyvoShortcutResult = ShortcutResult;
 
-export interface MerezhyvoSessionState {
-  schema: number;
-  activeId?: string;
-  tabs?: unknown[];
-}
+export type MerezhyvoTorState = TorState;
 
-export interface MerezhyvoInstalledApp {
-  id: string;
-  title: string;
-  url: string;
-  desktopFilePath?: string;
-  iconPath?: string;
-  single?: boolean;
-  createdAt?: number;
-  updatedAt?: number;
-}
+export type MerezhyvoSessionState = SessionState;
 
 export interface MerezhyvoInstalledAppsResult {
   ok: boolean;
   error?: string;
-  installedApps: MerezhyvoInstalledApp[];
+  installedApps: InstalledApp[];
 }
 
-export interface MerezhyvoSettingsState {
-  schema: number;
-  installedApps: MerezhyvoInstalledApp[];
-}
+export interface MerezhyvoSettingsState extends SettingsState {}
 
 export interface MerezhyvoAPI {
   onMode(handler: (mode: 'desktop' | 'mobile') => void): MerezhyvoUnsubscribe;

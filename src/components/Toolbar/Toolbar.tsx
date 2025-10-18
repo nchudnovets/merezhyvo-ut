@@ -100,11 +100,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
         ...styles.navButton,
         ...modeStyles[mode].toolbarBtnRegular,
         border: torEnabled ? '1px solid #2563eb' : '1px solid rgba(148,163,184,.35)',
-        backgroundColor: '#1c2333'
+        backgroundColor: torEnabled ? '#259cebff' : '#1c2333'
       }}
     >
       <svg
-        fill={torEnabled ? '#2563eb' : '#ffffffff'}
+        fill={torEnabled ? '#faf06aff' : '#ffffffff'}
         width="80%"
         height="80%"
         viewBox="0 0 32 32"
