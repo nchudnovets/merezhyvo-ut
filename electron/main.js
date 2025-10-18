@@ -1018,26 +1018,64 @@ app.on('web-contents-created', (_event, contents) => {
     }
 
     if (params.isEditable) {
+      template.push(
+        { type: 'separator' },
+        {
+          label: 'Paste',
+          enabled: !!clipboard.readText().length,
+          click: () => {
+            try {
+              contents.paste();
+            } catch {
+              const menu = Menu.buildFromTemplate([{ role: 'paste' }]);
+              menu.popup({ window: BrowserWindow.fromWebContents(contents) });
+            }
+          }
+        }
+      );
+    }
+
     template.push(
       { type: 'separator' },
       {
-        label: 'Paste',
-        enabled: !!clipboard.readText().length,
+        label: 'Inspect',
         click: () => {
           try {
-            contents.paste();
-          } catch {
-            const menu = Menu.buildFromTemplate([{ role: 'paste' }]);
-            menu.popup({ window: BrowserWindow.fromWebContents(contents) });
-          }
+            contents.openDevTools({ mode: 'detach' });
+            contents.inspectElement(params.x, params.y);
+          } catch {}
         }
       }
-    );
-  }
+    )
 
     const menu = Menu.buildFromTemplate(template);
     menu.popup({ window: BrowserWindow.fromWebContents(contents) || mainWindow });
   });
+});
+
+ipcMain.on('mzr:open-context', (e, payload) => {
+  try {
+    const win = BrowserWindow.fromWebContents(e.sender);
+    if (!win || win.isDestroyed()) return;
+
+    const { x = 0, y = 0, dpr = 1 } = payload || {};
+    const b = win.getBounds();
+
+    const screenX = Math.round(b.x + x * dpr);
+    const screenY = Math.round(b.y + y * dpr);
+
+    const menu = Menu.buildFromTemplate([
+      { label: 'Back',    enabled: win.webContents.canGoBack(),    click: () => win.webContents.goBack() },
+      { label: 'Forward', enabled: win.webContents.canGoForward(), click: () => win.webContents.goForward() },
+      { type: 'separator' },
+      { label: 'Reload',  click: () => win.webContents.reload() },
+      { type: 'separator' },
+      { label: 'Copy selection', role: 'copy' },
+      { label: 'Paste', role: 'paste' }
+    ]);
+
+    menu.popup({ window: win, x: screenX, y: screenY });
+  } catch {}
 });
 
 // ---------- Session persistence ----------

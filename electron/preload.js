@@ -73,6 +73,12 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     }
   },
 
+  openContextMenuAt: (x, y, dpr = window.devicePixelRatio || 1) => {
+    try {
+      ipcRenderer.send('mzr:open-context', { x: Number(x) || 0, y: Number(y) || 0, dpr: Number(dpr) || 1 });
+    } catch {}
+  },
+
   session: {
     load: async () => {
       try {
