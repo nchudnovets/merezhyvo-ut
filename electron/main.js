@@ -146,8 +146,8 @@ async function getOrCreateMainWindow({ activate = true } = {}) {
   let win = findMainWindow();
   if (win) {
     if (activate) focusMainWindow(mainWindow);
-    return win
-  };
+    return win;
+  }
 
   win = createMainWindow({ role: 'main' });
   await new Promise(resolve => {
@@ -889,9 +889,6 @@ app.on('web-contents-created', (_ev, contents) => {
   const base = baseZoomFor(currentMode);
   try { contents.setZoomFactor(base); } catch {}
 
-  const embedder = contents.hostWebContents;
-  const ownerWin = BrowserWindow.fromWebContents(embedder);
-  const inSingle = isSingleWindow(ownerWin);
 
   function openTargetFromContents(contents, url) {
   const embedder = contents.hostWebContents || contents;

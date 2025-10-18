@@ -1193,17 +1193,7 @@ const normalizeShortcutUrl = (value) => {
   }
 };
 
-const App = () => {
-  const { url: parsedStartUrl, hasStartParam, single: isSingleWindow } = useMemo(() => parseStartUrl(), []);
-  const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
-  const mode = useMerezhyvoMode();
-
-  if (isSingleWindow) {
-    return (
-      <SingleWindowApp initialUrl={initialUrl} mode={mode} />
-    );
-  }
-
+const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
   const modalTitleInputRef = useRef(null);
@@ -1350,7 +1340,6 @@ const App = () => {
   }, []);
 
   const [torEnabled, setTorEnabled] = useState(false);
-  const [torReason, setTorReason] = useState(null);
 
   const getActiveWebview = useCallback(() => webviewRef.current, []);
 
@@ -1379,10 +1368,6 @@ const App = () => {
     powerBlockerIdRef.current = null;
   }, []);
 
-  const findTabById = useCallback((id) => {
-    if (!id) return null;
-    return tabsRef.current.find((tab) => tab.id === id) || null;
-  }, []);
 
   const mountInActiveHost = useCallback((view) => {
     const host = webviewHostRef.current;
@@ -1780,8 +1765,8 @@ const App = () => {
 
   useEffect(() => {
     const off = ipc.onOpenUrl((arg) => {
-      const { url, activate = true } =
-        typeof arg === 'string' ? { url: arg, activate: true } : (arg || {});
+      const { url } =
+        typeof arg === 'string' ? { url: arg } : (arg || {});
       if (!url) return;
       newTabAction(String(url));
     });
@@ -2094,15 +2079,13 @@ const App = () => {
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
   useEffect(() => {
-    const off = torService.subscribe((enabled, reason) => {
+    const off = torService.subscribe((enabled) => {
       setTorEnabled(!!enabled);
-      setTorReason(reason || null);
     });
     torService.getState()
       .then((state) => {
         if (state) {
           setTorEnabled(!!state.enabled);
-          setTorReason(state.reason || null);
         }
       })
       .catch(() => {});
@@ -2777,13 +2760,13 @@ const App = () => {
   }, [blurActiveInWebview]);
 
   // --- Shortcut modal helpers ---
-  const getCurrentViewUrl = () => {
+  const getCurrentViewUrl = useCallback(() => {
     try {
       const direct = getActiveWebview()?.getURL?.();
       if (direct) return direct;
     } catch {}
     return activeTabRef.current?.url || activeUrl || null;
-  };
+  }, [activeUrl, getActiveWebview]);
 
   const openShortcutModal = () => {
     let appTitle;
@@ -2797,10 +2780,10 @@ const App = () => {
         const chars = Array.from(firstPart);
         const capFirst = chars[0].toUpperCase();
         appTitle = 'm' + capFirst + chars.slice(1).join('');
-      }      
+      }
     } catch {
       appTitle = '';
-    };
+    }
     setTitle(appTitle);
     setShortcutUrl(viewUrl || '');
     setMsg('');
@@ -2811,7 +2794,7 @@ const App = () => {
     setShowModal(true);
   };
 
-  const createShortcut = async () => {
+  const createShortcut = useCallback(async () => {
     const trimmedTitle = title.trim();
     if (!trimmedTitle) { setMsg('Please enter a name.'); return; }
     const normalizedUrl = normalizeShortcutUrl(shortcutUrl || getCurrentViewUrl() || '');
@@ -2860,7 +2843,7 @@ const App = () => {
     } finally {
       setBusy(false);
     }
-  };
+  }, [activeIdRef, closeTabAction, getCurrentViewUrl, loadInstalledApps, setBusy, setInstalledApps, setKbVisible, setMsg, setShortcutSuccessMsg, setShortcutCompleted, setShortcutUrl, shortcutUrl, title]);
 
   const sendKeyToWeb = useCallback(async (key) => {
     const activeTarget = activeInputRef.current;
@@ -3593,6 +3576,24 @@ const App = () => {
   );
 };
 
+const App = () => {
+  const { url: parsedStartUrl, hasStartParam, single: isSingleWindow } = useMemo(() => parseStartUrl(), []);
+  const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
+  const mode = useMerezhyvoMode();
+
+  if (isSingleWindow) {
+    return <SingleWindowApp initialUrl={initialUrl} mode={mode} />;
+  }
+
+  return (
+    <MainBrowserApp
+      initialUrl={initialUrl}
+      mode={mode}
+      hasStartParam={hasStartParam}
+    />
+  );
+};
+
 export default App;
 
 const singleStyles = {
@@ -3844,6 +3845,7 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
 
   return (
     <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
+      {/* eslint-disable-next-line react/no-unknown-property */}
       <webview ref={webviewRef} style={webviewStyle} allowpopups="true" />
       {status !== 'ready' && (
         <div style={statusStyle}>

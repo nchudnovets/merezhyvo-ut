@@ -50,10 +50,14 @@ bash
 
 `npm install npm start`
 
-*   `npm start` зіб’є React у `dist/` і запустить Electron: `electron electron/main.js`.
-    
-*   Для повноекранного тесту на ПК додай:  
-    `npm start -- -- --fullscreen`
+Додаткові корисні скрипти:
+
+*   `npm run lint` — ESLint (warnings допустимі, помилки треба виправляти).
+*   `npm run typecheck` — типова перевірка TypeScript (`allowJs` лишається увімкненим).
+*   `npm run build` — зібрати рендерер у `dist/` (те саме робить `npm start` перед запуском).
+
+`npm start` зіб’є React у `dist/` і запустить Electron: `electron electron/main.js`.  
+Для повноекранного тесту на ПК додай: `npm start -- -- --fullscreen`
     
 
 ## Packaging for Ubuntu Touch (.click)
@@ -119,6 +123,8 @@ bash
 
 ## Scripts
 
+*   **`npm run lint`** — статичний аналіз коду (ESLint).
+*   **`npm run typecheck`** — TypeScript перевірка без емісії.
 *   **`npm run build`** — збірка UI (React → `dist/`).
     
 *   **`npm run package`** — `build` + пакування Electron ARM64 у `app/`.
