@@ -433,7 +433,7 @@ export const styles = {
     borderRadius: '10px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     background: 'rgba(15, 23, 42, 0.65)',
-    color: '#cbd5f5',
+    color: 'rgba(250, 97, 97, 0.92)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -484,7 +484,7 @@ export const styles = {
   },
   settingsConfirmButtonPrimary: {
     border: 'none',
-    background: 'rgba(37, 99, 235, 0.92)',
+    background: 'rgba(250, 97, 97, 0.92)',
     color: '#f8fafc'
   },
   tabsSection: {
