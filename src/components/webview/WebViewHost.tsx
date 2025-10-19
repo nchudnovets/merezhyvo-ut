@@ -142,6 +142,25 @@ const WebViewHost = forwardRef(function WebViewHost(
     const node = webviewRef.current;
     if (!node) return undefined;
 
+    try {
+      const contents = typeof node.getWebContents === 'function' ? node.getWebContents() : null;
+      if (contents && typeof contents.setMaxListeners === 'function') {
+        const current = typeof contents.getMaxListeners === 'function' ? contents.getMaxListeners() : null;
+        if (current == null || current < 50) {
+          contents.setMaxListeners(50);
+        }
+      } else if (typeof (node as any).setMaxListeners === 'function') {
+        const current = typeof (node as any).getMaxListeners === 'function'
+          ? (node as any).getMaxListeners()
+          : null;
+        if (current == null || current < 50) {
+          (node as any).setMaxListeners(50);
+        }
+      }
+    } catch {
+      // Swallow errors: adjusting listener limits is best-effort only.
+    }
+
     const handleDidNavigate = (event: any) => {
       if (event?.url && callbacksRef.current.onUrlChange) {
         callbacksRef.current.onUrlChange(event.url);
