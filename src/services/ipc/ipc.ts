@@ -6,7 +6,7 @@ import type {
   ShortcutResult,
   TorState,
   Unsubscribe
-} from '../types/models';
+} from '../../types/models';
 
 type InstalledAppsResponse = {
   ok: boolean;

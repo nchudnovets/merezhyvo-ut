@@ -1,5 +1,5 @@
-import type { TorState, Unsubscribe } from '../types/models';
-import { ipc } from './ipc';
+import type { TorState, Unsubscribe } from '../../types/models';
+import { ipc } from '../ipc/ipc';
 
 type TorStateHandler = (enabled: boolean, reason: string | null) => void;
 

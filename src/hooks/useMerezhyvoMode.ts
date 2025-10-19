@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
-import type { Mode } from '../types/models';
-import { ipc } from '../services/ipc';
+import type { Mode, Unsubscribe } from '../types/models';
+import { ipc } from '../services/ipc/ipc';
 
 function getInitialMode(): Mode {
   if (typeof document !== 'undefined') {
@@ -30,7 +30,7 @@ export function useMerezhyvoMode(): Mode {
   }, [mode]);
 
   useEffect(() => {
-    const off = ipc.onMode((nextMode) => {
+    const off: Unsubscribe = ipc.onMode((nextMode: Mode) => {
       if (nextMode === 'mobile' || nextMode === 'desktop') {
         setMode(nextMode);
       }

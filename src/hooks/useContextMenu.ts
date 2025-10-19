@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useRef } from 'react';
 import type { Unsubscribe } from '../types/models';
-import { ipc } from '../services/ipc';
+import { ipc } from '../services/ipc/ipc';
 
 type WebviewElement = HTMLElement | null | undefined;
 
@@ -12,7 +12,7 @@ export function useContextMenu(): UseContextMenuResult {
   const cleanupRef = useRef<Unsubscribe>(() => {});
 
   const attach = useCallback((webview: WebviewElement) => {
-    cleanupRef.current?.();
+    cleanupRef.current();
     if (!webview) {
       cleanupRef.current = () => {};
       return;
@@ -79,7 +79,7 @@ export function useContextMenu(): UseContextMenuResult {
     };
   }, []);
 
-  useEffect(() => () => cleanupRef.current?.(), []);
+  useEffect(() => () => cleanupRef.current(), []);
 
   return { attach };
 }
