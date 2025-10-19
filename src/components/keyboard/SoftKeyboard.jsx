@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useRef, useEffect, useLayoutEffect, useCallback } from 'react';
-import { layouts as builtinLayouts, SPECIAL_KEYS } from '../keyboard/layouts';
+import { layouts as builtinLayouts, SPECIAL_KEYS } from '../../layouts/keyboard/layouts';
 
 const {
   SHIFT,

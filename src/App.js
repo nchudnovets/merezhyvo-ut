@@ -5,11 +5,13 @@ import React, {
   useRef,
   useState
 } from 'react';
-import SoftKeyboard from './components/SoftKeyboard';
-import Toolbar from './components/Toolbar/Toolbar';
-import WebViewPane from './components/WebViewPane/WebViewPane';
+import { createRoot } from 'react-dom/client';
+import SoftKeyboard from './components/keyboard/SoftKeyboard';
+import Toolbar from './components/toolbar/Toolbar';
+import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
 import CreateShortcutModal from './components/modals/ShortcutModal/CreateShortcut';
+import WebViewHost from './components/webview/WebViewHost';
 import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyles';
 import { styles } from './styles/styles';
 import { modeStyles } from './styles/modeStyles';
@@ -164,6 +166,7 @@ const normalizeShortcutUrl = (value) => {
 };
 
 const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
+  const webviewHandleRef = useRef(null);
   const webviewRef = useRef(null);
   const inputRef = useRef(null);
   const modalTitleInputRef = useRef(null);
@@ -311,7 +314,16 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
 
   const [torEnabled, setTorEnabled] = useState(false);
 
-  const getActiveWebview = useCallback(() => webviewRef.current, []);
+  const getActiveWebview = useCallback(() => {
+    const handle = webviewHandleRef.current;
+    if (handle && typeof handle.getWebView === 'function') {
+      const element = handle.getWebView();
+      if (element) return element;
+    }
+    return webviewRef.current;
+  }, []);
+
+  const getActiveWebviewHandle = useCallback(() => webviewHandleRef.current, []);
 
   const startPowerBlocker = useCallback(async () => {
     if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
@@ -339,41 +351,45 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   }, []);
 
 
-  const mountInActiveHost = useCallback((view) => {
+  const mountInActiveHost = useCallback((node) => {
     const host = webviewHostRef.current;
-    if (!host || !view) return;
+    if (!host || !node) return;
     for (const child of Array.from(host.children)) {
-      if (child !== view) {
+      if (child !== node) {
         try { host.removeChild(child); } catch {}
       }
     }
-    if (view.parentElement !== host) {
-      try { host.appendChild(view); } catch {}
+    if (node.parentElement !== host) {
+      try { host.appendChild(node); } catch {}
     }
   }, []);
 
-  const mountInBackgroundHost = useCallback((view) => {
+  const mountInBackgroundHost = useCallback((node) => {
     const host = backgroundHostRef.current;
-    if (!host || !view) return;
+    if (!host || !node) return;
     for (const child of Array.from(host.children)) {
-      if (child !== view) {
+      if (child !== node) {
         try { host.removeChild(child); } catch {}
       }
     }
-    if (view.parentElement !== host) {
-      try { host.appendChild(view); } catch {}
+    if (node.parentElement !== host) {
+      try { host.appendChild(node); } catch {}
     }
   }, []);
 
-  const applyActiveStyles = useCallback((view) => {
-    if (!view) return;
-    mountInActiveHost(view);
-    Object.assign(view.style, {
-      display: 'block',
+  const applyActiveStyles = useCallback((container, view) => {
+    if (!container || !view) return;
+    mountInActiveHost(container);
+    Object.assign(container.style, {
       position: 'absolute',
       inset: '0',
       width: '100%',
       height: '100%',
+      pointerEvents: 'auto',
+      opacity: '1'
+    });
+    Object.assign(view.style, {
+      display: 'block',
       opacity: '1',
       pointerEvents: 'auto'
     });
@@ -393,11 +409,20 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     try {
       entry.cleanup?.();
     } catch {}
-    try {
-      entry.view?.remove?.();
-    } catch {}
+    const { root, container } = entry;
+    if (root) {
+      Promise.resolve().then(() => {
+        try { root.unmount(); } catch {}
+        if (container) {
+          try { container.remove(); } catch {}
+        }
+      });
+    } else if (container) {
+      try { container.remove(); } catch {}
+    }
     if (webviewRef.current === entry.view) {
       webviewRef.current = null;
+      webviewHandleRef.current = null;
       attachContextMenu(null);
     }
     tabViewsRef.current.delete(tabId);
@@ -451,7 +476,10 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   }, []);
 
   const refreshNavigationState = useCallback(() => {
-    const view = webviewRef.current;
+    const handle = webviewHandleRef.current;
+    const view = (handle && typeof handle.getWebView === 'function')
+      ? handle.getWebView()
+      : webviewRef.current;
     if (!view) {
       setCanGoBack(false);
       setCanGoForward(false);
@@ -467,74 +495,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   }, []);
 
   const attachWebviewListeners = useCallback((view, tabId) => {
-    const injectBaseCss = () => {
-      try {
-        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
-        if (maybe && typeof maybe.catch === 'function') {
-          maybe.catch(() => {});
-        }
-      } catch {}
-    };
-
-    const applyUrlUpdate = (nextUrl) => {
-      if (!nextUrl) return;
-      const cleanUrl = nextUrl.trim();
-      updateMetaAction(tabId, {
-        url: cleanUrl,
-        discarded: false,
-        lastUsedAt: Date.now()
-      });
-      if (activeIdRef.current === tabId && !isEditingRef.current) {
-        setInputValue(cleanUrl);
-        lastLoadedRef.current = { id: tabId, url: cleanUrl };
-      }
-    };
-
-    const handleNavigate = (event) => {
-      if (event?.url) applyUrlUpdate(event.url);
-      if (activeIdRef.current === tabId) {
-        setStatus('ready');
-        refreshNavigationState();
-      }
-    };
-
-    const handleStart = () => {
-      if (activeIdRef.current === tabId) {
-        webviewReadyRef.current = false;
-        setWebviewReady(false);
-        setStatus('loading');
-      }
-    };
-
-    const handleStop = () => {
-      if (activeIdRef.current === tabId) {
-        setStatus('ready');
-        refreshNavigationState();
-        if (!webviewReadyRef.current) {
-          webviewReadyRef.current = true;
-          setWebviewReady(true);
-        }
-      }
-      try { applyUrlUpdate(view.getURL()); } catch {}
-    };
-
-    const handleFail = () => {
-      if (activeIdRef.current === tabId) {
-        webviewReadyRef.current = false;
-        setWebviewReady(false);
-        setStatus('error');
-      }
-    };
-
-    const handleDomReady = () => {
-      if (activeIdRef.current === tabId) {
-        webviewReadyRef.current = true;
-        setWebviewReady(true);
-        refreshNavigationState();
-        try { view.focus(); } catch {}
-      }
-    };
-
     const handleTitle = (event) => {
       const titleValue = typeof event?.title === 'string' ? event.title : '';
       if (titleValue) {
@@ -578,17 +538,20 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       }
     };
 
+    const injectBaseCss = () => {
+      try {
+        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
+        if (maybe && typeof maybe.catch === 'function') {
+          maybe.catch(() => {});
+        }
+      } catch {}
+    };
+
     injectBaseCss();
     view.addEventListener('dom-ready', injectBaseCss);
     view.addEventListener('did-navigate', injectBaseCss);
     view.addEventListener('did-navigate-in-page', injectBaseCss);
 
-    view.addEventListener('did-navigate', handleNavigate);
-    view.addEventListener('did-navigate-in-page', handleNavigate);
-    view.addEventListener('did-start-loading', handleStart);
-    view.addEventListener('did-stop-loading', handleStop);
-    view.addEventListener('did-fail-load', handleFail);
-    view.addEventListener('dom-ready', handleDomReady);
     view.addEventListener('page-title-updated', handleTitle);
     view.addEventListener('page-favicon-updated', handleFavicon);
     view.addEventListener('media-started-playing', handleMediaStarted);
@@ -596,13 +559,9 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
     view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
 
+    injectBaseCss();
+
     return () => {
-      view.removeEventListener('did-navigate', handleNavigate);
-      view.removeEventListener('did-navigate-in-page', handleNavigate);
-      view.removeEventListener('did-start-loading', handleStart);
-      view.removeEventListener('did-stop-loading', handleStop);
-      view.removeEventListener('did-fail-load', handleFail);
-      view.removeEventListener('dom-ready', handleDomReady);
       view.removeEventListener('page-title-updated', handleTitle);
       view.removeEventListener('page-favicon-updated', handleFavicon);
       view.removeEventListener('media-started-playing', handleMediaStarted);
@@ -613,42 +572,223 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       view.removeEventListener('did-navigate', injectBaseCss);
       view.removeEventListener('did-navigate-in-page', injectBaseCss);
     };
-  }, [destroyTabView, refreshNavigationState, updateMetaAction, updatePowerBlocker]);
+  }, [destroyTabView, updateMetaAction, updatePowerBlocker]);
+
+  const handleHostCanGo = useCallback((tabId, state) => {
+    if (activeIdRef.current !== tabId) return;
+    setCanGoBack(!!state?.back);
+    setCanGoForward(!!state?.forward);
+  }, []);
+
+  const handleHostStatus = useCallback((tabId, nextStatus) => {
+    if (activeIdRef.current !== tabId) return;
+    setStatus(nextStatus);
+    if (nextStatus === 'loading') {
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+    } else if (nextStatus === 'ready') {
+      webviewReadyRef.current = true;
+      setWebviewReady(true);
+      refreshNavigationState();
+    } else if (nextStatus === 'error') {
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+    }
+  }, [refreshNavigationState]);
+
+  const handleHostUrlChange = useCallback((tabId, nextUrl) => {
+    if (!nextUrl) return;
+    const cleanUrl = nextUrl.trim();
+    updateMetaAction(tabId, {
+      url: cleanUrl,
+      discarded: false,
+      lastUsedAt: Date.now()
+    });
+    if (activeIdRef.current === tabId && !isEditingRef.current) {
+      setInputValue(cleanUrl);
+      lastLoadedRef.current = { id: tabId, url: cleanUrl };
+    }
+  }, [updateMetaAction]);
+
+  const handleHostDomReady = useCallback((tabId) => {
+    const entry = tabViewsRef.current.get(tabId);
+    const view = entry?.view;
+    if (!view) return;
+    if (activeIdRef.current === tabId) {
+      try { view.focus(); } catch {}
+    }
+  }, []);
+
+  // --- Zoom management inside the active webview ---
+  const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
+  const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
+
+  const setZoomClamped = useCallback((val) => {
+    const numeric = Number(val);
+    if (!Number.isFinite(numeric)) return;
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
+    const rounded = Math.round(clamped * 100) / 100;
+    const view = getActiveWebview();
+    if (view) {
+      try {
+        if (typeof view.setZoomFactor === 'function') {
+          view.setZoomFactor(rounded);
+        } else {
+          view.executeJavaScript(`require('electron').webFrame.setZoomFactor(${rounded})`).catch(() => {});
+        }
+      } catch {}
+    }
+    zoomRef.current = rounded;
+    setZoomLevel(rounded);
+  }, [getActiveWebview]);
+
+  useEffect(() => {
+    const base = mode === 'mobile' ? 2.0 : 1.0;
+    zoomRef.current = base;
+    setZoomLevel(base);
+    setZoomClamped(base);
+  }, [mode, setZoomClamped]);
+
+  const applyZoomPolicy = useCallback(() => {
+    const view = getActiveWebview();
+    if (!view) return;
+    try {
+      if (typeof view.setVisualZoomLevelLimits === 'function') {
+        view.setVisualZoomLevelLimits(1, 3);
+      }
+      setZoomClamped(zoomRef.current);
+    } catch {}
+  }, [getActiveWebview, setZoomClamped]);
+
+  useEffect(() => {
+    const view = getActiveWebview();
+    if (!view) return;
+
+    const onReady = () => applyZoomPolicy();
+    const onNavigate = () => applyZoomPolicy();
+    const onZoomChanged = (event) => {
+      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : view.getZoomFactor?.();
+      if (typeof raw !== 'number' || Number.isNaN(raw)) return;
+      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
+      zoomRef.current = normalized;
+      setZoomLevel(normalized);
+    };
+
+    view.addEventListener('dom-ready', onReady);
+    view.addEventListener('did-frame-finish-load', onReady);
+    view.addEventListener('did-navigate', onNavigate);
+    view.addEventListener('did-navigate-in-page', onNavigate);
+    view.addEventListener('zoom-changed', onZoomChanged);
+
+    onReady();
+
+    return () => {
+      view.removeEventListener('dom-ready', onReady);
+      view.removeEventListener('did-frame-finish-load', onReady);
+      view.removeEventListener('did-navigate', onNavigate);
+      view.removeEventListener('did-navigate-in-page', onNavigate);
+      view.removeEventListener('zoom-changed', onZoomChanged);
+    };
+  }, [activeId, applyZoomPolicy, getActiveWebview, webviewReady]);
+
+  const handleZoomSliderChange = useCallback((event) => {
+    const { valueAsNumber, value } = event.target;
+    const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
+    setZoomClamped(candidate);
+  }, [setZoomClamped]);
+
+  useEffect(() => {
+    for (const entry of tabViewsRef.current.values()) {
+      try {
+        entry.render?.(mode, zoomRef.current);
+      } catch {}
+    }
+  }, [mode, zoomLevel]);
 
   const ensureHostReady = useCallback(() => {
     if (webviewHostRef.current) return true;
     return false;
   }, []);
 
-  const createWebviewForTab = useCallback((tab) => {
+  const createWebviewForTab = useCallback((tab, { zoom: zoomFactor, mode: currentMode }) => {
     if (!ensureHostReady()) return null;
-    const view = document.createElement('webview');
-    view.setAttribute('allowpopups', 'true');
-    view.setAttribute('tabindex', '-1');
-    view.style.position = 'absolute';
-    view.style.inset = '0';
-    view.style.width = '100%';
-    view.style.height = '100%';
-    view.style.border = 'none';
-    view.style.backgroundColor = '#05070f';
+    const host = webviewHostRef.current;
+    const container = document.createElement('div');
+    container.style.position = 'absolute';
+    container.style.inset = '0';
+    container.style.width = '100%';
+    container.style.height = '100%';
+    container.style.backgroundColor = '#05070f';
+    container.style.opacity = '0';
+    container.style.pointerEvents = 'none';
     try {
-      webviewHostRef.current.appendChild(view);
+      host.appendChild(container);
     } catch {}
-    const listenersCleanup = attachWebviewListeners(view, tab.id);
-    const shadowCleanup = installShadowStyles(view);
-    const cleanup = () => {
-      try { listenersCleanup?.(); } catch {}
-      try { shadowCleanup?.(); } catch {}
+    const root = createRoot(container);
+    const entry = {
+      container,
+      root,
+      cleanup: () => {},
+      isBackground: false,
+      handle: null,
+      view: null,
+      render: () => {}
     };
-    tabViewsRef.current.set(tab.id, {
-      view,
-      cleanup,
-      isBackground: false
-    });
-    return view;
-  }, [attachWebviewListeners, ensureHostReady, installShadowStyles]);
+    const refCallback = (instance) => {
+      const prevView = entry.view;
+      entry.handle = instance || null;
+      entry.view = instance?.getWebView?.() || null;
+      if (prevView !== entry.view) {
+        try { entry.cleanup?.(); } catch {}
+        if (entry.view) {
+          const listenersCleanup = attachWebviewListeners(entry.view, tab.id);
+          const shadowCleanup = installShadowStyles(entry.view);
+          entry.cleanup = () => {
+            try { listenersCleanup?.(); } catch {}
+            try { shadowCleanup?.(); } catch {}
+          };
+        } else {
+          entry.cleanup = () => {};
+        }
+      }
+      if (activeIdRef.current === tab.id) {
+        webviewHandleRef.current = entry.handle;
+        webviewRef.current = entry.view;
+        if (entry.view) attachContextMenu(entry.view);
+      }
+    };
+    entry.render = (modeOverride = currentMode, zoomOverride = zoomFactor) => {
+      const initialUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
+      root.render(
+        <WebViewHost
+          ref={refCallback}
+          initialUrl={initialUrl}
+          mode={modeOverride}
+          zoom={zoomOverride}
+          onCanGo={(state) => handleHostCanGo(tab.id, state)}
+          onStatus={(nextStatus) => handleHostStatus(tab.id, nextStatus)}
+          onUrlChange={(url) => handleHostUrlChange(tab.id, url)}
+          onDomReady={() => handleHostDomReady(tab.id)}
+          style={{ width: '100%', height: '100%' }}
+        />
+      );
+    };
+    tabViewsRef.current.set(tab.id, entry);
+    entry.render();
+    return entry.view;
+  }, [
+    attachContextMenu,
+    attachWebviewListeners,
+    ensureHostReady,
+    handleHostCanGo,
+    handleHostDomReady,
+    handleHostStatus,
+    handleHostUrlChange,
+    installShadowStyles
+  ]);
 
-  const loadUrlIntoView = useCallback((tab, view) => {
+  const loadUrlIntoView = useCallback((tab, entry) => {
+    if (!entry) return;
     const targetUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
     const last = lastLoadedRef.current;
     if (last.id === tab.id && last.url === targetUrl) return;
@@ -656,6 +796,12 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     webviewReadyRef.current = false;
     setWebviewReady(false);
     setStatus('loading');
+    if (entry.handle) {
+      entry.handle.loadURL(targetUrl);
+      return;
+    }
+    const view = entry.view;
+    if (!view) return;
     try {
       const result = view.loadURL(targetUrl);
       if (result && typeof result.catch === 'function') {
@@ -671,45 +817,62 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     updateMetaAction(tab.id, { discarded: false });
     let entry = tabViewsRef.current.get(tab.id);
     if (!entry) {
-      const created = createWebviewForTab(tab);
+      const created = createWebviewForTab(tab, { zoom: zoomRef.current, mode });
       if (!created) {
         requestAnimationFrame(() => activateTabView(tab));
         return;
       }
       entry = tabViewsRef.current.get(tab.id);
-      webviewRef.current = created;
-      attachContextMenu(created);
-      applyActiveStyles(created);
-      loadUrlIntoView(tab, created);
-      return;
+    } else {
+      entry.render?.(mode, zoomRef.current);
     }
+    if (!entry) return;
 
     entry.isBackground = false;
     if (backgroundTabRef.current === tab.id) {
       backgroundTabRef.current = null;
     }
+    const container = entry.container;
     const view = entry.view;
-    if (!view) return;
-    if (view.parentElement !== webviewHostRef.current) {
-      try { webviewHostRef.current.appendChild(view); } catch {}
+    if (!container || !view) {
+      requestAnimationFrame(() => activateTabView(tab));
+      return;
     }
-    applyActiveStyles(view);
+    if (container.parentElement !== webviewHostRef.current) {
+      try { webviewHostRef.current.appendChild(container); } catch {}
+    }
+    applyActiveStyles(container, view);
+    webviewHandleRef.current = entry.handle;
     webviewRef.current = view;
-    attachContextMenu(view);
+    if (view) {
+      attachContextMenu(view);
+    }
 
     const current = (() => {
-      try { return view.getURL(); } catch { return ''; }
+      if (entry.handle && typeof entry.handle.getURL === 'function') {
+        const got = entry.handle.getURL();
+        return typeof got === 'string' ? got : '';
+      }
+      try { return view.getURL?.(); } catch { return ''; }
     })();
     const target = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
     if (!current || current !== target) {
-      loadUrlIntoView(tab, view);
+      loadUrlIntoView(tab, entry);
     } else {
       setStatus('ready');
       webviewReadyRef.current = true;
       setWebviewReady(true);
+      refreshNavigationState();
     }
-    refreshNavigationState();
-  }, [applyActiveStyles, attachContextMenu, createWebviewForTab, loadUrlIntoView, refreshNavigationState, updateMetaAction]);
+  }, [
+    applyActiveStyles,
+    attachContextMenu,
+    createWebviewForTab,
+    loadUrlIntoView,
+    mode,
+    refreshNavigationState,
+    updateMetaAction
+  ]);
 
   const demoteTabView = useCallback((tab) => {
     if (!tab) return;
@@ -723,8 +886,12 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       }
       backgroundTabRef.current = tab.id;
       entry.isBackground = true;
+      if (entry.container) {
+        mountInBackgroundHost(entry.container);
+        entry.container.style.pointerEvents = 'none';
+        entry.container.style.opacity = '0';
+      }
       if (entry.view) {
-        mountInBackgroundHost(entry.view);
         entry.view.style.pointerEvents = 'none';
         entry.view.style.opacity = '0';
       }
@@ -953,92 +1120,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showSettingsModal, loadInstalledApps, closeSettingsModal]);
-
-  // --- Zoom management inside the webview ---
-  const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
-  const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
-
-  const setZoomClamped = useCallback((val) => {
-    const numeric = Number(val);
-    if (!Number.isFinite(numeric)) return;
-    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
-    const rounded = Math.round(clamped * 100) / 100;
-    const wv = getActiveWebview();
-    if (wv) {
-      try {
-        if (typeof wv.setZoomFactor === 'function') {
-          wv.setZoomFactor(rounded);
-        } else {
-          wv.executeJavaScript(`require('electron').webFrame.setZoomFactor(${rounded})`).catch(() => {});
-        }
-      } catch {}
-    }
-    zoomRef.current = rounded;
-    setZoomLevel(rounded);
-  }, [getActiveWebview]);
-
-  useEffect(() => {
-    const base = mode === 'mobile' ? 2.0 : 1.0;
-    zoomRef.current = base;
-    setZoomLevel(base);
-    setZoomClamped(base);
-  }, [mode, setZoomClamped]);
-
-  const applyZoomPolicy = useCallback(() => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    try {
-      if (typeof wv.setVisualZoomLevelLimits === 'function') {
-        wv.setVisualZoomLevelLimits(1, 3);
-      }
-      setZoomClamped(zoomRef.current);
-    } catch {}
-  }, [getActiveWebview, setZoomClamped]);
-
-  useEffect(() => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-
-    const isLoading = () => {
-      try {
-        return typeof wv.isLoading === 'function' ? wv.isLoading() : false;
-      } catch {
-        return false;
-      }
-    };
-
-    const onReady = () => applyZoomPolicy();
-    const onNav = () => applyZoomPolicy();
-    const onZoomChanged = (event) => {
-      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : wv.getZoomFactor?.();
-      if (typeof raw !== 'number' || Number.isNaN(raw)) return;
-      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
-      zoomRef.current = normalized;
-      setZoomLevel(normalized);
-    };
-
-    wv.addEventListener('dom-ready', onReady);
-    wv.addEventListener('did-frame-finish-load', onReady);
-    wv.addEventListener('did-navigate', onNav);
-    wv.addEventListener('did-navigate-in-page', onNav);
-    wv.addEventListener('zoom-changed', onZoomChanged);
-
-    if (!isLoading()) applyZoomPolicy();
-
-    return () => {
-      wv.removeEventListener('dom-ready', onReady);
-      wv.removeEventListener('did-frame-finish-load', onReady);
-      wv.removeEventListener('did-navigate', onNav);
-      wv.removeEventListener('did-navigate-in-page', onNav);
-      wv.removeEventListener('zoom-changed', onZoomChanged);
-    };
-  }, [applyZoomPolicy, getActiveWebview]);
-
-  const handleZoomSliderChange = useCallback((event) => {
-    const { valueAsNumber, value } = event.target;
-    const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
-    setZoomClamped(candidate);
-  }, [setZoomClamped]);
 
   const handleToggleTor = useCallback(async () => {
     try {
@@ -1414,8 +1495,11 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   // --- Toolbar event handlers ---
   const handleSubmit = useCallback((event) => {
     event.preventDefault();
-    const view = getActiveWebview();
-    if (!view) return;
+    const handle = getActiveWebviewHandle();
+    const view = (handle && typeof handle.getWebView === 'function')
+      ? handle.getWebView()
+      : getActiveWebview();
+    if (!handle && !view) return;
     const target = normalizeAddress(inputValue);
     setInputValue(target);
     setStatus('loading');
@@ -1426,22 +1510,43 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       navigateActiveAction(target);
       lastLoadedRef.current = { id: activeIdCurrent, url: target };
     }
-    try { view.loadURL(target); } catch {}
+    if (handle) {
+      handle.loadURL(target);
+    } else if (view) {
+      try { view.loadURL(target); } catch {}
+    }
     setKbVisible(false);
-  }, [getActiveWebview, inputValue, navigateActiveAction]);
+  }, [getActiveWebview, getActiveWebviewHandle, inputValue, navigateActiveAction]);
 
   const handleBack = useCallback(() => {
+    const handle = getActiveWebviewHandle();
+    if (handle) {
+      try { handle.goBack(); } catch {}
+      return;
+    }
     const view = getActiveWebview();
-    if (view && view.canGoBack()) view.goBack();
-  }, [getActiveWebview]);
+    if (view && typeof view.canGoBack === 'function' && view.canGoBack()) {
+      try { view.goBack(); } catch {}
+    }
+  }, [getActiveWebview, getActiveWebviewHandle]);
   const handleForward = useCallback(() => {
+    const handle = getActiveWebviewHandle();
+    if (handle) {
+      try { handle.goForward(); } catch {}
+      return;
+    }
     const view = getActiveWebview();
-    if (view && view.canGoForward()) view.goForward();
-  }, [getActiveWebview]);
+    if (view && typeof view.canGoForward === 'function' && view.canGoForward()) {
+      try { view.goForward(); } catch {}
+    }
+  }, [getActiveWebview, getActiveWebviewHandle]);
   const handleReload = useCallback(() => {
-    const view = getActiveWebview();
-    if (!view) return;
-    if ('isConnected' in view && !view.isConnected) return;
+    const handle = getActiveWebviewHandle();
+    const view = (handle && typeof handle.getWebView === 'function')
+      ? handle.getWebView()
+      : getActiveWebview();
+    if (!handle && !view) return;
+    if (view && 'isConnected' in view && !view.isConnected) return;
     const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
     setStatus('loading');
     reloadActiveAction();
@@ -1449,17 +1554,27 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     webviewReadyRef.current = false;
     setWebviewReady(false);
     try {
-      if (wasReady) {
-        view.reload();
-      } else {
-        view.loadURL(activeUrlCurrent);
+      if (handle) {
+        if (wasReady) {
+          handle.reload();
+        } else {
+          handle.loadURL(activeUrlCurrent);
+        }
+      } else if (view) {
+        if (wasReady && typeof view.reload === 'function') {
+          view.reload();
+        } else {
+          view.loadURL(activeUrlCurrent);
+        }
       }
     } catch {
-      try {
-        view.setAttribute('src', activeUrlCurrent);
-      } catch {}
+      if (view) {
+        try {
+          view.setAttribute('src', activeUrlCurrent);
+        } catch {}
+      }
     }
-  }, [getActiveWebview, reloadActiveAction]);
+  }, [getActiveWebview, getActiveWebviewHandle, reloadActiveAction]);
 
   const handleInputPointerDown = useCallback(() => {
     activeInputRef.current = 'url';
@@ -2603,7 +2718,8 @@ const singleStyles = {
 };
 
 const SingleWindowApp = ({ initialUrl, mode }) => {
-  const webviewRef = useRef(null);
+  const webviewHandleRef = useRef(null);
+  const listenersCleanupRef = useRef(() => {});
   const [status, setStatus] = useState('loading');
   const [isFullscreen, setIsFullscreen] = useState(false);
   const powerBlockerIdRef = useRef(null);
@@ -2640,54 +2756,21 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
     if (!Number.isFinite(numeric)) return;
     const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
     const rounded = Math.round(clamped * 100) / 100;
-    const view = webviewRef.current;
-    if (view) {
-      try {
-        if (typeof view.setZoomFactor === 'function') {
-          view.setZoomFactor(rounded);
-        }
-      } catch {}
-    }
     zoomRef.current = rounded;
     setZoomLevel(rounded);
   }, []);
 
   useEffect(() => {
     const base = mode === 'mobile' ? 2 : 1;
-    zoomRef.current = base;
-    setZoomLevel(base);
     setZoomClamped(base);
   }, [mode, setZoomClamped]);
 
-  useEffect(() => {
-    const view = webviewRef.current;
-    if (!view) return undefined;
-
-    const handleStart = () => setStatus('loading');
-    const handleStop = () => setStatus('ready');
-    const handleFail = () => setStatus('error');
-    const handleDomReady = () => {
-      setStatus('ready');
-      try { view.focus(); } catch {}
-    };
+  const attachExtraListeners = useCallback((view) => {
+    if (!view) return () => {};
     const handleMediaStarted = () => { void startPowerBlocker(); };
     const handleMediaPaused = () => { void stopPowerBlocker(); };
     const handleEnterFullscreen = () => setIsFullscreen(true);
     const handleLeaveFullscreen = () => setIsFullscreen(false);
-
-    view.addEventListener('did-start-loading', handleStart);
-    view.addEventListener('did-stop-loading', handleStop);
-    const applyZoomPolicy = () => {
-      try {
-        if (typeof view.setVisualZoomLevelLimits === 'function') {
-          view.setVisualZoomLevelLimits(1, 3);
-        }
-        if (typeof view.setZoomFactor === 'function') {
-          view.setZoomFactor(zoomRef.current);
-        }
-      } catch {}
-    };
-
     const handleZoomChanged = (event) => {
       const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : view.getZoomFactor?.();
       if (typeof raw !== 'number' || Number.isNaN(raw)) return;
@@ -2740,59 +2823,44 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
     injectBaseCss();
     installInputScroll();
 
-    view.addEventListener('did-fail-load', handleFail);
-    view.addEventListener('dom-ready', handleDomReady);
     view.addEventListener('media-started-playing', handleMediaStarted);
     view.addEventListener('media-paused', handleMediaPaused);
     view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
     view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
-    view.addEventListener('dom-ready', applyZoomPolicy);
-    view.addEventListener('did-frame-finish-load', applyZoomPolicy);
-    view.addEventListener('did-navigate', applyZoomPolicy);
-    view.addEventListener('did-navigate-in-page', applyZoomPolicy);
     view.addEventListener('zoom-changed', handleZoomChanged);
     view.addEventListener('dom-ready', injectBaseCss);
     view.addEventListener('did-navigate', injectBaseCss);
     view.addEventListener('did-navigate-in-page', injectBaseCss);
 
-    applyZoomPolicy();
-
     return () => {
-      view.removeEventListener('did-start-loading', handleStart);
-      view.removeEventListener('did-stop-loading', handleStop);
-      view.removeEventListener('did-fail-load', handleFail);
-      view.removeEventListener('dom-ready', handleDomReady);
       view.removeEventListener('media-started-playing', handleMediaStarted);
       view.removeEventListener('media-paused', handleMediaPaused);
       view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
       view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
-      view.removeEventListener('dom-ready', applyZoomPolicy);
-      view.removeEventListener('did-frame-finish-load', applyZoomPolicy);
-      view.removeEventListener('did-navigate', applyZoomPolicy);
-      view.removeEventListener('did-navigate-in-page', applyZoomPolicy);
       view.removeEventListener('zoom-changed', handleZoomChanged);
       view.removeEventListener('dom-ready', injectBaseCss);
       view.removeEventListener('did-navigate', injectBaseCss);
       view.removeEventListener('did-navigate-in-page', injectBaseCss);
-      void stopPowerBlocker();
     };
-  }, [setZoomClamped, startPowerBlocker, stopPowerBlocker]);
+  }, [startPowerBlocker, stopPowerBlocker]);
 
-  useEffect(() => {
-    const view = webviewRef.current;
+  const handleDomReady = useCallback(() => {
+    const handle = webviewHandleRef.current;
+    const view = handle && typeof handle.getWebView === 'function' ? handle.getWebView() : null;
     if (!view) return;
-    const target = initialUrl && initialUrl.trim() ? initialUrl.trim() : DEFAULT_URL;
     try {
-      const result = view.loadURL(target);
-      if (result && typeof result.catch === 'function') {
-        result.catch(() => {});
-      }
-    } catch {
-      try { view.setAttribute('src', target); } catch {}
-    }
-  }, [initialUrl]);
+      listenersCleanupRef.current?.();
+    } catch {}
+    listenersCleanupRef.current = attachExtraListeners(view);
+    setStatus('ready');
+    try { handle?.focus(); } catch {}
+  }, [attachExtraListeners]);
 
-  useEffect(() => () => { void stopPowerBlocker(); }, [stopPowerBlocker]);
+  useEffect(() => () => {
+    try { listenersCleanupRef.current?.(); } catch {}
+    listenersCleanupRef.current = () => {};
+    void stopPowerBlocker();
+  }, [stopPowerBlocker]);
 
   const webviewStyle = isFullscreen ? singleStyles.webviewFullscreen : singleStyles.webview;
   const statusStyle = status === 'error'
@@ -2808,10 +2876,23 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
     event.stopPropagation();
   }, []);
 
+  const initialTarget = initialUrl && initialUrl.trim() ? initialUrl.trim() : DEFAULT_URL;
+
   return (
     <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
-      {/* eslint-disable-next-line react/no-unknown-property */}
-      <webview ref={webviewRef} style={webviewStyle} allowpopups="true" />
+      <WebViewHost
+        ref={(instance) => {
+          webviewHandleRef.current = instance;
+        }}
+        initialUrl={initialTarget}
+        mode={mode}
+        zoom={zoomLevel}
+        onCanGo={() => {}}
+        onStatus={setStatus}
+        onUrlChange={() => {}}
+        onDomReady={handleDomReady}
+        style={webviewStyle}
+      />
       {status !== 'ready' && (
         <div style={statusStyle}>
           {status === 'loading' ? 'Loading…' : 'Load failed'}

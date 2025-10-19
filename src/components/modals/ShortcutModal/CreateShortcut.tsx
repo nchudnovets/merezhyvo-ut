@@ -6,7 +6,7 @@ import React, {
   MouseEvent,
   FormEvent
 } from 'react';
-import type { Mode } from '../../types/models';
+import type { Mode } from '../../../types/models';
 import { shortcutModalStyles } from './createShortcutStyles';
 
 interface CreateShortcutProps {
