@@ -160,6 +160,40 @@ const WebViewHost = forwardRef(function WebViewHost(
     } catch {
       // Swallow errors: adjusting listener limits is best-effort only.
     }
+    let observed = false;
+    const observer = new MutationObserver(() => {
+      applyShadowStyles();
+    });
+    const ensureObserver = () => {
+      const root = node.shadowRoot;
+      if (!root || observed) return;
+      try {
+        observer.observe(root, { childList: true, subtree: true });
+        observed = true;
+      } catch {}
+    };
+
+    function applyShadowStyles() {
+      try {
+        const root = node.shadowRoot;
+        if (!root) return;
+        const styleId = 'mzr-webview-host-style';
+        if (!root.querySelector(`#${styleId}`)) {
+          const style = document.createElement('style');
+          style.id = styleId;
+          style.textContent = `
+            :host { display: flex !important; height: 100% !important; width: 100% !important; }
+            iframe { flex: 1 1 auto !important; width: 100% !important; height: 100% !important; min-height: 100% !important; }
+          `;
+          root.appendChild(style);
+        }
+        ensureObserver();
+      } catch {}
+    }
+
+    applyShadowStyles();
+    node.addEventListener('dom-ready', applyShadowStyles);
+    ensureObserver();
 
     const handleDidNavigate = (event: any) => {
       if (event?.url && callbacksRef.current.onUrlChange) {
@@ -218,6 +252,8 @@ const WebViewHost = forwardRef(function WebViewHost(
     node.addEventListener('zoom-changed', handleZoomChanged);
 
     return () => {
+      node.removeEventListener('dom-ready', applyShadowStyles);
+      observer.disconnect();
       node.removeEventListener('did-navigate', handleDidNavigate);
       node.removeEventListener('did-navigate-in-page', handleDidNavigate);
       node.removeEventListener('did-start-loading', handleDidStart);

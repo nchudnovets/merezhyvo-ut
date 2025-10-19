@@ -2695,15 +2695,25 @@ const singleStyles = {
     backgroundColor: '#000',
     overflow: 'hidden'
   },
-  webview: {
+  webviewWrapper: {
+    position: 'relative',
     flex: 1,
+    width: '100%',
+    height: '100%',
+    minHeight: 0,
+    overflow: 'hidden'
+  },
+  webview: {
+    position: 'absolute',
+    inset: 0,
     width: '100%',
     height: '100%',
     border: 'none',
     backgroundColor: '#000'
   },
   webviewFullscreen: {
-    flex: 1,
+    position: 'absolute',
+    inset: 0,
     width: '100%',
     height: '100%',
     border: 'none',
@@ -2889,19 +2899,21 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
 
   return (
     <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
-      <WebViewHost
-        ref={(instance) => {
-          webviewHandleRef.current = instance;
-        }}
-        initialUrl={initialTarget}
-        mode={mode}
-        zoom={zoomLevel}
-        onCanGo={() => {}}
-        onStatus={setStatus}
-        onUrlChange={() => {}}
-        onDomReady={handleDomReady}
-        style={webviewStyle}
-      />
+      <div style={singleStyles.webviewWrapper}>
+        <WebViewHost
+          ref={(instance) => {
+            webviewHandleRef.current = instance;
+          }}
+          initialUrl={initialTarget}
+          mode={mode}
+          zoom={zoomLevel}
+          onCanGo={() => {}}
+          onStatus={setStatus}
+          onUrlChange={() => {}}
+          onDomReady={handleDomReady}
+          style={webviewStyle}
+        />
+      </div>
       {status !== 'ready' && (
         <div style={statusStyle}>
           {status === 'loading' ? 'Loading…' : 'Load failed'}
