@@ -168,6 +168,7 @@ const normalizeShortcutUrl = (value) => {
 const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const webviewHandleRef = useRef(null);
   const webviewRef = useRef(null);
+  const [activeViewRevision, setActiveViewRevision] = useState(0);
   const inputRef = useRef(null);
   const modalTitleInputRef = useRef(null);
   const modalUrlInputRef = useRef(null);
@@ -424,6 +425,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       webviewRef.current = null;
       webviewHandleRef.current = null;
       attachContextMenu(null);
+      setActiveViewRevision((rev) => rev + 1);
     }
     tabViewsRef.current.delete(tabId);
     playingTabsRef.current.delete(tabId);
@@ -438,7 +440,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       fullscreenTabRef.current = null;
       setIsHtmlFullscreen(false);
     }
-  }, [attachContextMenu, updateMetaAction, updatePowerBlocker]);
+  }, [attachContextMenu, setActiveViewRevision, updateMetaAction, updatePowerBlocker]);
 
   const installShadowStyles = useCallback((view) => {
     if (!view) return () => {};
@@ -689,7 +691,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       view.removeEventListener('did-navigate-in-page', onNavigate);
       view.removeEventListener('zoom-changed', onZoomChanged);
     };
-  }, [activeId, applyZoomPolicy, getActiveWebview, webviewReady]);
+  }, [activeId, activeViewRevision, applyZoomPolicy, getActiveWebview, webviewReady]);
 
   const handleZoomSliderChange = useCallback((event) => {
     const { valueAsNumber, value } = event.target;
@@ -738,7 +740,8 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       const prevView = entry.view;
       entry.handle = instance || null;
       entry.view = instance?.getWebView?.() || null;
-      if (prevView !== entry.view) {
+      const viewChanged = prevView !== entry.view;
+      if (viewChanged) {
         try { entry.cleanup?.(); } catch {}
         if (entry.view) {
           const listenersCleanup = attachWebviewListeners(entry.view, tab.id);
@@ -755,6 +758,9 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
         webviewHandleRef.current = entry.handle;
         webviewRef.current = entry.view;
         if (entry.view) attachContextMenu(entry.view);
+        if (viewChanged) {
+          setActiveViewRevision((rev) => rev + 1);
+        }
       }
     };
     entry.render = (modeOverride = currentMode, zoomOverride = zoomFactor) => {
@@ -784,7 +790,8 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     handleHostDomReady,
     handleHostStatus,
     handleHostUrlChange,
-    installShadowStyles
+    installShadowStyles,
+    setActiveViewRevision
   ]);
 
   const loadUrlIntoView = useCallback((tab, entry) => {
@@ -844,6 +851,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     applyActiveStyles(container, view);
     webviewHandleRef.current = entry.handle;
     webviewRef.current = view;
+    setActiveViewRevision((rev) => rev + 1);
     if (view) {
       attachContextMenu(view);
     }
@@ -871,6 +879,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     loadUrlIntoView,
     mode,
     refreshNavigationState,
+    setActiveViewRevision,
     updateMetaAction
   ]);
 
@@ -1802,7 +1811,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       wv.removeEventListener('did-navigate-in-page', install);
       wv.removeEventListener('did-frame-finish-load', install);
     };
-  }, [activeId, getActiveWebview]);
+  }, [activeId, activeViewRevision, getActiveWebview]);
 
   useEffect(() => {
     const wv = getActiveWebview();
@@ -1831,7 +1840,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     return () => {
       wv.removeEventListener('console-message', handler);
     };
-  }, [activeId, getActiveWebview, isEditableElement, mode]);
+  }, [activeId, activeViewRevision, getActiveWebview, isEditableElement, mode]);
 
 
 
