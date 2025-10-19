@@ -344,7 +344,7 @@ export const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '18px',
-    padding: '18px 20px',
+    padding: '18px 15px',
     borderRadius: '18px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(10, 16, 28, 0.85)'
@@ -386,6 +386,7 @@ export const styles = {
   },
   settingsAppRow: {
     display: 'flex',
+    flexDirection: 'column',
     alignItems: 'center',
     gap: '16px',
     padding: '16px 18px',
@@ -396,7 +397,8 @@ export const styles = {
   settingsAppHeader: {
     display: 'flex',
     alignItems: 'center',
-    gap: '16px'
+    gap: '16px',
+    width: '100%',
   },
   settingsAppInfo: {
     display: 'flex',
@@ -454,7 +456,10 @@ export const styles = {
   settingsConfirm: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px'
+    gap: '12px',
+    width: '100%',
+    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+    paddingTop: '15px',
   },
   settingsConfirmText: {
     margin: 0,
@@ -463,7 +468,8 @@ export const styles = {
   },
   settingsConfirmActions: {
     display: 'flex',
-    gap: '12px'
+    gap: '12px',
+    justifyContent: 'center',
   },
   settingsConfirmButton: {
     minWidth: '120px',
