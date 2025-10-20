@@ -11,6 +11,7 @@ import React, {
 type StatusState = 'loading' | 'ready' | 'error';
 
 declare global {
+  // eslint-disable-next-line @typescript-eslint/no-namespace
   namespace JSX {
     interface IntrinsicElements {
       // Minimal typing to let TSX render the Electron webview tag.

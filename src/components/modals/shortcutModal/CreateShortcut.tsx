@@ -138,7 +138,7 @@ const CreateShortcut: React.FC<CreateShortcutProps> = ({
                   onBlur={onTitleBlur}
                   onChange={(event: ChangeEvent<HTMLInputElement>) => onTitleChange(event.target.value)}
                   style={inputStyle}
-                  disabled={true}
+                  disabled={busy}
                 />
               </div>
               <div style={fieldStyle}>

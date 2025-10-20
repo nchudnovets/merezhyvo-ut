@@ -95,10 +95,6 @@ function getCurrentMode() {
   return currentMode;
 }
 
-function setMainWindow(win) {
-  mainWindow = win && !win.isDestroyed?.() ? win : null;
-}
-
 function getMainWindow() {
   return mainWindow && !mainWindow.isDestroyed?.() ? mainWindow : null;
 }

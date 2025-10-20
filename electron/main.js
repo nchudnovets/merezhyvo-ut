@@ -15,7 +15,6 @@ const {
   powerSaveBlocker,
   clipboard
 } = require('electron');
-const path = require('path');
 const fs = require('fs');
 const fsp = fs.promises;
 const { resolveMode } = require('./mode');

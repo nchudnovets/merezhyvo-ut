@@ -117,7 +117,7 @@ function registerTorHandlers(ipcMain) {
     return { ...torState };
   });
 
-  ipcMain.handle('tor:get-state', async (event) => {
+  ipcMain.handle('tor:get-state', (event) => {
     const win = BrowserWindow.fromWebContents(event.sender) || windows.getMainWindow();
     sendTorState(win);
     return { ...torState };
