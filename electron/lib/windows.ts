@@ -194,7 +194,7 @@ function queuePendingUrl(url) {
   pendingOpenUrls.push(url);
 }
 
-function handleWindowOpenFromContents(contents, url) {
+async function handleWindowOpenFromContents(contents, url) {
   const embedder = contents.hostWebContents || contents;
   let isSingle = false;
   try {
@@ -203,7 +203,7 @@ function handleWindowOpenFromContents(contents, url) {
   } catch {}
 
   if (isSingle) {
-    openInMain(url, { activate: true });
+    await openInMain(url, { activate: true });
     return;
   }
 
@@ -218,10 +218,10 @@ function handleWindowOpenFromContents(contents, url) {
         focusMainWindow(win);
       }
     } else {
-      openInMain(url, { activate: true });
+      await openInMain(url, { activate: true });
     }
   } catch {
-    openInMain(url, { activate: true });
+    await openInMain(url, { activate: true });
   }
 }
 

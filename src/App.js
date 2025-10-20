@@ -10,11 +10,13 @@ import SoftKeyboard from './components/keyboard/SoftKeyboard';
 import Toolbar from './components/toolbar/Toolbar';
 import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
-import CreateShortcutModal from './components/modals/ShortcutModal/CreateShortcut';
+import CreateShortcutModal from './components/modals/shortcutModal/CreateShortcut';
+import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
+import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
+import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
 import WebViewHost from './components/webview/WebViewHost';
 import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyles';
 import { styles } from './styles/styles';
-import { modeStyles } from './styles/modeStyles';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { useContextMenu } from './hooks/useContextMenu';
 import { ipc } from './services/ipc/ipc';
@@ -289,30 +291,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   useEffect(() => {
     loadInstalledApps({ quiet: true });
   }, [loadInstalledApps]);
-  useEffect(() => {
-    const styleId = 'mzr-modal-scroll-style';
-    if (document.getElementById(styleId)) return undefined;
-    const style = document.createElement('style');
-    style.id = styleId;
-    style.textContent = `
-      .tabs-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
-      .tabs-modal-body::-webkit-scrollbar-track { background: #111827; }
-      .tabs-modal-body::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
-        border-radius: 6px;
-        border: 1px solid rgba(15, 23, 42, 0.6);
-      }
-      .tabs-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
-      .tabs-modal-body { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
-    `;
-    document.head.appendChild(style);
-    return () => {
-      try {
-        if (style.parentNode) style.parentNode.removeChild(style);
-      } catch {}
-    };
-  }, []);
-
   const [torEnabled, setTorEnabled] = useState(false);
 
   const getActiveWebview = useCallback(() => {
@@ -1682,17 +1660,8 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     }
     return base;
   }, [mode, kbVisible]);
-  const settingsModalStyle = useMemo(
-    () => (mode === 'mobile' ? styles.settingsModalMobile : styles.settingsModal),
-    [mode]
-  );
-  const settingsCloseButtonStyle = useMemo(
-    () => (mode === 'mobile' ? styles.modalCloseMobile : styles.modalClose),
-    [mode]
-  );
-
   const tabsPanelBackdropStyle = useMemo(() => {
-    const base = { ...styles.tabsPanelBackdrop, zIndex: 55 + (kbVisible ? 60 : 0) };
+    const base = { ...tabsPanelStyles.backdrop, zIndex: 55 + (kbVisible ? 60 : 0) };
     if (mode === 'mobile') {
       base.alignItems = 'flex-start';
       base.paddingTop = 0;
@@ -2140,135 +2109,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     });
   }, [mode, blurActiveInWebview, newTabAction]);
 
-  useEffect(() => {
-    if (!showTabsPanel) return undefined;
-    const handleKey = (event) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeTabsPanel();
-      }
-    };
-    window.addEventListener('keydown', handleKey);
-    return () => window.removeEventListener('keydown', handleKey);
-  }, [showTabsPanel, closeTabsPanel]);
-
-  const renderTabItem = useCallback((tab) => {
-    const isActive = tab.id === activeId;
-    const subtitle = displaySubtitleForTab(tab);
-    const tabRowStyle = {
-      ...styles.tabRow,
-      ...(modeStyles[mode].tabRow || {}),
-      ...(isActive ? styles.tabRowActive : null)
-    };
-    const pinButtonStyle = {
-      ...styles.tabIconButton,
-      ...(modeStyles[mode].tabIconButton || {}),
-      ...(tab.pinned ? styles.tabIconButtonActive : null)
-    };
-    const closeButtonStyle = {
-      ...styles.tabIconButton,
-      ...(modeStyles[mode].tabIconButton || {})
-    };
-
-    return (
-      <div
-        key={tab.id}
-        role="button"
-        tabIndex={0}
-        aria-current={isActive ? 'page' : undefined}
-        onClick={() => handleActivateTab(tab.id)}
-        onKeyDown={(event) => {
-          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-            event.preventDefault();
-            handleActivateTab(tab.id);
-          }
-        }}
-        style={tabRowStyle}
-      >
-        <span style={styles.tabInfo}>
-          <span style={{ ...styles.tabFaviconWrap, ...(modeStyles[mode].tabFaviconWrap || {}) }}>
-            {tab.favicon ? (
-              <img src={tab.favicon} alt="" style={styles.tabFavicon} />
-            ) : (
-              <span style={{ ...styles.tabFaviconFallback, ...(modeStyles[mode].tabFaviconFallback || {}) }}>
-                {fallbackInitialForTab(tab)}
-              </span>
-            )}
-          </span>
-          <span style={styles.tabTexts}>
-            <span style={{ ...styles.tabTitle, ...(modeStyles[mode].tabTitle || {}) }}>
-              {displayTitleForTab(tab)}
-            </span>
-            {subtitle ? (
-              <span style={{ ...styles.tabSubtitle, ...(modeStyles[mode].tabSubtitle || {}) }}>
-                {subtitle}
-              </span>
-            ) : null}
-          </span>
-        </span>
-        <span style={{ ...styles.tabActions, ...(modeStyles[mode].tabActions || {}) }}>
-          <button
-            type="button"
-            aria-label={tab.pinned ? 'Unpin tab' : 'Pin tab'}
-            onClick={(event) => {
-              event.stopPropagation();
-              handleTogglePin(tab.id);
-            }}
-            style={pinButtonStyle}
-          >
-            <svg
-              viewBox="0 0 16 16"
-              style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fill={tab.pinned ? 'currentColor' : 'none'}
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M6.25 2.5h3.5a1 1 0 0 1 1 1v2.586l1.657 1.657a1 1 0 0 1-.707 1.707H10v3.3l-2 1.5-2-1.5V9.45H4.3a1 1 0 0 1-.707-1.707L5.25 6.086V3.5a1 1 0 0 1 1-1z"
-              />
-            </svg>
-          </button>
-          <button
-            type="button"
-            aria-label="Close tab"
-            onClick={(event) => {
-              event.stopPropagation();
-              handleCloseTab(tab.id);
-            }}
-            style={closeButtonStyle}
-          >
-            <svg
-              viewBox="0 0 16 16"
-              style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.6"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"
-              />
-            </svg>
-          </button>
-        </span>
-      </div>
-    );
-  }, [
-    activeId,
-    mode,
-    displayTitleForTab,
-    displaySubtitleForTab,
-    fallbackInitialForTab,
-    handleActivateTab,
-    handleTogglePin,
-    handleCloseTab
-  ]);
-
   const statusLabelMap = {
     loading: 'Loading',
     ready: 'Ready',
@@ -2328,109 +2168,21 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       )}
 
       {showTabsPanel && (
-        <div
-          style={tabsPanelBackdropStyle}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              closeTabsPanel();
-            }
-          }}
-        >
-          <div
-            style={mode === 'mobile' ? styles.tabsPanelMobile : styles.tabsPanel}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="tabs-panel-title"
-          >
-            <div style={styles.tabsPanelHeader}>
-              <h2
-                id="tabs-panel-title"
-                style={{
-                  ...styles.tabsPanelTitle,
-                  ...(modeStyles[mode].tabsPanelTitle || {})
-                }}
-              >
-                Tabs
-              </h2>
-              <button
-                type="button"
-                aria-label="Close tabs dialog"
-                style={mode === 'mobile' ? styles.modalCloseMobile : styles.modalClose}
-                onClick={closeTabsPanel}
-              >
-                ✕
-              </button>
-            </div>
-
-            <button
-              type="button"
-              style={{
-                ...styles.newTabButton,
-                ...(mode === 'mobile' ? styles.newTabButtonMobile : null),
-                ...(modeStyles[mode].newTabButton || {})
-              }}
-              onClick={handleNewTab}
-            >
-              <svg
-                viewBox="0 0 16 16"
-                style={{ ...styles.tabIcon, ...(modeStyles[mode].tabIcon || {}) }}
-                xmlns="http://www.w3.org/2000/svg"
-              >
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 3v10M3 8h10"
-                />
-              </svg>
-              <span>New Tab</span>
-            </button>
-
-            <div
-              className="tabs-modal-body"
-              style={{
-                ...styles.tabsPanelBody,
-                ...(modeStyles[mode].tabsPanelBody || {})
-              }}
-            >
-              {pinnedTabs.length > 0 && (
-                <div style={styles.tabsSection}>
-                  <p
-                    style={{
-                      ...styles.tabsSectionTitle,
-                      ...(modeStyles[mode].tabsSectionTitle || {})
-                    }}
-                  >
-                    Pinned
-                  </p>
-                  <div style={styles.tabsList}>
-                    {pinnedTabs.map(renderTabItem)}
-                  </div>
-                </div>
-              )}
-
-              {regularTabs.length > 0 && (
-                <div style={styles.tabsSection}>
-                  {pinnedTabs.length > 0 && (
-                    <p
-                      style={{
-                        ...styles.tabsSectionTitle,
-                        ...(modeStyles[mode].tabsSectionTitle || {})
-                      }}
-                    >
-                      Others
-                    </p>
-                  )}
-                  <div style={styles.tabsList}>
-                    {regularTabs.map(renderTabItem)}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-        </div>
+        <TabsPanel
+          mode={mode}
+          backdropStyle={tabsPanelBackdropStyle}
+          activeTabId={activeId}
+          pinnedTabs={pinnedTabs}
+          regularTabs={regularTabs}
+          onClose={closeTabsPanel}
+          onNewTab={handleNewTab}
+          onActivateTab={handleActivateTab}
+          onTogglePin={handleTogglePin}
+          onCloseTab={handleCloseTab}
+          displayTitle={displayTitleForTab}
+          displaySubtitle={displaySubtitleForTab}
+          fallbackInitial={fallbackInitialForTab}
+        />
       )}
 
       {showModal && (
@@ -2459,193 +2211,19 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       )}
 
       {showSettingsModal && (
-        <div
-          style={modalBackdropStyle}
-          onClick={(event) => {
-            if (event.target === event.currentTarget) {
-              closeSettingsModal();
-            }
-          }}
-        >
-          <div
-            style={settingsModalStyle}
-            role="dialog"
-            aria-modal="true"
-            aria-labelledby="settings-modal-title"
-          >
-            <div style={styles.settingsModalHeader}>
-              <h2
-                id="settings-modal-title"
-                style={{
-                  ...styles.settingsModalTitle,
-                  ...(modeStyles[mode].settingsModalTitle || {})
-                }}
-              >
-                Settings
-              </h2>
-              <button
-                type="button"
-                aria-label="Close settings dialog"
-                style={settingsCloseButtonStyle}
-                onClick={closeSettingsModal}
-              >
-                ✕
-              </button>
-            </div>
-
-            <div style={styles.settingsSections}>
-              <section
-                style={{
-                  ...styles.settingsBlock,
-                  ...(modeStyles[mode].settingsBlock || {})
-                }}
-              >
-                <div style={styles.settingsBlockHeader}>
-                  <h3
-                    style={{
-                      ...styles.settingsBlockTitle,
-                      ...(modeStyles[mode].settingsBlockTitle || {})
-                    }}
-                  >
-                    Installed Apps
-                  </h3>
-                  {installedAppsLoading && (
-                    <span
-                      style={{
-                        ...styles.settingsLoading,
-                        ...(modeStyles[mode].settingsLoading || {})
-                      }}
-                    >
-                      Loading…
-                    </span>
-                  )}
-                </div>
-
-                <div style={styles.settingsBlockBody}>
-                  {installedAppsList.length === 0 && !installedAppsLoading ? (
-                    <p style={styles.settingsEmpty}>No installed shortcuts yet.</p>
-                  ) : (
-                    <ul style={styles.settingsAppList}>
-                      {installedAppsList.map((app) => {
-                        const isPending = pendingRemoval?.id === app.id;
-                        return (
-                          <li
-                            key={app.id}
-                            style={{
-                              ...styles.settingsAppRow,
-                              ...(modeStyles[mode].settingsAppRow || {})
-                            }}
-                          >
-                            <div style={styles.settingsAppHeader}>
-                              <div style={styles.settingsAppInfo}>
-                                <span
-                                  style={{
-                                    ...styles.settingsAppTitle,
-                                    ...(modeStyles[mode].settingsAppTitle || {})
-                                  }}
-                                >
-                                  {app.title || app.url}
-                                </span>
-                                <span
-                                  style={{
-                                    ...styles.settingsAppUrl,
-                                    ...(modeStyles[mode].settingsAppUrl || {})
-                                  }}
-                                >
-                                  {app.url}
-                                </span>
-                              </div>
-                              <div style={styles.settingsAppActions}>
-                                <button
-                                  type="button"
-                                  aria-label={`Remove ${app.title || app.url}`}
-                                  onClick={() => askRemoveApp(app)}
-                                  disabled={settingsBusy && isPending}
-                                  style={{
-                                    ...styles.settingsIconButton,
-                                    ...(modeStyles[mode].settingsIconButton || {}),
-                                    ...(settingsBusy && isPending ? styles.modalButtonDisabled : null)
-                                  }}
-                                >
-                                  <svg
-                                    viewBox="0 0 16 16"
-                                    style={{
-                                      ...styles.settingsIcon,
-                                      ...(modeStyles[mode].settingsIcon || {})
-                                    }}
-                                    xmlns="http://www.w3.org/2000/svg"
-                                  >
-                                    <path
-                                      fill="none"
-                                      stroke="currentColor"
-                                      strokeWidth="1.5"
-                                      strokeLinecap="round"
-                                      strokeLinejoin="round"
-                                      d="M3.5 4.5h9M6.5 4.5V3.5a1 1 0 0 1 1-1h1a1 1 0 0 1 1 1v1M6 7v5m4-5v5M4.5 4.5 5.2 13a1 1 0 0 0 .998.9h3.604a1 1 0 0 0 .998-.9l.7-8.5"
-                                    />
-                                  </svg>
-                                </button>
-                              </div>
-                            </div>
-                            {isPending && (
-                              <div style={styles.settingsConfirm}>
-                                <p
-                                  style={{
-                                    ...styles.settingsConfirmText,
-                                    ...(modeStyles[mode].settingsConfirmText || {})
-                                  }}
-                                >
-                                  {`Are you sure you want to remove ${app.title || app.url}?`}
-                                </p>
-                                <div style={styles.settingsConfirmActions}>
-                                  <button
-                                    type="button"
-                                    style={{
-                                      ...styles.settingsConfirmButton,
-                                      ...(modeStyles[mode].settingsConfirmButton || {})
-                                    }}
-                                    onClick={cancelRemoveApp}
-                                    disabled={settingsBusy}
-                                  >
-                                    Cancel
-                                  </button>
-                                  <button
-                                    type="button"
-                                    style={{
-                                      ...styles.settingsConfirmButton,
-                                      ...styles.settingsConfirmButtonPrimary,
-                                      ...(modeStyles[mode].settingsConfirmButton || {})
-                                    }}
-                                    onClick={confirmRemoveApp}
-                                    disabled={settingsBusy}
-                                  >
-                                    {settingsBusy ? 'Removing…' : 'OK'}
-                                  </button>
-                                </div>
-                              </div>
-                            )}
-                          </li>
-                        );
-                      })}
-                    </ul>
-                  )}
-                </div>
-              </section>
-            </div>
-
-            {settingsMsg && (
-              <div
-                style={{
-                  ...styles.settingsMessage,
-                  ...(modeStyles[mode].settingsMessage || {})
-                }}
-                role="status"
-              >
-                {settingsMsg}
-              </div>
-            )}
-          </div>
-        </div>
+        <SettingsModal
+          mode={mode}
+          backdropStyle={modalBackdropStyle}
+          installedApps={installedAppsList}
+          loading={installedAppsLoading}
+          message={settingsMsg}
+          pendingRemoval={pendingRemoval}
+          busy={settingsBusy}
+          onClose={closeSettingsModal}
+          onRequestRemove={askRemoveApp}
+          onCancelRemove={cancelRemoveApp}
+          onConfirmRemove={confirmRemoveApp}
+        />
       )}
 
       <SoftKeyboard
