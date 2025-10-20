@@ -1,0 +1,32 @@
+import { styles as baseStyles } from '../../../styles/styles';
+
+export const shortcutModalStyles = {
+  modal: baseStyles.modal,
+  modalHeader: baseStyles.modalHeader,
+  modalTitle: baseStyles.modalTitle,
+  modalBody: baseStyles.modalBody,
+  modalClose: baseStyles.modalClose,
+  modalForm: baseStyles.modalForm,
+  modalField: baseStyles.modalField,
+  modalLabel: baseStyles.modalLabel,
+  modalInput: baseStyles.modalInput,
+  modalMsg: baseStyles.modalMsg,
+  modalActions: baseStyles.modalActions,
+  modalButton: baseStyles.modalButton,
+  modalButtonPrimary: baseStyles.modalButtonPrimary,
+  modalButtonDisabled: baseStyles.modalButtonDisabled,
+  modalMobile: baseStyles.modalMobile,
+  modalHeaderMobile: baseStyles.modalHeaderMobile,
+  modalTitleMobile: baseStyles.modalTitleMobile,
+  modalBodyMobile: baseStyles.modalBodyMobile,
+  modalCloseMobile: baseStyles.modalCloseMobile,
+  modalFormMobile: baseStyles.modalFormMobile,
+  modalFieldMobile: baseStyles.modalFieldMobile,
+  modalLabelMobile: baseStyles.modalLabelMobile,
+  modalInputMobile: baseStyles.modalInputMobile,
+  modalMsgMobile: baseStyles.modalMsgMobile,
+  modalActionsMobile: baseStyles.modalActionsMobile,
+  modalButtonMobile: baseStyles.modalButtonMobile,
+  modalButtonPrimaryMobile: baseStyles.modalButtonPrimaryMobile,
+  modalButtonDisabledMobile: baseStyles.modalButtonDisabledMobile
+} as const;
