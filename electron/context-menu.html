@@ -1,0 +1,47 @@
+<!doctype html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <title></title>
+  <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
+  <style>
+    :root { color-scheme: dark light; }
+    html, body {
+      margin: 0; padding: 0;
+      background: transparent;
+      font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
+      user-select: none;
+      overflow: hidden; /* no scrollbars */
+      border-radius: 10px;
+    }
+    .menu {
+      min-width: 240px;
+      max-width: 360px;
+      background: rgba(28,28,28,0.98);
+      color: #eee;
+      border: 1px solid rgba(255,255,255,0.08);
+      border-radius: 10px;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.35);
+      overflow: hidden;
+      backdrop-filter: blur(6px);
+    }
+    .item {
+      padding: 10px 12px;
+      cursor: default;
+      white-space: nowrap;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      font-size: 14px;
+    }
+    .item[disabled] { opacity: .45; pointer-events: none; }
+    .item:hover { background: rgba(255,255,255,0.06); }
+    .sep { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
+    .kbd { margin-left: auto; opacity: .5; font-size: 12px; }
+  </style>
+</head>
+<body>
+  <div class="menu" id="menu"></div>
+  <script src="./context-menu.js"></script>
+</body>
+</html>

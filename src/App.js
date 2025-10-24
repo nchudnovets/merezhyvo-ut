@@ -18,7 +18,6 @@ import WebViewHost from './components/webview/WebViewHost';
 import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyles';
 import { styles } from './styles/styles';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
-import { useContextMenu } from './hooks/useContextMenu';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
@@ -271,8 +270,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
-  const { attach: attachContextMenu } = useContextMenu();
-
+  
   useEffect(() => {
     ipc.notifyTabsReady();
   }, []);
@@ -402,7 +400,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     if (webviewRef.current === entry.view) {
       webviewRef.current = null;
       webviewHandleRef.current = null;
-      attachContextMenu(null);
       setActiveViewRevision((rev) => rev + 1);
     }
     tabViewsRef.current.delete(tabId);
@@ -418,7 +415,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       fullscreenTabRef.current = null;
       setIsHtmlFullscreen(false);
     }
-  }, [attachContextMenu, setActiveViewRevision, updateMetaAction, updatePowerBlocker]);
+  }, [setActiveViewRevision, updateMetaAction, updatePowerBlocker]);
 
   const installShadowStyles = useCallback((view) => {
     if (!view) return () => {};
@@ -735,7 +732,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       if (activeIdRef.current === tab.id) {
         webviewHandleRef.current = entry.handle;
         webviewRef.current = entry.view;
-        if (entry.view) attachContextMenu(entry.view);
         if (viewChanged) {
           setActiveViewRevision((rev) => rev + 1);
         }
@@ -761,7 +757,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     entry.render();
     return entry.view;
   }, [
-    attachContextMenu,
     attachWebviewListeners,
     ensureHostReady,
     handleHostCanGo,
@@ -830,10 +825,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     webviewHandleRef.current = entry.handle;
     webviewRef.current = view;
     setActiveViewRevision((rev) => rev + 1);
-    if (view) {
-      attachContextMenu(view);
-    }
-
+    
     const current = (() => {
       if (entry.handle && typeof entry.handle.getURL === 'function') {
         const got = entry.handle.getURL();
@@ -852,7 +844,6 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     }
   }, [
     applyActiveStyles,
-    attachContextMenu,
     createWebviewForTab,
     loadUrlIntoView,
     mode,

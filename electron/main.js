@@ -13,9 +13,11 @@ const {
   session,
   nativeTheme,
   powerSaveBlocker,
-  clipboard
+  clipboard,
+  webContents
 } = require('electron');
 const fs = require('fs');
+const path = require('path');
 const fsp = fs.promises;
 const { resolveMode } = require('./mode');
 
@@ -43,6 +45,11 @@ const {
 const SESSION_SCHEMA = 1;
 
 let playbackBlockerId = null;
+
+let ctxWin = null;
+let lastCtx = { wcId: null, params: null, x: 0, y: 0, linkUrl: '' };
+let ctxOpening = false;
+let ctxOverlay = null;
 
 app.setName('Merezhyvo');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
@@ -172,6 +179,220 @@ const normalizeAddress = (value) => {
   }
 };
 
+function clampToWorkArea(x, y, w, h) {
+  const disp = screen.getDisplayNearestPoint({ x, y });
+  const wa = disp?.workArea || { x: 0, y: 0, width: 1920, height: 1080 };
+  let nx = Math.max(wa.x, Math.min(x, wa.x + wa.width - w));
+  let ny = Math.max(wa.y, Math.min(y, wa.y + h > wa.y + wa.height ? (wa.y + wa.height - h) : y));
+  return { x: nx, y: ny };
+}
+
+function isTouchSource(params) {
+  const src = String(params?.menuSourceType || params?.sourceType || '').toLowerCase();
+  return ['touch','longpress','longtap','touchmenu','touchhandle','stylus','adjustselection','adjustselectionreset'].includes(src);
+}
+
+function resolveOwnerWindow(wc) {
+  let owner = wc;
+  try { if (wc.hostWebContents && !wc.hostWebContents.isDestroyed()) owner = wc.hostWebContents; } catch {}
+  return BrowserWindow.fromWebContents(owner) || BrowserWindow.getFocusedWindow() || null;
+}
+
+function getTargetWebContents(contents) {
+  return contents || (BrowserWindow.getFocusedWindow()?.webContents || null);
+}
+
+// time/position/owner dedupe
+let lastOpenSig = { ts: 0, x: 0, y: 0, ownerId: 0 };
+function shouldOpenCtxNow(x, y, ownerId) {
+  const now = Date.now();
+  const dt = now - lastOpenSig.ts;
+  const dx = Math.abs((x || 0) - (lastOpenSig.x || 0));
+  const dy = Math.abs((y || 0) - (lastOpenSig.y || 0));
+  const sameOwner = ownerId && ownerId === lastOpenSig.ownerId;
+  if (dt < 300 && sameOwner && dx < 8 && dy < 8) return false;
+  lastOpenSig = { ts: now, x: x || 0, y: y || 0, ownerId: ownerId || 0 };
+  return true;
+}
+
+function destroyCtxWindows() {
+  try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
+  try { if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close(); } catch {}
+  ctxWin = null;
+  ctxOverlay = null;
+}
+
+async function openCtxWindowFor(contents, params) {
+  if (isTouchSource(params)) return;
+
+  if (ctxOpening) return;
+  ctxOpening = true;
+  setTimeout(() => { ctxOpening = false; }, 280);
+
+  const targetWc = getTargetWebContents(contents);
+  if (!targetWc || targetWc.isDestroyed()) return;
+
+  const ownerWin = resolveOwnerWindow(targetWc);
+  if (!ownerWin || ownerWin.isDestroyed()) return;
+
+  const cursor = screen.getCursorScreenPoint();
+  const ownerId = ownerWin.webContents.id;
+  if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
+
+  // remember context for actions
+  global.lastCtx = {
+    wcId: targetWc.id,
+    params: params || null,
+    x: cursor.x,
+    y: cursor.y,
+    linkUrl: (params && params.linkURL) || ''
+  };
+
+  // Always start fresh: close any previous overlay/popup.
+  destroyCtxWindows();
+
+  // 1) Create a full-screen overlay that catches any click outside the menu.
+  const disp = screen.getDisplayNearestPoint({ x: cursor.x, y: cursor.y });
+  const wa = disp?.workArea || { x: 0, y: 0, width: 1920, height: 1080 };
+
+  ctxOverlay = new BrowserWindow({
+    x: wa.x, y: wa.y, width: wa.width, height: wa.height,
+    show: false,
+    frame: false,
+    resizable: false,
+    movable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    focusable: true,                 // must receive clicks
+    backgroundColor: '#01000000',    // nearly transparent (avoid fully 00..00 on some compositors)
+    transparent: true,
+    hasShadow: false,
+    type: 'popup',
+    parent: ownerWin || undefined,   // keep above owner
+    modal: false,
+    webPreferences: {
+      contextIsolation: false,
+      nodeIntegration: true,         // <-- allow ipcRenderer in overlay page
+      sandbox: false,
+      devTools: !!process.env.MZV_CTXMENU_DEVTOOLS
+    }
+  });
+
+  // Keep overlay below the popup but above owner
+  try { ctxOverlay.setAlwaysOnTop(true, 'floating'); } catch {}
+  ctxOverlay.setMenuBarVisibility(false);
+
+  // Load inline HTML that closes on any pointer down (outside the popup area)
+  const overlayHtml = [
+    '<!doctype html><meta charset="utf-8"/>',
+    '<style>',
+    'html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;cursor:default;}',
+    // prevent native context menu on overlay
+    'body{user-select:none;-webkit-user-select:none;}',
+    '</style>',
+    '<script>',
+    // close on any pointer press in overlay
+    'document.addEventListener("pointerdown", function(){',
+    '  try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(e){}',
+    '});',
+    // block default context menus
+    'window.addEventListener("contextmenu", function(e){ e.preventDefault(); }, {passive:false});',
+    // optional: ESC closes too
+    'window.addEventListener("keydown", function(e){ if(e.key==="Escape"){ try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(_){} } });',
+    '</script>',
+    '<body></body>'
+  ].join('');
+
+  await Promise.resolve(ctxOverlay.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml)}`)).catch(()=>{});
+
+  ctxOverlay.on('closed', () => { if (ctxOverlay) ctxOverlay = null; });
+
+  // 2) Create the actual popup *as a child of the overlay*, so it's above overlay
+  const htmlPath = path.resolve(__dirname, 'context-menu.html');
+  const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, 260, 220);
+
+  ctxWin = new BrowserWindow({
+    width: 260,
+    height: 220,            // visible immediately; renderer will autosize
+    x: desired.x,
+    y: desired.y,
+    show: false,
+    frame: false,
+    resizable: false,
+    movable: false,
+    fullscreenable: false,
+    skipTaskbar: true,
+    focusable: true,
+    backgroundColor: '#1c1c1cee', // opaque for UT stability (can switch to transparent later)
+    transparent: false,
+    hasShadow: true,
+    roundedCorners: true,
+    type: 'popup',
+    parent: ctxOverlay,            // key point: popup sits above overlay
+    modal: false,
+    useContentSize: true,
+    webPreferences: {
+      contextIsolation: false,
+      nodeIntegration: true,
+      sandbox: false,
+      devTools: !!process.env.MZV_CTXMENU_DEVTOOLS
+    }
+  });
+
+  // Ensure popup is above overlay on all compositors
+  try { ctxWin.setAlwaysOnTop(true, 'modal-panel'); } catch {}
+
+  ctxWin.on('closed', () => {
+    try { if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close(); } catch {}
+    ctxWin = null; ctxOverlay = null;
+  });
+
+  if (process.env.MZV_CTXMENU_LOGS === '1') {
+    ctxWin.webContents.on('console-message', (_e, level, message, line, sourceId) => {
+      const lvl = ['log','warn','error','debug','info'][level] || level;
+      logCtx(`popup:${lvl}`, message, `(${sourceId}:${line})`);
+    });
+  }
+
+  // Load the menu UI
+  ctxWin.loadURL(`file://${htmlPath}`).catch((e) => logCtx('loadURL error', String(e)));
+
+  // Render & show robustly
+  const askRender = () => {
+    if (!ctxWin || ctxWin.isDestroyed()) return;
+    logCtx('render+show');
+    try { ctxWin.webContents.send('mzr:ctxmenu:render'); } catch {}
+    ctxWin.webContents.executeJavaScript('window.__mzr_render && window.__mzr_render()').catch(() => {});
+    try {
+      if (!ctxOverlay.isVisible()) ctxOverlay.show();      // show overlay first
+      if (!ctxWin.isVisible())    ctxWin.show();           // then popup
+      ctxWin.focus();                                       // focus popup (overlay still catches outside clicks)
+    } catch {}
+    // fallback autosize if renderer didn't report
+    setTimeout(() => {
+      try {
+        const b = ctxWin.getBounds();
+        if (b.height <= 14) {
+          logCtx('autosize fallback → 220px');
+          ctxWin.setBounds({ x: b.x, y: b.y, width: b.width, height: 220 }, false);
+          if (!ctxWin.isVisible()) ctxWin.show();
+        }
+      } catch {}
+    }, 160);
+  };
+
+  ctxWin.webContents.once('did-finish-load', askRender);
+  setTimeout(askRender, 260);
+}
+
+
+const LOG_FILE = path.join(app.getPath('userData'), 'ctxmenu.log');
+function logCtx(...args) {
+  const line = `[${new Date().toISOString()}] ` + args.map(String).join(' ') + '\n';
+  try { fs.appendFileSync(LOG_FILE, line); } catch {}
+  try { console.log('[ctxmenu]', ...args); } catch {}
+}
+
 const parseLaunchConfig = () => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
@@ -240,6 +461,15 @@ app.whenReady().then(() => {
 
 app.on('browser-window-created', (_event, win) => {
   windows.applyBrowserWindowPolicies(win);
+  win.webContents.on('before-input-event', (_event, input) => {
+    if (input.type === 'mouseDown' && input.button === 'right') {
+      const cursor = screen.getCursorScreenPoint();
+      const ownerId = win.webContents.id;
+      logCtx('before-input-event right-click', cursor.x, cursor.y, 'owner=', ownerId);
+      if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
+      openCtxWindowFor(win.webContents, null);
+    }
+  });
 });
 
 app.on('window-all-closed', () => {
@@ -249,6 +479,87 @@ app.on('window-all-closed', () => {
 app.on('web-contents-created', (_event, contents) => {
   if (contents.getType && contents.getType() === 'webview') {
     links.attachLinkPolicy(contents);
+  }
+  contents.on('context-menu', (event, params) => {
+    try { event.preventDefault(); } catch {}
+    logCtx('context-menu', params?.menuSourceType || params?.sourceType, params?.x, params?.y);
+    openCtxWindowFor(contents, params);
+  });
+});
+
+
+ipcMain.handle('mzr:ctxmenu:get-state', async () => {
+  try {
+    const wc = webContents.fromId(global.lastCtx?.wcId);
+    const canBack = wc?.canGoBack?.() || false;
+    const canForward = wc?.canGoForward?.() || false;
+    const hasSelection = !!(global.lastCtx?.params?.selectionText && global.lastCtx.params.selectionText.trim());
+    const linkUrl = global.lastCtx?.linkUrl || '';
+    return { canBack, canForward, hasSelection, linkUrl };
+  } catch (e) {
+    logCtx('get-state error', String(e));
+    return { canBack: false, canForward: false, hasSelection: false, linkUrl: '' };
+  }
+});
+
+ipcMain.on('mzr:ctxmenu:click', (_e, { id }) => {
+  logCtx('action', id);
+  try {
+    const wc = webContents.fromId(global.lastCtx?.wcId);
+    if (!wc || wc.isDestroyed()) return;
+
+    if (id === 'back') return void wc.goBack?.();
+    if (id === 'forward') return void wc.goForward?.();
+    if (id === 'reload') return void wc.reload?.();
+    if (id === 'copy-selection') {
+      const text = global.lastCtx?.params?.selectionText || '';
+      if (text) clipboard.writeText(text);
+      return;
+    }
+    if (id === 'open-link') {
+      const url = global.lastCtx?.linkUrl;
+      if (url) {
+        const embedder = wc.hostWebContents || wc;
+        const ownerWin = BrowserWindow.fromWebContents(embedder) || BrowserWindow.getFocusedWindow();
+        if (ownerWin && !ownerWin.isDestroyed()) {
+          const { sendOpenUrl } = require('./lib/windows');
+          sendOpenUrl(ownerWin, url);
+        }
+      }
+      return;
+    }
+    if (id === 'copy-link') {
+      const url = global.lastCtx?.linkUrl;
+      if (url) clipboard.writeText(url);
+      return;
+    }
+    if (id === 'inspect') {
+      try { wc.openDevTools({ mode: 'detach' }); } catch {}
+      return;
+    }
+  } catch (e) {
+    logCtx('click handler error', String(e));
+  } finally {
+    try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
+  }
+});
+
+ipcMain.on('mzr:ctxmenu:close', () => {
+  logCtx('close requested');
+  try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
+});
+
+ipcMain.on('mzr:ctxmenu:autosize', (_e, { height }) => {
+  try {
+    if (!ctxWin || ctxWin.isDestroyed()) return;
+    const h = Math.max(44, Math.min(480, Math.floor(Number(height) || 120)));
+    const b = ctxWin.getBounds();
+    const pos = clampToWorkArea(b.x, b.y, b.width, h);
+    ctxWin.setBounds({ x: pos.x, y: pos.y, width: b.width, height: h }, false);
+    if (!ctxWin.isVisible()) ctxWin.show();
+    logCtx('autosized →', String(h));
+  } catch (e) {
+    logCtx('autosize error', String(e));
   }
 });
 
