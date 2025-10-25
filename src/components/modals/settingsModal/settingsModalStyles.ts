@@ -194,6 +194,31 @@ export const settingsModalStyles: StyleRecord = {
     border: 'none',
     background: 'rgba(250, 97, 97, 0.92)',
     color: '#f8fafc'
+  },
+  aboutCard: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px',
+    padding: '16px 18px',
+    borderRadius: '16px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    backgroundColor: 'rgba(17, 24, 39, 0.65)'
+  },
+  aboutName: {
+    margin: 0,
+    fontSize: '18px',
+    fontWeight: 600,
+    color: '#f8fafc'
+  },
+  aboutVersion: {
+    margin: 0,
+    fontSize: '14px',
+    color: '#cbd5f5'
+  },
+  aboutDescription: {
+    margin: 0,
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
   }
 } as const;
-

@@ -103,6 +103,15 @@ const WEBVIEW_BASE_CSS = `
   }
 `;
 
+const FALLBACK_APP_INFO = {
+  name: 'Merezhyvo',
+  version: '0.0.0',
+  description: '',
+  chromium: '',
+  electron: '',
+  node: ''
+};
+
 const parseStartUrl = () => {
   try {
     const params = new URLSearchParams(window.location.search);
@@ -239,6 +248,19 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     list.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
     return list;
   }, [installedApps]);
+
+  const appInfo = useMemo(() => {
+    if (typeof window === 'undefined') return FALLBACK_APP_INFO;
+    const info = window.merezhyvo?.appInfo || {};
+    return {
+      name: info.name || FALLBACK_APP_INFO.name,
+      version: info.version || FALLBACK_APP_INFO.version,
+      description: info.description || FALLBACK_APP_INFO.description,
+      chromium: info.chromium || FALLBACK_APP_INFO.chromium,
+      electron: info.electron || FALLBACK_APP_INFO.electron,
+      node: info.node || FALLBACK_APP_INFO.node
+    };
+  }, []);
 
   const tabsReadyRef = useRef(tabsReady);
   const tabsRef = useRef(tabs);
@@ -2243,6 +2265,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
           message={settingsMsg}
           pendingRemoval={pendingRemoval}
           busy={settingsBusy}
+          appInfo={appInfo}
           onClose={closeSettingsModal}
           onRequestRemove={askRemoveApp}
           onCancelRemove={cancelRemoveApp}

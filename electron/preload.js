@@ -1,6 +1,18 @@
 'use strict';
 
 const { contextBridge, ipcRenderer } = require('electron');
+const pkg = require('../package.json');
+
+const appInfo = {
+  name: pkg.productName || pkg.name || 'Merezhyvo',
+  version: pkg.version || '0.0.0',
+  description: pkg.description || ''
+};
+const runtimeVersions = {
+  chromium: process.versions.chrome || '',
+  electron: process.versions.electron || '',
+  node: process.versions.node || ''
+};
 
 /**
  * Expose a minimal, safe API to the renderer.
@@ -9,6 +21,12 @@ const { contextBridge, ipcRenderer } = require('electron');
  *   off && off(); // to unsubscribe
  */
 contextBridge.exposeInMainWorld('merezhyvo', {
+  appInfo: {
+    ...appInfo,
+    chromium: runtimeVersions.chromium,
+    electron: runtimeVersions.electron,
+    node: runtimeVersions.node
+  },
   onMode: (handler) => {
     if (typeof handler !== 'function') return () => {};
     const channel = 'merezhyvo:mode';

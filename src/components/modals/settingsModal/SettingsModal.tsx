@@ -5,6 +5,13 @@ import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
 
+interface SettingsAppInfo {
+  name: string;
+  version: string;
+  description?: string;
+  chromium?: string;
+}
+
 interface SettingsModalProps {
   mode: Mode;
   backdropStyle: CSSProperties;
@@ -13,6 +20,7 @@ interface SettingsModalProps {
   message: string;
   pendingRemoval: InstalledApp | null;
   busy: boolean;
+  appInfo: SettingsAppInfo;
   onClose: () => void;
   onRequestRemove: (app: InstalledApp) => void;
   onCancelRemove: () => void;
@@ -157,6 +165,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   message,
   pendingRemoval,
   busy,
+  appInfo,
   onClose,
   onRequestRemove,
   onCancelRemove,
@@ -180,6 +189,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =
     mode === 'mobile' ? baseStyles.modalCloseMobile : baseStyles.modalClose;
+  const blockBodyStyle = {
+    ...styles.blockBody,
+    ...(modeStyles.settingsBlockBody || {})
+  };
+  const aboutNameRaw = (appInfo?.name || 'Merezhyvo').trim();
+  const aboutName = aboutNameRaw
+    ? aboutNameRaw.charAt(0).toUpperCase() + aboutNameRaw.slice(1)
+    : 'Merezhyvo';
+  const aboutVersion = appInfo?.version || '0.0.0';
+  const chromiumVersion = appInfo?.chromium || 'Unknown';
+  const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
 
   return (
     <div
@@ -230,6 +250,44 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ...(modeStyles.settingsBlockTitle || {})
                 }}
               >
+                Tor
+              </h3>
+            </div>
+            <div style={blockBodyStyle} />
+          </section>
+
+          <section
+            style={{
+              ...styles.block,
+              ...(modeStyles.settingsBlock || {})
+            }}
+          >
+            <div style={styles.blockHeader}>
+              <h3
+                style={{
+                  ...styles.blockTitle,
+                  ...(modeStyles.settingsBlockTitle || {})
+                }}
+              >
+                Permissions
+              </h3>
+            </div>
+            <div style={blockBodyStyle} />
+          </section>
+
+          <section
+            style={{
+              ...styles.block,
+              ...(modeStyles.settingsBlock || {})
+            }}
+          >
+            <div style={styles.blockHeader}>
+              <h3
+                style={{
+                  ...styles.blockTitle,
+                  ...(modeStyles.settingsBlockTitle || {})
+                }}
+              >
                 Installed Apps
               </h3>
               {loading && (
@@ -244,7 +302,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
 
-            <div style={styles.blockBody}>
+            <div style={blockBodyStyle}>
               {!loading && installedApps.length === 0 ? (
                 <p style={styles.empty}>No installed shortcuts yet.</p>
               ) : (
@@ -265,6 +323,57 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               )}
             </div>
           </section>
+
+          <section
+            style={{
+              ...styles.block,
+              ...(modeStyles.settingsBlock || {})
+            }}
+          >
+            <div style={styles.blockHeader}>
+              <h3
+                style={{
+                  ...styles.blockTitle,
+                  ...(modeStyles.settingsBlockTitle || {})
+                }}
+              >
+                About
+              </h3>
+            </div>
+            <div style={blockBodyStyle}>
+              <div
+                style={{
+                  ...styles.aboutCard,
+                  ...(modeStyles.settingsAboutCard || {})
+                }}
+              >
+                <p
+                  style={{
+                    ...styles.aboutName,
+                    ...(modeStyles.settingsAboutName || {})
+                  }}
+                >
+                  {aboutName}
+                </p>
+                <p
+                  style={{
+                    ...styles.aboutVersion,
+                    ...(modeStyles.settingsAboutVersion || {})
+                  }}
+                >
+                  Version {aboutVersion}
+                </p>
+                <p
+                  style={{
+                    ...styles.aboutDescription,
+                    ...(modeStyles.settingsAboutDescription || {})
+                  }}
+                >
+                  {aboutDescription}
+                </p>
+              </div>
+            </div>
+          </section>
         </div>
 
         {message && (
@@ -282,4 +391,3 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     </div>
   );
 };
-

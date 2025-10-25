@@ -24,6 +24,15 @@ export type MerezhyvoTorState = TorState;
 
 export type MerezhyvoSessionState = SessionState;
 
+export interface MerezhyvoAppInfo {
+  name: string;
+  version: string;
+  description?: string;
+  chromium?: string;
+  electron?: string;
+  node?: string;
+}
+
 export interface MerezhyvoInstalledAppsResult {
   ok: boolean;
   error?: string;
@@ -33,6 +42,7 @@ export interface MerezhyvoInstalledAppsResult {
 export interface MerezhyvoSettingsState extends SettingsState {}
 
 export interface MerezhyvoAPI {
+  appInfo?: MerezhyvoAppInfo;
   onMode(handler: (mode: 'desktop' | 'mobile') => void): MerezhyvoUnsubscribe;
   notifyTabsReady(): void;
   onOpenUrl(

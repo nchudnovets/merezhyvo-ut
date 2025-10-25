@@ -18,7 +18,11 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsIcon: {},
     settingsConfirmText: {},
     settingsConfirmButton: {},
-    settingsMessage: {}
+    settingsMessage: {},
+    settingsAboutCard: {},
+    settingsAboutName: {},
+    settingsAboutVersion: {},
+    settingsAboutDescription: {}
   },
   mobile: {
     settingsModalTitle: {
@@ -75,7 +79,20 @@ export const settingsModalModeStyles: ModeStyleMap = {
       fontSize: 'clamp(30px, 4.8vw, 36px)',
       padding: 'clamp(30px, 4.5vw, 42px)',
       borderRadius: '30px'
+    },
+    settingsAboutCard: {
+      padding: 'clamp(42px, 5.5vw, 54px)',
+      borderRadius: '32px',
+      gap: 'clamp(18px, 3vw, 28px)'
+    },
+    settingsAboutName: {
+      fontSize: 'clamp(48px, 6.5vw, 60px)'
+    },
+    settingsAboutVersion: {
+      fontSize: 'clamp(36px, 5vw, 45px)'
+    },
+    settingsAboutDescription: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
     }
   }
 };
-
