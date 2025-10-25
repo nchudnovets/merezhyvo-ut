@@ -9,6 +9,17 @@ const DEFAULT_URL = 'https://duckduckgo.com';
 const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
 const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
+const DESKTOP_ONLY_HOSTS = new Set([
+  'youtube.com',
+  'm.youtube.com',
+  'music.youtube.com',
+  'studio.youtube.com',
+  'gaming.youtube.com',
+  'kids.youtube.com',
+  'tv.youtube.com',
+  'messenger.com'
+]);
+
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 
@@ -53,13 +64,13 @@ function getLaunchConfig() {
   return launchConfig;
 }
 
-function isMobileExceptionDomain(url) {
+function isDesktopOnlyUrl(url) {
   try {
-    const hostname = new URL(url).hostname.replace(/^www\./, '');
-    return hostname === 'messenger.com' ||
-      hostname.endsWith('.messenger.com') ||
-      hostname === 'youtube.com' ||
-      hostname.endsWith('.youtube.com');
+    const hostname = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+    if (DESKTOP_ONLY_HOSTS.has(hostname)) return true;
+    if (hostname.endsWith('.youtube.com')) return true;
+    if (hostname.endsWith('.messenger.com')) return true;
+    return false;
   } catch {
     return false;
   }
@@ -70,7 +81,7 @@ function installUserAgentOverride(targetSession = session.defaultSession) {
   targetSession.__mzrUAOverrideInstalled = true;
   targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
     const headers = { ...details.requestHeaders };
-    if (isMobileExceptionDomain(details.url)) {
+    if (isDesktopOnlyUrl(details.url)) {
       headers['User-Agent'] = DESKTOP_USER_AGENT;
     } else {
       headers['User-Agent'] = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
@@ -82,7 +93,7 @@ function installUserAgentOverride(targetSession = session.defaultSession) {
 function applyUserAgentForUrl(contents, url) {
   if (!contents) return;
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  const ua = isMobileExceptionDomain(url) ? DESKTOP_USER_AGENT : baseUA;
+  const ua = isDesktopOnlyUrl(url) ? DESKTOP_USER_AGENT : baseUA;
   try { contents.setUserAgent(ua); } catch {}
 }
 

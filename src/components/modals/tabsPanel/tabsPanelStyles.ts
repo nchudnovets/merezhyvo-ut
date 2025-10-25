@@ -27,8 +27,8 @@ export const tabsPanelStyles: StyleRecord = {
   },
   containerMobile: {
     width: '100%',
-    height: '100vh',
-    borderRadius: 0,
+    height: '93vh',
+    borderRadius: '28px',
     border: '1px solid rgba(59, 130, 246, 0.35)',
     background: 'rgba(11, 15, 28, 0.98)',
     boxShadow: '0 -18px 50px rgba(2, 6, 23, 0.65)',

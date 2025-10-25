@@ -61,7 +61,11 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     newTabButton: {
       height: 'clamp(120px, 14vh, 168px)',
       borderRadius: '32px',
-      fontSize: 'clamp(42px, 6vw, 54px)'
+      fontSize: 'clamp(42px, 6vw, 54px)',
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      gap: '10px',
     }
   }
 };
