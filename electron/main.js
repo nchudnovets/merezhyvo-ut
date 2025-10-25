@@ -493,12 +493,22 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
     const wc = webContents.fromId(global.lastCtx?.wcId);
     const canBack = wc?.canGoBack?.() || false;
     const canForward = wc?.canGoForward?.() || false;
-    const hasSelection = !!(global.lastCtx?.params?.selectionText && global.lastCtx.params.selectionText.trim());
+
+    const p = (global.lastCtx && global.lastCtx.params) || {};
+    const hasSelection = !!(p.selectionText && String(p.selectionText).trim().length);
+    const isEditable = !!p.isEditable;
+
+    // Paste показуємо лише коли фокус у редагованому елементі і в буфері є текст
+    let canPaste = false;
+    try {
+      const txt = clipboard.readText() || '';
+      canPaste = !!(isEditable && txt.length > 0);
+    } catch {}
+
     const linkUrl = global.lastCtx?.linkUrl || '';
-    return { canBack, canForward, hasSelection, linkUrl };
-  } catch (e) {
-    logCtx('get-state error', String(e));
-    return { canBack: false, canForward: false, hasSelection: false, linkUrl: '' };
+    return { canBack, canForward, hasSelection, isEditable, canPaste, linkUrl };
+  } catch {
+    return { canBack: false, canForward: false, hasSelection: false, isEditable: false, canPaste: false, linkUrl: '' };
   }
 });
 
@@ -531,6 +541,21 @@ ipcMain.on('mzr:ctxmenu:click', (_e, { id }) => {
     if (id === 'copy-link') {
       const url = global.lastCtx?.linkUrl;
       if (url) clipboard.writeText(url);
+      return;
+    }
+    if (id === 'paste') {
+      try {
+        wc.paste();
+      } catch {
+        try {
+          const embedder = wc.hostWebContents || wc;
+          const ownerWin = BrowserWindow.fromWebContents(embedder) || BrowserWindow.getFocusedWindow();
+          if (ownerWin && !ownerWin.isDestroyed()) {
+            const m = Menu.buildFromTemplate([{ role: 'paste' }]);
+            m.popup({ window: ownerWin });
+          }
+        } catch {}
+      }
       return;
     }
     if (id === 'inspect') {
