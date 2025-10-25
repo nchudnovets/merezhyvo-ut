@@ -159,14 +159,14 @@ const WebViewHost = forwardRef(function WebViewHost(
         }
       }
     } catch {
-      // Swallow errors: adjusting listener limits is best-effort only.
+      // best-effort only
     }
     let observed = false;
     const observer = new MutationObserver(() => {
       applyShadowStyles();
     });
     const ensureObserver = () => {
-      const root = node.shadowRoot;
+      const root = (node as any).shadowRoot;
       if (!root || observed) return;
       try {
         observer.observe(root, { childList: true, subtree: true });
@@ -176,7 +176,7 @@ const WebViewHost = forwardRef(function WebViewHost(
 
     function applyShadowStyles() {
       try {
-        const root = node.shadowRoot;
+        const root = (node as any).shadowRoot;
         if (!root) return;
         const styleId = 'mzr-webview-host-style';
         if (!root.querySelector(`#${styleId}`)) {
@@ -193,7 +193,7 @@ const WebViewHost = forwardRef(function WebViewHost(
     }
 
     applyShadowStyles();
-    node.addEventListener('dom-ready', applyShadowStyles);
+    (node as any).addEventListener('dom-ready', applyShadowStyles);
     ensureObserver();
 
     const handleDidNavigate = (event: any) => {
@@ -211,7 +211,7 @@ const WebViewHost = forwardRef(function WebViewHost(
       callbacksRef.current.onStatus?.('ready');
       emitNavigationState();
       try {
-        const currentUrl = node.getURL?.();
+        const currentUrl = (node as any).getURL?.();
         if (currentUrl && callbacksRef.current.onUrlChange) {
           callbacksRef.current.onUrlChange(currentUrl);
         }
@@ -227,8 +227,20 @@ const WebViewHost = forwardRef(function WebViewHost(
       applyZoomPolicy();
       emitNavigationState();
       callbacksRef.current.onDomReady?.();
+
+      // —— MOBILE-ONLY: suppress default long-press callout
+      // Keep selection enabled; block the small bubble menu.
       try {
-        const currentUrl = node.getURL?.();
+        if (mode === 'mobile' && typeof (node as any).insertCSS === 'function') {
+          (node as any).insertCSS(`
+            html, body, * {
+              -webkit-touch-callout: none !important;
+            }
+          `);
+        }
+      } catch {}
+      try {
+        const currentUrl = (node as any).getURL?.();
         if (currentUrl && callbacksRef.current.onUrlChange) {
           callbacksRef.current.onUrlChange(currentUrl);
         }
@@ -238,32 +250,32 @@ const WebViewHost = forwardRef(function WebViewHost(
     const handleZoomChanged = () => {
       const desired = zoomRef.current;
       try {
-        if (typeof node.setZoomFactor === 'function') {
-          node.setZoomFactor(desired);
+        if (typeof (node as any).setZoomFactor === 'function') {
+          (node as any).setZoomFactor(desired);
         }
       } catch {}
     };
 
-    node.addEventListener('did-navigate', handleDidNavigate);
-    node.addEventListener('did-navigate-in-page', handleDidNavigate);
-    node.addEventListener('did-start-loading', handleDidStart);
-    node.addEventListener('did-stop-loading', handleDidStop);
-    node.addEventListener('did-fail-load', handleDidFail);
-    node.addEventListener('dom-ready', handleDomReady);
-    node.addEventListener('zoom-changed', handleZoomChanged);
+    (node as any).addEventListener('did-navigate', handleDidNavigate);
+    (node as any).addEventListener('did-navigate-in-page', handleDidNavigate);
+    (node as any).addEventListener('did-start-loading', handleDidStart);
+    (node as any).addEventListener('did-stop-loading', handleDidStop);
+    (node as any).addEventListener('did-fail-load', handleDidFail);
+    (node as any).addEventListener('dom-ready', handleDomReady);
+    (node as any).addEventListener('zoom-changed', handleZoomChanged);
 
     return () => {
-      node.removeEventListener('dom-ready', applyShadowStyles);
+      (node as any).removeEventListener('dom-ready', applyShadowStyles);
       observer.disconnect();
-      node.removeEventListener('did-navigate', handleDidNavigate);
-      node.removeEventListener('did-navigate-in-page', handleDidNavigate);
-      node.removeEventListener('did-start-loading', handleDidStart);
-      node.removeEventListener('did-stop-loading', handleDidStop);
-      node.removeEventListener('did-fail-load', handleDidFail);
-      node.removeEventListener('dom-ready', handleDomReady);
-      node.removeEventListener('zoom-changed', handleZoomChanged);
+      (node as any).removeEventListener('did-navigate', handleDidNavigate);
+      (node as any).removeEventListener('did-navigate-in-page', handleDidNavigate);
+      (node as any).removeEventListener('did-start-loading', handleDidStart);
+      (node as any).removeEventListener('did-stop-loading', handleDidStop);
+      (node as any).removeEventListener('did-fail-load', handleDidFail);
+      (node as any).removeEventListener('dom-ready', handleDomReady);
+      (node as any).removeEventListener('zoom-changed', handleZoomChanged);
     };
-  }, [applyZoomPolicy, emitNavigationState]);
+  }, [applyZoomPolicy, emitNavigationState, mode]);
 
   useEffect(() => {
     emitNavigationState();
@@ -274,8 +286,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof node.goBack === 'function') {
-          node.goBack();
+        if (typeof (node as any).goBack === 'function') {
+          (node as any).goBack();
         }
       } catch {}
     },
@@ -283,8 +295,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof node.goForward === 'function') {
-          node.goForward();
+        if (typeof (node as any).goForward === 'function') {
+          (node as any).goForward();
         }
       } catch {}
     },
@@ -292,8 +304,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof node.reload === 'function') {
-          node.reload();
+        if (typeof (node as any).reload === 'function') {
+          (node as any).reload();
         }
       } catch {}
     },
@@ -303,13 +315,13 @@ const WebViewHost = forwardRef(function WebViewHost(
       const target = (url || '').trim();
       if (!target) return;
       try {
-        const maybe = node.loadURL(target);
-        if (maybe && typeof maybe.catch === 'function') {
-          maybe.catch(() => {});
+        const maybe = (node as any).loadURL(target);
+        if (maybe && typeof (maybe as any).catch === 'function') {
+          (maybe as any).catch(() => {});
         }
       } catch {
         try {
-          node.setAttribute('src', target);
+          (node as any).setAttribute('src', target);
         } catch {}
       }
     },
@@ -317,18 +329,18 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        node.focus();
+        (node as any).focus();
       } catch {}
     },
     getURL: () => {
       const node = webviewRef.current;
       if (!node) return null;
       try {
-        if (typeof node.getURL === 'function') {
-          const current = node.getURL();
-          return typeof current === 'string' ? current : node.src || null;
+        if (typeof (node as any).getURL === 'function') {
+          const current = (node as any).getURL();
+          return typeof current === 'string' ? current : (node as any).src || null;
         }
-        return node.src || null;
+        return (node as any).src || null;
       } catch {
         return null;
       }

@@ -223,7 +223,10 @@ function destroyCtxWindows() {
 }
 
 async function openCtxWindowFor(contents, params) {
-  if (isTouchSource(params)) return;
+  if (isTouchSource(params)) {
+    const mode = windows.getCurrentMode ? windows.getCurrentMode() : null;
+    if (mode !== 'mobile') return; // ignore touch in desktop mode
+  }
 
   if (ctxOpening) return;
   ctxOpening = true;
