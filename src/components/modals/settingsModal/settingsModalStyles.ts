@@ -5,7 +5,8 @@ type StyleRecord = Record<string, CSSProperties>;
 export const settingsModalStyles: StyleRecord = {
   container: {
     width: 'min(480px, 94vw)',
-    maxHeight: 'min(560px, 86vh)',
+    height: '93vh',
+    maxHeight: '100vh',
     borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.96)',
@@ -15,7 +16,8 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     padding: '24px',
     gap: '16px',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    margin: '24px 0'
   },
   containerMobile: {
     width: '100%',
@@ -46,7 +48,11 @@ export const settingsModalStyles: StyleRecord = {
   sections: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px'
+    gap: '24px',
+    flex: 1,
+    minHeight: 0,
+    overflowY: 'auto',
+    paddingRight: '6px'
   },
   block: {
     display: 'flex',
@@ -220,5 +226,73 @@ export const settingsModalStyles: StyleRecord = {
     fontSize: '14px',
     color: '#e2e8f0',
     lineHeight: 1.4
+  },
+  torInfoRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    flexWrap: 'wrap'
+  },
+  torInfoLabel: {
+    fontSize: '12px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    color: '#94a3b8'
+  },
+  torInfoValue: {
+    fontSize: '15px',
+    fontWeight: 600,
+    color: '#f8fafc'
+  },
+  torInfoValueEnabled: {
+    color: '#4ade80'
+  },
+  torInfoValueDisabled: {
+    color: '#f87171'
+  },
+  torInputGroup: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  torInputLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#f8fafc'
+  },
+  torInputRow: {
+    display: 'flex',
+    gap: '10px',
+    alignItems: 'center'
+  },
+  torInput: {
+    flex: 1,
+    height: '38px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    color: '#f8fafc',
+    padding: '0 12px'
+  },
+  torSaveButton: {
+    height: '38px',
+    borderRadius: '12px',
+    border: '1px solid rgba(59, 130, 246, 0.5)',
+    background: 'rgba(37, 99, 235, 0.2)',
+    color: '#bfdbfe',
+    fontWeight: 600,
+    padding: '0 18px',
+    cursor: 'pointer'
+  },
+  torInputHint: {
+    margin: 0,
+    fontSize: '12px',
+    color: '#94a3b8'
+  },
+  torMessage: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#fbbf24'
   }
 } as const;

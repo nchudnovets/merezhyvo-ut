@@ -21,6 +21,15 @@ interface SettingsModalProps {
   pendingRemoval: InstalledApp | null;
   busy: boolean;
   appInfo: SettingsAppInfo;
+  torEnabled: boolean;
+  torCurrentIp: string;
+  torIpLoading: boolean;
+  torContainerValue: string;
+  torSavedContainerId: string;
+  torContainerSaving: boolean;
+  torContainerMessage: string;
+  onTorContainerChange: (value: string) => void;
+  onSaveTorContainer: () => void;
   onClose: () => void;
   onRequestRemove: (app: InstalledApp) => void;
   onCancelRemove: () => void;
@@ -166,6 +175,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   pendingRemoval,
   busy,
   appInfo,
+  torEnabled,
+  torCurrentIp,
+  torIpLoading,
+  torContainerValue,
+  torSavedContainerId,
+  torContainerSaving,
+  torContainerMessage,
+  onTorContainerChange,
+  onSaveTorContainer,
   onClose,
   onRequestRemove,
   onCancelRemove,
@@ -200,6 +218,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const aboutVersion = appInfo?.version || '0.0.0';
   const chromiumVersion = appInfo?.chromium || 'Unknown';
   const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
+  const torStatusText = torEnabled ? 'Tor enabled' : 'Tor disabled';
+  const torStatusStyle = torEnabled ? styles.torInfoValueEnabled : styles.torInfoValueDisabled;
+  const torIpText = torIpLoading ? 'Loading…' : (torCurrentIp || 'Unavailable');
+  const torContainerInputId = 'settings-tor-container-id';
+  const trimmedTorValue = (torContainerValue || '').trim();
+  const savedTorValue = (torSavedContainerId || '').trim();
+  const torSaveDisabled = torContainerSaving || trimmedTorValue === savedTorValue;
 
   return (
     <div
@@ -253,7 +278,87 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 Tor
               </h3>
             </div>
-            <div style={blockBodyStyle} />
+            <div style={blockBodyStyle}>
+              <div style={styles.torInfoRow}>
+                <span style={styles.torInfoLabel}>Tor status</span>
+                <span
+                  style={{
+                    ...styles.torInfoValue,
+                    ...torStatusStyle,
+                    ...(modeStyles.settingsTorInfoValue || {})
+                  }}
+                >
+                  {torStatusText}
+                </span>
+              </div>
+              <div style={styles.torInfoRow}>
+                <span style={styles.torInfoLabel}>Current IP</span>
+                <span
+                  style={{
+                    ...styles.torInfoValue,
+                    ...(modeStyles.settingsTorInfoValue || {})
+                  }}
+                >
+                  {torIpText}
+                </span>
+              </div>
+              <div style={styles.torInputGroup}>
+                <label
+                  htmlFor={torContainerInputId}
+                  style={{
+                    ...styles.torInputLabel,
+                    ...(modeStyles.settingsTorInputLabel || {})
+                  }}
+                >
+                  Tor Libertine container identifier
+                </label>
+                <div style={styles.torInputRow}>
+                  <input
+                    id={torContainerInputId}
+                    type="text"
+                    value={torContainerValue ?? ''}
+                    onChange={(event) => onTorContainerChange(event.target.value)}
+                    style={{
+                      ...styles.torInput,
+                      ...(modeStyles.settingsTorInput || {})
+                    }}
+                    placeholder="e.g. main"
+                    autoComplete="off"
+                  />
+                  <button
+                    type="button"
+                    onClick={onSaveTorContainer}
+                    disabled={torSaveDisabled}
+                    style={{
+                      ...styles.torSaveButton,
+                      ...(modeStyles.settingsTorSaveButton || {}),
+                      ...(torSaveDisabled ? baseStyles.modalButtonDisabled : null)
+                    }}
+                  >
+                    {torContainerSaving ? 'Saving…' : 'Save'}
+                  </button>
+                </div>
+                <p
+                  style={{
+                    ...styles.torInputHint,
+                    ...(modeStyles.settingsTorInputHint || {})
+                  }}
+                >
+                  Set the Libertine container ID where Tor is installed.
+                </p>
+                {torContainerMessage && (
+                  <p
+                    style={{
+                      ...styles.torMessage,
+                      ...(modeStyles.settingsTorMessage || {})
+                    }}
+                    aria-live="polite"
+                  >
+                    {torContainerMessage}
+                  </p>
+                )}
+              </div>
+            </div>
           </section>
 
           <section

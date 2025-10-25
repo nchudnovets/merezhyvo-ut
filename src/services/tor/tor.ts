@@ -3,9 +3,13 @@ import { ipc } from '../ipc/ipc';
 
 type TorStateHandler = (enabled: boolean, reason: string | null) => void;
 
+type TorToggleOptions = {
+  containerId?: string | null;
+};
+
 export const torService = {
-  toggle(): Promise<TorState | null> {
-    return ipc.tor.toggle();
+  toggle(options?: TorToggleOptions): Promise<TorState | null> {
+    return ipc.tor.toggle(options);
   },
   getState(): Promise<TorState | null> {
     return ipc.tor.getState();

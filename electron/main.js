@@ -25,6 +25,7 @@ const windows = require('./lib/windows.ts');
 const links = require('./lib/links.ts');
 const shortcuts = require('./lib/shortcuts.ts');
 const tor = require('./lib/tor.ts');
+const torSettings = require('./lib/tor-settings.ts');
 
 try { nativeTheme.themeSource = 'dark'; } catch {}
 
@@ -35,6 +36,12 @@ const {
   removeInstalledApp,
   registerShortcutHandler
 } = shortcuts;
+
+const {
+  readTorConfig,
+  updateTorConfig,
+  sanitizeTorConfig
+} = torSettings;
 
 const {
   DEFAULT_URL,
@@ -666,10 +673,17 @@ ipcMain.handle('merezhyvo:session:save', async (_event, payload) => {
 
 ipcMain.handle('merezhyvo:settings:load', async () => {
   try {
-    return await readSettingsState();
+    const settings = await readSettingsState();
+    const torConfig = await readTorConfig();
+    return { ...settings, tor: torConfig };
   } catch (err) {
     console.error('[merezhyvo] settings load failed', err);
-    return createDefaultSettingsState();
+    const fallback = createDefaultSettingsState();
+    let torConfig = sanitizeTorConfig(null);
+    try {
+      torConfig = await readTorConfig();
+    } catch {}
+    return { ...fallback, tor: torConfig };
   }
 });
 
@@ -697,6 +711,19 @@ ipcMain.handle('merezhyvo:settings:installedApps:remove', async (_event, payload
     return await removeInstalledApp({ id, desktopFilePath });
   } catch (err) {
     console.error('[merezhyvo] installed app remove failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload) => {
+  const containerId = typeof payload === 'object' && payload && typeof payload.containerId === 'string'
+    ? payload.containerId.trim()
+    : '';
+  try {
+    const torConfig = await updateTorConfig({ containerId });
+    return { ok: true, containerId: torConfig.containerId };
+  } catch (err) {
+    console.error('[merezhyvo] settings tor update failed', err);
     return { ok: false, error: String(err) };
   }
 });

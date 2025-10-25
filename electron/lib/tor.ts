@@ -4,10 +4,10 @@ const { spawn } = require('child_process');
 const net = require('net');
 const { session, BrowserWindow } = require('electron');
 const windows = require('./windows.ts');
+const { readTorConfig } = require('./tor-settings.ts');
 
 const TOR_HOST = '127.0.0.1';
 const TOR_PORT = 9050;
-const TOR_CONTAINER = 'main';
 
 let torChild = null;
 let torState = { enabled: false, starting: false, reason: null };
@@ -43,8 +43,22 @@ async function applyProxy(enabled) {
   await session.defaultSession.setProxy({ proxyRules: rules, proxyBypassRules: 'localhost,127.0.0.1' });
 }
 
-async function startTorAndProxy(winForFeedback) {
+async function startTorAndProxy(winForFeedback, options = {}) {
   if (torState.enabled || torState.starting) return;
+  let containerId = typeof options === 'object' && options && typeof options.containerId === 'string'
+    ? options.containerId.trim()
+    : '';
+  if (!containerId) {
+    try {
+      const stored = await readTorConfig();
+      containerId = stored?.containerId?.trim?.() || '';
+    } catch {}
+  }
+  if (!containerId) {
+    torState = { enabled: false, starting: false, reason: 'Libertine container identifier missing' };
+    sendTorState(winForFeedback);
+    return;
+  }
   torState = { enabled: false, starting: true, reason: null };
   sendTorState(winForFeedback);
 
@@ -56,7 +70,7 @@ async function startTorAndProxy(winForFeedback) {
 
   if (!alreadyUp) {
     try {
-      torChild = spawn('libertine-launch', ['-i', TOR_CONTAINER, 'tor'], {
+      torChild = spawn('libertine-launch', ['-i', containerId, 'tor'], {
         stdio: 'ignore',
         detached: true
       });
@@ -107,12 +121,15 @@ async function stopTorAndProxy(winForFeedback) {
 }
 
 function registerTorHandlers(ipcMain) {
-  ipcMain.handle('tor:toggle', async (event) => {
+  ipcMain.handle('tor:toggle', async (event, payload) => {
     const win = BrowserWindow.fromWebContents(event.sender) || windows.getMainWindow();
     if (torState.enabled || torState.starting) {
       await stopTorAndProxy(win);
     } else {
-      await startTorAndProxy(win);
+      const containerId = typeof payload === 'object' && payload && typeof payload.containerId === 'string'
+        ? payload.containerId.trim()
+        : '';
+      await startTorAndProxy(win, { containerId });
     }
     return { ...torState };
   });
@@ -131,4 +148,3 @@ module.exports = {
   stopTorAndProxy,
   getTorState: () => ({ ...torState })
 };
-

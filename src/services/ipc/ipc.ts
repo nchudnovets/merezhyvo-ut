@@ -2,9 +2,11 @@ import type {
   InstalledApp,
   Mode,
   OpenUrlPayload,
+  SettingsState,
   ShortcutRequest,
   ShortcutResult,
   TorState,
+  TorConfigResult,
   Unsubscribe
 } from '../../types/models';
 
@@ -18,6 +20,8 @@ type RemoveInstalledAppResponse = {
   ok: boolean;
   error?: string;
 };
+
+type SaveTorConfigResponse = TorConfigResult;
 
 type Bridge = NonNullable<Window['merezhyvo']>;
 
@@ -63,6 +67,14 @@ export const ipc = {
   },
 
   settings: {
+    async loadState(): Promise<SettingsState | null> {
+      try {
+        const res = await getApi()?.settings?.load?.();
+        return (res ?? null) as SettingsState | null;
+      } catch {
+        return null;
+      }
+    },
     async loadInstalledApps(): Promise<InstalledAppsResponse> {
       try {
         const res = await getApi()?.settings?.installedApps?.list?.();
@@ -82,6 +94,17 @@ export const ipc = {
         const res = await getApi()?.settings?.installedApps?.remove?.(idOrPayload);
         if (res && typeof res === 'object') {
           return res as RemoveInstalledAppResponse;
+        }
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
+      return { ok: false, error: 'Unknown error' };
+    },
+    async saveTorConfig(containerId: string): Promise<SaveTorConfigResponse> {
+      try {
+        const res = await getApi()?.settings?.tor?.update?.({ containerId });
+        if (res && typeof res === 'object') {
+          return res as SaveTorConfigResponse;
         }
       } catch (err) {
         return { ok: false, error: String(err) };
@@ -107,9 +130,9 @@ export const ipc = {
   },
 
   tor: {
-    async toggle(): Promise<TorState | null> {
+    async toggle(options?: { containerId?: string | null }): Promise<TorState | null> {
       try {
-        const res = await getApi()?.tor?.toggle?.();
+        const res = await getApi()?.tor?.toggle?.(options);
         return res ?? null;
       } catch {
         return null;

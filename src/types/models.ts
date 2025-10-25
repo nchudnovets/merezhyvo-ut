@@ -31,9 +31,14 @@ export interface InstalledApp {
   updatedAt?: number;
 }
 
+export interface TorSettings {
+  containerId: string;
+}
+
 export interface SettingsState {
   schema: number;
   installedApps: InstalledApp[];
+  tor?: TorSettings;
 }
 
 export interface ShortcutIcon {
@@ -60,6 +65,12 @@ export interface TorState {
   enabled: boolean;
   starting?: boolean;
   reason?: string | null;
+}
+
+export interface TorConfigResult {
+  ok: boolean;
+  containerId?: string;
+  error?: string;
 }
 
 export interface OpenUrlPayload {

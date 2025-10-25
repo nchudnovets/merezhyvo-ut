@@ -7,6 +7,7 @@ import type {
   ShortcutRequest,
   ShortcutResult,
   TorState,
+  TorConfigResult,
   Unsubscribe
 } from './models';
 
@@ -23,6 +24,10 @@ export type MerezhyvoShortcutResult = ShortcutResult;
 export type MerezhyvoTorState = TorState;
 
 export type MerezhyvoSessionState = SessionState;
+
+export interface MerezhyvoTorToggleOptions {
+  containerId?: string | null;
+}
 
 export interface MerezhyvoAppInfo {
   name: string;
@@ -50,7 +55,7 @@ export interface MerezhyvoAPI {
   ): MerezhyvoUnsubscribe;
   createShortcut(payload: MerezhyvoShortcutRequest): Promise<MerezhyvoShortcutResult>;
   tor: {
-    toggle(): Promise<MerezhyvoTorState>;
+    toggle(options?: MerezhyvoTorToggleOptions): Promise<MerezhyvoTorState>;
     getState(): Promise<MerezhyvoTorState>;
     onState(handler: (enabled: boolean, reason: string | null) => void): MerezhyvoUnsubscribe;
   };
@@ -66,6 +71,9 @@ export interface MerezhyvoAPI {
       remove(
         idOrPayload: string | { id: string } | { desktopFilePath: string }
       ): Promise<{ ok: boolean; error?: string }>;
+    };
+    tor: {
+      update(payload: { containerId?: string }): Promise<TorConfigResult>;
     };
   };
   power: {

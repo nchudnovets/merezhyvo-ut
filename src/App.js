@@ -210,6 +210,13 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const [settingsBusy, setSettingsBusy] = useState(false);
   const [shortcutCompleted, setShortcutCompleted] = useState(false);
   const [shortcutSuccessMsg, setShortcutSuccessMsg] = useState('');
+  const [torEnabled, setTorEnabled] = useState(false);
+  const [torContainerId, setTorContainerId] = useState('');
+  const [torContainerDraft, setTorContainerDraft] = useState('');
+  const [torConfigSaving, setTorConfigSaving] = useState(false);
+  const [torConfigFeedback, setTorConfigFeedback] = useState('');
+  const [torIp, setTorIp] = useState('');
+  const [torIpLoading, setTorIpLoading] = useState(false);
 
   // --- Soft keyboard state ---
   const [kbVisible, setKbVisible] = useState(false);
@@ -278,6 +285,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const activeIdRef = useRef(activeId);
   const activeTabRef = useRef(activeTab);
   const lastLoadedRef = useRef({ id: null, url: null });
+  const torIpRequestRef = useRef(0);
 
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
   const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
@@ -312,8 +320,26 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   useEffect(() => {
     loadInstalledApps({ quiet: true });
   }, [loadInstalledApps]);
-  const [torEnabled, setTorEnabled] = useState(false);
-
+  useEffect(() => {
+    let cancelled = false;
+    const loadSettingsState = async () => {
+      try {
+        const state = await ipc.settings.loadState();
+        if (!state || cancelled) return;
+        const containerId = state.tor?.containerId ? state.tor.containerId : '';
+        setTorContainerId(containerId);
+        setTorContainerDraft(containerId);
+      } catch {
+        if (!cancelled) {
+          setTorContainerId('');
+        }
+      }
+    };
+    loadSettingsState();
+    return () => {
+      cancelled = true;
+    };
+  }, []);
   const getActiveWebview = useCallback(() => {
     const handle = webviewHandleRef.current;
     if (handle && typeof handle.getWebView === 'function') {
@@ -348,6 +374,29 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       console.error('[Merezhyvo] power blocker stop failed', err);
     }
     powerBlockerIdRef.current = null;
+  }, []);
+
+  const refreshTorIp = useCallback(async () => {
+    const requestId = Date.now();
+    torIpRequestRef.current = requestId;
+    setTorIpLoading(true);
+    try {
+      const response = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
+      if (!response.ok) throw new Error('Failed to fetch IP');
+      const data = await response.json().catch(() => ({}));
+      if (torIpRequestRef.current === requestId) {
+        const ip = typeof data?.ip === 'string' ? data.ip : '';
+        setTorIp(ip);
+      }
+    } catch {
+      if (torIpRequestRef.current === requestId) {
+        setTorIp('');
+      }
+    } finally {
+      if (torIpRequestRef.current === requestId) {
+        setTorIpLoading(false);
+      }
+    }
   }, []);
 
 
@@ -1112,6 +1161,9 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       return undefined;
     }
     loadInstalledApps();
+    setTorContainerDraft(torContainerId);
+    setTorConfigFeedback('');
+    refreshTorIp();
     const handleKeyDown = (event) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -1122,13 +1174,57 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, loadInstalledApps, closeSettingsModal]);
+  }, [showSettingsModal, loadInstalledApps, closeSettingsModal, torContainerId, refreshTorIp]);
+
+  const handleTorContainerInputChange = useCallback((value) => {
+    setTorContainerDraft(value);
+    setTorConfigFeedback('');
+  }, []);
+
+  const handleSaveTorContainer = useCallback(async () => {
+    const trimmed = torContainerDraft.trim();
+    setTorConfigSaving(true);
+    setTorConfigFeedback('');
+    try {
+      const result = await ipc.settings.saveTorConfig(trimmed);
+      if (result?.ok) {
+        const nextId = result.containerId ?? trimmed;
+        setTorContainerId(nextId);
+        setTorContainerDraft(nextId);
+        setTorConfigFeedback('Saved');
+      } else {
+        setTorConfigFeedback(result?.error || 'Failed to save container identifier.');
+      }
+    } catch (err) {
+      setTorConfigFeedback(String(err));
+    } finally {
+      setTorConfigSaving(false);
+    }
+  }, [torContainerDraft]);
 
   const handleToggleTor = useCallback(async () => {
+    const trimmedContainerId = (torContainerId || '').trim();
+    if (!torEnabled && !trimmedContainerId) {
+      window.alert('Libertine container identifier is missing in Settings.');
+      setShowSettingsModal(true);
+      return;
+    }
     try {
-      await torService.toggle();
-    } catch {}
-  }, []);
+      const state = await torService.toggle({ containerId: trimmedContainerId });
+      if (!torEnabled && (!state || !state.enabled)) {
+        const reason = state?.reason || '';
+        if (reason) {
+          if (/identifier/i.test(reason)) {
+            window.alert('Libertine container identifier is missing in Settings.');
+          } else {
+            window.alert('Tor is missing in your Libertine container. Please check your settings.');
+          }
+        }
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] tor toggle failed', err);
+    }
+  }, [torEnabled, torContainerId, setShowSettingsModal]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -1145,6 +1241,10 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       .catch(() => {});
     return () => { if (typeof off === 'function') off(); };
   }, []);
+
+  useEffect(() => {
+    refreshTorIp();
+  }, [torEnabled, refreshTorIp]);
 
   useEffect(() => {
     refreshNavigationState();
@@ -2266,6 +2366,15 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
           pendingRemoval={pendingRemoval}
           busy={settingsBusy}
           appInfo={appInfo}
+          torEnabled={torEnabled}
+          torCurrentIp={torIp}
+          torIpLoading={torIpLoading}
+          torContainerValue={torContainerDraft}
+          torSavedContainerId={torContainerId}
+          torContainerSaving={torConfigSaving}
+          torContainerMessage={torConfigFeedback}
+          onTorContainerChange={handleTorContainerInputChange}
+          onSaveTorContainer={handleSaveTorContainer}
           onClose={closeSettingsModal}
           onRequestRemove={askRemoveApp}
           onCancelRemove={cancelRemoveApp}

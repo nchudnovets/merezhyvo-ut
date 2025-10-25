@@ -80,7 +80,7 @@ contextBridge.exposeInMainWorld('merezhyvo', {
   },
 
   tor: {
-    toggle: () => ipcRenderer.invoke('tor:toggle'),
+    toggle: (options) => ipcRenderer.invoke('tor:toggle', options || {}),
     getState: () => ipcRenderer.invoke('tor:get-state'),
     onState: (cb) => {
       if (typeof cb !== 'function') return () => {};
@@ -116,7 +116,7 @@ contextBridge.exposeInMainWorld('merezhyvo', {
         return await ipcRenderer.invoke('merezhyvo:settings:load');
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
-        return { schema: 1, installedApps: [] };
+        return { schema: 1, installedApps: [], tor: { containerId: '' } };
       }
     },
     installedApps: {
@@ -133,6 +133,16 @@ contextBridge.exposeInMainWorld('merezhyvo', {
           return await ipcRenderer.invoke('merezhyvo:settings:installedApps:remove', idOrPayload);
         } catch (err) {
           console.error('[merezhyvo] settings.installedApps.remove failed', err);
+          return { ok: false, error: String(err) };
+        }
+      }
+    },
+    tor: {
+      update: async (payload) => {
+        try {
+          return await ipcRenderer.invoke('merezhyvo:settings:tor:update', payload || {});
+        } catch (err) {
+          console.error('[merezhyvo] settings.tor.update failed', err);
           return { ok: false, error: String(err) };
         }
       }

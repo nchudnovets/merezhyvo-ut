@@ -22,7 +22,13 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsAboutCard: {},
     settingsAboutName: {},
     settingsAboutVersion: {},
-    settingsAboutDescription: {}
+    settingsAboutDescription: {},
+    settingsTorInfoValue: {},
+    settingsTorInputLabel: {},
+    settingsTorInput: {},
+    settingsTorInputHint: {},
+    settingsTorMessage: {},
+    settingsTorSaveButton: {}
   },
   mobile: {
     settingsModalTitle: {
@@ -92,6 +98,30 @@ export const settingsModalModeStyles: ModeStyleMap = {
       fontSize: 'clamp(36px, 5vw, 45px)'
     },
     settingsAboutDescription: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    settingsTorInfoValue: {
+      fontSize: 'clamp(36px, 5vw, 45px)'
+    },
+    settingsTorInputLabel: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    settingsTorInput: {
+      height: 'clamp(78px, 10vw, 96px)',
+      borderRadius: '24px',
+      fontSize: 'clamp(33px, 4.8vw, 42px)',
+      padding: '0 clamp(36px, 5vw, 48px)'
+    },
+    settingsTorInputHint: {
+      fontSize: 'clamp(30px, 4.5vw, 39px)'
+    },
+    settingsTorMessage: {
+      fontSize: 'clamp(30px, 4.5vw, 39px)'
+    },
+    settingsTorSaveButton: {
+      height: 'clamp(78px, 10vw, 96px)',
+      borderRadius: '24px',
+      padding: '0 clamp(42px, 6vw, 60px)',
       fontSize: 'clamp(33px, 4.8vw, 42px)'
     }
   }
