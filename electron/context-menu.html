@@ -37,6 +37,20 @@
     .item:hover { background: rgba(255,255,255,0.06); }
     .sep { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
     .kbd { margin-left: auto; opacity: .5; font-size: 12px; }
+    html[data-mode="mobile"] .menu {
+      min-width: 0;
+      max-width: none;
+      width: fit-content;
+      width: max-content;
+    }
+    html[data-mode="mobile"] .item {
+      padding: 18px 24px;
+      font-size: 34px;
+      gap: 18px;
+    }
+    html[data-mode="mobile"] .kbd {
+      font-size: 22px;
+    }
   </style>
 </head>
 <body>

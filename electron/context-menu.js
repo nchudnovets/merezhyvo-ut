@@ -6,6 +6,19 @@ const DEBUG = false;
 
 let RENDER_LOCK = false;
 
+const MODE = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search || '');
+    return params.get('mode') === 'mobile' ? 'mobile' : 'desktop';
+  } catch {
+    return 'desktop';
+  }
+})();
+
+try {
+  document.documentElement.dataset.mode = MODE;
+} catch (_) {}
+
 function log(...args) {
   if (!DEBUG) return;
   try {
@@ -101,9 +114,16 @@ function render() {
         : (fn) => setTimeout(fn, 16);
 
       raf(() => {
-        const h = Math.max(1, menu.offsetHeight || Math.ceil(menu.getBoundingClientRect().height));
-        log('measured height:', String(h));
-        ipcRenderer.send('mzr:ctxmenu:autosize', { height: h });
+        const rect = menu.getBoundingClientRect();
+        const h = Math.max(1, menu.offsetHeight || Math.ceil(rect.height));
+        const contentWidth = Math.max(
+          menu.scrollWidth || 0,
+          menu.offsetWidth || 0,
+          Math.ceil(rect.width) || 0
+        );
+        const w = Math.max(1, contentWidth + 2); // +2 for borders
+        log('measured size:', `${w}x${h}`);
+        ipcRenderer.send('mzr:ctxmenu:autosize', { height: h, width: w });
         RENDER_LOCK = false;
       });
     } catch (e) {

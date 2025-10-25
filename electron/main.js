@@ -50,6 +50,7 @@ let ctxWin = null;
 let lastCtx = { wcId: null, params: null, x: 0, y: 0, linkUrl: '' };
 let ctxOpening = false;
 let ctxOverlay = null;
+let ctxMenuMode = 'desktop';
 
 app.setName('Merezhyvo');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
@@ -223,10 +224,12 @@ function destroyCtxWindows() {
 }
 
 async function openCtxWindowFor(contents, params) {
-  if (isTouchSource(params)) {
-    const mode = windows.getCurrentMode ? windows.getCurrentMode() : null;
-    if (mode !== 'mobile') return; // ignore touch in desktop mode
-  }
+  const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
+  const normalizedMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
+
+  if (isTouchSource(params) && normalizedMode !== 'mobile') return; // ignore touch in desktop mode
+
+  ctxMenuMode = normalizedMode;
 
   if (ctxOpening) return;
   ctxOpening = true;
@@ -312,11 +315,13 @@ async function openCtxWindowFor(contents, params) {
 
   // 2) Create the actual popup *as a child of the overlay*, so it's above overlay
   const htmlPath = path.resolve(__dirname, 'context-menu.html');
-  const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, 260, 220);
+  const baseWidth = ctxMenuMode === 'mobile' ? 360 : 260;
+  const baseHeight = ctxMenuMode === 'mobile' ? 320 : 220;
+  const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, baseWidth, baseHeight);
 
   ctxWin = new BrowserWindow({
-    width: 260,
-    height: 220,            // visible immediately; renderer will autosize
+    width: baseWidth,
+    height: baseHeight,            // visible immediately; renderer will autosize
     x: desired.x,
     y: desired.y,
     show: false,
@@ -358,7 +363,8 @@ async function openCtxWindowFor(contents, params) {
   }
 
   // Load the menu UI
-  ctxWin.loadURL(`file://${htmlPath}`).catch((e) => logCtx('loadURL error', String(e)));
+  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}`;
+  ctxWin.loadURL(ctxUrl).catch((e) => logCtx('loadURL error', String(e)));
 
   // Render & show robustly
   const askRender = () => {
@@ -376,8 +382,10 @@ async function openCtxWindowFor(contents, params) {
       try {
         const b = ctxWin.getBounds();
         if (b.height <= 14) {
-          logCtx('autosize fallback → 220px');
-          ctxWin.setBounds({ x: b.x, y: b.y, width: b.width, height: 220 }, false);
+          const fallbackHeight = ctxMenuMode === 'mobile' ? baseHeight : 220;
+          const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : b.width;
+          logCtx('autosize fallback →', `${fallbackWidth}x${fallbackHeight}`);
+          ctxWin.setBounds({ x: b.x, y: b.y, width: fallbackWidth, height: fallbackHeight }, false);
           if (!ctxWin.isVisible()) ctxWin.show();
         }
       } catch {}
@@ -577,15 +585,34 @@ ipcMain.on('mzr:ctxmenu:close', () => {
   try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
 });
 
-ipcMain.on('mzr:ctxmenu:autosize', (_e, { height }) => {
+ipcMain.on('mzr:ctxmenu:autosize', (_e, { height, width }) => {
   try {
     if (!ctxWin || ctxWin.isDestroyed()) return;
-    const h = Math.max(44, Math.min(480, Math.floor(Number(height) || 120)));
-    const b = ctxWin.getBounds();
-    const pos = clampToWorkArea(b.x, b.y, b.width, h);
-    ctxWin.setBounds({ x: pos.x, y: pos.y, width: b.width, height: h }, false);
+    const bounds = ctxWin.getBounds();
+    const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
+    const wa = display?.workArea;
+
+    const minHeight = 44;
+    const rawHeight = Number(height);
+    const measuredHeight = Math.max(minHeight, Math.floor(Number.isFinite(rawHeight) ? rawHeight : 120));
+    const maxHeight = ctxMenuMode === 'mobile'
+      ? Math.max(minHeight, wa ? wa.height - 16 : measuredHeight)
+      : 480;
+    const targetHeight = Math.min(measuredHeight, maxHeight);
+
+    let targetWidth = bounds.width;
+    if (ctxMenuMode === 'mobile') {
+      const minWidth = 220;
+      const rawWidth = Number(width);
+      const measuredWidth = Math.max(minWidth, Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width));
+      const maxWidth = wa ? Math.max(minWidth, wa.width - 16) : measuredWidth;
+      targetWidth = Math.min(measuredWidth, maxWidth);
+    }
+
+    const pos = clampToWorkArea(bounds.x, bounds.y, targetWidth, targetHeight);
+    ctxWin.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
     if (!ctxWin.isVisible()) ctxWin.show();
-    logCtx('autosized →', String(h));
+    logCtx('autosized →', `${targetWidth}x${targetHeight}`, ctxMenuMode);
   } catch (e) {
     logCtx('autosize error', String(e));
   }
