@@ -5,6 +5,7 @@ export interface Tab {
   url: string;
   title: string;
   favicon: string;
+  isLoading: boolean;
   pinned: boolean;
   muted: boolean;
   discarded: boolean;

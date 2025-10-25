@@ -188,6 +188,53 @@ export const styles = {
     height: '100%',
     overflow: 'hidden'
   },
+  webviewHost: {
+    position: 'relative',
+    width: '100%',
+    height: '100%'
+  },
+  webviewLoadingOverlay: {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '16px',
+    color: '#cbd5f5',
+    background: 'linear-gradient(180deg, rgba(5,7,15,0.65), rgba(5,7,15,0.78))',
+    pointerEvents: 'none',
+    zIndex: 4
+  },
+  webviewLoadingOverlayMobile: {
+    gap: 'clamp(32px, 6vh, 56px)',
+    background: 'linear-gradient(180deg, rgba(5,7,15,0.78), rgba(5,7,15,0.82))'
+  },
+  webviewLoadingSpinner: {
+    width: '48px',
+    height: '48px',
+    borderRadius: '50%',
+    border: '3px solid rgba(148, 163, 184, 0.35)',
+    borderTopColor: '#60a5fa',
+    animation: 'app-spin 0.9s linear infinite',
+    boxShadow: '0 8px 20px rgba(15, 23, 42, 0.45)'
+  },
+  webviewLoadingSpinnerMobile: {
+    width: 'clamp(96px, 16vw, 140px)',
+    height: 'clamp(96px, 16vw, 140px)',
+    borderWidth: '6px'
+  },
+  webviewLoadingLabel: {
+    fontSize: '13px',
+    letterSpacing: '0.35em',
+    textTransform: 'uppercase',
+    color: '#cbd5f5',
+    textShadow: '0 2px 6px rgba(5,7,15,0.4)'
+  },
+  webviewLoadingLabelMobile: {
+    fontSize: 'clamp(30px, 4.5vw, 44px)',
+    letterSpacing: '0.4em'
+  },
   backgroundShelf: {
     position: 'absolute',
     width: 1,

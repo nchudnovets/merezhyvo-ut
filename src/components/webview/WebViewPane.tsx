@@ -1,20 +1,28 @@
-import React, { RefObject } from 'react';
+import React, { RefObject, ReactNode } from 'react';
+import type { CSSProperties } from 'react';
 
 interface WebViewPaneProps {
   webviewHostRef: RefObject<HTMLDivElement>;
   backgroundHostRef: RefObject<HTMLDivElement>;
-  webviewStyle: any;
-  backgroundStyle: any;
+  webviewStyle: CSSProperties;
+  webviewHostStyle?: CSSProperties;
+  backgroundStyle: CSSProperties;
+  overlay?: ReactNode;
 }
 
 const WebViewPane: React.FC<WebViewPaneProps> = ({
   webviewHostRef,
+  webviewHostStyle,
   backgroundHostRef,
   webviewStyle,
-  backgroundStyle
+  backgroundStyle,
+  overlay
 }) => (
   <>
-    <div ref={webviewHostRef} style={webviewStyle} />
+    <div style={webviewStyle}>
+      <div ref={webviewHostRef} style={webviewHostStyle} />
+      {overlay}
+    </div>
     <div ref={backgroundHostRef} style={backgroundStyle} />
   </>
 );

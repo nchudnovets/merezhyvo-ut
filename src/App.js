@@ -259,6 +259,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
 
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
   const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
+  const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
 
   const {
@@ -558,6 +559,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   }, []);
 
   const handleHostStatus = useCallback((tabId, nextStatus) => {
+    updateMetaAction(tabId, { isLoading: nextStatus === 'loading' });
     if (activeIdRef.current !== tabId) return;
     setStatus(nextStatus);
     if (nextStatus === 'loading') {
@@ -571,7 +573,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
-  }, [refreshNavigationState]);
+  }, [refreshNavigationState, updateMetaAction]);
 
   const handleHostUrlChange = useCallback((tabId, nextUrl) => {
     if (!nextUrl) return;
@@ -776,6 +778,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     webviewReadyRef.current = false;
     setWebviewReady(false);
     setStatus('loading');
+    updateMetaAction(tab.id, { isLoading: true });
     if (entry.handle) {
       entry.handle.loadURL(targetUrl);
       return;
@@ -790,7 +793,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     } catch {
       try { view.setAttribute('src', targetUrl); } catch {}
     }
-  }, []);
+  }, [updateMetaAction]);
 
   const activateTabView = useCallback((tab) => {
     if (!tab) return;
@@ -2106,6 +2109,34 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     error: 'Failed to load'
   };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
+  const tabLoadingOverlay = activeTabIsLoading
+    ? (
+      <div
+        style={{
+          ...styles.webviewLoadingOverlay,
+          ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
+        }}
+        aria-live="polite"
+        aria-label="Loading"
+      >
+        <div
+          aria-hidden="true"
+          style={{
+            ...styles.webviewLoadingSpinner,
+            ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
+          }}
+        />
+        <span
+          style={{
+            ...styles.webviewLoadingLabel,
+            ...(mode === 'mobile' ? styles.webviewLoadingLabelMobile : null)
+          }}
+        >
+          Loading…
+        </span>
+      </div>
+    )
+    : null;
 
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
@@ -2142,7 +2173,9 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
         webviewHostRef={webviewHostRef}
         backgroundHostRef={backgroundHostRef}
         webviewStyle={styles.webviewMount}
+        webviewHostStyle={styles.webviewHost}
         backgroundStyle={styles.backgroundShelf}
+        overlay={tabLoadingOverlay}
       />
 
       {!isHtmlFullscreen && (

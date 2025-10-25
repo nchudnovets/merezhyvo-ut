@@ -54,6 +54,7 @@ function createTab(url = DEFAULT_URL, overrides = {}) {
     url: safeUrl,
     title: overrides.title ?? '',
     favicon: overrides.favicon ?? '',
+    isLoading: overrides.isLoading ?? false,
     pinned: !!overrides.pinned,
     muted: !!overrides.muted,
     discarded: overrides.discarded ?? true,
@@ -139,6 +140,7 @@ function serializeState(current) {
       url: tab.url,
       title: tab.title || '',
       favicon: tab.favicon || '',
+      isLoading: !!tab.isLoading,
       pinned: !!tab.pinned,
       muted: !!tab.muted,
       discarded: !!tab.discarded,
@@ -168,6 +170,7 @@ function sanitizeSession(data) {
       id: raw.id && typeof raw.id === 'string' ? raw.id : undefined,
       title: typeof raw.title === 'string' ? raw.title : '',
       favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
+      isLoading: !!raw.isLoading,
       pinned: !!raw.pinned,
       muted: !!raw.muted,
       discarded: !!raw.discarded,
@@ -291,7 +294,8 @@ function newTab(url, options = {}) {
       pinned: !!pinned,
       title: options.title ?? '',
       discarded: false,
-      lastUsedAt: now
+      lastUsedAt: now,
+      isLoading: true
     });
     const demoted = discardAllTabs(prev.tabs);
     const tabs = demoted.slice();
@@ -419,6 +423,10 @@ function updateMeta(id, patch = {}) {
       next.isPlaying = patch.isPlaying;
       altered = true;
     }
+    if (typeof patch.isLoading === 'boolean' && patch.isLoading !== original.isLoading) {
+      next.isLoading = patch.isLoading;
+      altered = true;
+    }
     if (typeof patch.lastUsedAt === 'number' && Number.isFinite(patch.lastUsedAt) && patch.lastUsedAt !== original.lastUsedAt) {
       next.lastUsedAt = patch.lastUsedAt;
       altered = true;
@@ -447,7 +455,8 @@ function navigateActive(url) {
       discarded: false,
       isYouTube: nextIsYouTube,
       isPlaying: current.isYouTube === nextIsYouTube ? current.isPlaying : false,
-      lastUsedAt: now
+      lastUsedAt: now,
+      isLoading: true
     };
     tabs[idx] = updated;
     return {
@@ -465,7 +474,7 @@ function reloadActive() {
     const tabs = prev.tabs.slice();
     const current = tabs[idx];
     if (current.lastUsedAt === now) return prev;
-    tabs[idx] = { ...current, lastUsedAt: now };
+    tabs[idx] = { ...current, lastUsedAt: now, isLoading: true };
     return { ...prev, tabs };
   });
 }

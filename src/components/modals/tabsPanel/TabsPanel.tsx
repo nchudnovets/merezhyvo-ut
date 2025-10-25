@@ -53,7 +53,6 @@ const TabRow = memo(({
     ...styles.tabIconButton,
     ...(modeStyles.tabIconButton || {})
   };
-
   return (
     <div
       role="button"
@@ -364,4 +363,3 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     </div>
   );
 };
-
