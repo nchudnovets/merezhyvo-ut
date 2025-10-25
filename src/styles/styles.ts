@@ -487,5 +487,46 @@ export const styles = {
   modalButtonDisabledMobile: {
     opacity: 0.6,
     cursor: 'wait'
+  },
+  torAlertOverlay: {
+    position: 'fixed',
+    inset: 0,
+    backgroundColor: 'rgba(5, 7, 15, 0.78)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    padding: '32px',
+    zIndex: 400
+  },
+  torAlertCard: {
+    width: '100%',
+    borderRadius: '32px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
+    color: '#f8fafc',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '24px',
+    padding: '36px 28px',
+    textAlign: 'center'
+  },
+  torAlertText: {
+    margin: 0,
+    fontSize: '34px',
+    fontWeight: 600,
+    lineHeight: 1.3
+  },
+  torAlertButton: {
+    alignSelf: 'center',
+    minWidth: '70%',
+    height: '78px',
+    borderRadius: '24px',
+    border: '1px solid rgba(59, 130, 246, 0.6)',
+    background: 'rgba(37, 99, 235, 0.25)',
+    color: '#f8fafc',
+    fontSize: '30px',
+    fontWeight: 600,
+    cursor: 'pointer'
   }
 } as const;

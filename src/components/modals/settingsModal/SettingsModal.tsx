@@ -203,6 +203,30 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     return () => window.removeEventListener('keydown', handleKey);
   }, [onClose]);
 
+  useEffect(() => {
+    const styleId = 'mzr-settings-scroll-style';
+    if (document.getElementById(styleId)) return undefined;
+    const style = document.createElement('style');
+    style.id = styleId;
+    style.textContent = `
+      .settings-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
+      .settings-modal-body::-webkit-scrollbar-track { background: #111827; }
+      .settings-modal-body::-webkit-scrollbar-thumb {
+        background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
+        border-radius: 6px;
+        border: 1px solid rgba(15, 23, 42, 0.6);
+      }
+      .settings-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
+      .settings-modal-body { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
+    `;
+    document.head.appendChild(style);
+    return () => {
+      try {
+        if (style.parentNode) style.parentNode.removeChild(style);
+      } catch {}
+    };
+  }, []);
+
   const containerStyle =
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =
@@ -261,7 +285,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           </button>
         </div>
 
-        <div style={styles.sections}>
+        <div style={styles.sections} className="settings-modal-body">
           <section
             style={{
               ...styles.block,

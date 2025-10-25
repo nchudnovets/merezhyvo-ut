@@ -217,6 +217,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const [torConfigFeedback, setTorConfigFeedback] = useState('');
   const [torIp, setTorIp] = useState('');
   const [torIpLoading, setTorIpLoading] = useState(false);
+  const [torAlertMessage, setTorAlertMessage] = useState('');
 
   // --- Soft keyboard state ---
   const [kbVisible, setKbVisible] = useState(false);
@@ -320,6 +321,18 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   useEffect(() => {
     loadInstalledApps({ quiet: true });
   }, [loadInstalledApps]);
+
+  const showTorAlert = useCallback((message) => {
+    if (mode === 'mobile') {
+      setTorAlertMessage(message);
+    } else {
+      window.alert(message);
+    }
+  }, [mode]);
+
+  const dismissTorAlert = useCallback(() => {
+    setTorAlertMessage('');
+  }, []);
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -1205,7 +1218,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const handleToggleTor = useCallback(async () => {
     const trimmedContainerId = (torContainerId || '').trim();
     if (!torEnabled && !trimmedContainerId) {
-      window.alert('Libertine container identifier is missing in Settings.');
+      showTorAlert('Libertine container identifier is missing in Settings.');
       setShowSettingsModal(true);
       return;
     }
@@ -1215,16 +1228,16 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
         const reason = state?.reason || '';
         if (reason) {
           if (/identifier/i.test(reason)) {
-            window.alert('Libertine container identifier is missing in Settings.');
+            showTorAlert('Libertine container identifier is missing in Settings.');
           } else {
-            window.alert('Tor is missing in your Libertine container. Please check your settings.');
+            showTorAlert('Tor is missing in your Libertine container. Please check your settings.');
           }
         }
       }
     } catch (err) {
       console.error('[Merezhyvo] tor toggle failed', err);
     }
-  }, [torEnabled, torContainerId, setShowSettingsModal]);
+  }, [torEnabled, torContainerId, setShowSettingsModal, showTorAlert]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -2382,6 +2395,30 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
         />
       )}
 
+      {mode === 'mobile' && torAlertMessage && (
+        <div
+          style={styles.torAlertOverlay}
+          role="alertdialog"
+          aria-modal="true"
+          aria-live="assertive"
+          onClick={dismissTorAlert}
+        >
+          <div
+            style={styles.torAlertCard}
+            onClick={(event) => event.stopPropagation()}
+          >
+            <p style={styles.torAlertText}>{torAlertMessage}</p>
+            <button
+              type="button"
+              style={styles.torAlertButton}
+              onClick={dismissTorAlert}
+            >
+              OK
+            </button>
+          </div>
+        </div>
+      )}
+
       <SoftKeyboard
         visible={mode === 'mobile' && kbVisible}
         height={KB_HEIGHT}
@@ -2616,9 +2653,8 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
   }, [stopPowerBlocker]);
 
   const webviewStyle = isFullscreen ? singleStyles.webviewFullscreen : singleStyles.webview;
-  const statusStyle = status === 'error'
-    ? { ...singleStyles.statusBadge, ...singleStyles.statusBadgeError }
-    : singleStyles.statusBadge;
+  const showErrorBadge = status === 'error';
+  const statusStyle = { ...singleStyles.statusBadge, ...(showErrorBadge ? singleStyles.statusBadgeError : null) };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
   const handleZoomSliderChange = useCallback((event) => {
     const { valueAsNumber, value } = event.target;
@@ -2647,10 +2683,36 @@ const SingleWindowApp = ({ initialUrl, mode }) => {
           onDomReady={handleDomReady}
           style={webviewStyle}
         />
+        {status === 'loading' && (
+          <div
+            style={{
+              ...styles.webviewLoadingOverlay,
+              ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
+            }}
+            aria-live="polite"
+            aria-label="Loading"
+          >
+            <div
+              aria-hidden="true"
+              style={{
+                ...styles.webviewLoadingSpinner,
+                ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
+              }}
+            />
+            <span
+              style={{
+                ...styles.webviewLoadingLabel,
+                ...(mode === 'mobile' ? styles.webviewLoadingLabelMobile : null)
+              }}
+            >
+              Loading…
+            </span>
+          </div>
+        )}
       </div>
-      {status !== 'ready' && (
+      {showErrorBadge && (
         <div style={statusStyle}>
-          {status === 'loading' ? 'Loading…' : 'Load failed'}
+          Load failed
         </div>
       )}
       {!isFullscreen && (
