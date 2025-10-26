@@ -386,8 +386,9 @@ export const styles = {
   },
   modalMobile: {
     width: '100%',
-    height: 'min(92vh, 700px)',
-    minHeight: '45vh',
+    height: 'auto',
+    minHeight: 0,
+    maxHeight: '92vh',
     borderRadius: '28px 28px 0 0',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.98)',
@@ -398,7 +399,8 @@ export const styles = {
     padding: 'calc(2vh) calc(4vw)',
     gap: 'calc(1vh)',
     boxSizing: 'border-box',
-    marginTop: 'clamp(14px, 4vh, 28px)'
+    marginTop: 'clamp(14px, 4vh, 28px)',
+    overflowY: 'auto'
   },
   modalHeaderMobile: {
     display: 'flex',
@@ -511,22 +513,41 @@ export const styles = {
     padding: '36px 28px',
     textAlign: 'center'
   },
+  torAlertCardMobile: {
+    width: '100%'
+  },
+  torAlertCardDesktop: {
+    width: 'min(420px, 90vw)'
+  },
   torAlertText: {
     margin: 0,
-    fontSize: '34px',
     fontWeight: 600,
     lineHeight: 1.3
   },
+  torAlertTextMobile: {
+    fontSize: '34px'
+  },
+  torAlertTextDesktop: {
+    fontSize: '22px'
+  },
   torAlertButton: {
     alignSelf: 'center',
-    minWidth: '70%',
-    height: '78px',
     borderRadius: '24px',
     border: '1px solid rgba(59, 130, 246, 0.6)',
     background: 'rgba(37, 99, 235, 0.25)',
     color: '#f8fafc',
-    fontSize: '30px',
     fontWeight: 600,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    padding: '0 24px'
+  },
+  torAlertButtonMobile: {
+    minWidth: '70%',
+    height: '78px',
+    fontSize: '30px'
+  },
+  torAlertButtonDesktop: {
+    minWidth: '220px',
+    height: '52px',
+    fontSize: '18px'
   }
 } as const;

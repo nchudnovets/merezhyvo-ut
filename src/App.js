@@ -323,12 +323,8 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   }, [loadInstalledApps]);
 
   const showTorAlert = useCallback((message) => {
-    if (mode === 'mobile') {
-      setTorAlertMessage(message);
-    } else {
-      window.alert(message);
-    }
-  }, [mode]);
+    setTorAlertMessage(message);
+  }, []);
 
   const dismissTorAlert = useCallback(() => {
     setTorAlertMessage('');
@@ -2395,7 +2391,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
         />
       )}
 
-      {mode === 'mobile' && torAlertMessage && (
+      {torAlertMessage && (
         <div
           style={styles.torAlertOverlay}
           role="alertdialog"
@@ -2404,13 +2400,26 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
           onClick={dismissTorAlert}
         >
           <div
-            style={styles.torAlertCard}
+            style={{
+              ...styles.torAlertCard,
+              ...(mode === 'mobile' ? styles.torAlertCardMobile : styles.torAlertCardDesktop)
+            }}
             onClick={(event) => event.stopPropagation()}
           >
-            <p style={styles.torAlertText}>{torAlertMessage}</p>
+            <p
+              style={{
+                ...styles.torAlertText,
+                ...(mode === 'mobile' ? styles.torAlertTextMobile : styles.torAlertTextDesktop)
+              }}
+            >
+              {torAlertMessage}
+            </p>
             <button
               type="button"
-              style={styles.torAlertButton}
+              style={{
+                ...styles.torAlertButton,
+                ...(mode === 'mobile' ? styles.torAlertButtonMobile : styles.torAlertButtonDesktop)
+              }}
               onClick={dismissTorAlert}
             >
               OK
