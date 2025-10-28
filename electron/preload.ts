@@ -1,26 +1,80 @@
 'use strict';
 
-const { contextBridge, ipcRenderer } = require('electron');
-const pkg = require('../package.json');
+import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron';
+import pkgJson from '../package.json';
 
-const appInfo = {
+import type {
+  MerezhyvoAPI,
+  MerezhyvoAppInfo,
+  MerezhyvoOpenUrlPayload,
+  MerezhyvoShortcutRequest,
+  MerezhyvoShortcutResult,
+  MerezhyvoTorToggleOptions,
+  MerezhyvoTorState,
+  MerezhyvoSessionState,
+  MerezhyvoSettingsState,
+  MerezhyvoInstalledAppsResult
+} from '../src/types/preload';
+import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
+
+type PackageMeta = {
+  productName?: string;
+  name?: string;
+  version?: string;
+  description?: string;
+};
+
+const pkg = pkgJson as PackageMeta;
+
+const appInfo: MerezhyvoAppInfo = {
   name: pkg.productName || pkg.name || 'Merezhyvo',
   version: pkg.version || '0.0.0',
   description: pkg.description || ''
 };
+
 const runtimeVersions = {
   chromium: process.versions.chrome || '',
   electron: process.versions.electron || '',
   node: process.versions.node || ''
 };
 
-/**
- * Expose a minimal, safe API to the renderer.
- * Usage in renderer:
- *   const off = window.merezhyvo?.onMode((mode) => { /* apply mode *\/ });
- *   off && off(); // to unsubscribe
- */
-contextBridge.exposeInMainWorld('merezhyvo', {
+type ShortcutIconInput = MerezhyvoShortcutRequest['icon'];
+
+type CreateShortcutIconPayload = {
+  name: string;
+  dataBase64: string;
+};
+
+type CreateShortcutPayload = {
+  title: string;
+  url: string;
+  single: boolean;
+  icon: CreateShortcutIconPayload | null;
+};
+
+const noopUnsubscribe: Unsubscribe = () => {};
+
+const encodeIconPayload = (icon: ShortcutIconInput): CreateShortcutIconPayload | null => {
+  if (!icon) return null;
+  const rawName = typeof icon.name === 'string' ? icon.name : '';
+  const name = rawName.trim().length ? rawName.trim() : 'icon.png';
+  const dataValue = (icon as { data?: unknown }).data;
+  if (typeof dataValue === 'string') {
+    return { name, dataBase64: Buffer.from(dataValue).toString('base64') };
+  }
+  if (dataValue instanceof ArrayBuffer) {
+    return { name, dataBase64: Buffer.from(new Uint8Array(dataValue)).toString('base64') };
+  }
+  if (dataValue instanceof Uint8Array) {
+    return { name, dataBase64: Buffer.from(dataValue).toString('base64') };
+  }
+  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(dataValue)) {
+    return { name, dataBase64: (dataValue as Buffer).toString('base64') };
+  }
+  return null;
+};
+
+const exposeApi: MerezhyvoAPI = {
   appInfo: {
     ...appInfo,
     chromium: runtimeVersions.chromium,
@@ -28,81 +82,139 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     node: runtimeVersions.node
   },
   onMode: (handler) => {
-    if (typeof handler !== 'function') return () => {};
+    if (typeof handler !== 'function') return noopUnsubscribe;
     const channel = 'merezhyvo:mode';
-    const wrapped = (_e, mode) => { try { handler(mode); } catch {} };
+    const wrapped = (_event: IpcRendererEvent, incoming: unknown) => {
+      try {
+        const normalized: Mode = incoming === 'mobile' ? 'mobile' : 'desktop';
+        handler(normalized);
+      } catch {
+        // noop
+      }
+    };
     ipcRenderer.on(channel, wrapped);
     return () => {
-      try { ipcRenderer.removeListener(channel, wrapped); } catch {}
+      try {
+        ipcRenderer.removeListener(channel, wrapped);
+      } catch {
+        // noop
+      }
     };
   },
 
   notifyTabsReady: () => {
-    try { ipcRenderer.send('tabs:ready'); } catch {}
+    try {
+      ipcRenderer.send('tabs:ready');
+    } catch {
+      // noop
+    }
   },
 
-  onOpenUrl: (cb) => {
-    if (typeof cb !== 'function') return () => {};
-    const ch = 'mzr:open-url';
-    const fn = (_e, payload) => {
+  onOpenUrl: (handler) => {
+    if (typeof handler !== 'function') return noopUnsubscribe;
+    const channel = 'mzr:open-url';
+    const listener = (_event: IpcRendererEvent, payload: unknown) => {
       try {
-        const url = typeof payload === 'string' ? payload : payload?.url;
-        const activate = typeof payload === 'object' ? !!payload.activate : true;
-        if (url) cb({ url, activate });
-      } catch {}
+        const url =
+          typeof payload === 'string'
+            ? payload
+            : typeof payload === 'object' && payload && typeof (payload as { url?: unknown }).url === 'string'
+            ? ((payload as { url?: string }).url ?? '')
+            : '';
+        const activate =
+          typeof payload === 'object' && payload && typeof (payload as { activate?: unknown }).activate === 'boolean'
+            ? ((payload as { activate?: boolean }).activate ?? true)
+            : true;
+        if (url) {
+          const openPayload: MerezhyvoOpenUrlPayload = { url, activate };
+          handler(openPayload);
+        }
+      } catch {
+        // noop
+      }
     };
-    ipcRenderer.on(ch, fn);
-    return () => ipcRenderer.removeListener(ch, fn);
+    ipcRenderer.on(channel, listener);
+    return () => {
+      try {
+        ipcRenderer.removeListener(channel, listener);
+      } catch {
+        // noop
+      }
+    };
   },
 
-  /**
-   * Ask main process to create a .desktop shortcut for the current site.
-   * `icon` is optional and usually omitted (main tries to fetch favicon itself).
-   */
-  createShortcut: async ({ title, url, single = true, icon }) => {
-    const payload = {
-      title: String(title || '').trim(),
-      url: String(url || '').trim(),
-      single: !!single,
-      icon: (icon && icon.data && icon.name)
-        ? {
-            name: String(icon.name || 'icon.png'),
-            // `Buffer` is available in preload (Node in preload is enabled)
-            dataBase64: Buffer.from(icon.data).toString('base64')
-          }
-        : null
+  createShortcut: async (input: MerezhyvoShortcutRequest): Promise<MerezhyvoShortcutResult> => {
+    const payload: CreateShortcutPayload = {
+      title: String(input?.title ?? '').trim(),
+      url: String(input?.url ?? '').trim(),
+      single: Boolean(input?.single ?? true),
+      icon: encodeIconPayload(input?.icon ?? null)
     };
     try {
-      return await ipcRenderer.invoke('merezhyvo:createShortcut', payload);
+      return (await ipcRenderer.invoke('merezhyvo:createShortcut', payload)) as MerezhyvoShortcutResult;
     } catch (err) {
       return { ok: false, error: String(err) };
     }
   },
 
   tor: {
-    toggle: (options) => ipcRenderer.invoke('tor:toggle', options || {}),
-    getState: () => ipcRenderer.invoke('tor:get-state'),
-    onState: (cb) => {
-      if (typeof cb !== 'function') return () => {};
-      const ch = 'tor:state';
-      const fn = (_e, s) => { try { cb(!!s.enabled, s.reason || null); } catch {} };
-      ipcRenderer.on(ch, fn);
-      return () => ipcRenderer.removeListener(ch, fn);
+    toggle: (options?: MerezhyvoTorToggleOptions) =>
+      ipcRenderer.invoke('tor:toggle', options ?? {}) as Promise<MerezhyvoTorState>,
+    getState: () => ipcRenderer.invoke('tor:get-state') as Promise<MerezhyvoTorState>,
+    onState: (handler) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'tor:state';
+      const listener = (_event: IpcRendererEvent, state: MerezhyvoTorState | { enabled?: unknown; reason?: unknown }) => {
+        try {
+          const enabled =
+            typeof state?.enabled === 'boolean'
+              ? state.enabled
+              : Boolean((state as { enabled?: unknown })?.enabled);
+          const reason =
+            typeof state?.reason === 'string'
+              ? state.reason
+              : (state as { reason?: unknown })?.reason != null
+              ? String((state as { reason?: unknown }).reason)
+              : null;
+          handler(enabled, reason);
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    }
+  },
+
+  openContextMenuAt: (x: number, y: number, dpr = 1) => {
+    try {
+      ipcRenderer.send('mzr:ctxmenu:open', { x, y, dpr });
+    } catch {
+      // noop
     }
   },
 
   session: {
     load: async () => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:session:load');
+        return (await ipcRenderer.invoke('merezhyvo:session:load')) as MerezhyvoSessionState | null;
       } catch (err) {
         console.error('[merezhyvo] session.load failed', err);
         return null;
       }
     },
-    save: async (data) => {
+    save: async (data: MerezhyvoSessionState) => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:session:save', data);
+        return (await ipcRenderer.invoke(
+          'merezhyvo:session:save',
+          data
+        )) as { ok: boolean; error?: string } | null;
       } catch (err) {
         console.error('[merezhyvo] session.save failed', err);
         return { ok: false, error: String(err) };
@@ -113,7 +225,7 @@ contextBridge.exposeInMainWorld('merezhyvo', {
   settings: {
     load: async () => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:settings:load');
+        return (await ipcRenderer.invoke('merezhyvo:settings:load')) as MerezhyvoSettingsState;
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return { schema: 1, installedApps: [], tor: { containerId: '' } };
@@ -122,15 +234,20 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     installedApps: {
       list: async () => {
         try {
-          return await ipcRenderer.invoke('merezhyvo:settings:installedApps:list');
+          return (await ipcRenderer.invoke(
+            'merezhyvo:settings:installedApps:list'
+          )) as MerezhyvoInstalledAppsResult;
         } catch (err) {
           console.error('[merezhyvo] settings.installedApps.list failed', err);
           return { ok: false, error: String(err), installedApps: [] };
         }
       },
-      remove: async (idOrPayload) => {
+      remove: async (payload: Parameters<MerezhyvoAPI['settings']['installedApps']['remove']>[0]) => {
         try {
-          return await ipcRenderer.invoke('merezhyvo:settings:installedApps:remove', idOrPayload);
+          return (await ipcRenderer.invoke(
+            'merezhyvo:settings:installedApps:remove',
+            payload ?? null
+          )) as { ok: boolean; error?: string };
         } catch (err) {
           console.error('[merezhyvo] settings.installedApps.remove failed', err);
           return { ok: false, error: String(err) };
@@ -138,9 +255,12 @@ contextBridge.exposeInMainWorld('merezhyvo', {
       }
     },
     tor: {
-      update: async (payload) => {
+      update: async (payload?: { containerId?: string }) => {
         try {
-          return await ipcRenderer.invoke('merezhyvo:settings:tor:update', payload || {});
+          return (await ipcRenderer.invoke(
+            'merezhyvo:settings:tor:update',
+            payload ?? {}
+          )) as TorConfigResult;
         } catch (err) {
           console.error('[merezhyvo] settings.tor.update failed', err);
           return { ok: false, error: String(err) };
@@ -152,13 +272,13 @@ contextBridge.exposeInMainWorld('merezhyvo', {
   power: {
     start: async () => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:power:start');
+        return (await ipcRenderer.invoke('merezhyvo:power:start')) as number | null;
       } catch (err) {
         console.error('[merezhyvo] power.start failed', err);
         return null;
       }
     },
-    stop: async (id) => {
+    stop: async (id?: number | null) => {
       try {
         return await ipcRenderer.invoke('merezhyvo:power:stop', id ?? null);
       } catch (err) {
@@ -166,30 +286,27 @@ contextBridge.exposeInMainWorld('merezhyvo', {
         return null;
       }
     },
-    isStarted: async (id) => {
+    isStarted: async (id?: number | null) => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:power:isStarted', id ?? null);
+        return (await ipcRenderer.invoke('merezhyvo:power:isStarted', id ?? null)) as boolean;
       } catch (err) {
         console.error('[merezhyvo] power.isStarted failed', err);
         return false;
       }
     }
   }
-});
+};
 
-// ---------------------------------------------------------------------------
-// Deny VP9/AV1 by faking support checks (h264ify-like behavior).
-// Keeps sites from selecting VP9/AV1 when H.264 is preferable on-device.
-// ---------------------------------------------------------------------------
+contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
+
 (() => {
   try {
-    const deny = (type = '') => /(webm|vp9|av01|av1)/i.test(type);
+    const deny = (type = ''): boolean => /(webm|vp9|av01|av1)/i.test(type);
 
-    const origMSE =
-      globalThis.MediaSource && globalThis.MediaSource.isTypeSupported;
+    const origMSE = globalThis.MediaSource?.isTypeSupported;
     if (origMSE) {
       Object.defineProperty(MediaSource, 'isTypeSupported', {
-        value: (type) => (!deny(type) && origMSE.call(MediaSource, type)),
+        value: (type: string) => !deny(type) && origMSE.call(MediaSource, type),
         configurable: true
       });
     }
@@ -197,44 +314,36 @@ contextBridge.exposeInMainWorld('merezhyvo', {
     const videoProto = HTMLMediaElement.prototype;
     const origCanPlay = videoProto.canPlayType;
     Object.defineProperty(videoProto, 'canPlayType', {
-      value: function (type) {
+      value: function (this: HTMLMediaElement, type: string) {
         if (deny(type)) return '';
         return origCanPlay.call(this, type);
       },
       configurable: true
     });
 
-    // (UA override not used; left here as a safe no-op placeholder.)
     try {
-      const desc = Object.getOwnPropertyDescriptor(
-        Navigator.prototype,
-        'userAgent'
-      );
-      if (desc && desc.get) {
+      const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
+      if (desc?.get) {
         // const ua = desc.get.call(navigator);
         // no UA mutation in preload
       }
-    } catch {}
-  } catch {}
+    } catch {
+      // noop
+    }
+  } catch {
+    // noop
+  }
 })();
 
-// ---------------------------------------------------------------------------
-// Optional battery-saver for YouTube: enforce 720p.
-// Enable with env MZV_LIMIT_QUALITY=1
-// ---------------------------------------------------------------------------
 (() => {
   try {
     if (process.env.MZV_LIMIT_QUALITY !== '1') return;
-    const host = (location.hostname || '').toLowerCase();
+    const host = (globalThis.location?.hostname ?? '').toLowerCase();
     if (!/(^|\.)youtube\.com$/.test(host)) return;
 
-    localStorage.setItem(
-      'yt-player-quality',
-      JSON.stringify({ data: 'hd720' })
-    );
-    localStorage.setItem(
-      'yt-player-quality-manual',
-      JSON.stringify({ data: true })
-    );
-  } catch {}
+    globalThis.localStorage?.setItem('yt-player-quality', JSON.stringify({ data: 'hd720' }));
+    globalThis.localStorage?.setItem('yt-player-quality-manual', JSON.stringify({ data: true }));
+  } catch {
+    // noop
+  }
 })();
