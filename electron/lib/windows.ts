@@ -1,15 +1,27 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const { app, BrowserWindow, screen, session } = require('electron');
-const { resolveMode } = require('../mode');
+import path from 'path';
+import fs from 'fs';
+import {
+  app,
+  BrowserWindow,
+  screen,
+  session,
+  type App,
+  type Input,
+  type Session,
+  type WebContents,
+  type WebPreferences
+} from 'electron';
+import { resolveMode } from '../mode';
 
-const DEFAULT_URL = 'https://duckduckgo.com';
-const MOBILE_USER_AGENT = 'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
-const DESKTOP_USER_AGENT = 'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+export const DEFAULT_URL = 'https://duckduckgo.com';
+export const MOBILE_USER_AGENT =
+  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
+export const DESKTOP_USER_AGENT =
+  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
 
-const DESKTOP_ONLY_HOSTS = new Set([
+const DESKTOP_ONLY_HOSTS = new Set<string>([
   'youtube.com',
   'm.youtube.com',
   'music.youtube.com',
@@ -23,48 +35,72 @@ const DESKTOP_ONLY_HOSTS = new Set([
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 
-const baseZoomFor = (mode) => (mode === 'mobile' ? 2.0 : 1.0);
+export type Mode = 'mobile' | 'desktop';
 
-let launchConfig = null;
-let currentMode = null; // 'mobile' | 'desktop'
-let currentUserAgentMode = 'desktop';
-let mainWindow = null;
-const pendingOpenUrls = [];
+export const baseZoomFor = (mode: Mode | null | undefined): number => (mode === 'mobile' ? 2.0 : 1.0);
+
+type LaunchConfig = {
+  url?: string;
+  fullscreen?: boolean;
+  devtools?: boolean;
+  modeOverride?: Mode;
+  single?: boolean;
+};
+
+type WindowRole = 'main' | 'single' | string;
+type MerezhyvoWindow = BrowserWindow & { __mzrRole?: WindowRole };
+type AppWithDesktopName = App & { setDesktopName?: (name: string) => void };
+type SessionWithOverride = Session & { __mzrUAOverrideInstalled?: boolean };
+type WebContentsWithHost = WebContents & { hostWebContents?: WebContents | null };
+
+let launchConfig: LaunchConfig | null = null;
+let currentMode: Mode | null = null;
+let currentUserAgentMode: Mode = 'desktop';
+let mainWindow: MerezhyvoWindow | null = null;
+const pendingOpenUrls: string[] = [];
 let tabsReady = false;
 
-function installDesktopName() {
-  if (process.platform !== 'linux' || typeof app.setDesktopName !== 'function') return;
+export function installDesktopName(): void {
+  const desktopAwareApp = app as AppWithDesktopName;
+  if (process.platform !== 'linux' || typeof desktopAwareApp.setDesktopName !== 'function') return;
 
   const base = 'merezhyvo.naz.r_merezhyvo';
-  const ver = (typeof app.getVersion === 'function') ? app.getVersion() : null;
+  const ver = typeof app.getVersion === 'function' ? app.getVersion() : null;
 
-  let desktopName = ver ? `${base}_${ver}.desktop` : null;
+  let desktopName: string | null = ver ? `${base}_${ver}.desktop` : null;
 
   if (!desktopName) {
     try {
       const appsDir = path.join(app.getPath('home'), '.local', 'share', 'applications');
-      const candidates = fs.readdirSync(appsDir)
+      const candidates = fs
+        .readdirSync(appsDir)
         .filter((file) => file.startsWith(`${base}_`) && file.endsWith('.desktop'))
         .sort()
         .reverse();
-      if (candidates.length) desktopName = candidates[0];
-    } catch {}
+      if (candidates.length) desktopName = candidates[0] ?? null;
+    } catch {
+      // ignore read failures
+    }
   }
 
   if (desktopName) {
-    try { app.setDesktopName(desktopName); } catch {}
+    try {
+      desktopAwareApp.setDesktopName?.(desktopName);
+    } catch {
+      // noop
+    }
   }
 }
 
-function setLaunchConfig(config) {
+export function setLaunchConfig(config: LaunchConfig | null | undefined): void {
   launchConfig = config ? { ...config } : null;
 }
 
-function getLaunchConfig() {
+export function getLaunchConfig(): LaunchConfig | null {
   return launchConfig;
 }
 
-function isDesktopOnlyUrl(url) {
+function isDesktopOnlyUrl(url: string): boolean {
   try {
     const hostname = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
     if (DESKTOP_ONLY_HOSTS.has(hostname)) return true;
@@ -76,108 +112,133 @@ function isDesktopOnlyUrl(url) {
   }
 }
 
-function installUserAgentOverride(targetSession = session.defaultSession) {
-  if (!targetSession || targetSession.__mzrUAOverrideInstalled) return;
-  targetSession.__mzrUAOverrideInstalled = true;
-  targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
+export function installUserAgentOverride(targetSession: Session | null = session.defaultSession): void {
+  if (!targetSession) return;
+  const sessionWithFlag = targetSession as SessionWithOverride;
+  if (sessionWithFlag.__mzrUAOverrideInstalled) return;
+  sessionWithFlag.__mzrUAOverrideInstalled = true;
+  sessionWithFlag.webRequest.onBeforeSendHeaders((details, callback) => {
     const headers = { ...details.requestHeaders };
-    if (isDesktopOnlyUrl(details.url)) {
-      headers['User-Agent'] = DESKTOP_USER_AGENT;
-    } else {
-      headers['User-Agent'] = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-    }
+    const ua = isDesktopOnlyUrl(details.url)
+      ? DESKTOP_USER_AGENT
+      : currentUserAgentMode === 'mobile'
+      ? MOBILE_USER_AGENT
+      : DESKTOP_USER_AGENT;
+    headers['User-Agent'] = ua;
     callback({ cancel: false, requestHeaders: headers });
   });
 }
 
-function applyUserAgentForUrl(contents, url) {
+export function applyUserAgentForUrl(contents: WebContents | null | undefined, url: string): void {
   if (!contents) return;
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
   const ua = isDesktopOnlyUrl(url) ? DESKTOP_USER_AGENT : baseUA;
-  try { contents.setUserAgent(ua); } catch {}
+  try {
+    contents.setUserAgent(ua);
+  } catch {
+    // noop
+  }
 }
 
-function setCurrentMode(mode) {
+export function setCurrentMode(mode: Mode | string | null | undefined): void {
   currentMode = mode === 'mobile' ? 'mobile' : 'desktop';
   currentUserAgentMode = currentMode;
 }
 
-function getCurrentMode() {
+export function getCurrentMode(): Mode | null {
   return currentMode;
 }
 
-function getMainWindow() {
+export function getMainWindow(): MerezhyvoWindow | null {
   return mainWindow && !mainWindow.isDestroyed?.() ? mainWindow : null;
 }
 
-function findMainWindow() {
+function findMainWindow(): MerezhyvoWindow | null {
   const cached = getMainWindow();
   if (cached && cached.__mzrRole !== 'single') {
     return cached;
   }
-  for (const w of BrowserWindow.getAllWindows()) {
-    if (!w.isDestroyed?.() && w.__mzrRole !== 'single') return w;
+  for (const candidate of BrowserWindow.getAllWindows()) {
+    const typed = candidate as MerezhyvoWindow;
+    if (!typed.isDestroyed?.() && typed.__mzrRole !== 'single') return typed;
   }
   return null;
 }
 
-function focusMainWindow(winInput) {
-  const win = winInput || getMainWindow();
+export function focusMainWindow(winInput?: MerezhyvoWindow | null): void {
+  const win = winInput ?? getMainWindow();
   if (!win || win.isDestroyed?.()) return;
   try {
     if (win.isMinimized()) win.restore();
     win.show();
     win.focus();
-    if (typeof win.moveTop === 'function') win.moveTop();
+    (win as { moveTop?: () => void }).moveTop?.();
     win.flashFrame(true);
-    setTimeout(() => { try { win.flashFrame(false); } catch {} }, 1200);
-  } catch {}
+    setTimeout(() => {
+      try {
+        win.flashFrame(false);
+      } catch {
+        // noop
+      }
+    }, 1200);
+  } catch {
+    // noop
+  }
 }
 
-function sendOpenUrl(win, url, activate = true) {
+export function sendOpenUrl(win: MerezhyvoWindow | null | undefined, url: string, activate = true): void {
   try {
-    if (win && !win.isDestroyed() && win.webContents) {
-      win.webContents.send('mzr:open-url', { url, activate });
+    if (win && !win.isDestroyed?.()) {
+      win.webContents?.send('mzr:open-url', { url, activate });
     }
-  } catch {}
+  } catch {
+    // noop
+  }
 }
 
-function flushPendingUrls(win) {
-  if (!win || win.isDestroyed?.()) return;
-  if (!tabsReady) return;
+export function flushPendingUrls(win: MerezhyvoWindow | null | undefined): void {
+  if (!win || win.isDestroyed?.() || !tabsReady) return;
   try {
     while (pendingOpenUrls.length) {
-      const url = pendingOpenUrls.shift();
-      sendOpenUrl(win, url, /* activate */ true);
+      const nextUrl = pendingOpenUrls.shift();
+      if (!nextUrl) continue;
+      sendOpenUrl(win, nextUrl, true);
     }
-  } catch {}
+  } catch {
+    // noop
+  }
 }
 
-function markTabsReady(targetWindow) {
+export function markTabsReady(targetWindow?: MerezhyvoWindow | null): void {
   tabsReady = true;
-  const win = targetWindow || getMainWindow();
+  const win = targetWindow ?? getMainWindow();
   if (win) flushPendingUrls(win);
 }
 
-function areTabsReady() {
+export function areTabsReady(): boolean {
   return tabsReady;
 }
 
-async function openInMain(url, { activate = true } = {}) {
+export async function openInMain(
+  url: string,
+  { activate = true }: { activate?: boolean } = {}
+): Promise<void> {
   const win = await getOrCreateMainWindow({ activate });
   if (!win) return;
   if (!tabsReady || win.webContents.isLoading()) {
     pendingOpenUrls.push(url);
     return;
   }
-  sendOpenUrl(win, url, /* activate */ true);
+  sendOpenUrl(win, url, true);
 }
 
-function getCurrentUserAgentMode() {
+export function getCurrentUserAgentMode(): Mode {
   return currentUserAgentMode;
 }
 
-async function getOrCreateMainWindow({ activate = true } = {}) {
+export async function getOrCreateMainWindow(
+  { activate = true }: { activate?: boolean } = {}
+): Promise<MerezhyvoWindow | null> {
   let win = findMainWindow();
   if (win) {
     if (activate) focusMainWindow(win);
@@ -185,29 +246,33 @@ async function getOrCreateMainWindow({ activate = true } = {}) {
   }
 
   win = createMainWindow({ role: 'main' });
-  await new Promise((resolve) => {
+  await new Promise<void>((resolve) => {
     const onReady = () => {
-      win.off('ready-to-show', onReady);
+      win?.off('ready-to-show', onReady);
       if (activate) focusMainWindow(win);
-      resolve(win);
+      resolve();
     };
-    if (win.isReadyToShow && win.isReadyToShow()) onReady();
+    const maybeReady = win as MerezhyvoWindow & { isReadyToShow?: () => boolean };
+    if (typeof maybeReady.isReadyToShow === 'function' && maybeReady.isReadyToShow()) onReady();
     else win.once('ready-to-show', onReady);
   });
   return win;
 }
 
-function queuePendingUrl(url) {
+export function queuePendingUrl(url: string): void {
   pendingOpenUrls.push(url);
 }
 
-async function handleWindowOpenFromContents(contents, url) {
-  const embedder = contents.hostWebContents || contents;
+export async function handleWindowOpenFromContents(contents: WebContents, url: string): Promise<void> {
+  const embedder = (contents as WebContentsWithHost).hostWebContents ?? contents;
   let isSingle = false;
   try {
-    const u = new URL(embedder.getURL());
-    isSingle = u.searchParams.get('single') === '1';
-  } catch {}
+    const currentUrl = embedder.getURL();
+    const parsed = new URL(currentUrl);
+    isSingle = parsed.searchParams.get('single') === '1';
+  } catch {
+    // noop
+  }
 
   if (isSingle) {
     await openInMain(url, { activate: true });
@@ -215,13 +280,13 @@ async function handleWindowOpenFromContents(contents, url) {
   }
 
   try {
-    const win = BrowserWindow.fromWebContents(embedder);
-    if (win && !win.isDestroyed()) {
+    const win = BrowserWindow.fromWebContents(embedder) as MerezhyvoWindow | null;
+    if (win && !win.isDestroyed?.()) {
       if (!tabsReady || win.webContents.isLoading()) {
         pendingOpenUrls.push(url);
         focusMainWindow(win);
       } else {
-        sendOpenUrl(win, url, /* activate */ true);
+        sendOpenUrl(win, url, true);
         focusMainWindow(win);
       }
     } else {
@@ -232,31 +297,50 @@ async function handleWindowOpenFromContents(contents, url) {
   }
 }
 
-function applyMobileBounds(win) {
+function applyMobileBounds(win: MerezhyvoWindow): void {
   try {
     const display = screen.getPrimaryDisplay();
-    const base = display.size || display.workArea || { width: 0, height: 0 };
-    const targetW = Math.max(win.getMinimumSize()[0], base.width - SAFE_RIGHT - 1);
-    const targetH = Math.max(win.getMinimumSize()[1], base.height - SAFE_BOTTOM - 1);
+    const base = display.size ?? display.workArea ?? { width: 0, height: 0 };
+    const [minWidth = 0, minHeight = 0] = win.getMinimumSize();
+    const baseWidth = typeof base.width === 'number' ? base.width : 0;
+    const baseHeight = typeof base.height === 'number' ? base.height : 0;
+    const targetW = Math.max(minWidth, baseWidth - SAFE_RIGHT - 1);
+    const targetH = Math.max(minHeight, baseHeight - SAFE_BOTTOM - 1);
     win.setFullScreen(false);
     win.setBounds({ x: 0, y: 0, width: targetW, height: targetH }, false);
-  } catch {}
+  } catch {
+    // noop
+  }
 }
 
-function createMainWindow(opts = {}) {
-  const config = launchConfig || {};
+type CreateMainWindowOptions = {
+  role?: WindowRole;
+};
+
+export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoWindow {
+  const config = launchConfig ?? {};
   const { url: startUrl = DEFAULT_URL, fullscreen, devtools, modeOverride } = config;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
-  const initialMode = modeOverride || resolveMode();
+  const initialMode = (modeOverride ?? resolveMode()) as Mode;
   currentMode = initialMode;
 
   if (!fs.existsSync(distIndex)) {
     console.error('[Merezhyvo] Missing renderer bundle at', distIndex);
   }
 
-  const resolvedMode = initialMode === 'desktop' ? 'desktop' : 'mobile';
+  const resolvedMode: Mode = initialMode === 'desktop' ? 'desktop' : 'mobile';
   currentUserAgentMode = resolvedMode;
   installUserAgentOverride(session.defaultSession);
+  const webPreferences: WebPreferences & { nativeWindowOpen?: boolean } = {
+    contextIsolation: true,
+    nodeIntegration: false,
+    sandbox: false,
+    webviewTag: true,
+    spellcheck: false,
+    nativeWindowOpen: false,
+    defaultFontSize: initialMode === 'mobile' ? 28 : 16,
+    preload: path.resolve(__dirname, 'preload.js')
+  };
   const win = new BrowserWindow({
     width: 600,
     height: 800,
@@ -271,106 +355,103 @@ function createMainWindow(opts = {}) {
     autoHideMenuBar: true,
     resizable: true,
     useContentSize: true,
-    webPreferences: {
-      contextIsolation: true,
-      nodeIntegration: false,
-      sandbox: false,
-      webviewTag: true,
-      spellcheck: false,
-      nativeWindowOpen: false,
-      defaultFontSize: initialMode === 'mobile' ? 28 : 16,
-      preload: path.resolve(__dirname, 'preload.js')
-    }
+    webPreferences
   });
+  const typedWin = win as MerezhyvoWindow;
   try {
-    applyUserAgentForUrl(win.webContents, startUrl);
-  } catch {}
+    applyUserAgentForUrl(typedWin.webContents, startUrl);
+  } catch {
+    // noop
+  }
 
-  win.webContents.on('did-attach-webview', (_event, contents) => {
+  typedWin.webContents.on('did-attach-webview', (_event, contents) => {
     try {
-      applyUserAgentForUrl(contents, contents.getURL ? contents.getURL() : '');
-    } catch {}
-    contents.on('did-start-navigation', (_evt, url, isInPlace, isMainFrame) => {
-      if (isMainFrame) applyUserAgentForUrl(contents, url);
+      const current = typeof contents.getURL === 'function' ? contents.getURL() : '';
+      applyUserAgentForUrl(contents, current);
+    } catch {
+      // noop
+    }
+    contents.on('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
+      if (isMainFrame) applyUserAgentForUrl(contents, navUrl);
     });
   });
 
-  win.once('ready-to-show', () => {
+  typedWin.once('ready-to-show', () => {
     if (initialMode === 'mobile') {
-      applyMobileBounds(win);
+      applyMobileBounds(typedWin);
     } else if (fullscreen) {
-      win.setFullScreen(true);
+      typedWin.setFullScreen(true);
     }
 
-    if (devtools) win.webContents.openDevTools({ mode: 'detach' });
-    win.show();
-    win.focus();
+    if (devtools) typedWin.webContents.openDevTools({ mode: 'detach' });
+    typedWin.show();
+    typedWin.focus();
   });
 
   const rebalanceBounds = () => {
-    if (initialMode === 'mobile') applyMobileBounds(win);
+    if (initialMode === 'mobile') applyMobileBounds(typedWin);
   };
   screen.on('display-metrics-changed', rebalanceBounds);
   screen.on('display-added', rebalanceBounds);
   screen.on('display-removed', rebalanceBounds);
 
-  win.on('closed', () => {
-    if (mainWindow === win) mainWindow = null;
+  typedWin.on('closed', () => {
+    if (mainWindow === typedWin) mainWindow = null;
     screen.off('display-metrics-changed', rebalanceBounds);
     screen.off('display-added', rebalanceBounds);
     screen.off('display-removed', rebalanceBounds);
   });
 
-  let role = 'main';
-  if (opts.role) {
-    role = opts.role;
-  } else if (config.single) {
+  let role: WindowRole = opts.role ?? 'main';
+  if (!opts.role && config.single) {
     role = 'single';
   }
-  win.__mzrRole = role;
+  typedWin.__mzrRole = role;
 
-  const query = { start: startUrl, mode: initialMode };
+  const query: Record<string, string> = { start: startUrl, mode: initialMode };
   if (role === 'single') {
     query.single = '1';
   }
-  win.loadFile(distIndex, { query });
+  typedWin.loadFile(distIndex, { query });
 
-  win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+  typedWin.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
   const resetHostZoom = () => {
-    if (win.isDestroyed()) return;
-    const current = win.webContents.getZoomFactor();
+    if (typedWin.isDestroyed()) return;
+    const current = typedWin.webContents.getZoomFactor();
     if (typeof current === 'number' && Math.abs(current - 1) > 1e-3) {
-      win.webContents.setZoomFactor(1);
+      typedWin.webContents.setZoomFactor(1);
     }
   };
-  win.webContents.once('did-finish-load', () => {
-    flushPendingUrls(win);
+  typedWin.webContents.once('did-finish-load', () => {
+    flushPendingUrls(typedWin);
   });
-  win.webContents.on('zoom-changed', resetHostZoom);
-  win.webContents.on('before-input-event', (event, input) => {
+  typedWin.webContents.on('zoom-changed', resetHostZoom);
+  typedWin.webContents.on('before-input-event', (event, input: Input) => {
     if (input.type === 'mouseWheel' && (input.control || input.meta)) event.preventDefault();
   });
-  win.webContents.on('did-start-navigation', (_event, url, isInPlace, isMainFrame) => {
-    if (isMainFrame) applyUserAgentForUrl(win.webContents, url);
+  typedWin.webContents.on('did-start-navigation', (_event, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
+    if (isMainFrame) applyUserAgentForUrl(typedWin.webContents, navUrl);
   });
 
   if (role === 'main') {
-    mainWindow = win;
+    mainWindow = typedWin;
   }
-  return win;
+  return typedWin;
 }
 
-function rebalanceMainWindow() {
+export function rebalanceMainWindow(): void {
   const win = getMainWindow();
   if (!win) return;
-  const mode = resolveMode();
+  const mode = resolveMode() as Mode;
   setCurrentMode(mode);
   try {
     win.webContents.send('merezhyvo:mode', mode);
-  } catch {}
+  } catch {
+    // noop
+  }
 }
 
-function applyBrowserWindowPolicies(win) {
+export function applyBrowserWindowPolicies(win: MerezhyvoWindow | null): void {
   if (!win) return;
 
   win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
@@ -381,37 +462,11 @@ function applyBrowserWindowPolicies(win) {
       win.webContents.setZoomFactor(1);
     }
   });
-  const mode = resolveMode();
+  const mode = resolveMode() as Mode;
   setCurrentMode(mode);
   try {
     applyUserAgentForUrl(win.webContents, win.webContents.getURL());
-  } catch {}
+  } catch {
+    // noop
+  }
 }
-
-export {
-  DEFAULT_URL,
-  MOBILE_USER_AGENT,
-  DESKTOP_USER_AGENT,
-  baseZoomFor,
-  installDesktopName,
-  setLaunchConfig,
-  getLaunchConfig,
-  installUserAgentOverride,
-  applyUserAgentForUrl,
-  setCurrentMode,
-  getCurrentMode,
-  getCurrentUserAgentMode,
-  createMainWindow,
-  getMainWindow,
-  getOrCreateMainWindow,
-  focusMainWindow,
-  sendOpenUrl,
-  flushPendingUrls,
-  openInMain,
-  markTabsReady,
-  areTabsReady,
-  queuePendingUrl,
-  handleWindowOpenFromContents,
-  rebalanceMainWindow,
-  applyBrowserWindowPolicies,
-};

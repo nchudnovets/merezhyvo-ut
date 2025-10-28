@@ -1,46 +1,122 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
+import path from 'path';
+import fs from 'fs';
+import https from 'https';
+import http from 'http';
+import { app, type IpcMain } from 'electron';
+
+type Nullable<T> = T | null;
+
+export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
+export const SETTINGS_SCHEMA = 1;
+
+export type InstalledApp = {
+  id: string;
+  title: string;
+  url: string;
+  desktopFilePath: string;
+  iconPath: string;
+  single: boolean;
+  createdAt: number;
+  updatedAt: number;
+};
+
+export type SettingsState = {
+  schema: typeof SETTINGS_SCHEMA;
+  installedApps: InstalledApp[];
+};
+
+type SettingsLike = {
+  schema?: unknown;
+  installedApps?: unknown;
+};
+
+type InstalledAppLike = {
+  id?: unknown;
+  title?: unknown;
+  url?: unknown;
+  desktopFilePath?: unknown;
+  iconPath?: unknown;
+  single?: unknown;
+  createdAt?: unknown;
+  updatedAt?: unknown;
+};
+
+type DownloadOptions = {
+  timeoutMs?: number;
+};
+
+type DownloadResult = {
+  buffer: Buffer;
+  contentType?: string;
+};
+
+type FaviconAsset = {
+  buffer: Buffer;
+  ext: string;
+};
+
+type RemoveInstalledAppParams = {
+  id?: string | null;
+  desktopFilePath?: string | null;
+};
+
+type RemoveInstalledAppResult =
+  | { ok: false; error: string }
+  | { ok: true; removed: InstalledApp; installedApps: InstalledApp[] };
+
+type CreateShortcutPayload = {
+  title?: unknown;
+  url?: unknown;
+  single?: unknown;
+};
+
+type CreateShortcutResult =
+  | { ok: false; error: string }
+  | {
+      ok: true;
+      desktopFilePath: string;
+      iconPath: string;
+      installedApp: InstalledApp;
+    };
+
 const fsp = fs.promises;
-const https = require('https');
-const http = require('http');
-const { app } = require('electron');
 
-const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-const SETTINGS_SCHEMA = 1;
-
-const slugify = (value) =>
-  (value || '')
+export const slugify = (value: unknown): string =>
+  (value ?? '')
     .toString()
     .toLowerCase()
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 60) || 'merezhyvo';
 
-const ensureDir = (dir) => {
+export const ensureDir = (dir: string): void => {
   try {
     fs.mkdirSync(dir, { recursive: true });
-  } catch {}
+  } catch {
+    // noop
+  }
 };
 
-const getProfileDir = () => {
+export const getProfileDir = (): string => {
   const dir = path.join(app.getPath('userData'), 'profiles', 'default');
   ensureDir(dir);
   return dir;
 };
 
-const getSessionFilePath = () => path.join(getProfileDir(), 'session.json');
-const getSettingsFilePath = () => path.join(getProfileDir(), 'settings.json');
+export const getSessionFilePath = (): string => path.join(getProfileDir(), 'session.json');
+export const getSettingsFilePath = (): string => path.join(getProfileDir(), 'settings.json');
 
-const createDefaultSettingsState = () => ({
+export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
   installedApps: []
 });
 
-const normalizeInstalledAppUrl = (value) => {
-  if (!value || !value.trim()) return null;
-  const trimmed = value.trim();
+export const normalizeInstalledAppUrl = (value: unknown): Nullable<string> => {
+  const raw = typeof value === 'string' ? value : null;
+  if (!raw?.trim()) return null;
+  const trimmed = raw.trim();
   try {
     const parsed = new URL(trimmed);
     const protocol = parsed.protocol.toLowerCase();
@@ -55,17 +131,26 @@ const normalizeInstalledAppUrl = (value) => {
   }
 };
 
-const sanitizeInstalledAppEntry = (raw) => {
+export const sanitizeInstalledAppEntry = (raw: unknown): Nullable<InstalledApp> => {
   if (!raw || typeof raw !== 'object') return null;
-  const id = typeof raw.id === 'string' && raw.id.trim().length ? raw.id.trim() : null;
-  const title = typeof raw.title === 'string' ? raw.title.trim() : '';
-  const desktopFilePath = typeof raw.desktopFilePath === 'string' ? raw.desktopFilePath.trim() : '';
-  const iconPath = typeof raw.iconPath === 'string' ? raw.iconPath.trim() : '';
-  const single = !!raw.single;
-  const normalizedUrl = normalizeInstalledAppUrl(raw.url);
+  const source = raw as InstalledAppLike;
+  const id =
+    typeof source.id === 'string' && source.id.trim().length ? source.id.trim() : null;
+  const title = typeof source.title === 'string' ? source.title.trim() : '';
+  const desktopFilePath =
+    typeof source.desktopFilePath === 'string' ? source.desktopFilePath.trim() : '';
+  const iconPath = typeof source.iconPath === 'string' ? source.iconPath.trim() : '';
+  const single = Boolean(source.single);
+  const normalizedUrl = normalizeInstalledAppUrl(source.url);
   if (!id || !title || !desktopFilePath || !normalizedUrl) return null;
-  const createdAt = typeof raw.createdAt === 'number' && Number.isFinite(raw.createdAt) ? raw.createdAt : Date.now();
-  const updatedAt = typeof raw.updatedAt === 'number' && Number.isFinite(raw.updatedAt) ? raw.updatedAt : createdAt;
+  const createdAt =
+    typeof source.createdAt === 'number' && Number.isFinite(source.createdAt)
+      ? source.createdAt
+      : Date.now();
+  const updatedAt =
+    typeof source.updatedAt === 'number' && Number.isFinite(source.updatedAt)
+      ? source.updatedAt
+      : createdAt;
   return {
     id,
     title,
@@ -78,12 +163,14 @@ const sanitizeInstalledAppEntry = (raw) => {
   };
 };
 
-const sanitizeSettingsPayload = (payload) => {
-  if (!payload || typeof payload !== 'object' || payload.schema !== SETTINGS_SCHEMA) {
+export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
+  if (!payload || typeof payload !== 'object' || (payload as SettingsLike).schema !== SETTINGS_SCHEMA) {
     return createDefaultSettingsState();
   }
-  const source = Array.isArray(payload.installedApps) ? payload.installedApps : [];
-  const installedApps = [];
+  const source = (Array.isArray((payload as SettingsLike).installedApps)
+    ? (payload as SettingsLike).installedApps
+    : []) as unknown[];
+  const installedApps: InstalledApp[] = [];
   for (const raw of source) {
     const sanitized = sanitizeInstalledAppEntry(raw);
     if (sanitized) installedApps.push(sanitized);
@@ -94,14 +181,15 @@ const sanitizeSettingsPayload = (payload) => {
   };
 };
 
-async function readSettingsState() {
+export async function readSettingsState(): Promise<SettingsState> {
   const file = getSettingsFilePath();
-  let parsed = null;
+  let parsed: unknown = null;
   try {
     const raw = await fsp.readFile(file, 'utf8');
-    parsed = JSON.parse(raw);
-  } catch (err) {
-    if (err && err.code !== 'ENOENT') {
+    parsed = JSON.parse(raw) as unknown;
+  } catch (err: unknown) {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
       console.warn('[merezhyvo] settings read failed, falling back', err);
     }
     if (!parsed) {
@@ -123,23 +211,23 @@ async function readSettingsState() {
   return sanitized;
 }
 
-async function writeSettingsState(state) {
+export async function writeSettingsState(state: unknown): Promise<SettingsState> {
   const sanitized = sanitizeSettingsPayload(state);
   const file = getSettingsFilePath();
   await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');
   return sanitized;
 }
 
-function downloadBinary(url, { timeoutMs = 6000 } = {}) {
-  return new Promise((resolve, reject) => {
+export function downloadBinary(url: string, { timeoutMs = 6000 }: DownloadOptions = {}): Promise<DownloadResult> {
+  return new Promise<DownloadResult>((resolve, reject) => {
     const lib = url.startsWith('https:') ? https : http;
     const req = lib.get(url, { timeout: timeoutMs }, (res) => {
       if (res.statusCode && res.statusCode >= 300 && res.statusCode < 400 && res.headers.location) {
         return resolve(downloadBinary(new URL(res.headers.location, url).toString(), { timeoutMs }));
       }
       if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
-      const chunks = [];
-      res.on('data', (c) => chunks.push(c));
+      const chunks: Buffer[] = [];
+      res.on('data', (chunk) => chunks.push(chunk));
       res.on('end', () => {
         const buffer = Buffer.concat(chunks);
         const contentType = (res.headers['content-type'] || '').toLowerCase();
@@ -148,13 +236,17 @@ function downloadBinary(url, { timeoutMs = 6000 } = {}) {
     });
     req.on('error', reject);
     req.on('timeout', () => {
-      try { req.destroy(); } catch {}
+      try {
+        req.destroy();
+      } catch {
+        // noop
+      }
       reject(new Error('timeout'));
     });
   });
 }
 
-async function tryFetchFaviconFor(hostname) {
+export async function tryFetchFaviconFor(hostname: string): Promise<Nullable<FaviconAsset>> {
   if (!hostname) return null;
 
   const s2 = `https://www.google.com/s2/favicons?domain=${encodeURIComponent(hostname)}&sz=128`;
@@ -163,14 +255,20 @@ async function tryFetchFaviconFor(hostname) {
     if ((contentType || '').toLowerCase().startsWith('image/')) {
       return {
         buffer,
-        ext: contentType.includes('png') ? 'png'
-          : contentType.includes('jpeg') ? 'jpg'
-          : contentType.includes('svg') ? 'svg'
-          : contentType.includes('ico') ? 'ico'
+        ext: contentType?.includes('png')
+          ? 'png'
+          : contentType?.includes('jpeg')
+          ? 'jpg'
+          : contentType?.includes('svg')
+          ? 'svg'
+          : contentType?.includes('ico')
+          ? 'ico'
           : 'img'
       };
     }
-  } catch {}
+  } catch {
+    // noop
+  }
 
   try {
     const icoUrl = `https://${hostname}/favicon.ico`;
@@ -178,13 +276,18 @@ async function tryFetchFaviconFor(hostname) {
     if ((contentType || '').toLowerCase().startsWith('image/')) {
       return {
         buffer,
-        ext: contentType.includes('png') ? 'png'
-          : contentType.includes('jpeg') ? 'jpg'
-          : contentType.includes('svg') ? 'svg'
+        ext: contentType?.includes('png')
+          ? 'png'
+          : contentType?.includes('jpeg')
+          ? 'jpg'
+          : contentType?.includes('svg')
+          ? 'svg'
           : 'ico'
       };
     }
-  } catch {}
+  } catch {
+    // noop
+  }
 
   try {
     const pngUrl = `https://${hostname}/favicon.png`;
@@ -192,17 +295,21 @@ async function tryFetchFaviconFor(hostname) {
     if ((contentType || '').toLowerCase().startsWith('image/')) {
       return {
         buffer,
-        ext: contentType.includes('png') ? 'png'
-          : contentType.includes('jpeg') ? 'jpg'
+        ext: contentType?.includes('png')
+          ? 'png'
+          : contentType?.includes('jpeg')
+          ? 'jpg'
           : 'img'
       };
     }
-  } catch {}
+  } catch {
+    // noop
+  }
 
   return null;
 }
 
-async function upsertInstalledApp(entry) {
+export async function upsertInstalledApp(entry: unknown): Promise<InstalledApp> {
   const sanitizedEntry = sanitizeInstalledAppEntry(entry);
   if (!sanitizedEntry) {
     throw new Error('Invalid shortcut entry.');
@@ -210,15 +317,26 @@ async function upsertInstalledApp(entry) {
   const current = await readSettingsState();
   const now = Date.now();
   const nextApps = [...current.installedApps];
-  const index = nextApps.findIndex((app) => app.id === sanitizedEntry.id || app.desktopFilePath === sanitizedEntry.desktopFilePath);
+  const index = nextApps.findIndex(
+    (app) => app.id === sanitizedEntry.id || app.desktopFilePath === sanitizedEntry.desktopFilePath
+  );
   if (index >= 0) {
     const existing = nextApps[index];
-    nextApps[index] = {
-      ...existing,
-      ...sanitizedEntry,
-      createdAt: typeof existing.createdAt === 'number' ? existing.createdAt : sanitizedEntry.createdAt,
-      updatedAt: now
-    };
+    if (existing) {
+      nextApps[index] = {
+        ...existing,
+        ...sanitizedEntry,
+        createdAt:
+          typeof existing.createdAt === 'number' ? existing.createdAt : sanitizedEntry.createdAt ?? now,
+        updatedAt: now
+      };
+    } else {
+      nextApps[index] = {
+        ...sanitizedEntry,
+        createdAt: sanitizedEntry.createdAt ?? now,
+        updatedAt: now
+      };
+    }
   } else {
     nextApps.push({
       ...sanitizedEntry,
@@ -227,23 +345,29 @@ async function upsertInstalledApp(entry) {
     });
   }
   const nextState = await writeSettingsState({ schema: SETTINGS_SCHEMA, installedApps: nextApps });
-  return nextState.installedApps.find((app) => app.id === sanitizedEntry.id) || sanitizedEntry;
+  return nextState.installedApps.find((app) => app.id === sanitizedEntry.id) ?? sanitizedEntry;
 }
 
-async function removeInstalledApp({ id, desktopFilePath }) {
+export async function removeInstalledApp({ id, desktopFilePath }: RemoveInstalledAppParams): Promise<RemoveInstalledAppResult> {
   const current = await readSettingsState();
   const apps = [...current.installedApps];
-  const targetIndex = apps.findIndex((app) => (id && app.id === id) || (desktopFilePath && app.desktopFilePath === desktopFilePath));
+  const targetIndex = apps.findIndex(
+    (app) => (id && app.id === id) || (desktopFilePath && app.desktopFilePath === desktopFilePath)
+  );
   if (targetIndex === -1) {
     return { ok: false, error: 'Installed app not found.' };
   }
   const [entry] = apps.splice(targetIndex, 1);
+  if (!entry) {
+    return { ok: false, error: 'Installed app not found.' };
+  }
   try {
     if (entry.desktopFilePath) {
       await fsp.unlink(entry.desktopFilePath);
     }
   } catch (err) {
-    if (err && err.code !== 'ENOENT') {
+    const code = (err as NodeJS.ErrnoException)?.code;
+    if (code !== 'ENOENT') {
       apps.splice(targetIndex, 0, entry);
       await writeSettingsState({ schema: SETTINGS_SCHEMA, installedApps: apps });
       return { ok: false, error: 'Failed to remove shortcut file: ' + String(err) };
@@ -253,7 +377,8 @@ async function removeInstalledApp({ id, desktopFilePath }) {
     try {
       await fsp.unlink(entry.iconPath);
     } catch (err) {
-      if (err && err.code !== 'ENOENT') {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
         console.warn('[merezhyvo] removeInstalledApp: icon unlink failed', err);
       }
     }
@@ -262,10 +387,10 @@ async function removeInstalledApp({ id, desktopFilePath }) {
   return { ok: true, removed: entry, installedApps: nextState.installedApps };
 }
 
-async function handleCreateShortcut(payload) {
+export async function handleCreateShortcut(payload: CreateShortcutPayload): Promise<CreateShortcutResult> {
   const rawTitle = typeof payload?.title === 'string' ? payload.title.trim() : '';
   const normalizedUrl = normalizeInstalledAppUrl(payload?.url);
-  const single = !!payload?.single;
+  const single = Boolean(payload?.single);
   if (!rawTitle || !normalizedUrl) {
     return { ok: false, error: 'Title and URL are required.' };
   }
@@ -277,7 +402,11 @@ async function handleCreateShortcut(payload) {
   ensureDir(iconsDir);
 
   let hostname = '';
-  try { hostname = new URL(normalizedUrl).hostname.replace(/^www\./, ''); } catch {}
+  try {
+    hostname = new URL(normalizedUrl).hostname.replace(/^www\./, '');
+  } catch {
+    // noop
+  }
 
   let iconPath = BUNDLED_ICON_PATH;
 
@@ -300,7 +429,8 @@ async function handleCreateShortcut(payload) {
   const appIdSlug = slugify(rawTitle);
   const desktopFilePath = path.join(appsDir, `merezhyvo-${appIdSlug}.desktop`);
 
-  const desktopContent = `
+  const desktopContent =
+    `
 [Desktop Entry]
 Name=${rawTitle}
 Comment=Site shortcut (${rawTitle}) via Merezhyvo
@@ -333,35 +463,22 @@ StartupWMClass=Merezhyvo
     return { ok: true, desktopFilePath, iconPath, installedApp };
   } catch (err) {
     console.error('[merezhyvo] installed app persistence failed', err);
-    try { await fsp.unlink(desktopFilePath); } catch {}
+    try {
+      await fsp.unlink(desktopFilePath);
+    } catch {
+      // noop
+    }
     if (iconPath && iconPath !== BUNDLED_ICON_PATH) {
-      try { await fsp.unlink(iconPath); } catch {}
+      try {
+        await fsp.unlink(iconPath);
+      } catch {
+        // noop
+      }
     }
     return { ok: false, error: 'Shortcut created, but saving settings failed: ' + String(err) };
   }
 }
 
-function registerShortcutHandler(ipcMain) {
+export function registerShortcutHandler(ipcMain: IpcMain): void {
   ipcMain.handle('merezhyvo:createShortcut', async (_event, payload) => handleCreateShortcut(payload));
 }
-
-export {
-  BUNDLED_ICON_PATH,
-  SETTINGS_SCHEMA,
-  slugify,
-  ensureDir,
-  getProfileDir,
-  getSessionFilePath,
-  getSettingsFilePath,
-  normalizeInstalledAppUrl,
-  sanitizeInstalledAppEntry,
-  sanitizeSettingsPayload,
-  createDefaultSettingsState,
-  readSettingsState,
-  writeSettingsState,
-  upsertInstalledApp,
-  removeInstalledApp,
-  tryFetchFaviconFor,
-  registerShortcutHandler,
-  handleCreateShortcut
-};
