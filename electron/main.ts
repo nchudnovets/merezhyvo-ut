@@ -1,63 +1,159 @@
 'use strict';
 
-if (!require.extensions['.ts']) {
-  require.extensions['.ts'] = require.extensions['.js'];
-}
-
-const {
+import fs from 'fs';
+import path from 'path';
+import {
   app,
   BrowserWindow,
   Menu,
-  screen,
+  clipboard,
   ipcMain,
-  session,
   nativeTheme,
   powerSaveBlocker,
-  clipboard,
-  webContents
-} = require('electron');
-const fs = require('fs');
-const path = require('path');
-const fsp = fs.promises;
-const { resolveMode } = require('./mode.ts');
+  screen,
+  session,
+  webContents,
+  type BrowserWindowConstructorOptions,
+  type ContextMenuParams,
+  type Event,
+  type IpcMainEvent,
+  type IpcMainInvokeEvent,
+  type Point,
+  type Rectangle,
+  type WebContents
+} from 'electron';
 
-const windows = require('./lib/windows.ts');
-const links = require('./lib/links.ts');
-const shortcuts = require('./lib/shortcuts.ts');
-const tor = require('./lib/tor.ts');
-const torSettings = require('./lib/tor-settings.ts');
-
-try { nativeTheme.themeSource = 'dark'; } catch {}
-
-const {
-  getSessionFilePath,
+import { resolveMode } from './mode';
+import * as windows from './lib/windows';
+import * as links from './lib/links';
+import {
   createDefaultSettingsState,
+  getSessionFilePath,
   readSettingsState,
   removeInstalledApp,
   registerShortcutHandler
-} = shortcuts;
-
-const {
+} from './lib/shortcuts';
+import * as tor from './lib/tor';
+import {
   readTorConfig,
   updateTorConfig,
   sanitizeTorConfig
-} = torSettings;
+} from './lib/tor-settings';
 
-const {
-  DEFAULT_URL,
-  MOBILE_USER_AGENT,
-  DESKTOP_USER_AGENT
-} = windows;
+const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
+if (!requireWithExtensions.extensions['.ts']) {
+  requireWithExtensions.extensions['.ts'] = requireWithExtensions.extensions['.js'];
+}
+
+try {
+  nativeTheme.themeSource = 'dark';
+} catch {
+  // noop
+}
+
+const fsp = fs.promises;
+
+const { DEFAULT_URL, MOBILE_USER_AGENT, DESKTOP_USER_AGENT } = windows;
 
 const SESSION_SCHEMA = 1;
 
-let playbackBlockerId = null;
+type ContextMenuMode = windows.Mode;
 
-let ctxWin = null;
-let lastCtx = { wcId: null, params: null, x: 0, y: 0, linkUrl: '' };
+type ExtendedContextMenuParams = ContextMenuParams & {
+  menuSourceType?: string;
+  sourceType?: string;
+};
+
+type ContextMenuPayload = {
+  id?: string;
+};
+
+type ContextMenuSizePayload = {
+  width?: number;
+  height?: number;
+};
+
+type LaunchConfig = {
+  url: string;
+  fullscreen: boolean;
+  devtools: boolean;
+  modeOverride: ContextMenuMode | null;
+  forceDark: boolean;
+  single: boolean;
+};
+
+type SessionTab = {
+  id: string;
+  url: string;
+  title: string;
+  favicon: string;
+  pinned: boolean;
+  muted: boolean;
+  discarded: boolean;
+  lastUsedAt: number;
+};
+
+type SessionState = {
+  schema: typeof SESSION_SCHEMA;
+  activeId: string;
+  tabs: SessionTab[];
+};
+
+type SessionPayloadLike = {
+  schema?: unknown;
+  activeId?: unknown;
+  tabs?: unknown;
+};
+
+type SessionTabLike = {
+  id?: unknown;
+  url?: unknown;
+  title?: unknown;
+  favicon?: unknown;
+  pinned?: unknown;
+  muted?: unknown;
+  discarded?: unknown;
+  lastUsedAt?: unknown;
+};
+
+type ContextState = {
+  wcId: number | null;
+  params: ContextMenuParams | null;
+  x: number;
+  y: number;
+  linkUrl: string;
+};
+
+type LastOpenSignature = {
+  ts: number;
+  x: number;
+  y: number;
+  ownerId: number;
+};
+
+type BrowserWindowOptions = BrowserWindowConstructorOptions & { roundedCorners?: boolean };
+
+type WebContentsWithHost = WebContents & { hostWebContents?: WebContents | null };
+
+declare global {
+  // eslint-disable-next-line no-var
+  var lastCtx: ContextState | undefined;
+}
+
+let playbackBlockerId: number | null = null;
+
+let ctxWin: BrowserWindow | null = null;
 let ctxOpening = false;
-let ctxOverlay = null;
-let ctxMenuMode = 'desktop';
+let ctxOverlay: BrowserWindow | null = null;
+let ctxMenuMode: ContextMenuMode = 'desktop';
+
+global.lastCtx = global.lastCtx ?? {
+  wcId: null,
+  params: null,
+  x: 0,
+  y: 0,
+  linkUrl: ''
+};
 
 app.setName('Merezhyvo');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
@@ -66,25 +162,25 @@ windows.installDesktopName();
 
 Menu.setApplicationMenu(null);
 
-const stopPlaybackBlocker = (id) => {
+const stopPlaybackBlocker = (id?: number | null): void => {
   const blockerId = typeof id === 'number' ? id : playbackBlockerId;
-  if (typeof blockerId === 'number') {
-    try {
-      if (powerSaveBlocker.isStarted(blockerId)) {
-        powerSaveBlocker.stop(blockerId);
-      }
-    } catch (err) {
-      console.warn('[merezhyvo] power blocker stop failed:', err);
+  if (typeof blockerId !== 'number') return;
+  try {
+    if (powerSaveBlocker.isStarted(blockerId)) {
+      powerSaveBlocker.stop(blockerId);
     }
-    if (playbackBlockerId === blockerId) {
-      playbackBlockerId = null;
-    }
+  } catch (err) {
+    console.warn('[merezhyvo] power blocker stop failed:', err);
+  }
+  if (playbackBlockerId === blockerId) {
+    playbackBlockerId = null;
   }
 };
 
-const makeSessionTabId = () => `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
+const makeSessionTabId = (): string =>
+  `t_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
 
-const createDefaultSessionState = () => {
+const createDefaultSessionState = (): SessionState => {
   const id = makeSessionTabId();
   const now = Date.now();
   return {
@@ -105,16 +201,17 @@ const createDefaultSessionState = () => {
   };
 };
 
-const sanitizeSessionPayload = (payload) => {
+const sanitizeSessionPayload = (payload: unknown): SessionState => {
   const now = Date.now();
-  if (!payload || typeof payload !== 'object' || payload.schema !== SESSION_SCHEMA) {
+  const source = payload as SessionPayloadLike | null | undefined;
+  if (!source || typeof source !== 'object' || source.schema !== SESSION_SCHEMA) {
     return createDefaultSessionState();
   }
 
-  const sourceTabs = Array.isArray(payload.tabs) ? payload.tabs : [];
-  const tabs = [];
+  const tabsSource = Array.isArray(source.tabs) ? (source.tabs as SessionTabLike[]) : [];
+  const tabs: SessionTab[] = [];
 
-  for (const raw of sourceTabs) {
+  for (const raw of tabsSource) {
     if (!raw || typeof raw !== 'object') continue;
     const id =
       typeof raw.id === 'string' && raw.id.trim().length ? raw.id.trim() : makeSessionTabId();
@@ -122,9 +219,9 @@ const sanitizeSessionPayload = (payload) => {
       typeof raw.url === 'string' && raw.url.trim().length ? raw.url.trim() : DEFAULT_URL;
     const title = typeof raw.title === 'string' ? raw.title : '';
     const favicon = typeof raw.favicon === 'string' ? raw.favicon : '';
-    const pinned = !!raw.pinned;
-    const muted = !!raw.muted;
-    const discarded = !!raw.discarded;
+    const pinned = Boolean(raw.pinned);
+    const muted = Boolean(raw.muted);
+    const discarded = Boolean(raw.discarded);
     const lastUsedAt =
       typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
         ? raw.lastUsedAt
@@ -146,10 +243,11 @@ const sanitizeSessionPayload = (payload) => {
     return createDefaultSessionState();
   }
 
+  const payloadActiveId = source.activeId;
   const activeId =
-    typeof payload.activeId === 'string' && tabs.some((tab) => tab.id === payload.activeId)
-      ? payload.activeId
-      : tabs[0].id;
+    typeof payloadActiveId === 'string' && tabs.some((tab) => tab.id === payloadActiveId)
+      ? payloadActiveId
+      : tabs[0]?.id ?? makeSessionTabId();
 
   const normalizedTabs = tabs.map((tab) => {
     if (tab.id === activeId) {
@@ -167,7 +265,7 @@ const sanitizeSessionPayload = (payload) => {
   };
 };
 
-const normalizeAddress = (value) => {
+const normalizeAddress = (value: string | null | undefined): string => {
   if (!value || !value.trim()) return DEFAULT_URL;
   const trimmed = value.trim();
 
@@ -187,60 +285,94 @@ const normalizeAddress = (value) => {
   }
 };
 
-function clampToWorkArea(x, y, w, h) {
+const clampToWorkArea = (x: number, y: number, w: number, h: number): Point => {
   const disp = screen.getDisplayNearestPoint({ x, y });
-  const wa = disp?.workArea || { x: 0, y: 0, width: 1920, height: 1080 };
-  let nx = Math.max(wa.x, Math.min(x, wa.x + wa.width - w));
-  let ny = Math.max(wa.y, Math.min(y, wa.y + h > wa.y + wa.height ? (wa.y + wa.height - h) : y));
+  const wa = disp?.workArea ?? { x: 0, y: 0, width: 1920, height: 1080 };
+  const nx = Math.max(wa.x, Math.min(x, wa.x + wa.width - w));
+  const ny = Math.max(wa.y, Math.min(y, wa.y + h > wa.y + wa.height ? wa.y + wa.height - h : y));
   return { x: nx, y: ny };
-}
+};
 
-function isTouchSource(params) {
-  const src = String(params?.menuSourceType || params?.sourceType || '').toLowerCase();
-  return ['touch','longpress','longtap','touchmenu','touchhandle','stylus','adjustselection','adjustselectionreset'].includes(src);
-}
+const isTouchSource = (params: ContextMenuParams | null | undefined): boolean => {
+  const typed = params as ExtendedContextMenuParams | null | undefined;
+  const src = String(typed?.menuSourceType ?? typed?.sourceType ?? '').toLowerCase();
+  return [
+    'touch',
+    'longpress',
+    'longtap',
+    'touchmenu',
+    'touchhandle',
+    'stylus',
+    'adjustselection',
+    'adjustselectionreset'
+  ].includes(src);
+};
 
-function resolveOwnerWindow(wc) {
-  let owner = wc;
-  try { if (wc.hostWebContents && !wc.hostWebContents.isDestroyed()) owner = wc.hostWebContents; } catch {}
-  return BrowserWindow.fromWebContents(owner) || BrowserWindow.getFocusedWindow() || null;
-}
+const resolveOwnerWindow = (wc: WebContents): BrowserWindow | null => {
+  const withHost = wc as WebContentsWithHost;
+  let owner: WebContents = wc;
+  try {
+    if (withHost.hostWebContents && !withHost.hostWebContents.isDestroyed()) {
+      owner = withHost.hostWebContents;
+    }
+  } catch {
+    // noop
+  }
+  return BrowserWindow.fromWebContents(owner) ?? BrowserWindow.getFocusedWindow() ?? null;
+};
 
-function getTargetWebContents(contents) {
-  return contents || (BrowserWindow.getFocusedWindow()?.webContents || null);
-}
+const getTargetWebContents = (contents?: WebContents | null): WebContents | null =>
+  contents ?? BrowserWindow.getFocusedWindow()?.webContents ?? null;
 
-// time/position/owner dedupe
-let lastOpenSig = { ts: 0, x: 0, y: 0, ownerId: 0 };
-function shouldOpenCtxNow(x, y, ownerId) {
+let lastOpenSig: LastOpenSignature = { ts: 0, x: 0, y: 0, ownerId: 0 };
+const shouldOpenCtxNow = (
+  x: number | null | undefined,
+  y: number | null | undefined,
+  ownerId: number | null | undefined
+): boolean => {
   const now = Date.now();
   const dt = now - lastOpenSig.ts;
-  const dx = Math.abs((x || 0) - (lastOpenSig.x || 0));
-  const dy = Math.abs((y || 0) - (lastOpenSig.y || 0));
+  const dx = Math.abs((x ?? 0) - (lastOpenSig.x ?? 0));
+  const dy = Math.abs((y ?? 0) - (lastOpenSig.y ?? 0));
   const sameOwner = ownerId && ownerId === lastOpenSig.ownerId;
   if (dt < 300 && sameOwner && dx < 8 && dy < 8) return false;
-  lastOpenSig = { ts: now, x: x || 0, y: y || 0, ownerId: ownerId || 0 };
+  lastOpenSig = { ts: now, x: x ?? 0, y: y ?? 0, ownerId: ownerId ?? 0 };
   return true;
-}
+};
 
-function destroyCtxWindows() {
-  try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
-  try { if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close(); } catch {}
+const destroyCtxWindows = (): void => {
+  try {
+    if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
+  } catch {
+    // noop
+  }
+  try {
+    if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close();
+  } catch {
+    // noop
+  }
   ctxWin = null;
   ctxOverlay = null;
-}
+};
 
-async function openCtxWindowFor(contents, params) {
+const openCtxWindowFor = async (
+  contents: WebContents | null,
+  params: ContextMenuParams | null | undefined
+): Promise<void> => {
   const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
-  const normalizedMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
+  const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
 
-  if (isTouchSource(params) && normalizedMode !== 'mobile') return; // ignore touch in desktop mode
+  if (isTouchSource(params) && normalizedMode !== 'mobile') {
+    return;
+  }
 
   ctxMenuMode = normalizedMode;
 
   if (ctxOpening) return;
   ctxOpening = true;
-  setTimeout(() => { ctxOpening = false; }, 280);
+  setTimeout(() => {
+    ctxOpening = false;
+  }, 280);
 
   const targetWc = getTargetWebContents(contents);
   if (!targetWc || targetWc.isDestroyed()) return;
@@ -252,83 +384,88 @@ async function openCtxWindowFor(contents, params) {
   const ownerId = ownerWin.webContents.id;
   if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
 
-  // remember context for actions
   global.lastCtx = {
     wcId: targetWc.id,
-    params: params || null,
+    params: params ?? null,
     x: cursor.x,
     y: cursor.y,
-    linkUrl: (params && params.linkURL) || ''
+    linkUrl: params?.linkURL ?? ''
   };
 
-  // Always start fresh: close any previous overlay/popup.
   destroyCtxWindows();
 
-  // 1) Create a full-screen overlay that catches any click outside the menu.
   const disp = screen.getDisplayNearestPoint({ x: cursor.x, y: cursor.y });
-  const wa = disp?.workArea || { x: 0, y: 0, width: 1920, height: 1080 };
+  const wa = disp?.workArea ?? { x: 0, y: 0, width: 1920, height: 1080 };
 
-  ctxOverlay = new BrowserWindow({
-    x: wa.x, y: wa.y, width: wa.width, height: wa.height,
+  const overlayOptions: BrowserWindowConstructorOptions = {
+    x: wa.x,
+    y: wa.y,
+    width: wa.width,
+    height: wa.height,
     show: false,
     frame: false,
     resizable: false,
     movable: false,
     fullscreenable: false,
     skipTaskbar: true,
-    focusable: true,                 // must receive clicks
-    backgroundColor: '#01000000',    // nearly transparent (avoid fully 00..00 on some compositors)
+    focusable: true,
+    backgroundColor: '#01000000',
     transparent: true,
     hasShadow: false,
     type: 'popup',
-    parent: ownerWin || undefined,   // keep above owner
+    parent: ownerWin ?? undefined,
     modal: false,
     webPreferences: {
       contextIsolation: false,
-      nodeIntegration: true,         // <-- allow ipcRenderer in overlay page
+      nodeIntegration: true,
       sandbox: false,
-      devTools: !!process.env.MZV_CTXMENU_DEVTOOLS
+      devTools: process.env.MZV_CTXMENU_DEVTOOLS === '1'
     }
-  });
+  };
 
-  // Keep overlay below the popup but above owner
-  try { ctxOverlay.setAlwaysOnTop(true, 'floating'); } catch {}
+  ctxOverlay = new BrowserWindow(overlayOptions);
+
+  try {
+    ctxOverlay.setAlwaysOnTop(true, 'floating');
+  } catch {
+    // noop
+  }
   ctxOverlay.setMenuBarVisibility(false);
 
-  // Load inline HTML that closes on any pointer down (outside the popup area)
   const overlayHtml = [
     '<!doctype html><meta charset="utf-8"/>',
     '<style>',
     'html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;cursor:default;}',
-    // prevent native context menu on overlay
     'body{user-select:none;-webkit-user-select:none;}',
     '</style>',
     '<script>',
-    // close on any pointer press in overlay
     'document.addEventListener("pointerdown", function(){',
     '  try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(e){}',
     '});',
-    // block default context menus
     'window.addEventListener("contextmenu", function(e){ e.preventDefault(); }, {passive:false});',
-    // optional: ESC closes too
     'window.addEventListener("keydown", function(e){ if(e.key==="Escape"){ try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(_){} } });',
     '</script>',
     '<body></body>'
   ].join('');
 
-  await Promise.resolve(ctxOverlay.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml)}`)).catch(()=>{});
+  try {
+    await ctxOverlay.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml)}`);
+  } catch {
+    // noop
+  }
 
-  ctxOverlay.on('closed', () => { if (ctxOverlay) ctxOverlay = null; });
+  ctxOverlay.on('closed', () => {
+    if (ctxOverlay) ctxOverlay = null;
+  });
 
-  // 2) Create the actual popup *as a child of the overlay*, so it's above overlay
   const htmlPath = path.resolve(__dirname, '..', 'electron', 'context-menu.html');
   const baseWidth = ctxMenuMode === 'mobile' ? 360 : 260;
   const baseHeight = ctxMenuMode === 'mobile' ? 320 : 220;
   const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, baseWidth, baseHeight);
 
-  ctxWin = new BrowserWindow({
+  const popupOptions: BrowserWindowOptions = {
     width: baseWidth,
-    height: baseHeight,            // visible immediately; renderer will autosize
+    height: baseHeight,
     x: desired.x,
     y: desired.y,
     show: false,
@@ -338,102 +475,164 @@ async function openCtxWindowFor(contents, params) {
     fullscreenable: false,
     skipTaskbar: true,
     focusable: true,
-    backgroundColor: '#1c1c1cee', // opaque for UT stability (can switch to transparent later)
+    backgroundColor: '#1c1c1cee',
     transparent: false,
     hasShadow: true,
     roundedCorners: true,
     type: 'popup',
-    parent: ctxOverlay,            // key point: popup sits above overlay
+    parent: ctxOverlay ?? undefined,
     modal: false,
     useContentSize: true,
     webPreferences: {
       contextIsolation: false,
       nodeIntegration: true,
       sandbox: false,
-      devTools: !!process.env.MZV_CTXMENU_DEVTOOLS
+      devTools: process.env.MZV_CTXMENU_DEVTOOLS === '1'
     }
-  });
+  };
 
-  // Ensure popup is above overlay on all compositors
-  try { ctxWin.setAlwaysOnTop(true, 'modal-panel'); } catch {}
+  ctxWin = new BrowserWindow(popupOptions);
+
+  try {
+    ctxWin.setAlwaysOnTop(true, 'modal-panel');
+  } catch {
+    // noop
+  }
 
   ctxWin.on('closed', () => {
-    try { if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close(); } catch {}
-    ctxWin = null; ctxOverlay = null;
+    try {
+      if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close();
+    } catch {
+      // noop
+    }
+    ctxWin = null;
+    ctxOverlay = null;
   });
 
   if (process.env.MZV_CTXMENU_LOGS === '1') {
-    ctxWin.webContents.on('console-message', (_e, level, message, line, sourceId) => {
-      const lvl = ['log','warn','error','debug','info'][level] || level;
-      logCtx(`popup:${lvl}`, message, `(${sourceId}:${line})`);
-    });
+    ctxWin.webContents.on(
+      'console-message',
+      (_event: Event, level: number, message: string, line: number, sourceId: string) => {
+        const levels = ['log', 'warn', 'error', 'debug', 'info'] as const;
+        const lvl = levels[level] ?? String(level);
+        logCtx(`popup:${lvl}`, message, `(${sourceId}:${line})`);
+      }
+    );
   }
 
-  // Load the menu UI
   const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}`;
-  ctxWin.loadURL(ctxUrl).catch((e) => logCtx('loadURL error', String(e)));
+  void ctxWin.loadURL(ctxUrl).catch((err: unknown) => logCtx('loadURL error', String(err)));
 
-  // Render & show robustly
   const askRender = () => {
     if (!ctxWin || ctxWin.isDestroyed()) return;
     logCtx('render+show');
-    try { ctxWin.webContents.send('mzr:ctxmenu:render'); } catch {}
-    ctxWin.webContents.executeJavaScript('window.__mzr_render && window.__mzr_render()').catch(() => {});
     try {
-      if (!ctxOverlay.isVisible()) ctxOverlay.show();      // show overlay first
-      if (!ctxWin.isVisible())    ctxWin.show();           // then popup
-      ctxWin.focus();                                       // focus popup (overlay still catches outside clicks)
-    } catch {}
-    // fallback autosize if renderer didn't report
+      ctxWin.webContents.send('mzr:ctxmenu:render');
+    } catch {
+      // noop
+    }
+    void ctxWin.webContents
+      .executeJavaScript('window.__mzr_render && window.__mzr_render()')
+      .catch(() => {});
+    try {
+      if (ctxOverlay && !ctxOverlay.isDestroyed() && !ctxOverlay.isVisible()) ctxOverlay.show();
+      if (!ctxWin.isVisible()) ctxWin.show();
+      ctxWin.focus();
+    } catch {
+      // noop
+    }
     setTimeout(() => {
+      if (!ctxWin || ctxWin.isDestroyed()) return;
       try {
-        const b = ctxWin.getBounds();
-        if (b.height <= 14) {
+        const bounds = ctxWin.getBounds();
+        if (bounds.height <= 14) {
           const fallbackHeight = ctxMenuMode === 'mobile' ? baseHeight : 220;
-          const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : b.width;
+          const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : bounds.width;
           logCtx('autosize fallback →', `${fallbackWidth}x${fallbackHeight}`);
-          ctxWin.setBounds({ x: b.x, y: b.y, width: fallbackWidth, height: fallbackHeight }, false);
+          ctxWin.setBounds(
+            { x: bounds.x, y: bounds.y, width: fallbackWidth, height: fallbackHeight },
+            false
+          );
           if (!ctxWin.isVisible()) ctxWin.show();
         }
-      } catch {}
+      } catch {
+        // noop
+      }
     }, 160);
   };
 
   ctxWin.webContents.once('did-finish-load', askRender);
   setTimeout(askRender, 260);
-}
-
+};
 
 const LOG_FILE = path.join(app.getPath('userData'), 'ctxmenu.log');
-function logCtx(...args) {
-  const line = `[${new Date().toISOString()}] ` + args.map(String).join(' ') + '\n';
-  try { fs.appendFileSync(LOG_FILE, line); } catch {}
-  try { console.log('[ctxmenu]', ...args); } catch {}
+function logCtx(...args: unknown[]): void {
+  const line = `[${new Date().toISOString()}] ${args.map((arg) => String(arg)).join(' ')}\n`;
+  try {
+    fs.appendFileSync(LOG_FILE, line);
+  } catch {
+    // noop
+  }
+  try {
+    console.log('[ctxmenu]', ...args);
+  } catch {
+    // noop
+  }
 }
 
-const parseLaunchConfig = () => {
+const parseMode = (raw: string | null | undefined): ContextMenuMode | null => {
+  if (!raw) return null;
+  const value = raw.toLowerCase();
+  return value === 'desktop' || value === 'mobile' ? (value as ContextMenuMode) : null;
+};
+
+const parseLaunchConfig = (): LaunchConfig => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
   let url = DEFAULT_URL;
-  const envFullscreen = (process.env.MEREZHYVO_FULLSCREEN || '').toLowerCase();
+  const envFullscreen = (process.env.MEREZHYVO_FULLSCREEN ?? '').toLowerCase();
   let fullscreen = ['1', 'true', 'yes'].includes(envFullscreen);
   let devtools = process.env.MZV_DEVTOOLS === '1';
-  let modeOverride = (process.env.MZV_MODE || '').toLowerCase();
-  const envForceDark = (process.env.MZV_FORCE_DARK || '').toLowerCase();
+  let modeOverride = parseMode(process.env.MZV_MODE ?? '');
+  const envForceDark = (process.env.MZV_FORCE_DARK ?? '').toLowerCase();
   let forceDark = ['1', 'true', 'yes'].includes(envForceDark);
   let singleWindow = false;
 
   for (const rawArg of args) {
     if (!rawArg) continue;
-    if (rawArg === '--force-dark') { forceDark = true; continue; }
-    if (rawArg === '--no-force-dark') { forceDark = false; continue; }
-    if (rawArg === '--fullscreen') { fullscreen = true; continue; }
-    if (rawArg === '--no-fullscreen') { fullscreen = false; continue; }
-    if (rawArg === '--devtools') { devtools = true; continue; }
-    if (rawArg === '--single') { singleWindow = true; continue; }
+    if (rawArg === '--force-dark') {
+      forceDark = true;
+      continue;
+    }
+    if (rawArg === '--no-force-dark') {
+      forceDark = false;
+      continue;
+    }
+    if (rawArg === '--fullscreen') {
+      fullscreen = true;
+      continue;
+    }
+    if (rawArg === '--no-fullscreen') {
+      fullscreen = false;
+      continue;
+    }
+    if (rawArg === '--devtools') {
+      devtools = true;
+      continue;
+    }
+    if (rawArg === '--single') {
+      singleWindow = true;
+      continue;
+    }
 
-    const m = rawArg.match(/^--mode=(desktop|mobile)$/i);
-    if (m) { modeOverride = m[1].toLowerCase(); continue; }
+    const modeMatch = rawArg.match(/^--mode=(desktop|mobile)$/i);
+    if (modeMatch) {
+      const [, modeValue] = modeMatch;
+      if (modeValue) {
+        modeOverride = modeValue.toLowerCase() as ContextMenuMode;
+      }
+      continue;
+    }
 
     if (/^-/.test(rawArg)) continue;
 
@@ -444,7 +643,13 @@ const parseLaunchConfig = () => {
 };
 
 const launchConfig = parseLaunchConfig();
-windows.setLaunchConfig(launchConfig);
+windows.setLaunchConfig({
+  url: launchConfig.url,
+  fullscreen: launchConfig.fullscreen,
+  devtools: launchConfig.devtools,
+  modeOverride: launchConfig.modeOverride ?? undefined,
+  single: launchConfig.single
+});
 
 const featureFlags = ['VaapiVideoDecoder'];
 if (launchConfig.forceDark) {
@@ -462,13 +667,17 @@ app.whenReady().then(() => {
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   const initialUA = initialMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  try { session.defaultSession?.setUserAgent(initialUA); } catch {}
+  try {
+    session.defaultSession?.setUserAgent(initialUA);
+  } catch {
+    // noop
+  }
   windows.installUserAgentOverride(session.defaultSession);
   windows.createMainWindow();
 
-  screen.on('display-added', windows.rebalanceMainWindow);
-  screen.on('display-removed', windows.rebalanceMainWindow);
-  screen.on('display-metrics-changed', windows.rebalanceMainWindow);
+  screen.on('display-added', () => windows.rebalanceMainWindow());
+  screen.on('display-removed', () => windows.rebalanceMainWindow());
+  screen.on('display-metrics-changed', () => windows.rebalanceMainWindow());
 
   app.on('activate', () => {
     if (BrowserWindow.getAllWindows().length === 0) {
@@ -477,15 +686,16 @@ app.whenReady().then(() => {
   });
 });
 
-app.on('browser-window-created', (_event, win) => {
+app.on('browser-window-created', (_event: Event, win: BrowserWindow) => {
   windows.applyBrowserWindowPolicies(win);
   win.webContents.on('before-input-event', (_event, input) => {
-    if (input.type === 'mouseDown' && input.button === 'right') {
+    const button = (input as { button?: string }).button;
+    if (input.type === 'mouseDown' && button === 'right') {
       const cursor = screen.getCursorScreenPoint();
       const ownerId = win.webContents.id;
       logCtx('before-input-event right-click', cursor.x, cursor.y, 'owner=', ownerId);
       if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
-      openCtxWindowFor(win.webContents, null);
+      void openCtxWindowFor(win.webContents, null);
     }
   });
 });
@@ -494,70 +704,88 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
-app.on('web-contents-created', (_event, contents) => {
-  if (contents.getType && contents.getType() === 'webview') {
+app.on('web-contents-created', (_event: Event, contents: WebContents) => {
+  if (typeof contents.getType === 'function' && contents.getType() === 'webview') {
     links.attachLinkPolicy(contents);
   }
   contents.on('context-menu', (event, params) => {
-    try { event.preventDefault(); } catch {}
-    logCtx('context-menu', params?.menuSourceType || params?.sourceType, params?.x, params?.y);
-    openCtxWindowFor(contents, params);
+    try {
+      event.preventDefault();
+    } catch {
+      // noop
+    }
+    const typed = params as ExtendedContextMenuParams;
+    logCtx('context-menu', typed?.menuSourceType ?? typed?.sourceType, params?.x, params?.y);
+    void openCtxWindowFor(contents, params);
   });
 });
 
-
 ipcMain.handle('mzr:ctxmenu:get-state', async () => {
   try {
-    const wc = webContents.fromId(global.lastCtx?.wcId);
-    const canBack = wc?.canGoBack?.() || false;
-    const canForward = wc?.canGoForward?.() || false;
+    const ctx = global.lastCtx;
+    const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
+    const canBack = wc?.canGoBack?.() ?? false;
+    const canForward = wc?.canGoForward?.() ?? false;
 
-    const p = (global.lastCtx && global.lastCtx.params) || {};
-    const hasSelection = !!(p.selectionText && String(p.selectionText).trim().length);
-    const isEditable = !!p.isEditable;
+    const params = ctx?.params ?? null;
+    const selection = params?.selectionText ?? '';
+    const hasSelection = Boolean(selection && selection.trim().length);
+    const isEditable = Boolean(params?.isEditable);
 
-    // Paste показуємо лише коли фокус у редагованому елементі і в буфері є текст
     let canPaste = false;
     try {
-      const txt = clipboard.readText() || '';
-      canPaste = !!(isEditable && txt.length > 0);
-    } catch {}
+      const text = clipboard.readText() ?? '';
+      canPaste = Boolean(isEditable && text.length > 0);
+    } catch {
+      // noop
+    }
 
-    const linkUrl = global.lastCtx?.linkUrl || '';
+    const linkUrl = ctx?.linkUrl ?? '';
     return { canBack, canForward, hasSelection, isEditable, canPaste, linkUrl };
   } catch {
-    return { canBack: false, canForward: false, hasSelection: false, isEditable: false, canPaste: false, linkUrl: '' };
+    return {
+      canBack: false,
+      canForward: false,
+      hasSelection: false,
+      isEditable: false,
+      canPaste: false,
+      linkUrl: ''
+    };
   }
 });
 
-ipcMain.on('mzr:ctxmenu:click', (_e, { id }) => {
+ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
+  const id = payload?.id;
+  if (!id) return;
   logCtx('action', id);
   try {
-    const wc = webContents.fromId(global.lastCtx?.wcId);
+    const ctx = global.lastCtx;
+    const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
     if (!wc || wc.isDestroyed()) return;
 
     if (id === 'back') return void wc.goBack?.();
     if (id === 'forward') return void wc.goForward?.();
     if (id === 'reload') return void wc.reload?.();
     if (id === 'copy-selection') {
-      const text = global.lastCtx?.params?.selectionText || '';
+      const text = ctx?.params?.selectionText ?? '';
       if (text) clipboard.writeText(text);
       return;
     }
     if (id === 'open-link') {
-      const url = global.lastCtx?.linkUrl;
+      const url = ctx?.linkUrl;
       if (url) {
-        const embedder = wc.hostWebContents || wc;
-        const ownerWin = BrowserWindow.fromWebContents(embedder) || BrowserWindow.getFocusedWindow();
+        const withHost = wc as WebContentsWithHost;
+        const embedder = withHost.hostWebContents ?? wc;
+        const ownerWin =
+          BrowserWindow.fromWebContents(embedder) ?? BrowserWindow.getFocusedWindow();
         if (ownerWin && !ownerWin.isDestroyed()) {
-          const { sendOpenUrl } = require('./lib/windows.ts');
-          sendOpenUrl(ownerWin, url);
+          windows.sendOpenUrl(ownerWin, url, true);
         }
       }
       return;
     }
     if (id === 'copy-link') {
-      const url = global.lastCtx?.linkUrl;
+      const url = ctx?.linkUrl;
       if (url) clipboard.writeText(url);
       return;
     }
@@ -566,76 +794,98 @@ ipcMain.on('mzr:ctxmenu:click', (_e, { id }) => {
         wc.paste();
       } catch {
         try {
-          const embedder = wc.hostWebContents || wc;
-          const ownerWin = BrowserWindow.fromWebContents(embedder) || BrowserWindow.getFocusedWindow();
+          const withHost = wc as WebContentsWithHost;
+          const embedder = withHost.hostWebContents ?? wc;
+          const ownerWin =
+            BrowserWindow.fromWebContents(embedder) ?? BrowserWindow.getFocusedWindow();
           if (ownerWin && !ownerWin.isDestroyed()) {
-            const m = Menu.buildFromTemplate([{ role: 'paste' }]);
-            m.popup({ window: ownerWin });
+            const menu = Menu.buildFromTemplate([{ role: 'paste' }]);
+            menu.popup({ window: ownerWin });
           }
-        } catch {}
+        } catch {
+          // noop
+        }
       }
       return;
     }
     if (id === 'inspect') {
-      try { wc.openDevTools({ mode: 'detach' }); } catch {}
-      return;
+      try {
+        wc.openDevTools({ mode: 'detach' });
+      } catch {
+        // noop
+      }
     }
-  } catch (e) {
-    logCtx('click handler error', String(e));
+  } catch (error) {
+    logCtx('click handler error', String(error));
   } finally {
-    try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
+    try {
+      if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
+    } catch {
+      // noop
+    }
   }
 });
 
 ipcMain.on('mzr:ctxmenu:close', () => {
   logCtx('close requested');
-  try { if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close(); } catch {}
+  try {
+    if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
+  } catch {
+    // noop
+  }
 });
 
-ipcMain.on('mzr:ctxmenu:autosize', (_e, { height, width }) => {
+ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePayload) => {
   try {
-    if (!ctxWin || ctxWin.isDestroyed()) return;
-    const bounds = ctxWin.getBounds();
+    const win = ctxWin;
+    if (!win || win.isDestroyed()) return;
+    const bounds = win.getBounds();
     const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
     const wa = display?.workArea;
 
     const minHeight = 44;
-    const rawHeight = Number(height);
-    const measuredHeight = Math.max(minHeight, Math.floor(Number.isFinite(rawHeight) ? rawHeight : 120));
-    const maxHeight = ctxMenuMode === 'mobile'
-      ? Math.max(minHeight, wa ? wa.height - 16 : measuredHeight)
-      : 480;
+    const rawHeight = typeof height === 'number' ? height : Number(height);
+    const measuredHeight = Math.max(
+      minHeight,
+      Math.floor(Number.isFinite(rawHeight) ? rawHeight : 120)
+    );
+    const maxHeight =
+      ctxMenuMode === 'mobile'
+        ? Math.max(minHeight, wa ? wa.height - 16 : measuredHeight)
+        : 480;
     const targetHeight = Math.min(measuredHeight, maxHeight);
 
     let targetWidth = bounds.width;
     if (ctxMenuMode === 'mobile') {
       const minWidth = 220;
-      const rawWidth = Number(width);
-      const measuredWidth = Math.max(minWidth, Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width));
+      const rawWidth = typeof width === 'number' ? width : Number(width);
+      const measuredWidth = Math.max(
+        minWidth,
+        Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width)
+      );
       const maxWidth = wa ? Math.max(minWidth, wa.width - 16) : measuredWidth;
       targetWidth = Math.min(measuredWidth, maxWidth);
     }
 
     const pos = clampToWorkArea(bounds.x, bounds.y, targetWidth, targetHeight);
-    ctxWin.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
-    if (!ctxWin.isVisible()) ctxWin.show();
+    win.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
+    if (!win.isVisible()) win.show();
     logCtx('autosized →', `${targetWidth}x${targetHeight}`, ctxMenuMode);
-  } catch (e) {
-    logCtx('autosize error', String(e));
+  } catch (error) {
+    logCtx('autosize error', String(error));
   }
 });
-
-
 
 ipcMain.handle('merezhyvo:session:load', async () => {
   try {
     const sessionFile = getSessionFilePath();
-    let parsed = null;
+    let parsed: unknown = null;
     try {
       const raw = await fsp.readFile(sessionFile, 'utf8');
-      parsed = JSON.parse(raw);
-    } catch (err) {
-      if (err && err.code !== 'ENOENT') {
+      parsed = JSON.parse(raw) as unknown;
+    } catch (err: unknown) {
+      const code = (err as NodeJS.ErrnoException)?.code;
+      if (code !== 'ENOENT') {
         console.warn('[merezhyvo] session load: falling back after read failure', err);
       }
     }
@@ -659,7 +909,7 @@ ipcMain.handle('merezhyvo:session:load', async () => {
   }
 });
 
-ipcMain.handle('merezhyvo:session:save', async (_event, payload) => {
+ipcMain.handle('merezhyvo:session:save', async (_event: IpcMainInvokeEvent, payload: unknown) => {
   try {
     const sanitized = sanitizeSessionPayload(payload);
     const sessionFile = getSessionFilePath();
@@ -682,7 +932,9 @@ ipcMain.handle('merezhyvo:settings:load', async () => {
     let torConfig = sanitizeTorConfig(null);
     try {
       torConfig = await readTorConfig();
-    } catch {}
+    } catch {
+      // noop
+    }
     return { ...fallback, tor: torConfig };
   }
 });
@@ -697,13 +949,17 @@ ipcMain.handle('merezhyvo:settings:installedApps:list', async () => {
   }
 });
 
-ipcMain.handle('merezhyvo:settings:installedApps:remove', async (_event, payload) => {
-  const id = typeof payload === 'string'
-    ? payload
-    : (payload && typeof payload.id === 'string' ? payload.id : null);
-  const desktopFilePath = payload && typeof payload.desktopFilePath === 'string'
-    ? payload.desktopFilePath
-    : null;
+ipcMain.handle('merezhyvo:settings:installedApps:remove', async (_event, payload: unknown) => {
+  const id =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { id?: unknown }).id === 'string'
+      ? ((payload as { id?: string }).id ?? null)
+      : null;
+  const desktopFilePath =
+    typeof payload === 'object' && payload && typeof (payload as { desktopFilePath?: unknown }).desktopFilePath === 'string'
+      ? ((payload as { desktopFilePath?: string }).desktopFilePath ?? null)
+      : null;
   if (!id && !desktopFilePath) {
     return { ok: false, error: 'App identifier is required.' };
   }
@@ -715,10 +971,11 @@ ipcMain.handle('merezhyvo:settings:installedApps:remove', async (_event, payload
   }
 });
 
-ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload) => {
-  const containerId = typeof payload === 'object' && payload && typeof payload.containerId === 'string'
-    ? payload.containerId.trim()
-    : '';
+ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown) => {
+  const containerId =
+    typeof payload === 'object' && payload && typeof (payload as { containerId?: unknown }).containerId === 'string'
+      ? ((payload as { containerId?: string }).containerId ?? '').trim()
+      : '';
   try {
     const torConfig = await updateTorConfig({ containerId });
     return { ok: true, containerId: torConfig.containerId };
@@ -745,17 +1002,20 @@ ipcMain.handle('merezhyvo:power:start', () => {
   }
 });
 
-ipcMain.handle('merezhyvo:power:stop', (_event, explicitId) => {
-  stopPlaybackBlocker(explicitId);
+ipcMain.handle('merezhyvo:power:stop', (_event, explicitId: number | null | undefined) => {
+  stopPlaybackBlocker(explicitId ?? null);
   return true;
 });
 
-ipcMain.handle('merezhyvo:power:isStarted', (_event, explicitId) => {
+ipcMain.handle('merezhyvo:power:isStarted', (_event, explicitId: number | null | undefined) => {
   const id = typeof explicitId === 'number' ? explicitId : playbackBlockerId;
   return typeof id === 'number' && powerSaveBlocker.isStarted(id);
 });
 
-ipcMain.on('tabs:ready', (event) => {
-  const win = BrowserWindow.fromWebContents(event.sender) || windows.getMainWindow();
+ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
+  const win =
+    BrowserWindow.fromWebContents(event.sender) ??
+    windows.getMainWindow() ??
+    null;
   windows.markTabsReady(win);
 });
