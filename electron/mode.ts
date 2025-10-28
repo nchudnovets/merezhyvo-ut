@@ -1,6 +1,6 @@
-const { screen } = require('electron');
+import { screen } from 'electron';
 
-function resolveMode() {
+export function resolveMode() {
   const forced = (process.env.MZV_MODE || '').toLowerCase();
   if (forced === 'desktop' || forced === 'mobile') return forced;
 
@@ -10,5 +10,3 @@ function resolveMode() {
   return 'mobile';
 }
 
-
-module.exports = { resolveMode };
