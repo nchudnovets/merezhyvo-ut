@@ -1,20 +1,21 @@
 'use strict';
 
-const windows = require('./windows.ts');
+import { baseZoomFor, getCurrentMode, handleWindowOpenFromContents } from './windows';
 import type { WebContents } from 'electron';
 
-function attachLinkPolicy(contents?: WebContents) {
+export function attachLinkPolicy(contents?: WebContents) {
   if (!contents) return;
+  try { contents.setMaxListeners(50); } catch {}
 
   try { contents.setVisualZoomLevelLimits(1, 3); } catch {}
   const applyBaseZoom = () => {
     try {
-      contents.setZoomFactor(windows.baseZoomFor(windows.getCurrentMode()));
+      contents.setZoomFactor(baseZoomFor(getCurrentMode()));
     } catch {}
   };
 
   contents.setWindowOpenHandler(({ url }) => {
-    windows.handleWindowOpenFromContents(contents, url);
+    handleWindowOpenFromContents(contents, url);
     return { action: 'deny' };
   });
 
@@ -27,7 +28,3 @@ function attachLinkPolicy(contents?: WebContents) {
   contents.on('did-navigate', applyBaseZoom);
   contents.on('did-navigate-in-page', applyBaseZoom);
 }
-
-module.exports = {
-  attachLinkPolicy
-};

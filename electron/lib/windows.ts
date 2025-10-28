@@ -388,7 +388,7 @@ function applyBrowserWindowPolicies(win) {
   } catch {}
 }
 
-module.exports = {
+export {
   DEFAULT_URL,
   MOBILE_USER_AGENT,
   DESKTOP_USER_AGENT,
@@ -414,5 +414,4 @@ module.exports = {
   handleWindowOpenFromContents,
   rebalanceMainWindow,
   applyBrowserWindowPolicies,
-  installUserAgentOverrideForSession: installUserAgentOverride
 };
