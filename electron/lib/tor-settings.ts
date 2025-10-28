@@ -1,33 +1,45 @@
 'use strict';
 
-const path = require('path');
-const fs = require('fs');
-const fsp = fs.promises;
-const { getProfileDir, ensureDir } = require('./shortcuts.ts');
+import path from 'path';
+import fs from 'fs';
+const fsp: typeof fs.promises = fs.promises;
+import { getProfileDir, ensureDir } from './shortcuts';
 
-const TOR_SETTINGS_FILE = path.join(getProfileDir(), 'tor-settings.json');
+export const TOR_SETTINGS_FILE: string = path.join(getProfileDir(), 'tor-settings.json');
 
-function sanitizeTorConfig(raw) {
-  const containerId = typeof raw === 'object' && raw && typeof raw.containerId === 'string'
-    ? raw.containerId.trim()
-    : '';
+type TorConfig = {
+  containerId: string;
+};
+
+/** Extract errno-like code from unknown error. */
+function getErrnoCode(err: unknown): string | undefined {
+  return (err as NodeJS.ErrnoException)?.code;
+}
+
+/** Normalize raw config into a safe TorConfig shape. */
+export function sanitizeTorConfig(raw: unknown): TorConfig {
+  const containerId =
+    typeof raw === 'object' && raw !== null && typeof (raw as any).containerId === 'string'
+      ? (raw as any).containerId.trim()
+      : '';
   return { containerId };
 }
 
-async function readTorConfig() {
+export async function readTorConfig(): Promise<TorConfig> {
   try {
     const raw = await fsp.readFile(TOR_SETTINGS_FILE, 'utf8');
-    const parsed = JSON.parse(raw);
+    const parsed: unknown = JSON.parse(raw);
     return sanitizeTorConfig(parsed);
   } catch (err) {
-    if (err?.code !== 'ENOENT') {
+    const code = getErrnoCode(err);
+    if (code !== 'ENOENT') {
       console.warn('[merezhyvo] tor config read failed, falling back', err);
     }
     return sanitizeTorConfig(null);
   }
 }
 
-async function writeTorConfig(config) {
+export async function writeTorConfig(config: unknown): Promise<TorConfig> {
   const sanitized = sanitizeTorConfig(config);
   try {
     ensureDir(path.dirname(TOR_SETTINGS_FILE));
@@ -39,15 +51,7 @@ async function writeTorConfig(config) {
   return sanitized;
 }
 
-async function updateTorConfig(partial) {
+export async function updateTorConfig(partial: Partial<TorConfig> | null | undefined): Promise<TorConfig> {
   const current = await readTorConfig();
   return writeTorConfig({ ...current, ...(partial || {}) });
 }
-
-module.exports = {
-  TOR_SETTINGS_FILE,
-  sanitizeTorConfig,
-  readTorConfig,
-  writeTorConfig,
-  updateTorConfig
-};

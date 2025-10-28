@@ -345,7 +345,7 @@ function registerShortcutHandler(ipcMain) {
   ipcMain.handle('merezhyvo:createShortcut', async (_event, payload) => handleCreateShortcut(payload));
 }
 
-module.exports = {
+export {
   BUNDLED_ICON_PATH,
   SETTINGS_SCHEMA,
   slugify,
