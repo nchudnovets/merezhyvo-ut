@@ -23,7 +23,7 @@ bash
 
 Копіювати код
 
-`merezhyvo/ ├─ electron/main.js        # головний процес Electron ├─ src/ │  ├─ App.js │  ├─ index.html │  └─ index.js            # React renderer ├─ app.desktop             # Lomiri desktop-файл ├─ manifest.json           # Click manifest ├─ merezhyvo.apparmor      # AppArmor (unconfined) ├─ package.json            # Node/Electron налаштування ├─ merezhyvo_256.png                # іконка застосунку ├─ tools/ │  └─ build-click.sh       # скрипт повної збірки (.click) ├─ .electronignore └─ .gitignore`
+`merezhyvo/ ├─ dist-electron/main.js  # головний процес Electron (зібраний з TS) ├─ src/ │  ├─ App.tsx │  ├─ index.html │  └─ index.tsx          # React renderer ├─ app.desktop             # Lomiri desktop-файл ├─ manifest.json           # Click manifest ├─ merezhyvo.apparmor      # AppArmor (unconfined) ├─ package.json            # Node/Electron налаштування ├─ merezhyvo_256.png                # іконка застосунку ├─ tools/ │  └─ build-click.sh       # скрипт повної збірки (.click) ├─ .electronignore └─ .gitignore`
 
 ## Prerequisites (на робочій машині)
 
@@ -56,7 +56,7 @@ bash
 *   `npm run typecheck` — типова перевірка TypeScript (`allowJs` лишається увімкненим).
 *   `npm run build` — зібрати рендерер у `dist/` (те саме робить `npm start` перед запуском).
 
-`npm start` зіб’є React у `dist/` і запустить Electron: `electron electron/main.js`.  
+`npm start` зіб’є React у `dist/` + головний процес у `dist-electron/`, після чого запустить Electron: `electron dist-electron/main.js`.  
 Для повноекранного тесту на ПК додай: `npm start -- -- --fullscreen`
     
 
