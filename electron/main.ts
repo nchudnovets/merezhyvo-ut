@@ -19,7 +19,7 @@ const {
 const fs = require('fs');
 const path = require('path');
 const fsp = fs.promises;
-const { resolveMode } = require('./mode');
+const { resolveMode } = require('./mode.ts');
 
 const windows = require('./lib/windows.ts');
 const links = require('./lib/links.ts');
@@ -321,7 +321,7 @@ async function openCtxWindowFor(contents, params) {
   ctxOverlay.on('closed', () => { if (ctxOverlay) ctxOverlay = null; });
 
   // 2) Create the actual popup *as a child of the overlay*, so it's above overlay
-  const htmlPath = path.resolve(__dirname, 'context-menu.html');
+  const htmlPath = path.resolve(__dirname, '..', 'electron', 'context-menu.html');
   const baseWidth = ctxMenuMode === 'mobile' ? 360 : 260;
   const baseHeight = ctxMenuMode === 'mobile' ? 320 : 220;
   const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, baseWidth, baseHeight);
@@ -550,7 +550,7 @@ ipcMain.on('mzr:ctxmenu:click', (_e, { id }) => {
         const embedder = wc.hostWebContents || wc;
         const ownerWin = BrowserWindow.fromWebContents(embedder) || BrowserWindow.getFocusedWindow();
         if (ownerWin && !ownerWin.isDestroyed()) {
-          const { sendOpenUrl } = require('./lib/windows');
+          const { sendOpenUrl } = require('./lib/windows.ts');
           sendOpenUrl(ownerWin, url);
         }
       }

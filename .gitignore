@@ -10,6 +10,7 @@ pnpm-debug.log*
 
 # Build artifacts (frontend + electron)
 dist/
+dist-electron/
 app/
 app-bin/
 build/

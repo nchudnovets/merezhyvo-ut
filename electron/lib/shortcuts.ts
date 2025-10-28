@@ -7,7 +7,7 @@ const https = require('https');
 const http = require('http');
 const { app } = require('electron');
 
-const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', '..', 'merezhyvo_256.png');
+const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
 const SETTINGS_SCHEMA = 1;
 
 const slugify = (value) =>

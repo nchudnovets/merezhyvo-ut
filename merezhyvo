@@ -22,4 +22,4 @@ if [ -z "$ELECTRON_BIN" ]; then
   exit 1
 fi
 
-exec "$ELECTRON_BIN" "$APPDIR/electron/main.js" "$@"
+exec "$ELECTRON_BIN" "$APPDIR/dist-electron/main.js" "$@"

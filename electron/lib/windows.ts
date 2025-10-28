@@ -246,7 +246,7 @@ function applyMobileBounds(win) {
 function createMainWindow(opts = {}) {
   const config = launchConfig || {};
   const { url: startUrl = DEFAULT_URL, fullscreen, devtools, modeOverride } = config;
-  const distIndex = path.resolve(__dirname, '..', '..', 'dist', 'index.html');
+  const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
   const initialMode = modeOverride || resolveMode();
   currentMode = initialMode;
 
@@ -267,7 +267,7 @@ function createMainWindow(opts = {}) {
     show: false,
     backgroundColor: '#101218',
     title: 'Merezhyvo',
-    icon: path.resolve(__dirname, '..', '..', 'merezhyvo_256.png'),
+    icon: path.resolve(__dirname, '..', 'merezhyvo_256.png'),
     autoHideMenuBar: true,
     resizable: true,
     useContentSize: true,
@@ -279,7 +279,7 @@ function createMainWindow(opts = {}) {
       spellcheck: false,
       nativeWindowOpen: false,
       defaultFontSize: initialMode === 'mobile' ? 28 : 16,
-      preload: path.resolve(__dirname, '..', 'preload.js')
+      preload: path.resolve(__dirname, 'preload.js')
     }
   });
   try {

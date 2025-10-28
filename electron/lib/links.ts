@@ -1,8 +1,9 @@
 'use strict';
 
 const windows = require('./windows.ts');
+import type { WebContents } from 'electron';
 
-function attachLinkPolicy(contents) {
+function attachLinkPolicy(contents?: WebContents) {
   if (!contents) return;
 
   try { contents.setVisualZoomLevelLimits(1, 3); } catch {}
@@ -17,10 +18,10 @@ function attachLinkPolicy(contents) {
     return { action: 'deny' };
   });
 
-  contents.on('new-window', (event, url) => {
-    event.preventDefault();
-    windows.handleWindowOpenFromContents(contents, url);
-  });
+  // contents.on('new-window', (event, url) => {
+  //   event.preventDefault();
+  //   windows.handleWindowOpenFromContents(contents, url);
+  // });
 
   contents.on('dom-ready', applyBaseZoom);
   contents.on('did-navigate', applyBaseZoom);
