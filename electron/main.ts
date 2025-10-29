@@ -509,23 +509,11 @@ const openCtxWindowFor = async (
     ctxOverlay = null;
   });
 
-  if (process.env.MZV_CTXMENU_LOGS === '1') {
-    ctxWin.webContents.on(
-      'console-message',
-      (_event: Event, level: number, message: string, line: number, sourceId: string) => {
-        const levels = ['log', 'warn', 'error', 'debug', 'info'] as const;
-        const lvl = levels[level] ?? String(level);
-        logCtx(`popup:${lvl}`, message, `(${sourceId}:${line})`);
-      }
-    );
-  }
-
   const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}`;
-  void ctxWin.loadURL(ctxUrl).catch((err: unknown) => logCtx('loadURL error', String(err)));
+  void ctxWin.loadURL(ctxUrl).catch(() => {});
 
   const askRender = () => {
     if (!ctxWin || ctxWin.isDestroyed()) return;
-    logCtx('render+show');
     try {
       ctxWin.webContents.send('mzr:ctxmenu:render');
     } catch {
@@ -548,7 +536,6 @@ const openCtxWindowFor = async (
         if (bounds.height <= 14) {
           const fallbackHeight = ctxMenuMode === 'mobile' ? baseHeight : 220;
           const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : bounds.width;
-          logCtx('autosize fallback →', `${fallbackWidth}x${fallbackHeight}`);
           ctxWin.setBounds(
             { x: bounds.x, y: bounds.y, width: fallbackWidth, height: fallbackHeight },
             false
@@ -564,21 +551,6 @@ const openCtxWindowFor = async (
   ctxWin.webContents.once('did-finish-load', askRender);
   setTimeout(askRender, 260);
 };
-
-const LOG_FILE = path.join(app.getPath('userData'), 'ctxmenu.log');
-function logCtx(...args: unknown[]): void {
-  const line = `[${new Date().toISOString()}] ${args.map((arg) => String(arg)).join(' ')}\n`;
-  try {
-    fs.appendFileSync(LOG_FILE, line);
-  } catch {
-    // noop
-  }
-  try {
-    console.log('[ctxmenu]', ...args);
-  } catch {
-    // noop
-  }
-}
 
 const parseMode = (raw: string | null | undefined): ContextMenuMode | null => {
   if (!raw) return null;
@@ -693,7 +665,6 @@ app.on('browser-window-created', (_event: Event, win: BrowserWindow) => {
     if (input.type === 'mouseDown' && button === 'right') {
       const cursor = screen.getCursorScreenPoint();
       const ownerId = win.webContents.id;
-      logCtx('before-input-event right-click', cursor.x, cursor.y, 'owner=', ownerId);
       if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
       void openCtxWindowFor(win.webContents, null);
     }
@@ -715,7 +686,6 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
       // noop
     }
     const typed = params as ExtendedContextMenuParams;
-    logCtx('context-menu', typed?.menuSourceType ?? typed?.sourceType, params?.x, params?.y);
     void openCtxWindowFor(contents, params);
   });
 });
@@ -757,7 +727,6 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
 ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
   const id = payload?.id;
   if (!id) return;
-  logCtx('action', id);
   try {
     const ctx = global.lastCtx;
     const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
@@ -816,7 +785,7 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       }
     }
   } catch (error) {
-    logCtx('click handler error', String(error));
+    // ignore errors
   } finally {
     try {
       if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
@@ -827,7 +796,6 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
 });
 
 ipcMain.on('mzr:ctxmenu:close', () => {
-  logCtx('close requested');
   try {
     if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
   } catch {
@@ -870,9 +838,8 @@ ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePa
     const pos = clampToWorkArea(bounds.x, bounds.y, targetWidth, targetHeight);
     win.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
     if (!win.isVisible()) win.show();
-    logCtx('autosized →', `${targetWidth}x${targetHeight}`, ctxMenuMode);
-  } catch (error) {
-    logCtx('autosize error', String(error));
+  } catch {
+    // noop
   }
 });
 
