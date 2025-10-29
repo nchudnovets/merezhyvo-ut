@@ -1,12 +1,55 @@
 import { useMemo } from 'react';
 import { useSyncExternalStore } from 'react';
+import type { Tab } from '../types/models';
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 const SESSION_SCHEMA = 1;
 const SAVE_DEBOUNCE_MS = 750;
 const YT_HOST_PATTERNS = [/\.youtube\.com$/i, /^youtube\.com$/i, /^music\.youtube\.com$/i];
 
-const listeners = new Set();
+type TabsListener = () => void;
+
+type TabsState = {
+  ready: boolean;
+  tabs: Tab[];
+  activeId: string;
+};
+
+type SetStateOptions = {
+  skipSave?: boolean;
+};
+
+type TabsStateInput = TabsState | ((prev: TabsState) => TabsState);
+
+type TabOverrides = Partial<Omit<Tab, 'url' | 'id'>> & {
+  url?: string;
+  id?: string;
+};
+
+type PersistedTab = Partial<Tab> & {
+  id?: unknown;
+  url?: unknown;
+};
+
+type PersistedSession = {
+  schema?: unknown;
+  activeId?: unknown;
+  tabs?: unknown;
+};
+
+type NewTabOptions = {
+  pinned?: boolean;
+  title?: string;
+};
+
+type UpdateMetaPatch = Partial<
+  Pick<
+    Tab,
+    'title' | 'favicon' | 'url' | 'muted' | 'pinned' | 'discarded' | 'isYouTube' | 'isPlaying' | 'isLoading' | 'lastUsedAt'
+  >
+>;
+
+const listeners = new Set<TabsListener>();
 
 const singleWindowMode = (() => {
   if (typeof window === 'undefined') return false;
@@ -19,11 +62,11 @@ const singleWindowMode = (() => {
   }
 })();
 
-let state = createInitialState();
-let saveTimer = null;
+let state: TabsState = createInitialState();
+let saveTimer: ReturnType<typeof setTimeout> | null = null;
 let hasHydrated = false;
 
-function createInitialState() {
+function createInitialState(): TabsState {
   const initialTab = createTab(DEFAULT_URL, {
     title: 'DuckDuckGo',
     discarded: false
@@ -35,8 +78,8 @@ function createInitialState() {
   };
 }
 
-function isYouTubeLike(url) {
-  if (!url) return false;
+function isYouTubeLike(url: unknown): boolean {
+  if (typeof url !== 'string' || !url) return false;
   try {
     const hostname = new URL(url).hostname.toLowerCase();
     return YT_HOST_PATTERNS.some((regex) => regex.test(hostname));
@@ -45,37 +88,37 @@ function isYouTubeLike(url) {
   }
 }
 
-function createTab(url = DEFAULT_URL, overrides = {}) {
+function createTab(url: string = DEFAULT_URL, overrides: TabOverrides = {}): Tab {
   const now = Date.now();
-  const safeUrl =
-    typeof url === 'string' && url.trim().length ? url.trim() : DEFAULT_URL;
-  return {
-    id: overrides.id || generateTabId(now),
+  const safeUrl = typeof url === 'string' && url.trim().length ? url.trim() : DEFAULT_URL;
+  const next: Tab = {
+    id: overrides.id ?? generateTabId(now),
     url: safeUrl,
     title: overrides.title ?? '',
     favicon: overrides.favicon ?? '',
     isLoading: overrides.isLoading ?? false,
-    pinned: !!overrides.pinned,
-    muted: !!overrides.muted,
+    pinned: Boolean(overrides.pinned),
+    muted: Boolean(overrides.muted),
     discarded: overrides.discarded ?? true,
     isYouTube:
       typeof overrides.isYouTube === 'boolean'
         ? overrides.isYouTube
         : isYouTubeLike(safeUrl),
-    isPlaying: !!overrides.isPlaying,
+    isPlaying: Boolean(overrides.isPlaying),
     lastUsedAt:
       typeof overrides.lastUsedAt === 'number' && Number.isFinite(overrides.lastUsedAt)
         ? overrides.lastUsedAt
         : now
   };
+  return next;
 }
 
-function generateTabId(seed = Date.now()) {
+function generateTabId(seed = Date.now()): string {
   const rand = Math.random().toString(36).slice(2, 8);
   return `t_${seed}_${rand}`;
 }
 
-function emit() {
+function emit(): void {
   for (const listener of listeners) {
     try {
       listener();
@@ -85,19 +128,19 @@ function emit() {
   }
 }
 
-function getSnapshot() {
+function getSnapshot(): TabsState {
   return state;
 }
 
-function subscribe(listener) {
+function subscribe(listener: TabsListener): () => void {
   listeners.add(listener);
   return () => {
     listeners.delete(listener);
   };
 }
 
-function setState(updater, { skipSave = false } = {}) {
-  const next = typeof updater === 'function' ? updater(state) : updater;
+function setState(updater: TabsStateInput, { skipSave = false }: SetStateOptions = {}): TabsState {
+  const next = typeof updater === 'function' ? (updater as (prev: TabsState) => TabsState)(state) : updater;
   if (!next || next === state) {
     return state;
   }
@@ -109,7 +152,7 @@ function setState(updater, { skipSave = false } = {}) {
   return state;
 }
 
-async function saveSessionNow() {
+async function saveSessionNow(): Promise<void> {
   if (singleWindowMode) return;
   if (!window?.merezhyvo?.session?.save) return;
   const payload = serializeState(state);
@@ -120,7 +163,7 @@ async function saveSessionNow() {
   }
 }
 
-function scheduleSave() {
+function scheduleSave(): void {
   if (singleWindowMode) return;
   if (saveTimer) {
     clearTimeout(saveTimer);
@@ -131,7 +174,7 @@ function scheduleSave() {
   }, SAVE_DEBOUNCE_MS);
 }
 
-function serializeState(current) {
+function serializeState(current: TabsState) {
   return {
     schema: SESSION_SCHEMA,
     activeId: current.activeId,
@@ -140,45 +183,46 @@ function serializeState(current) {
       url: tab.url,
       title: tab.title || '',
       favicon: tab.favicon || '',
-      isLoading: !!tab.isLoading,
-      pinned: !!tab.pinned,
-      muted: !!tab.muted,
-      discarded: !!tab.discarded,
-      isYouTube: !!tab.isYouTube,
-      isPlaying: !!tab.isPlaying,
+      isLoading: Boolean(tab.isLoading),
+      pinned: Boolean(tab.pinned),
+      muted: Boolean(tab.muted),
+      discarded: Boolean(tab.discarded),
+      isYouTube: Boolean(tab.isYouTube),
+      isPlaying: Boolean(tab.isPlaying),
       lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now()
     }))
   };
 }
 
-function sanitizeSession(data) {
+function sanitizeSession(data: unknown): TabsState {
   const fallback = createInitialState();
-  if (!data || typeof data !== 'object' || data.schema !== SESSION_SCHEMA) {
+  const input = data as PersistedSession | null | undefined;
+  if (!input || typeof input !== 'object' || input.schema !== SESSION_SCHEMA) {
     return {
       ...fallback,
       ready: true
     };
   }
 
-  const tabsInput = Array.isArray(data.tabs) ? data.tabs : [];
-  const tabs = [];
+  const tabsInput = Array.isArray(input.tabs) ? (input.tabs as PersistedTab[]) : [];
+  const tabs: Tab[] = [];
   const now = Date.now();
 
   for (const raw of tabsInput) {
     if (!raw || typeof raw !== 'object') continue;
-    const tab = createTab(raw.url, {
-      id: raw.id && typeof raw.id === 'string' ? raw.id : undefined,
+    const tab = createTab(typeof raw.url === 'string' ? raw.url : DEFAULT_URL, {
+      id: typeof raw.id === 'string' ? raw.id : undefined,
       title: typeof raw.title === 'string' ? raw.title : '',
       favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
-      isLoading: !!raw.isLoading,
-      pinned: !!raw.pinned,
-      muted: !!raw.muted,
-      discarded: !!raw.discarded,
+      isLoading: Boolean(raw.isLoading),
+      pinned: Boolean(raw.pinned),
+      muted: Boolean(raw.muted),
+      discarded: Boolean(raw.discarded),
       isYouTube:
         typeof raw.isYouTube === 'boolean'
           ? raw.isYouTube
           : isYouTubeLike(raw.url),
-      isPlaying: !!raw.isPlaying,
+      isPlaying: Boolean(raw.isPlaying),
       lastUsedAt:
         typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
           ? raw.lastUsedAt
@@ -194,17 +238,18 @@ function sanitizeSession(data) {
     };
   }
 
-  let activeId =
-    typeof data.activeId === 'string' &&
-    tabs.some((tab) => tab.id === data.activeId)
-      ? data.activeId
-      : tabs[0].id;
+  const maybeActiveId = typeof input.activeId === 'string' ? input.activeId : null;
+  const firstTab = tabs[0]!;
+  const activeId = maybeActiveId && tabs.some((tab) => tab.id === maybeActiveId)
+    ? maybeActiveId
+    : firstTab.id;
 
   const normalizedTabs = setActiveOnTabs(tabs, activeId, now);
   const activeTab = normalizedTabs.find((tab) => tab.id === activeId);
   if (activeTab) {
     if (!activeTab.url || !activeTab.url.trim()) {
-      const previous = tabsInput.find((tab) => tab && tab.id === activeId);
+      const previous =
+        tabsInput.find((tab) => tab && typeof tab === 'object' && tab.id === activeId) || null;
       const sanitizedUrl =
         previous && typeof previous.url === 'string' && previous.url.trim().length
           ? previous.url.trim()
@@ -223,7 +268,7 @@ function sanitizeSession(data) {
   };
 }
 
-function setActiveOnTabs(tabs, activeId, timestamp = Date.now()) {
+function setActiveOnTabs(tabs: Tab[], activeId: string, timestamp = Date.now()): Tab[] {
   let changed = false;
   const next = tabs.map((tab) => {
     if (tab.id === activeId) {
@@ -244,7 +289,7 @@ function setActiveOnTabs(tabs, activeId, timestamp = Date.now()) {
   return changed ? next : tabs;
 }
 
-function discardAllTabs(tabs) {
+function discardAllTabs(tabs: Tab[]): Tab[] {
   let changed = false;
   const next = tabs.map((tab) => {
     if (tab.discarded) return tab;
@@ -254,13 +299,13 @@ function discardAllTabs(tabs) {
   return changed ? next : tabs.slice();
 }
 
-async function hydrateFromSession() {
+async function hydrateFromSession(): Promise<void> {
   if (singleWindowMode) {
     hasHydrated = true;
     setState((prev) => ({ ...prev, ready: true }), { skipSave: true });
     return;
   }
-  let rawSession = null;
+  let rawSession: unknown = null;
   if (window?.merezhyvo?.session?.load) {
     try {
       rawSession = await window.merezhyvo.session.load();
@@ -272,7 +317,6 @@ async function hydrateFromSession() {
   hasHydrated = true;
   const next = sanitizeSession(rawSession);
   setState(() => next, { skipSave: true });
-  // Ensure a persisted session exists after first hydration if possible.
   if (window?.merezhyvo?.session?.save) {
     scheduleSave();
   }
@@ -284,15 +328,14 @@ if (typeof window !== 'undefined') {
   });
 }
 
-function newTab(url, options = {}) {
-  const { pinned = false } = options;
-  const safeUrl =
-    typeof url === 'string' && url.trim().length ? url.trim() : DEFAULT_URL;
+function newTab(url: string, options: NewTabOptions = {}): void {
+  const { pinned = false, title = '' } = options;
+  const safeUrl = typeof url === 'string' && url.trim().length ? url.trim() : DEFAULT_URL;
   setState((prev) => {
     const now = Date.now();
     const freshTab = createTab(safeUrl, {
-      pinned: !!pinned,
-      title: options.title ?? '',
+      pinned: Boolean(pinned),
+      title,
       discarded: false,
       lastUsedAt: now,
       isLoading: true
@@ -308,7 +351,7 @@ function newTab(url, options = {}) {
   });
 }
 
-function closeTab(id) {
+function closeTab(id: string): void {
   if (!id) return;
   setState((prev) => {
     const index = prev.tabs.findIndex((tab) => tab.id === id);
@@ -323,10 +366,13 @@ function closeTab(id) {
       remaining = [fallbackTab];
       activeId = fallbackTab.id;
     } else if (id === prev.activeId) {
-      const neighbor = remaining[index] || remaining[index - 1] || remaining[0];
+      const neighbor = remaining[index] ?? remaining[index - 1] ?? remaining[0];
+      if (!neighbor) return prev;
       activeId = neighbor.id;
     } else if (!remaining.some((tab) => tab.id === activeId)) {
-      activeId = remaining[0].id;
+      const fallback = remaining[0];
+      if (!fallback) return prev;
+      activeId = fallback.id;
     }
 
     return {
@@ -337,7 +383,7 @@ function closeTab(id) {
   });
 }
 
-function activateTab(id) {
+function activateTab(id: string): void {
   if (!id) return;
   setState((prev) => {
     if (prev.activeId === id) {
@@ -356,13 +402,13 @@ function activateTab(id) {
   });
 }
 
-function pinTab(id, flag) {
+function pinTab(id: string, flag?: boolean): void {
   if (!id) return;
   const nextFlag = typeof flag === 'boolean' ? flag : undefined;
   setState((prev) => {
     const idx = prev.tabs.findIndex((tab) => tab.id === id);
     if (idx === -1) return prev;
-    const tab = prev.tabs[idx];
+    const tab = prev.tabs[idx]!;
     const pinned = nextFlag === undefined ? !tab.pinned : nextFlag;
     if (pinned === tab.pinned) return prev;
     const tabs = prev.tabs.slice();
@@ -371,13 +417,13 @@ function pinTab(id, flag) {
   });
 }
 
-function updateMeta(id, patch = {}) {
+function updateMeta(id: string, patch: UpdateMetaPatch = {}): void {
   if (!id || !patch) return;
   setState((prev) => {
     const idx = prev.tabs.findIndex((tab) => tab.id === id);
     if (idx === -1) return prev;
-    const original = prev.tabs[idx];
-    const next = { ...original };
+    const original = prev.tabs[idx]!;
+    const next: Tab = { ...original };
     let altered = false;
 
     if (typeof patch.title === 'string' && patch.title !== original.title) {
@@ -427,7 +473,11 @@ function updateMeta(id, patch = {}) {
       next.isLoading = patch.isLoading;
       altered = true;
     }
-    if (typeof patch.lastUsedAt === 'number' && Number.isFinite(patch.lastUsedAt) && patch.lastUsedAt !== original.lastUsedAt) {
+    if (
+      typeof patch.lastUsedAt === 'number' &&
+      Number.isFinite(patch.lastUsedAt) &&
+      patch.lastUsedAt !== original.lastUsedAt
+    ) {
       next.lastUsedAt = patch.lastUsedAt;
       altered = true;
     }
@@ -439,7 +489,7 @@ function updateMeta(id, patch = {}) {
   });
 }
 
-function navigateActive(url) {
+function navigateActive(url: string): void {
   if (typeof url !== 'string' || !url.trim()) return;
   const trimmed = url.trim();
   setState((prev) => {
@@ -447,9 +497,9 @@ function navigateActive(url) {
     if (idx === -1) return prev;
     const now = Date.now();
     const tabs = prev.tabs.slice();
-    const current = tabs[idx];
+    const current = tabs[idx]!;
     const nextIsYouTube = isYouTubeLike(trimmed);
-    const updated = {
+    const updated: Tab = {
       ...current,
       url: trimmed,
       discarded: false,
@@ -466,20 +516,20 @@ function navigateActive(url) {
   });
 }
 
-function reloadActive() {
+function reloadActive(): void {
   setState((prev) => {
     const idx = prev.tabs.findIndex((tab) => tab.id === prev.activeId);
     if (idx === -1) return prev;
     const now = Date.now();
     const tabs = prev.tabs.slice();
-    const current = tabs[idx];
+    const current = tabs[idx]!;
     if (current.lastUsedAt === now) return prev;
     tabs[idx] = { ...current, lastUsedAt: now, isLoading: true };
     return { ...prev, tabs };
   });
 }
 
-export const tabsActions = Object.freeze({
+const tabsActions = Object.freeze({
   newTab,
   closeTab,
   activateTab,
@@ -506,12 +556,13 @@ export function useTabsStore() {
   );
 }
 
-export function getTabsState() {
+export function getTabsState(): TabsState {
   return state;
 }
 
 export {
   DEFAULT_URL as defaultTabUrl,
   SESSION_SCHEMA as sessionSchema,
-  isYouTubeLike
+  isYouTubeLike,
+  tabsActions
 };

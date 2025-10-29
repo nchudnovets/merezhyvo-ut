@@ -362,6 +362,7 @@ const WebViewHost = forwardRef(function WebViewHost(
       ref={webviewRef}
       className={className}
       style={composedStyle}
+      //@ts-ignore
       allowpopups="true"
     />
   );
