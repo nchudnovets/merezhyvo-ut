@@ -1,5 +1,5 @@
 import React, { useEffect, memo } from 'react';
-import type { CSSProperties } from 'react';
+import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent } from 'react';
 import type { InstalledApp, Mode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
@@ -28,6 +28,10 @@ interface SettingsModalProps {
   torSavedContainerId: string;
   torContainerSaving: boolean;
   torContainerMessage: string;
+  torInputRef: RefObject<HTMLInputElement>;
+  onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
+  onTorInputFocus: (event: ReactFocusEvent<HTMLInputElement>) => void;
+  onTorInputBlur: (event: ReactFocusEvent<HTMLInputElement>) => void;
   onTorContainerChange: (value: string) => void;
   onSaveTorContainer: () => void;
   onClose: () => void;
@@ -182,6 +186,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torSavedContainerId,
   torContainerSaving,
   torContainerMessage,
+  torInputRef,
+  onTorInputPointerDown,
+  onTorInputFocus,
+  onTorInputBlur,
   onTorContainerChange,
   onSaveTorContainer,
   onClose,
@@ -342,6 +350,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                     type="text"
                     value={torContainerValue ?? ''}
                     onChange={(event) => onTorContainerChange(event.target.value)}
+                    onPointerDown={onTorInputPointerDown}
+                    onFocus={onTorInputFocus}
+                    onBlur={onTorInputBlur}
+                    ref={torInputRef}
                     style={{
                       ...styles.torInput,
                       ...(modeStyles.settingsTorInput || {})

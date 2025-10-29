@@ -7,7 +7,7 @@ export const SPECIAL_KEYS = {
   ARROW_LEFT: '{arrowLeft}',
   ARROW_RIGHT: '{arrowRight}',
   ENTER: '{enter}'
-};
+} as const;
 
 const {
   SHIFT,
@@ -19,6 +19,13 @@ const {
   ARROW_RIGHT,
   ENTER
 } = SPECIAL_KEYS;
+
+export type KeyboardLayoutDefinition = {
+  name: string;
+  shortLabel?: string;
+  rows: string[][];
+  bottomRow?: string[];
+};
 
 export const layouts = {
   en: {
@@ -54,4 +61,6 @@ export const layouts = {
     ],
     bottomRow: [TOGGLE_SYMBOLS, '@', NEXT_LAYOUT, SPACE, ARROW_LEFT, ARROW_RIGHT, ENTER]
   }
-};
+} satisfies Record<string, KeyboardLayoutDefinition>;
+
+export type KeyboardLayoutId = keyof typeof layouts;

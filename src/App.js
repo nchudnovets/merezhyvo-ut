@@ -182,6 +182,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
   const inputRef = useRef(null);
   const modalTitleInputRef = useRef(null);
   const modalUrlInputRef = useRef(null);
+  const torContainerInputRef = useRef(null);
   const activeInputRef = useRef(null);
   const webviewReadyRef = useRef(false);
 
@@ -1763,6 +1764,31 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
     });
   }, [mode, isEditableElement]);
 
+  const handleTorInputPointerDown = useCallback((event) => {
+    if (event?.preventDefault) event.preventDefault();
+    if (event?.stopPropagation) event.stopPropagation();
+    activeInputRef.current = 'torContainer';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleTorInputFocus = useCallback(() => {
+    activeInputRef.current = 'torContainer';
+    if (mode === 'mobile') setKbVisible(true);
+  }, [mode]);
+
+  const handleTorInputBlur = useCallback(() => {
+    if (activeInputRef.current === 'torContainer') activeInputRef.current = null;
+    if (mode !== 'mobile') return;
+    requestAnimationFrame(() => {
+      const active = document.activeElement;
+      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
+      if (isSoftKey || isEditableElement(active)) {
+        return;
+      }
+      setKbVisible(false);
+    });
+  }, [mode, isEditableElement]);
+
   const containerStyle = useMemo(() => {
     if (isHtmlFullscreen) return styles.container;
     if (mode !== 'mobile') return styles.container;
@@ -2158,6 +2184,45 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       return;
     }
 
+    if (activeTarget === 'torContainer' && torContainerInputRef.current) {
+      const inputEl = torContainerInputRef.current;
+      const value = inputEl.value ?? '';
+      const rawStart = inputEl.selectionStart ?? value.length;
+      const rawEnd = inputEl.selectionEnd ?? value.length;
+      const selectionStart = Math.min(rawStart, rawEnd);
+      const selectionEnd = Math.max(rawStart, rawEnd);
+      const setCaret = (pos) => {
+        setTimeout(() => {
+          inputEl.selectionStart = inputEl.selectionEnd = pos;
+        }, 0);
+      };
+
+      if (key === 'Backspace') {
+        if (selectionStart === 0 && selectionEnd === 0) {
+          if (kbShift && !kbCaps) setKbShift(false);
+          return;
+        }
+        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
+        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
+        setTorContainerDraft(nextValue);
+        setCaret(deleteStart);
+      } else if (key === 'Enter') {
+        handleSaveTorContainer();
+      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
+        const nextPos = key === 'ArrowLeft'
+          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
+          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
+        setCaret(nextPos);
+      } else {
+        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
+        const nextPos = selectionStart + key.length;
+        setTorContainerDraft(nextValue);
+        setCaret(nextPos);
+      }
+      if (kbShift && !kbCaps) setKbShift(false);
+      return;
+    }
+
     if (key === 'Backspace') {
       await injectBackspaceToWeb();
     } else if (key === 'Enter') {
@@ -2168,7 +2233,7 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
       await injectTextToWeb(key);
     }
     if (kbShift && !kbCaps) setKbShift(false);
-  }, [busy, createShortcut, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setShortcutUrl, setTitle]);
+  }, [busy, createShortcut, handleSaveTorContainer, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setShortcutUrl, setTitle]);
 
   const handleShortcutPointerDown = useCallback((event) => {
     event.preventDefault();
@@ -2382,6 +2447,10 @@ const MainBrowserApp = ({ initialUrl, mode, hasStartParam }) => {
           torSavedContainerId={torContainerId}
           torContainerSaving={torConfigSaving}
           torContainerMessage={torConfigFeedback}
+          torInputRef={torContainerInputRef}
+          onTorInputPointerDown={handleTorInputPointerDown}
+          onTorInputFocus={handleTorInputFocus}
+          onTorInputBlur={handleTorInputBlur}
           onTorContainerChange={handleTorContainerInputChange}
           onSaveTorContainer={handleSaveTorContainer}
           onClose={closeSettingsModal}
