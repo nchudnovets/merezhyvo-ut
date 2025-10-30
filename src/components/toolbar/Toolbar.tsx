@@ -1,7 +1,7 @@
 import React, { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
-import StatusIndicator from './StatusIndicator';
+// import StatusIndicator from './StatusIndicator';
 import type { Mode } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
@@ -140,12 +140,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
         />
       </svg>
     </button>
-
-    <StatusIndicator
-      mode={mode}
-      status={status}
-      label={statusLabel}
-    />
   </div>
 );
 };

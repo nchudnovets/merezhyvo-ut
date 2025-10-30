@@ -39,6 +39,20 @@
       flex: 1 1 auto; padding: 10px 0; border-radius: 10px; border: 1px solid rgba(148,163,184,.25);
       background:#121826; color:#e5e7eb; font-size:16px;
     }
+    .mzv-spinner {
+      will-change: transform;
+      transform-origin: 50% 50%;
+    }
+
+    @keyframes app-spin {
+      0%   { transform: rotate(0deg); }
+      100% { transform: rotate(360deg); }
+    }
+
+    @-webkit-keyframes app-spin {
+      0%   { -webkit-transform: rotate(0deg); }
+      100% { -webkit-transform: rotate(360deg); }
+    }
   </style>
 </head>
 <body>

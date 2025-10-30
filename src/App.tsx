@@ -2432,19 +2432,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       >
         <div
           aria-hidden="true"
+          className="mzv-spinner"
           style={{
             ...styles.webviewLoadingSpinner,
             ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
           }}
         />
-        <span
-          style={{
-            ...styles.webviewLoadingLabel,
-            ...(mode === 'mobile' ? styles.webviewLoadingLabelMobile : null)
-          }}
-        >
-          Loading…
-        </span>
       </div>
     )
     : null;
@@ -2892,14 +2885,6 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
                 ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
               }}
             />
-            <span
-              style={{
-                ...styles.webviewLoadingLabel,
-                ...(mode === 'mobile' ? styles.webviewLoadingLabelMobile : null)
-              }}
-            >
-              Loading…
-            </span>
           </div>
         )}
       </div>
