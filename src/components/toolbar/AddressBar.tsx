@@ -4,7 +4,7 @@ import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface AddressBarProps {
   mode: Mode;
-  inputRef: RefObject<HTMLInputElement>;
+  inputRef: RefObject<HTMLInputElement | null>;
   value: string;
   tabCount: number;
   tabsReady: boolean;

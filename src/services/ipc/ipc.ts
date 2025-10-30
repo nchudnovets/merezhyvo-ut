@@ -16,10 +16,9 @@ type InstalledAppsResponse = {
   installedApps: InstalledApp[];
 };
 
-type RemoveInstalledAppResponse = {
-  ok: boolean;
-  error?: string;
-};
+type RemoveInstalledAppResponse =
+  | { ok: false; error?: string }
+  | { ok: true; removed?: InstalledApp; installedApps?: InstalledApp[] };
 
 type SaveTorConfigResponse = TorConfigResult;
 

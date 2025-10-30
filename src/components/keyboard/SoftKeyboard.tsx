@@ -53,6 +53,7 @@ interface SoftKeyboardProps {
   onKey?: (value: string) => void;
   onClose?: () => void;
   onToggleShift?: () => void;
+  onToggleCaps?: () => void;
   onToggleSymbols?: () => void;
   onNextLayout?: () => void;
 }
@@ -78,6 +79,7 @@ function SoftKeyboard({
   onKey,
   onClose,
   onToggleShift,
+  onToggleCaps,
   onToggleSymbols,
   onNextLayout
 }: SoftKeyboardProps): React.ReactElement | null {
@@ -283,7 +285,19 @@ function SoftKeyboard({
 
     switch (key.action) {
       case 'shift':
-        onToggleShift?.();
+        if (caps) {
+          onToggleCaps?.();
+          if (shift) {
+            onToggleShift?.();
+          }
+          break;
+        }
+        if (shift) {
+          onToggleShift?.();
+          onToggleCaps?.();
+        } else {
+          onToggleShift?.();
+        }
         break;
       case 'backspace':
         onKey?.('Backspace');

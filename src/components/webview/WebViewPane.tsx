@@ -2,8 +2,8 @@ import React, { RefObject, ReactNode } from 'react';
 import type { CSSProperties } from 'react';
 
 interface WebViewPaneProps {
-  webviewHostRef: RefObject<HTMLDivElement>;
-  backgroundHostRef: RefObject<HTMLDivElement>;
+  webviewHostRef: RefObject<HTMLDivElement | null>;
+  backgroundHostRef: RefObject<HTMLDivElement | null>;
   webviewStyle: CSSProperties;
   webviewHostStyle?: CSSProperties;
   backgroundStyle: CSSProperties;

@@ -8,7 +8,7 @@ import React, {
   useRef
 } from 'react';
 
-type StatusState = 'loading' | 'ready' | 'error';
+export type StatusState = 'loading' | 'ready' | 'error';
 
 declare global {
   // eslint-disable-next-line @typescript-eslint/no-namespace

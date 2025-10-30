@@ -12,7 +12,7 @@ interface ToolbarProps {
   webviewReady: boolean;
   tabCount: number;
   tabsReady: boolean;
-  inputRef: RefObject<HTMLInputElement>;
+  inputRef: RefObject<HTMLInputElement | null>;
   inputValue: string;
   status: 'loading' | 'ready' | 'error';
   statusLabel: string;

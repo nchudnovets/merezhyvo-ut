@@ -1,4 +1,5 @@
 import React, {
+  CSSProperties,
   RefObject,
   PointerEvent,
   FocusEvent,
@@ -11,15 +12,15 @@ import { shortcutModalStyles } from './createShortcutStyles';
 
 interface CreateShortcutProps {
   mode: Mode;
-  modalBackdropStyle: any;
+  modalBackdropStyle: CSSProperties;
   shortcutCompleted: boolean;
   shortcutSuccessMsg: string;
   busy: boolean;
   msg: string;
   title: string;
   shortcutUrl: string;
-  modalTitleInputRef: RefObject<HTMLInputElement>;
-  modalUrlInputRef: RefObject<HTMLInputElement>;
+  modalTitleInputRef: RefObject<HTMLInputElement | null>;
+  modalUrlInputRef: RefObject<HTMLInputElement | null>;
   onClose: () => void;
   onCreateShortcut: () => void;
   onTitleChange: (value: string) => void;

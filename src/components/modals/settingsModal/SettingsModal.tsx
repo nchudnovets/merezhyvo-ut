@@ -28,7 +28,7 @@ interface SettingsModalProps {
   torSavedContainerId: string;
   torContainerSaving: boolean;
   torContainerMessage: string;
-  torInputRef: RefObject<HTMLInputElement>;
+  torInputRef: RefObject<HTMLInputElement | null>;
   onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
   onTorInputFocus: (event: ReactFocusEvent<HTMLInputElement>) => void;
   onTorInputBlur: (event: ReactFocusEvent<HTMLInputElement>) => void;
