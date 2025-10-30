@@ -285,19 +285,7 @@ function SoftKeyboard({
 
     switch (key.action) {
       case 'shift':
-        if (caps) {
-          onToggleCaps?.();
-          if (shift) {
-            onToggleShift?.();
-          }
-          break;
-        }
-        if (shift) {
-          onToggleShift?.();
-          onToggleCaps?.();
-        } else {
-          onToggleShift?.();
-        }
+        onToggleShift?.();
         break;
       case 'backspace':
         onKey?.('Backspace');

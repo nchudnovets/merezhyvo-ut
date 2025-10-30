@@ -1796,8 +1796,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [getActiveWebview, getActiveWebviewHandle, reloadActiveAction]);
 
-  const handleInputPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
-    event.preventDefault();
+  const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'url';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
@@ -1826,9 +1825,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [mode, isEditableElement]);
 
 
-  const handleModalInputPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleModalInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalTitle';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
@@ -1851,9 +1848,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     });
   }, [mode, isEditableElement]);
 
-  const handleModalUrlPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
+  const handleModalUrlPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalUrl';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
@@ -1876,9 +1871,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     });
   }, [mode, isEditableElement]);
 
-  const handleTorInputPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
-    if (event?.preventDefault) event.preventDefault();
-    if (event?.stopPropagation) event.stopPropagation();
+  const handleTorInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'torContainer';
     if (mode === 'mobile') setKbVisible(true);
   }, [mode]);
