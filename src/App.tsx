@@ -11,13 +11,9 @@ import type {
   PointerEvent as ReactPointerEvent,
   FocusEvent as ReactFocusEvent,
   FormEvent,
-  KeyboardEvent as ReactKeyboardEvent,
-  MutableRefObject,
-  ReactElement
 } from 'react';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
-import SoftKeyboard from './components/keyboard/SoftKeyboard';
 import Toolbar from './components/toolbar/Toolbar';
 import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
@@ -35,16 +31,11 @@ import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
 import type { Mode, InstalledApp, Tab } from './types/models';
-import { layouts as keyboardLayouts } from './layouts/keyboard/layouts';
-import type { KeyboardLayoutId } from './layouts/keyboard/layouts';
 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
-const KB_HEIGHT = 650;
-const FOCUS_CONSOLE_ACTIVE = '__MZR_FOCUS_ACTIVE__';
-const FOCUS_CONSOLE_INACTIVE = '__MZR_FOCUS_INACTIVE__';
 
 type StartParams = {
   url: string;
@@ -314,21 +305,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torIp, setTorIp] = useState<string>('');
   const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
   const [torAlertMessage, setTorAlertMessage] = useState<string>('');
-
-  // --- Soft keyboard state ---
-  const [kbVisible, setKbVisible] = useState<boolean>(false);
-  const [kbLayout, setKbLayout] = useState<KeyboardLayoutId>(() => {
-    if (typeof window === 'undefined') return 'en';
-    try {
-      const stored = window.localStorage.getItem('mzr.kbLayout');
-      if (stored && Object.prototype.hasOwnProperty.call(keyboardLayouts, stored)) {
-        return stored as KeyboardLayoutId;
-      }
-    } catch {}
-    return 'en';
-  });
-  const [kbShift, setKbShift] = useState<boolean>(false);
-  const [kbCaps, setKbCaps] = useState<boolean>(false);
 
   const loadInstalledApps = useCallback(async ({ quiet = false }: LoadInstalledAppsOptions = {}) => {
     if (!quiet) {
@@ -689,7 +665,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const handleEnterFullscreen = () => {
       fullscreenTabRef.current = tabId;
       setIsHtmlFullscreen(true);
-      setKbVisible(false);
     };
 
     const handleLeaveFullscreen = () => {
@@ -1187,8 +1162,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setShortcutSuccessMsg('');
     activeInputRef.current = null;
     blurActiveInWebview();
-    if (mode === 'mobile') setKbVisible(false);
-  }, [mode, blurActiveInWebview, setKbVisible]);
+  }, [mode, blurActiveInWebview]);
 
   const openSettingsModal = useCallback(() => {
     activeInputRef.current = null;
@@ -1197,7 +1171,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPendingRemoval(null);
     setSettingsBusy(false);
     blurActiveInWebview();
-    if (mode === 'mobile') setKbVisible(false);
   }, [mode, blurActiveInWebview]);
 
   const closeSettingsModal = useCallback(() => {
@@ -1205,8 +1178,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPendingRemoval(null);
     setSettingsMsg('');
     setSettingsBusy(false);
-    if (mode === 'mobile') setKbVisible(false);
-  }, [mode, setKbVisible]);
+  }, [mode]);
 
   const askRemoveApp = useCallback((app: InstalledApp | null | undefined) => {
     if (!app) return;
@@ -1245,10 +1217,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setSettingsBusy(false);
     }
   }, [loadInstalledApps, pendingRemoval, setInstalledApps, setPendingRemoval, setSettingsBusy, setSettingsMsg]);
-
-  useEffect(() => {
-    try { localStorage.setItem('mzr.kbLayout', kbLayout); } catch {}
-  }, [kbLayout]);
 
   useEffect(() => {
     if (!showModal) {
@@ -1412,6 +1380,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   // --- Text injection helpers (used by the soft keyboard) ---
   const injectTextToWeb = useCallback(async (text: string) => {
+    if (!text) return;
     const wv = getActiveWebview();
     if (!wv) return;
     const js = `
@@ -1419,111 +1388,59 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try {
           const el = document.activeElement;
           if (!el) return false;
-          const isEditable = el.isContentEditable || (typeof el.value === 'string');
-          if (!isEditable) return false;
+          const isCE = !!el.isContentEditable;
+          const isField = typeof el.value === 'string';
+          if (!isCE && !isField) return false;
+
           const text = String(rawText ?? '');
           if (!text) return false;
 
-          const isEnter = text === '\\n';
-          const key = isEnter ? 'Enter' : text;
-          const firstCodePoint = text.codePointAt ? text.codePointAt(0) || 0 : (text.length ? text.charCodeAt(0) : 0);
-          const keyCode = isEnter ? 13 : (firstCodePoint > 0xffff ? 0 : firstCodePoint);
-          const code = (() => {
-            if (isEnter) return 'Enter';
-            if (text.length === 1) {
-              const ch = text;
-              if (ch === ' ') return 'Space';
-              if (/[0-9]/.test(ch)) return 'Digit' + ch;
-              if (/[a-zA-Z]/.test(ch)) return 'Key' + ch.toUpperCase();
-              if (ch === '.') return 'Period';
-              if (ch === ',') return 'Comma';
-              if (ch === '-') return 'Minus';
-              if (ch === '+') return 'Equal';
-              if (ch === '/') return 'Slash';
-              if (ch === '*') return 'NumpadMultiply';
-            }
-            return key.length === 1 ? 'Key' + key.toUpperCase() : key || 'Unidentified';
-          })();
+          // 1) Дати шанс сторінці скасувати через beforeinput
+          const beforeEvt = new InputEvent('beforeinput', {
+            inputType: 'insertText', data: text, bubbles: true, cancelable: true
+          });
+          if (!el.dispatchEvent(beforeEvt)) return true;
 
-          const fireKeyEvent = (type) => {
-            const event = new KeyboardEvent(type, {
-              key,
-              code,
-              location: 0,
-              bubbles: true,
-              cancelable: type !== 'keyup',
-              composed: true
-            });
+          // 2) Виконати вставку
+          if (isCE) {
+            // Переважно працює у більшості редакторів
             try {
-              Object.defineProperty(event, 'keyCode', { get: () => keyCode });
-              Object.defineProperty(event, 'which', { get: () => keyCode });
-              Object.defineProperty(event, 'charCode', { get: () => type === 'keypress' ? keyCode : 0 });
-            } catch {}
-            el.dispatchEvent(event);
-          };
-
-          const initialValue = el.isContentEditable ? null : (typeof el.value === 'string' ? String(el.value) : '');
-          const initialStart = el.isContentEditable ? null : (typeof el.selectionStart === 'number' ? el.selectionStart : (initialValue ? initialValue.length : 0));
-          const initialEnd = el.isContentEditable ? null : (typeof el.selectionEnd === 'number' ? el.selectionEnd : initialStart);
-
-          fireKeyEvent('keydown');
-          if (key !== 'Unidentified') {
-            fireKeyEvent('keypress');
-          }
-
-          if (!el.isContentEditable) {
-            const currentValue = typeof el.value === 'string' ? String(el.value) : '';
-            const currentStart = typeof el.selectionStart === 'number' ? el.selectionStart : currentValue.length;
-            const currentEnd = typeof el.selectionEnd === 'number' ? el.selectionEnd : currentStart;
-            const handledByPage = currentValue !== initialValue || currentStart !== initialStart || currentEnd !== initialEnd;
-            if (handledByPage) {
-              fireKeyEvent('keyup');
-              return true;
-            }
-          }
-
-          const beforeInputEvt = new InputEvent('beforeinput', { inputType: 'insertText', data: text, bubbles: true, cancelable: true });
-          if (!el.dispatchEvent(beforeInputEvt)) {
-            fireKeyEvent('keyup');
-            return true;
-          }
-
-          let success = false;
-          if (el.isContentEditable) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0) {
-              const range = sel.getRangeAt(0);
-              range.deleteContents();
-              range.insertNode(document.createTextNode(text));
-              range.collapse(false);
-              const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
-              el.dispatchEvent(inputEvt);
-              success = true;
-              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            }
-          } else {
-            if (typeof el.setRangeText === 'function') {
-              el.setRangeText(text, initialStart, initialEnd, 'end');
-            } else {
-              const before = initialValue.slice(0, initialStart);
-              const after  = initialValue.slice(initialEnd);
-              el.value = before + text + after;
-              const posFallback = before.length + text.length;
-              if (typeof el.setSelectionRange === 'function') {
-                el.setSelectionRange(posFallback, posFallback);
+              if (document.execCommand) {
+                document.execCommand('insertText', false, text);
               } else {
-                el.selectionStart = el.selectionEnd = posFallback;
+                throw new Error('no-execCommand');
+              }
+            } catch {
+              const sel = window.getSelection();
+              if (sel && sel.rangeCount) {
+                const r = sel.getRangeAt(0);
+                r.deleteContents();
+                r.insertNode(document.createTextNode(text));
+                r.collapse(false);
+                document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
               }
             }
             const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
             el.dispatchEvent(inputEvt);
-            success = true;
+            return true;
+          } else {
+            const val = String(el.value ?? '');
+            const start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+            const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
+            if (typeof el.setRangeText === 'function') {
+              el.setRangeText(text, start, end, 'end');
+            } else {
+              el.value = val.slice(0, start) + text + val.slice(end);
+              const pos = start + text.length;
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
+              else { el.selectionStart = el.selectionEnd = pos; }
+            }
+            const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
+            el.dispatchEvent(inputEvt);
             document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+            return true;
           }
-
-          fireKeyEvent('keyup');
-          return success;
-        } catch(e) { return false; }
+        } catch { return false; }
       })(${JSON.stringify(text)});
     `;
     try { await wv.executeJavaScript(js); } catch {}
@@ -1537,101 +1454,128 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try {
           const el = document.activeElement;
           if (!el) return false;
-          const isEditable = el.isContentEditable || (typeof el.value === 'string');
-          if (!isEditable) return false;
+          const isCE = !!el.isContentEditable;
+          const isField = typeof el.value === 'string';
+          if (!isCE && !isField) return false;
 
-          const fire = (type) => {
-            const event = new KeyboardEvent(type, {
-              key: 'Backspace',
-              code: 'Backspace',
-              location: 0,
-              bubbles: true,
-              cancelable: type !== 'keyup',
-              composed: true
-            });
-            try {
-              Object.defineProperty(event, 'keyCode', { get: () => 8 });
-              Object.defineProperty(event, 'which', { get: () => 8 });
-              Object.defineProperty(event, 'charCode', { get: () => 0 });
-            } catch {}
-            el.dispatchEvent(event);
-          };
+          const beforeEvt = new InputEvent('beforeinput', {
+            inputType: 'deleteContentBackward', data: null, bubbles: true, cancelable: true
+          });
+          if (!el.dispatchEvent(beforeEvt)) return true;
 
-          const initialValue = el.isContentEditable ? null : (typeof el.value === 'string' ? String(el.value) : '');
-          const initialStart = el.isContentEditable ? null : (typeof el.selectionStart === 'number' ? el.selectionStart : (initialValue ? initialValue.length : 0));
-          const initialEnd = el.isContentEditable ? null : (typeof el.selectionEnd === 'number' ? el.selectionEnd : initialStart);
-
-          fire('keydown');
-
-          if (!el.isContentEditable) {
-            const currentValue = typeof el.value === 'string' ? String(el.value) : '';
-            const currentStart = typeof el.selectionStart === 'number' ? el.selectionStart : currentValue.length;
-            const currentEnd = typeof el.selectionEnd === 'number' ? el.selectionEnd : currentStart;
-            const handledByPage = currentValue !== initialValue || currentStart !== initialStart || currentEnd !== initialEnd;
-            if (handledByPage) {
-              fire('keyup');
-              return true;
-            }
-          }
-
-          const beforeInputEvt = new InputEvent('beforeinput', { inputType: 'deleteContentBackward', data: null, bubbles: true, cancelable: true });
-          if (!el.dispatchEvent(beforeInputEvt)) {
-            fire('keyup');
-            return true;
-          }
-
-          let success = false;
-
-          if (el.isContentEditable) {
+          if (isCE) {
             const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0) {
-              const range = sel.getRangeAt(0);
-              if (!range.collapsed) {
-                range.deleteContents();
+            if (sel && sel.rangeCount) {
+              const r = sel.getRangeAt(0);
+              if (!r.collapsed) {
+                r.deleteContents();
               } else {
-                range.setStart(range.startContainer, Math.max(0, range.startOffset - 1));
-                range.deleteContents();
+                // Видалити 1 символ ліворуч (наївно, без сурогатних пар — цього зазвичай достатньо)
+                r.setStart(r.startContainer, Math.max(0, r.startOffset - 1));
+                r.deleteContents();
               }
               const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
               el.dispatchEvent(inputEvt);
               document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-              success = true;
             }
+            return true;
           } else {
-            if (initialStart === 0 && initialEnd === 0) {
-              fire('keyup');
-              return true;
+            const val = String(el.value ?? '');
+            let start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+            let end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
+            if (start === end) {
+              if (start === 0) return true;
+              start = Math.max(0, start - 1);
             }
-            const deleteStart = initialStart === initialEnd ? Math.max(0, initialStart - 1) : Math.min(initialStart, initialEnd);
-            const deleteEnd = Math.max(initialStart, initialEnd);
             if (typeof el.setRangeText === 'function') {
-              el.setRangeText('', deleteStart, deleteEnd, 'end');
+              el.setRangeText('', start, end, 'end');
             } else {
-              const before = initialValue.slice(0, deleteStart);
-              const after  = initialValue.slice(deleteEnd);
-              el.value = before + after;
-              const posFallback = before.length;
-              if (typeof el.setSelectionRange === 'function') {
-                el.setSelectionRange(posFallback, posFallback);
-              } else {
-                el.selectionStart = el.selectionEnd = posFallback;
-              }
+              el.value = val.slice(0, start) + val.slice(end);
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(start, start);
+              else { el.selectionStart = el.selectionEnd = start; }
             }
             const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
             el.dispatchEvent(inputEvt);
             document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            success = true;
+            return true;
           }
-
-          fire('keyup');
-          return success;
-        } catch(e) { return false; }
+        } catch { return false; }
       })();
     `;
     try { await wv.executeJavaScript(js); } catch {}
   }, [getActiveWebview]);
 
-  const injectArrowToWeb = useCallback(async (direction: KeyboardDirection) => {
+  const injectEnterToWeb = useCallback(async () => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const js = `
+      (function(){
+        try {
+          const el = document.activeElement || document.body;
+          const isCE = !!(el && el.isContentEditable);
+          const tag = (el && el.tagName || '').toLowerCase();
+          const isTextarea = tag === 'textarea';
+          const isInput = tag === 'input';
+          const isTextLikeInput = isInput && !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(el.type || '');
+
+          // Для не-редаговних елементів: якщо є форма — submit
+          if (!isCE && !isTextarea && !isTextLikeInput) {
+            const form = el && (el.form || (el.closest && el.closest('form')));
+            if (form) {
+              if (typeof form.requestSubmit === 'function') form.requestSubmit();
+              else if (typeof form.submit === 'function') form.submit();
+            }
+            return true;
+          }
+
+          // CE або textarea: вставити перенос рядка
+          if (isCE || isTextarea) {
+            const beforeEvt = new InputEvent('beforeinput', {
+              inputType: 'insertLineBreak', data: null, bubbles: true, cancelable: true
+            });
+            if (!el.dispatchEvent(beforeEvt)) return true;
+
+            if (isCE) {
+              try { if (document.execCommand) document.execCommand('insertLineBreak'); } catch {}
+              const inputEvt = new InputEvent('input', { inputType: 'insertLineBreak', data: null, bubbles: true });
+              el.dispatchEvent(inputEvt);
+              return true;
+            } else {
+              const val = String(el.value ?? '');
+              const start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+              const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
+              if (typeof el.setRangeText === 'function') {
+                el.setRangeText('\\n', start, end, 'end');
+              } else {
+                el.value = val.slice(0, start) + '\\n' + val.slice(end);
+                const pos = start + 1;
+                if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
+                else { el.selectionStart = el.selectionEnd = pos; }
+              }
+              const inputEvt = new InputEvent('input', { inputType: 'insertLineBreak', data: null, bubbles: true });
+              el.dispatchEvent(inputEvt);
+              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
+              return true;
+            }
+          }
+
+          // Однорядковий input: Submit форми
+          if (isTextLikeInput) {
+            const form = el && (el.form || (el.closest && el.closest('form')));
+            if (form) {
+              if (typeof form.requestSubmit === 'function') form.requestSubmit();
+              else if (typeof form.submit === 'function') form.submit();
+            }
+            return true;
+          }
+          return false;
+        } catch { return false; }
+      })();
+    `;
+    try { await wv.executeJavaScript(js); } catch {}
+  }, [getActiveWebview]);
+
+  const injectArrowToWeb = useCallback(async (direction: 'ArrowLeft' | 'ArrowRight') => {
     const wv = getActiveWebview();
     if (!wv) return;
     const js = `
@@ -1639,74 +1583,49 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try {
           const el = document.activeElement;
           if (!el) return false;
-          const isEditable = el.isContentEditable || (typeof el.value === 'string');
-          if (!isEditable) return false;
-          const moveBackward = dir === 'ArrowLeft';
-          const key = moveBackward ? 'ArrowLeft' : 'ArrowRight';
-          const keyCode = moveBackward ? 37 : 39;
+          const isCE = !!el.isContentEditable;
+          const isField = typeof el.value === 'string';
+          if (!isCE && !isField) return false;
 
-          const fire = (type) => {
-            const event = new KeyboardEvent(type, {
-              key,
-              code: key,
-              location: 0,
-              bubbles: true,
-              cancelable: type !== 'keyup',
-              composed: true
-            });
-            try {
-              Object.defineProperty(event, 'keyCode', { get: () => keyCode });
-              Object.defineProperty(event, 'which', { get: () => keyCode });
-              Object.defineProperty(event, 'charCode', { get: () => 0 });
-            } catch {}
-            el.dispatchEvent(event);
-          };
-
-          fire('keydown');
-
-          let success = false;
-
-          if (el.isContentEditable) {
+          if (isCE) {
             const sel = window.getSelection();
-            if (sel && sel.rangeCount > 0) {
+            if (sel && sel.rangeCount) {
               if (!sel.isCollapsed) {
-                moveBackward ? sel.collapseToStart() : sel.collapseToEnd();
-              }
-              if (typeof sel.modify === 'function') {
-                sel.modify('move', moveBackward ? 'backward' : 'forward', 'character');
+                if (dir === 'ArrowLeft') sel.collapseToStart(); else sel.collapseToEnd();
+              } else if (typeof sel.modify === 'function') {
+                sel.modify('move', dir === 'ArrowLeft' ? 'backward' : 'forward', 'character');
               } else {
-                const range = sel.getRangeAt(0);
-                const node = range.startContainer;
-                let offset = range.startOffset + (moveBackward ? -1 : 1);
+                const r = sel.getRangeAt(0);
+                const node = r.startContainer;
+                let off = r.startOffset + (dir === 'ArrowLeft' ? -1 : 1);
                 if (node.nodeType === Node.TEXT_NODE) {
-                  const length = node.textContent?.length ?? 0;
-                  offset = Math.max(0, Math.min(length, offset));
-                  range.setStart(node, offset);
-                  range.collapse(true);
+                  const len = (node.textContent || '').length;
+                  off = Math.max(0, Math.min(len, off));
+                  r.setStart(node, off);
+                  r.collapse(true);
                 }
               }
               document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-              success = true;
+              return true;
             }
+            return false;
           } else {
-            const length = el.value.length;
-            const start = el.selectionStart ?? length;
-            const end = el.selectionEnd ?? length;
+            const val = String(el.value ?? '');
+            const len = val.length;
+            const start = typeof el.selectionStart === 'number' ? el.selectionStart : len;
+            const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
             let pos;
             if (start !== end) {
-              pos = moveBackward ? Math.min(start, end) : Math.max(start, end);
+              pos = (dir === 'ArrowLeft') ? Math.min(start, end) : Math.max(start, end);
             } else {
-              pos = moveBackward ? Math.max(0, start - 1) : Math.min(length, start + 1);
+              pos = (dir === 'ArrowLeft') ? Math.max(0, start - 1) : Math.min(len, start + 1);
             }
             el.selectionStart = el.selectionEnd = pos;
             el.focus();
             document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            success = true;
+            return true;
           }
-
-          fire('keyup');
-          return success;
-        } catch (e) { return false; }
+        } catch { return false; }
       })(${JSON.stringify(direction)});
     `;
     try { await wv.executeJavaScript(js); } catch {}
@@ -1735,7 +1654,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } else if (view) {
       try { view.loadURL(target); } catch {}
     }
-    setKbVisible(false);
   }, [getActiveWebview, getActiveWebviewHandle, inputValue, navigateActiveAction]);
 
   const handleBack = useCallback(() => {
@@ -1798,291 +1716,69 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'url';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleInputFocus = useCallback((event: ReactFocusEvent<HTMLInputElement>) => {
     isEditingRef.current = true;
     setIsEditing(true);
     activeInputRef.current = 'url';
     event.target.select();
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleInputBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     isEditingRef.current = false;
     setIsEditing(false);
     if (activeInputRef.current === 'url') activeInputRef.current = null;
-    if (mode !== 'mobile') return;
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-      if (isSoftKey || isEditableElement(active)) {
-        return;
-      }
-      setKbVisible(false);
-    });
-  }, [mode, isEditableElement]);
+  }, []);
 
 
   const handleModalInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalTitle';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleModalInputFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalTitle';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleModalInputBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     if (activeInputRef.current === 'modalTitle') activeInputRef.current = null;
-    if (mode !== 'mobile') return;
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-      if (isSoftKey || isEditableElement(active)) {
-        return;
-      }
-      setKbVisible(false);
-    });
-  }, [mode, isEditableElement]);
+  }, []);
 
   const handleModalUrlPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalUrl';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleModalUrlFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     activeInputRef.current = 'modalUrl';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleModalUrlBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     if (activeInputRef.current === 'modalUrl') activeInputRef.current = null;
-    if (mode !== 'mobile') return;
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-      if (isSoftKey || isEditableElement(active)) {
-        return;
-      }
-      setKbVisible(false);
-    });
-  }, [mode, isEditableElement]);
+  }, []);
 
   const handleTorInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'torContainer';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleTorInputFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     activeInputRef.current = 'torContainer';
-    if (mode === 'mobile') setKbVisible(true);
-  }, [mode]);
+  }, []);
 
   const handleTorInputBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
     if (activeInputRef.current === 'torContainer') activeInputRef.current = null;
-    if (mode !== 'mobile') return;
-    requestAnimationFrame(() => {
-      const active = document.activeElement;
-      const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-      if (isSoftKey || isEditableElement(active)) {
-        return;
-      }
-      setKbVisible(false);
-    });
-  }, [mode, isEditableElement]);
+  }, []);
 
   const containerStyle = useMemo(() => {
-    if (isHtmlFullscreen) return styles.container;
-    if (mode !== 'mobile') return styles.container;
-    return {
-      ...styles.container,
-      paddingBottom: kbVisible ? KB_HEIGHT : 0,
-      transition: 'padding-bottom 160ms ease'
-    };
-  }, [isHtmlFullscreen, kbVisible, mode]);
+    return styles.container;
+  }, [isHtmlFullscreen, mode]);
 
   const modalBackdropStyle = useMemo<CSSProperties>(() => {
-    const base: CSSProperties = { ...styles.modalBackdrop, zIndex: 45 + (kbVisible ? 60 : 0) };
-    if (mode === 'mobile') {
-      return {
-        ...base,
-        alignItems: 'flex-start',
-        paddingTop: 24,
-        paddingBottom: 24,
-        top: 0,
-        bottom: kbVisible ? KB_HEIGHT : 0,
-        transition: 'bottom 160ms ease'
-      };
-    }
-    return base;
-  }, [mode, kbVisible]);
+    return { ...styles.modalBackdrop };
+  }, [mode]);
+
   const tabsPanelBackdropStyle = useMemo<CSSProperties>(() => {
-    const base: CSSProperties = { ...tabsPanelStyles.backdrop, zIndex: 55 + (kbVisible ? 60 : 0) };
-    if (mode === 'mobile') {
-      return {
-        ...base,
-        alignItems: 'flex-start',
-        paddingTop: 0,
-        paddingBottom: 0,
-        top: 0,
-        bottom: kbVisible ? KB_HEIGHT : 0,
-        transition: 'bottom 160ms ease'
-      };
-    }
-    return base;
-  }, [mode, kbVisible]);
-
-
-
-  useEffect(() => {
-    const wv = getActiveWebview();
-    if (!wv) return undefined;
-
-    const script = `
-      (function installMerezhyvoFocusBridge() {
-        if (window.__mzrFocusBridgeInstalled) return;
-        window.__mzrFocusBridgeInstalled = true;
-
-        const nonTextTypes = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
-        const isEditable = (el) => {
-          if (!el) return false;
-          if (el.isContentEditable) return true;
-          const tag = (el.tagName || '').toLowerCase();
-          if (tag === 'textarea') return !el.disabled && !el.readOnly;
-          if (tag === 'input') {
-            const type = (el.getAttribute('type') || '').toLowerCase();
-            if (nonTextTypes.has(type)) return false;
-            return !el.disabled && !el.readOnly;
-          }
-          return false;
-        };
-
-        const notify = (active) => {
-          try {
-            console.info(active ? ${JSON.stringify(FOCUS_CONSOLE_ACTIVE)} : ${JSON.stringify(FOCUS_CONSOLE_INACTIVE)});
-          } catch {}
-        };
-
-        const handleFocusIn = (event) => {
-          if (isEditable(event.target)) notify(true);
-        };
-
-        const handleFocusOut = (event) => {
-          if (!isEditable(event.target)) return;
-          setTimeout(() => {
-            notify(isEditable(document.activeElement));
-          }, 0);
-        };
-
-        const handlePointerDown = (event) => {
-          const target = event.target;
-          if (isEditable(target)) {
-            notify(true);
-          } else {
-            setTimeout(() => {
-              notify(isEditable(document.activeElement));
-            }, 0);
-          }
-        };
-
-        const ensureFieldScroll = (el) => {
-          if (!el) return;
-          const tag = (el.tagName || '').toLowerCase();
-          if (tag !== 'input' && tag !== 'textarea') return;
-          requestAnimationFrame(() => {
-            try {
-              if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return;
-              if (el.selectionStart === el.selectionEnd) {
-                el.scrollLeft = el.scrollWidth;
-              }
-            } catch {}
-          });
-        };
-
-        const handleInput = (event) => {
-          ensureFieldScroll(event.target);
-        };
-
-        const handleKeyup = (event) => {
-          const key = event?.key;
-          if (key === 'ArrowRight' || key === 'ArrowLeft' || key === 'End') {
-            ensureFieldScroll(event.target);
-          }
-        };
-
-        document.addEventListener('focusin', handleFocusIn, true);
-        document.addEventListener('focusout', handleFocusOut, true);
-        document.addEventListener('pointerdown', handlePointerDown, true);
-        document.addEventListener('input', handleInput, true);
-        document.addEventListener('keyup', handleKeyup, true);
-      })();
-    `;
-
-    const install = () => {
-      try {
-        const result = wv.executeJavaScript(script, false);
-        if (result && typeof result.then === 'function') {
-          result.catch(() => {});
-        }
-      } catch {}
-    };
-
-    install();
-    wv.addEventListener('dom-ready', install);
-    wv.addEventListener('did-navigate', install);
-    wv.addEventListener('did-navigate-in-page', install);
-    wv.addEventListener('did-frame-finish-load', install);
-
-    return () => {
-      wv.removeEventListener('dom-ready', install);
-      wv.removeEventListener('did-navigate', install);
-      wv.removeEventListener('did-navigate-in-page', install);
-      wv.removeEventListener('did-frame-finish-load', install);
-    };
-  }, [activeId, activeViewRevision, getActiveWebview]);
-
-  useEffect(() => {
-    const wv = getActiveWebview();
-    if (!wv) return undefined;
-
-    const handler = (event: { message?: string } | null) => {
-      if (mode !== 'mobile') return;
-      const message = event?.message;
-      if (message === FOCUS_CONSOLE_ACTIVE) {
-        setKbVisible(true);
-        return;
-      }
-      if (message === FOCUS_CONSOLE_INACTIVE) {
-        requestAnimationFrame(() => {
-          const active = document.activeElement;
-          const isSoftKey = active && typeof active.closest === 'function' && active.closest('[data-soft-keyboard="true"]');
-          if (isSoftKey || isEditableElement(active)) {
-            return;
-          }
-          setKbVisible(false);
-        });
-      }
-    };
-
-    wv.addEventListener('console-message', handler);
-    return () => {
-      wv.removeEventListener('console-message', handler);
-    };
-  }, [activeId, activeViewRevision, getActiveWebview, isEditableElement, mode]);
-
-
-
-  const closeKeyboard = useCallback(() => {
-    setKbVisible(false);
-    activeInputRef.current = null;
-    if (isEditingRef.current && inputRef.current) {
-      try { inputRef.current.blur(); } catch {}
-    }
-    blurActiveInWebview();
-  }, [blurActiveInWebview]);
+    return { ...tabsPanelStyles.backdrop };
+  }, [mode]);
 
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = useCallback(() => {
@@ -2117,7 +1813,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setBusy(false);
     setShortcutCompleted(false);
     setShortcutSuccessMsg('');
-    setKbVisible(false);
     setShowModal(true);
   };
 
@@ -2155,7 +1850,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
         setShortcutCompleted(true);
         setShortcutSuccessMsg('Shortcut saved successfully. You can now open your new web application from the app launcher.');
-        setKbVisible(false);
         activeInputRef.current = null;
         const activeIdCurrent = activeIdRef.current;
         if (activeIdCurrent) {
@@ -2170,183 +1864,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } finally {
       setBusy(false);
     }
-  }, [activeIdRef, closeTabAction, getCurrentViewUrl, loadInstalledApps, setBusy, setInstalledApps, setKbVisible, setMsg, setShortcutSuccessMsg, setShortcutCompleted, setShortcutUrl, shortcutUrl, title]);
+  }, [activeIdRef, closeTabAction, getCurrentViewUrl, loadInstalledApps, setBusy, setInstalledApps, setMsg, setShortcutSuccessMsg, setShortcutCompleted, setShortcutUrl, shortcutUrl, title]);
 
   const sendKeyToWeb = useCallback(async (key: string) => {
-    const activeTarget = activeInputRef.current;
-
-    if (activeTarget === 'url' && inputRef.current) {
-      const inputEl = inputRef.current;
-      const value = inputEl.value ?? '';
-      const rawStart = inputEl.selectionStart ?? value.length;
-      const rawEnd = inputEl.selectionEnd ?? value.length;
-      const selectionStart = Math.min(rawStart, rawEnd);
-      const selectionEnd = Math.max(rawStart, rawEnd);
-      const setCaret = (pos: number) => {
-        setTimeout(() => {
-          inputEl.selectionStart = inputEl.selectionEnd = pos;
-        }, 0);
-      };
-
-      if (key === 'Backspace') {
-        if (selectionStart === 0 && selectionEnd === 0) {
-          if (kbShift && !kbCaps) setKbShift(false);
-          return;
-        }
-        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
-        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
-        setInputValue(nextValue);
-        setCaret(deleteStart);
-      } else if (key === 'Enter') {
-        const fake = { preventDefault: () => {} };
-        handleSubmit(fake);
-      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-        const nextPos = key === 'ArrowLeft'
-          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
-          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
-        setCaret(nextPos);
-      } else {
-        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
-        const nextPos = selectionStart + key.length;
-        setInputValue(nextValue);
-        setCaret(nextPos);
-      }
-      if (kbShift && !kbCaps) setKbShift(false);
-      return;
-    }
-
-    if (activeTarget === 'modalTitle' && modalTitleInputRef.current) {
-      const inputEl = modalTitleInputRef.current;
-      const value = inputEl.value ?? '';
-      const rawStart = inputEl.selectionStart ?? value.length;
-      const rawEnd = inputEl.selectionEnd ?? value.length;
-      const selectionStart = Math.min(rawStart, rawEnd);
-      const selectionEnd = Math.max(rawStart, rawEnd);
-      const setCaret = (pos: number) => {
-        setTimeout(() => {
-          inputEl.selectionStart = inputEl.selectionEnd = pos;
-        }, 0);
-      };
-
-      if (key === 'Backspace') {
-        if (selectionStart === 0 && selectionEnd === 0) {
-          if (kbShift && !kbCaps) setKbShift(false);
-          return;
-        }
-        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
-        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
-        setTitle(nextValue);
-        setCaret(deleteStart);
-      } else if (key === 'Enter') {
-        if (!busy) {
-          createShortcut();
-        }
-      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-        const nextPos = key === 'ArrowLeft'
-          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
-          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
-        setCaret(nextPos);
-      } else {
-        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
-        const nextPos = selectionStart + key.length;
-        setTitle(nextValue);
-        setCaret(nextPos);
-      }
-      if (kbShift && !kbCaps) setKbShift(false);
-      return;
-    }
-
-    if (activeTarget === 'modalUrl' && modalUrlInputRef.current) {
-      const inputEl = modalUrlInputRef.current;
-      const value = inputEl.value ?? '';
-      const rawStart = inputEl.selectionStart ?? value.length;
-      const rawEnd = inputEl.selectionEnd ?? value.length;
-      const selectionStart = Math.min(rawStart, rawEnd);
-      const selectionEnd = Math.max(rawStart, rawEnd);
-      const setCaret = (pos: number) => {
-        setTimeout(() => {
-          inputEl.selectionStart = inputEl.selectionEnd = pos;
-        }, 0);
-      };
-
-      if (key === 'Backspace') {
-        if (selectionStart === 0 && selectionEnd === 0) {
-          if (kbShift && !kbCaps) setKbShift(false);
-          return;
-        }
-        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
-        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
-        setShortcutUrl(nextValue);
-        setCaret(deleteStart);
-      } else if (key === 'Enter') {
-        if (!busy) {
-          createShortcut();
-        }
-      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-        const nextPos = key === 'ArrowLeft'
-          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
-          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
-        setCaret(nextPos);
-      } else {
-        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
-        const nextPos = selectionStart + key.length;
-        setShortcutUrl(nextValue);
-        setCaret(nextPos);
-      }
-      if (kbShift && !kbCaps) setKbShift(false);
-      return;
-    }
-
-    if (activeTarget === 'torContainer' && torContainerInputRef.current) {
-      const inputEl = torContainerInputRef.current;
-      const value = inputEl.value ?? '';
-      const rawStart = inputEl.selectionStart ?? value.length;
-      const rawEnd = inputEl.selectionEnd ?? value.length;
-      const selectionStart = Math.min(rawStart, rawEnd);
-      const selectionEnd = Math.max(rawStart, rawEnd);
-      const setCaret = (pos: number) => {
-        setTimeout(() => {
-          inputEl.selectionStart = inputEl.selectionEnd = pos;
-        }, 0);
-      };
-
-      if (key === 'Backspace') {
-        if (selectionStart === 0 && selectionEnd === 0) {
-          if (kbShift && !kbCaps) setKbShift(false);
-          return;
-        }
-        const deleteStart = selectionStart === selectionEnd ? Math.max(0, selectionStart - 1) : selectionStart;
-        const nextValue = value.slice(0, deleteStart) + value.slice(selectionEnd);
-        setTorContainerDraft(nextValue);
-        setCaret(deleteStart);
-      } else if (key === 'Enter') {
-        handleSaveTorContainer();
-      } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-        const nextPos = key === 'ArrowLeft'
-          ? (selectionStart !== selectionEnd ? selectionStart : Math.max(0, selectionStart - 1))
-          : (selectionStart !== selectionEnd ? selectionEnd : Math.min(value.length, selectionEnd + 1));
-        setCaret(nextPos);
-      } else {
-        const nextValue = value.slice(0, selectionStart) + key + value.slice(selectionEnd);
-        const nextPos = selectionStart + key.length;
-        setTorContainerDraft(nextValue);
-        setCaret(nextPos);
-      }
-      if (kbShift && !kbCaps) setKbShift(false);
-      return;
-    }
-
-    if (key === 'Backspace') {
-      await injectBackspaceToWeb();
-    } else if (key === 'Enter') {
-      await injectTextToWeb('\n');
-    } else if (key === 'ArrowLeft' || key === 'ArrowRight') {
-      await injectArrowToWeb(key);
-    } else {
-      await injectTextToWeb(key);
-    }
-    if (kbShift && !kbCaps) setKbShift(false);
-  }, [busy, createShortcut, handleSaveTorContainer, handleSubmit, injectArrowToWeb, injectBackspaceToWeb, injectTextToWeb, kbShift, kbCaps, setInputValue, setShortcutUrl, setTitle]);
+    if (key === 'Backspace')      return void injectBackspaceToWeb();
+    if (key === 'Enter')          return void injectEnterToWeb();
+    if (key === 'ArrowLeft' || key === 'ArrowRight') return void injectArrowToWeb(key as 'ArrowLeft' | 'ArrowRight');
+    return void injectTextToWeb(key);
+}, [injectArrowToWeb, injectBackspaceToWeb, injectEnterToWeb, injectTextToWeb]);
 
   const handleShortcutPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -2357,33 +1882,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     event.stopPropagation();
   }, []);
 
-  // --- Layout helpers for the keyboard ---
-  const nextLayout = useCallback(() => {
-    const order: KeyboardLayoutId[] = ['en', 'uk', 'symbols'];
-    const index = order.indexOf(kbLayout);
-    const nextIndex = index >= 0 ? (index + 1) % order.length : 0;
-    const nextId = order[nextIndex] ?? 'en';
-    setKbLayout(nextId);
-  }, [kbLayout]);
-
-  const toggleSymbols = useCallback(() => {
-    setKbLayout((layout) => layout === 'symbols' ? 'en' : 'symbols');
-  }, []);
-
-  const toggleShift = useCallback(() => setKbShift((shift) => !shift), []);
-  const toggleCaps = useCallback(() => setKbCaps((caps) => !caps), []);
-
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
     setShowTabsPanel(true);
     activeInputRef.current = null;
     blurActiveInWebview();
-    if (mode === 'mobile') setKbVisible(false);
   }, [tabsReady, blurActiveInWebview, mode]);
 
   const closeTabsPanel = useCallback(() => {
     setShowTabsPanel(false);
-    if (mode === 'mobile') setKbVisible(false);
   }, [mode]);
 
   const handleActivateTab = useCallback((id: string) => {
@@ -2391,7 +1898,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     activateTabAction(id);
     setShowTabsPanel(false);
     blurActiveInWebview();
-    if (mode === 'mobile') setKbVisible(false);
   }, [activateTabAction, blurActiveInWebview, mode]);
 
   const handleCloseTab = useCallback((id: string) => {
@@ -2408,7 +1914,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     newTabAction(DEFAULT_URL);
     setShowTabsPanel(false);
     blurActiveInWebview();
-    if (mode === 'mobile') setKbVisible(false);
     requestAnimationFrame(() => {
       try { inputRef.current?.focus?.(); } catch {}
     });
@@ -2604,20 +2109,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           </div>
         </div>
       )}
-
-      <SoftKeyboard
-        visible={mode === 'mobile' && kbVisible}
-        height={KB_HEIGHT}
-        layoutId={kbLayout}
-        shift={kbShift}
-        caps={kbCaps}
-        onKey={sendKeyToWeb}
-        onClose={closeKeyboard}
-        onToggleShift={toggleShift}
-        onToggleCaps={toggleCaps}
-        onToggleSymbols={toggleSymbols}
-        onNextLayout={nextLayout}
-      />
     </div>
   );
 };
