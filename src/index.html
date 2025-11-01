@@ -54,6 +54,54 @@
       100% { -webkit-transform: rotate(360deg); }
     }
   </style>
+  <style>
+    .hg-theme-default {
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+      background: #0b1222;
+      padding: 8px;
+      box-sizing: border-box;
+    }
+    .hg-row { display: flex; margin-bottom: 6px; }
+    .hg-row:last-child { margin-bottom: 0; }
+    .hg-button {
+      flex: 1 1 auto;
+      margin: 3px;
+      padding: 10px 8px;
+      border-radius: 8px;
+      background: #111a33;
+      color: #e5ecff;
+      font-size: 16px;
+      border: 1px solid rgba(255,255,255,0.08);
+      box-shadow: 0 1px 0 rgba(255,255,255,0.06) inset;
+    }
+    .hg-button:active { filter: brightness(1.15); }
+    .hg-button.hg-functionBtn { background: #162142; }
+
+    .mzr-osk.fixed-osk {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 1000;
+      background: #0b1222;
+      border-top: 1px solid rgba(255,255,255,0.08);
+    }
+
+    @media (max-width: 800px) {
+      .hg-button { padding: 14px 10px; font-size: 18px; border-radius: 10px; }
+      .hg-row { margin-bottom: 8px; }
+    }
+
+    /* .hg-button[data-skbtn="{bksp}"]::after { content: "⌫"; }
+    .hg-button[data-skbtn="{enter}"]::after { content: "⏎"; }
+    .hg-button[data-skbtn="{space}"]::after { content: "␣"; }
+    .hg-button[data-skbtn="{arrowleft}"]::after { content: "←"; }
+    .hg-button[data-skbtn="{arrowright}"]::after { content: "→"; }
+    .hg-button[data-skbtn="{lang}"]::after { content: "🌐"; }
+    .hg-button[data-skbtn="{symbols}"]::after { content: "?!$"; } */
+    .mzr-osk [tabindex], .mzr-osk button, .mzr-osk .hg-button { outline: none !important; }
+    .mzr-osk * { -webkit-user-select: none; user-select: none; }
+  </style>
 </head>
 <body>
   <div id="root"></div>

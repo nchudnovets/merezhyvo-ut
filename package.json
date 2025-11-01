@@ -36,7 +36,10 @@
   },
   "dependencies": {
     "react": "^19.2.0",
-    "react-dom": "^19.2.0"
+    "react-dom": "^19.2.0",
+    "react-simple-keyboard": "^3.8.132",
+    "simple-keyboard": "^3.8.88",
+    "simple-keyboard-layouts": "^3.4.139"
   },
   "devDependencies": {
     "@types/electron": "^1.6.12",

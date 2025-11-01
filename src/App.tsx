@@ -30,8 +30,11 @@ import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
+import KeyboardPane from './keyboard/KeyboardPane';
+import type { LayoutId, OskContext } from './keyboard/layouts';
+import { GetWebview, makeMainInjects, makeWebInjects, probeWebEditable } from './keyboard/inject';
 import type { Mode, InstalledApp, Tab } from './types/models';
-
+ 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
@@ -136,6 +139,13 @@ const WEBVIEW_BASE_CSS = `
     --mzr-focus-ring:   #60a5fa;
     --mzr-sel-bg:       rgba(34,211,238,.28);
     --mzr-sel-fg:       #0b1020;
+  }
+  html, body, * {
+    -webkit-touch-callout: none !important;
+  }
+  input, textarea, [contenteditable="true"] {
+    -webkit-user-select: text !important;
+    user-select: text !important;
   }
   @media (prefers-color-scheme: dark) {
     :root {
@@ -305,6 +315,45 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torIp, setTorIp] = useState<string>('');
   const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
   const [torAlertMessage, setTorAlertMessage] = useState<string>('');
+  const [kbVisible, setKbVisible] = useState<boolean>(false);
+  const enabledKbLayouts = useMemo<LayoutId[]>(() => ['en','uk','symbols'], []);
+  const [kbLayout, setKbLayout] = useState<LayoutId>('en');
+  const [kbContext, setKbContext] = useState<OskContext>('text');
+
+  const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
+  const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
+  const oskPressGuardRef = useRef(false);
+
+  const prevAlphaLayoutRef = React.useRef(kbLayout); // остання НЕ 'symbols' розкладка
+  useEffect(() => {
+    if (kbLayout !== 'symbols') prevAlphaLayoutRef.current = kbLayout;
+  }, [kbLayout]);
+
+  const cycleKbLayout = useCallback(() => {
+    setKbLayout((prev) => {
+      const pool = enabledKbLayouts.length ? enabledKbLayouts : ['en'];
+      const idx = pool.indexOf(prev as LayoutId);
+      const nextId = pool[(idx >= 0 ? idx + 1 : 0) % pool.length] as LayoutId;
+      return nextId;
+    });
+  }, [enabledKbLayouts, setKbLayout]);
+
+  const toggleSymbols = useCallback(() => {
+    setKbLayout(l => (l === 'symbols' ? (prevAlphaLayoutRef.current as any) : 'symbols'));
+  }, []);
+
+  useEffect(() => {
+    (async () => {
+      try {
+        const state = await ipc.settings.loadState();
+        const list = state?.keyboard?.enabledLayouts as LayoutId[] | undefined;
+        // гарантуємо, що є хоча б 'en'
+        const cleaned = Array.isArray(list) && list.length ? (list as LayoutId[]) : ['en'];
+        // symbols керуємо всередині, НЕ зберігаємо в settings
+        // setEnabledKbLayouts(cleaned.filter(l => l !== 'symbols') as LayoutId[]);
+      } catch {}
+    })();
+  }, []);
 
   const loadInstalledApps = useCallback(async ({ quiet = false }: LoadInstalledAppsOptions = {}) => {
     if (!quiet) {
@@ -428,7 +477,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       cancelled = true;
     };
   }, []);
-  const getActiveWebview = useCallback((): WebviewTag | null => {
+  const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
     const handle = webviewHandleRef.current;
     if (handle && typeof handle.getWebView === 'function') {
       const element = handle.getWebView();
@@ -436,6 +485,121 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     return webviewRef.current ?? null;
   }, []);
+
+  const {
+    injectTextToWeb,
+    injectBackspaceToWeb,
+    injectEnterToWeb,
+    injectArrowToWeb,
+    isActiveMultiline
+  } = React.useMemo(() => makeWebInjects(getActiveWebview), [getActiveWebview]);
+
+  const {
+    injectTextToMain,
+    injectBackspaceToMain,
+    injectEnterToMain,
+    injectArrowToMain,
+  } = React.useMemo(() => makeMainInjects(), []);
+
+  const isEditableMainNow = React.useCallback(() => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return false;
+    if (el.closest?.('[data-soft-keyboard="true"]')) return false;
+    if ((el as any).isContentEditable) return true;
+    if (el.tagName === 'TEXTAREA') return !(el as HTMLTextAreaElement).readOnly && !(el as HTMLTextAreaElement).disabled;
+    if (el.tagName === 'INPUT') {
+      const input = el as HTMLInputElement;
+      const type = (input.getAttribute('type') || 'text').toLowerCase();
+      const nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
+      if (nonText.has(type)) return false;
+      return !input.readOnly && !input.disabled;
+    }
+    return false;
+  }, []);
+
+  const onEnterShouldClose = useCallback(async (): Promise<boolean> => {
+    // 1) Перевірка в головному вікні
+    const el = document.activeElement as HTMLElement | null;
+    if (el) {
+      const tag = (el.tagName || '').toLowerCase();
+      const isMultiMain = el.isContentEditable || tag === 'textarea';
+      if (isMultiMain) return false;       // textarea/CE — не закриваємо
+    }
+
+    // 2) Якщо фокус у webview — питаємо інжектор
+    try {
+      const isMulti = await isActiveMultiline?.();
+      if (typeof isMulti === 'boolean') return !isMulti;  // закриваємо, якщо НЕ multiline
+    } catch {}
+
+    // 3) За замовчуванням — закриваємо
+    return true;
+  }, []);
+
+  const getActiveMainInput = useCallback((): HTMLInputElement | HTMLTextAreaElement | null => {
+    const cands: Array<HTMLInputElement | HTMLTextAreaElement | null | undefined> = [
+      inputRef?.current,
+      modalTitleInputRef?.current,
+      modalUrlInputRef?.current,
+      torContainerInputRef?.current
+    ];
+    for (const el of cands) {
+      if (el && document.activeElement === el) return el;
+    }
+    const el = document.activeElement as (HTMLInputElement | HTMLTextAreaElement | null);
+    if (!el) return null;
+    const tag = (el.tagName || '').toLowerCase();
+    if (tag === 'input' || tag === 'textarea') return el;
+    return null;
+  }, []);
+
+  const refocusWebEditable = React.useCallback(() => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const js = `
+      (function(){
+        try {
+          const el = document.activeElement;
+          if (el && (el.isContentEditable || typeof el.value === 'string')) {
+            el.focus();
+          }
+        } catch {}
+      })();
+    `;
+    try { wv.executeJavaScript(js, false).catch(() => {}); } catch {}
+  }, [getActiveWebview]);
+
+  const isFocusInMainWindow = () => {
+    const el = document.activeElement as HTMLElement | null;
+    if (!el) return true;
+    const insideWebview = el.closest?.('webview, iframe');
+    return !insideWebview;
+  };
+
+  const closeKeyboard = useCallback(() => setKbVisible(false), []);
+
+  const injectText = React.useCallback(async (text: string) => {
+    // якщо активний редагований елемент у main — друкуємо тільки туди
+    if (isEditableMainNow()) { injectTextToMain(text); return; }
+    // інакше перевіряємо webview
+    if (await probeWebEditable(getActiveWebview)) { await injectTextToWeb(text); return; }
+    // якщо ніде — нічого не робимо, клавіатуру не закриваємо
+  }, [getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
+
+  const injectBackspace = React.useCallback(async () => {
+    if (isEditableMainNow()) { injectBackspaceToMain(); return; }
+    if (await probeWebEditable(getActiveWebview)) { await injectBackspaceToWeb(); return; }
+  }, [getActiveWebview, injectBackspaceToMain, injectBackspaceToWeb, isEditableMainNow]);
+
+  const injectEnter = React.useCallback(async () => {
+    if (isEditableMainNow()) { injectEnterToMain(); return; }
+    if (await probeWebEditable(getActiveWebview)) { await injectEnterToWeb(); return; }
+  }, [getActiveWebview, injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
+
+  const injectArrow = React.useCallback(async (dir: 'ArrowLeft' | 'ArrowRight') => {
+    if (isEditableMainNow()) { injectArrowToMain(dir); return; }
+    if (await probeWebEditable(getActiveWebview)) { await injectArrowToWeb(dir); return; }
+  }, [getActiveWebview, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
   const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
 
@@ -1378,258 +1542,121 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     });
   }, [shortcutUrl]);
 
-  // --- Text injection helpers (used by the soft keyboard) ---
-  const injectTextToWeb = useCallback(async (text: string) => {
-    if (!text) return;
+  useEffect(() => {
+    if (mode !== 'mobile') return;
+
+    const onPointerDown = (e: PointerEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      const insideOsk = t.closest('[data-soft-keyboard="true"]');
+      if (insideOsk) {
+        oskPressGuardRef.current = true;
+        setTimeout(() => { oskPressGuardRef.current = false; }, 250);
+        return;
+      }
+      if (!isEditableElement(t)) setKbVisible(false);
+    };
+
+    const onFocusIn = (e: FocusEvent) => {
+      const t = e.target as HTMLElement | null;
+      if (!t) return;
+      if (isEditableElement(t)) setKbVisible(true);
+    };
+
+    document.addEventListener('pointerdown', onPointerDown, true);
+    document.addEventListener('focusin', onFocusIn, true);
+
+    return () => {
+      document.removeEventListener('pointerdown', onPointerDown, true);
+      document.removeEventListener('focusin', onFocusIn, true);
+    };
+  }, [mode, isEditableElement]);
+
+  useEffect(() => {
+    if (mode !== 'mobile') return;
     const wv = getActiveWebview();
     if (!wv) return;
-    const js = `
-      (function(rawText){
-        try {
-          const el = document.activeElement;
-          if (!el) return false;
-          const isCE = !!el.isContentEditable;
-          const isField = typeof el.value === 'string';
-          if (!isCE && !isField) return false;
 
-          const text = String(rawText ?? '');
-          if (!text) return false;
-
-          // 1) Дати шанс сторінці скасувати через beforeinput
-          const beforeEvt = new InputEvent('beforeinput', {
-            inputType: 'insertText', data: text, bubbles: true, cancelable: true
-          });
-          if (!el.dispatchEvent(beforeEvt)) return true;
-
-          // 2) Виконати вставку
-          if (isCE) {
-            // Переважно працює у більшості редакторів
-            try {
-              if (document.execCommand) {
-                document.execCommand('insertText', false, text);
-              } else {
-                throw new Error('no-execCommand');
-              }
-            } catch {
-              const sel = window.getSelection();
-              if (sel && sel.rangeCount) {
-                const r = sel.getRangeAt(0);
-                r.deleteContents();
-                r.insertNode(document.createTextNode(text));
-                r.collapse(false);
-                document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-              }
-            }
-            const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
-            el.dispatchEvent(inputEvt);
-            return true;
-          } else {
-            const val = String(el.value ?? '');
-            const start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
-            const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
-            if (typeof el.setRangeText === 'function') {
-              el.setRangeText(text, start, end, 'end');
-            } else {
-              el.value = val.slice(0, start) + text + val.slice(end);
-              const pos = start + text.length;
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
-              else { el.selectionStart = el.selectionEnd = pos; }
-            }
-            const inputEvt = new InputEvent('input', { inputType: 'insertText', data: text, bubbles: true });
-            el.dispatchEvent(inputEvt);
-            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            return true;
-          }
-        } catch { return false; }
-      })(${JSON.stringify(text)});
-    `;
-    try { await wv.executeJavaScript(js); } catch {}
-  }, [getActiveWebview]);
-
-  const injectBackspaceToWeb = useCallback(async () => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    const js = `
+    const bridgeScript = `
       (function(){
         try {
-          const el = document.activeElement;
-          if (!el) return false;
-          const isCE = !!el.isContentEditable;
-          const isField = typeof el.value === 'string';
-          if (!isCE && !isField) return false;
+          if (window.__mzrFocusBridgeInstalled) return;
+          window.__mzrFocusBridgeInstalled = true;
 
-          const beforeEvt = new InputEvent('beforeinput', {
-            inputType: 'deleteContentBackward', data: null, bubbles: true, cancelable: true
-          });
-          if (!el.dispatchEvent(beforeEvt)) return true;
-
-          if (isCE) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount) {
-              const r = sel.getRangeAt(0);
-              if (!r.collapsed) {
-                r.deleteContents();
-              } else {
-                // Видалити 1 символ ліворуч (наївно, без сурогатних пар — цього зазвичай достатньо)
-                r.setStart(r.startContainer, Math.max(0, r.startOffset - 1));
-                r.deleteContents();
-              }
-              const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
-              el.dispatchEvent(inputEvt);
-              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            }
-            return true;
-          } else {
-            const val = String(el.value ?? '');
-            let start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
-            let end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
-            if (start === end) {
-              if (start === 0) return true;
-              start = Math.max(0, start - 1);
-            }
-            if (typeof el.setRangeText === 'function') {
-              el.setRangeText('', start, end, 'end');
-            } else {
-              el.value = val.slice(0, start) + val.slice(end);
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(start, start);
-              else { el.selectionStart = el.selectionEnd = start; }
-            }
-            const inputEvt = new InputEvent('input', { inputType: 'deleteContentBackward', data: null, bubbles: true });
-            el.dispatchEvent(inputEvt);
-            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            return true;
-          }
-        } catch { return false; }
-      })();
-    `;
-    try { await wv.executeJavaScript(js); } catch {}
-  }, [getActiveWebview]);
-
-  const injectEnterToWeb = useCallback(async () => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    const js = `
-      (function(){
-        try {
-          const el = document.activeElement || document.body;
-          const isCE = !!(el && el.isContentEditable);
-          const tag = (el && el.tagName || '').toLowerCase();
-          const isTextarea = tag === 'textarea';
-          const isInput = tag === 'input';
-          const isTextLikeInput = isInput && !/^(button|submit|reset|checkbox|radio|range|color|file|image|hidden)$/i.test(el.type || '');
-
-          // Для не-редаговних елементів: якщо є форма — submit
-          if (!isCE && !isTextarea && !isTextLikeInput) {
-            const form = el && (el.form || (el.closest && el.closest('form')));
-            if (form) {
-              if (typeof form.requestSubmit === 'function') form.requestSubmit();
-              else if (typeof form.submit === 'function') form.submit();
-            }
-            return true;
-          }
-
-          // CE або textarea: вставити перенос рядка
-          if (isCE || isTextarea) {
-            const beforeEvt = new InputEvent('beforeinput', {
-              inputType: 'insertLineBreak', data: null, bubbles: true, cancelable: true
-            });
-            if (!el.dispatchEvent(beforeEvt)) return true;
-
-            if (isCE) {
-              try { if (document.execCommand) document.execCommand('insertLineBreak'); } catch {}
-              const inputEvt = new InputEvent('input', { inputType: 'insertLineBreak', data: null, bubbles: true });
-              el.dispatchEvent(inputEvt);
-              return true;
-            } else {
-              const val = String(el.value ?? '');
-              const start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
-              const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
-              if (typeof el.setRangeText === 'function') {
-                el.setRangeText('\\n', start, end, 'end');
-              } else {
-                el.value = val.slice(0, start) + '\\n' + val.slice(end);
-                const pos = start + 1;
-                if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
-                else { el.selectionStart = el.selectionEnd = pos; }
-              }
-              const inputEvt = new InputEvent('input', { inputType: 'insertLineBreak', data: null, bubbles: true });
-              el.dispatchEvent(inputEvt);
-              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-              return true;
-            }
-          }
-
-          // Однорядковий input: Submit форми
-          if (isTextLikeInput) {
-            const form = el && (el.form || (el.closest && el.closest('form')));
-            if (form) {
-              if (typeof form.requestSubmit === 'function') form.requestSubmit();
-              else if (typeof form.submit === 'function') form.submit();
-            }
-            return true;
-          }
-          return false;
-        } catch { return false; }
-      })();
-    `;
-    try { await wv.executeJavaScript(js); } catch {}
-  }, [getActiveWebview]);
-
-  const injectArrowToWeb = useCallback(async (direction: 'ArrowLeft' | 'ArrowRight') => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    const js = `
-      (function(dir){
-        try {
-          const el = document.activeElement;
-          if (!el) return false;
-          const isCE = !!el.isContentEditable;
-          const isField = typeof el.value === 'string';
-          if (!isCE && !isField) return false;
-
-          if (isCE) {
-            const sel = window.getSelection();
-            if (sel && sel.rangeCount) {
-              if (!sel.isCollapsed) {
-                if (dir === 'ArrowLeft') sel.collapseToStart(); else sel.collapseToEnd();
-              } else if (typeof sel.modify === 'function') {
-                sel.modify('move', dir === 'ArrowLeft' ? 'backward' : 'forward', 'character');
-              } else {
-                const r = sel.getRangeAt(0);
-                const node = r.startContainer;
-                let off = r.startOffset + (dir === 'ArrowLeft' ? -1 : 1);
-                if (node.nodeType === Node.TEXT_NODE) {
-                  const len = (node.textContent || '').length;
-                  off = Math.max(0, Math.min(len, off));
-                  r.setStart(node, off);
-                  r.collapse(true);
-                }
-              }
-              document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-              return true;
+          var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
+          function isEditable(el){
+            if(!el) return false;
+            if(el.isContentEditable) return true;
+            var tag = (el.tagName||'').toLowerCase();
+            if(tag==='textarea') return !el.disabled && !el.readOnly;
+            if(tag==='input'){
+              var type = (el.getAttribute('type')||'').toLowerCase();
+              if(nonText.has(type)) return false;
+              return !el.disabled && !el.readOnly;
             }
             return false;
-          } else {
-            const val = String(el.value ?? '');
-            const len = val.length;
-            const start = typeof el.selectionStart === 'number' ? el.selectionStart : len;
-            const end   = typeof el.selectionEnd   === 'number' ? el.selectionEnd   : start;
-            let pos;
-            if (start !== end) {
-              pos = (dir === 'ArrowLeft') ? Math.min(start, end) : Math.max(start, end);
-            } else {
-              pos = (dir === 'ArrowLeft') ? Math.max(0, start - 1) : Math.min(len, start + 1);
-            }
-            el.selectionStart = el.selectionEnd = pos;
-            el.focus();
-            document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
-            return true;
           }
-        } catch { return false; }
-      })(${JSON.stringify(direction)});
+
+          function markLast(el){
+            try { window.__mzrLastEditable = el; } catch(e) {}
+          }
+
+          function notify(flag){
+            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
+          }
+
+          document.addEventListener('focusin', function(ev){
+            if (isEditable(ev.target)) { markLast(ev.target); notify(true); }
+          }, true);
+
+          document.addEventListener('focusout', function(ev){
+            if (!isEditable(ev.target)) return;
+            setTimeout(function(){
+              var still = isEditable(document.activeElement);
+              if (still) markLast(document.activeElement);
+              notify(still);
+            }, 0);
+          }, true);
+
+          document.addEventListener('pointerdown', function(ev){
+            var t = ev.target;
+            if (isEditable(t)) { markLast(t); notify(true); }
+          }, true);
+        } catch(e){}
+      })();
     `;
-    try { await wv.executeJavaScript(js); } catch {}
-  }, [getActiveWebview]);
+
+
+    const install = () => {
+      try {
+        const r = wv.executeJavaScript(bridgeScript, false);
+        if (r && typeof r.then === 'function') r.catch(()=>{});
+      } catch {}
+    };
+
+    const onConsole = (event: any) => {
+      const msg: string = (event && event.message) || '';
+      if (msg === FOCUS_CONSOLE_ACTIVE) {
+        setKbVisible(true);
+      } else if (msg === FOCUS_CONSOLE_INACTIVE) {
+        if (oskPressGuardRef.current) return;
+        setKbVisible(false);
+      }
+    };
+
+    install();
+    wv.addEventListener('dom-ready', install);
+    wv.addEventListener('did-navigate', install);
+    wv.addEventListener('did-navigate-in-page', install);
+    wv.addEventListener('console-message', onConsole);
+
+    return () => {
+      wv.removeEventListener('dom-ready', install);
+      wv.removeEventListener('did-navigate', install);
+      wv.removeEventListener('did-navigate-in-page', install);
+      wv.removeEventListener('console-message', onConsole);
+    };
+  }, [mode, getActiveWebview, activeId, activeViewRevision]);
 
   // --- Toolbar event handlers ---
   const handleSubmit = useCallback((event: SubmitEvent) => {
@@ -1865,13 +1892,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setBusy(false);
     }
   }, [activeIdRef, closeTabAction, getCurrentViewUrl, loadInstalledApps, setBusy, setInstalledApps, setMsg, setShortcutSuccessMsg, setShortcutCompleted, setShortcutUrl, shortcutUrl, title]);
-
-  const sendKeyToWeb = useCallback(async (key: string) => {
-    if (key === 'Backspace')      return void injectBackspaceToWeb();
-    if (key === 'Enter')          return void injectEnterToWeb();
-    if (key === 'ArrowLeft' || key === 'ArrowRight') return void injectArrowToWeb(key as 'ArrowLeft' | 'ArrowRight');
-    return void injectTextToWeb(key);
-}, [injectArrowToWeb, injectBackspaceToWeb, injectEnterToWeb, injectTextToWeb]);
 
   const handleShortcutPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
     event.preventDefault();
@@ -2109,6 +2129,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           </div>
         </div>
       )}
+
+      <KeyboardPane
+        visible={kbVisible}
+        layoutId={kbLayout}
+        enabledLayouts={enabledKbLayouts}
+        context="text"
+        injectText={injectText}
+        injectBackspace={injectBackspace}
+        injectEnter={injectEnter}
+        injectArrow={injectArrow}
+        onSetLayout={setKbLayout}
+        onEnterShouldClose={onEnterShouldClose}
+        onClose={closeKeyboard}
+      />
     </div>
   );
 };
