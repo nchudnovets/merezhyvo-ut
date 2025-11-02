@@ -7,6 +7,7 @@ import React, {
   useImperativeHandle,
   useRef
 } from 'react';
+import type { WebviewTag, WebContents } from 'electron';
 
 export type StatusState = 'loading' | 'ready' | 'error';
 
@@ -15,7 +16,7 @@ declare global {
   namespace JSX {
     interface IntrinsicElements {
       // Minimal typing to let TSX render the Electron webview tag.
-      webview: React.DetailedHTMLProps<React.HTMLAttributes<any>, any> & {
+      webview: React.DetailedHTMLProps<React.HTMLAttributes<WebviewTag>, WebviewTag> & {
         allowpopups?: string;
       };
     }
@@ -29,7 +30,7 @@ export type WebViewHandle = {
   loadURL: (url: string) => void;
   focus: () => void;
   getURL: () => string | null;
-  getWebView: () => any;
+  getWebView: () => WebviewTag | null;
 };
 
 export type WebViewHostProps = {
@@ -44,7 +45,17 @@ export type WebViewHostProps = {
   style?: CSSProperties;
 };
 
-type WebviewTag = any;
+type Callbacks = {
+  onCanGo: WebViewHostProps['onCanGo'];
+  onStatus: WebViewHostProps['onStatus'];
+  onUrlChange: WebViewHostProps['onUrlChange'];
+  onDomReady?: WebViewHostProps['onDomReady'];
+};
+
+type ListenerCapable = {
+  getMaxListeners?: () => number | undefined;
+  setMaxListeners?: (count: number) => void;
+};
 
 const noopState = { back: false, forward: false };
 
@@ -63,7 +74,7 @@ const WebViewHost = forwardRef(function WebViewHost(
   ref: ForwardedRef<WebViewHandle>
 ) {
   const webviewRef = useRef<WebviewTag | null>(null);
-  const callbacksRef = useRef({
+  const callbacksRef = useRef<Callbacks>({
     onCanGo,
     onStatus,
     onUrlChange,
@@ -144,29 +155,28 @@ const WebViewHost = forwardRef(function WebViewHost(
     if (!node) return undefined;
 
     try {
-      const contents = typeof node.getWebContents === 'function' ? node.getWebContents() : null;
+      const contents = (node as unknown as { getWebContents?: () => WebContents | null }).getWebContents?.() ?? null;
       if (contents && typeof contents.setMaxListeners === 'function') {
-        const current = typeof contents.getMaxListeners === 'function' ? contents.getMaxListeners() : null;
+        const current = contents.getMaxListeners?.() ?? null;
         if (current == null || current < 50) {
           contents.setMaxListeners(50);
         }
-      } else if (typeof (node as any).setMaxListeners === 'function') {
-        const current = typeof (node as any).getMaxListeners === 'function'
-          ? (node as any).getMaxListeners()
-          : null;
+      } else {
+        const emitter = node as unknown as ListenerCapable;
+        const current = emitter.getMaxListeners?.() ?? null;
         if (current == null || current < 50) {
-          (node as any).setMaxListeners(50);
+          emitter.setMaxListeners?.(50);
         }
       }
     } catch {
       // best-effort only
     }
+
     let observed = false;
-    const observer = new MutationObserver(() => {
-      applyShadowStyles();
-    });
+    let observer: MutationObserver;
+
     const ensureObserver = () => {
-      const root = (node as any).shadowRoot;
+      const root = node.shadowRoot;
       if (!root || observed) return;
       try {
         observer.observe(root, { childList: true, subtree: true });
@@ -174,56 +184,65 @@ const WebViewHost = forwardRef(function WebViewHost(
       } catch {}
     };
 
-    function applyShadowStyles() {
+    const applyShadowStylesInner = () => {
       try {
-        const root = (node as any).shadowRoot;
+        const root = node.shadowRoot;
         if (!root) return;
         const styleId = 'mzr-webview-host-style';
         if (!root.querySelector(`#${styleId}`)) {
-          const style = document.createElement('style');
-          style.id = styleId;
-          style.textContent = `
+          const styleEl = document.createElement('style');
+          styleEl.id = styleId;
+          styleEl.textContent = `
             :host { display: flex !important; height: 100% !important; width: 100% !important; }
             iframe { flex: 1 1 auto !important; width: 100% !important; height: 100% !important; min-height: 100% !important; }
           `;
-          root.appendChild(style);
+          root.appendChild(styleEl);
         }
         ensureObserver();
       } catch {}
-    }
+    };
 
-    applyShadowStyles();
-    (node as any).addEventListener('dom-ready', applyShadowStyles);
+    observer = new MutationObserver(() => {
+      applyShadowStylesInner();
+    });
+
+    const shadowStylesListener: EventListener = () => {
+      applyShadowStylesInner();
+    };
+
+    applyShadowStylesInner();
+    node.addEventListener('dom-ready', shadowStylesListener);
     ensureObserver();
 
-    const handleDidNavigate = (event: any) => {
-      if (event?.url && callbacksRef.current.onUrlChange) {
-        callbacksRef.current.onUrlChange(event.url);
+    const handleDidNavigate: EventListener = (event) => {
+      const navigationEvent = event as Electron.DidNavigateEvent | Electron.DidNavigateInPageEvent;
+      if (navigationEvent?.url) {
+        callbacksRef.current.onUrlChange(navigationEvent.url);
       }
       emitNavigationState();
     };
 
-    const handleDidStart = () => {
-      callbacksRef.current.onStatus?.('loading');
+    const handleDidStart: EventListener = () => {
+      callbacksRef.current.onStatus('loading');
     };
 
-    const handleDidStop = () => {
-      callbacksRef.current.onStatus?.('ready');
+    const handleDidStop: EventListener = () => {
+      callbacksRef.current.onStatus('ready');
       emitNavigationState();
       try {
-        const currentUrl = (node as any).getURL?.();
-        if (currentUrl && callbacksRef.current.onUrlChange) {
+        const currentUrl = node.getURL?.();
+        if (currentUrl) {
           callbacksRef.current.onUrlChange(currentUrl);
         }
       } catch {}
     };
 
-    const handleDidFail = () => {
-      callbacksRef.current.onStatus?.('error');
+    const handleDidFail: EventListener = () => {
+      callbacksRef.current.onStatus('error');
     };
 
-    const handleDomReady = () => {
-      callbacksRef.current.onStatus?.('ready');
+    const handleDomReady: EventListener = () => {
+      callbacksRef.current.onStatus('ready');
       applyZoomPolicy();
       emitNavigationState();
       callbacksRef.current.onDomReady?.();
@@ -231,8 +250,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       // —— MOBILE-ONLY: suppress default long-press callout
       // Keep selection enabled; block the small bubble menu.
       try {
-        if (mode === 'mobile' && typeof (node as any).insertCSS === 'function') {
-          (node as any).insertCSS(`
+        if (mode === 'mobile' && typeof node.insertCSS === 'function') {
+          node.insertCSS(`
             html, body, * {
               -webkit-touch-callout: none !important;
             }
@@ -240,40 +259,40 @@ const WebViewHost = forwardRef(function WebViewHost(
         }
       } catch {}
       try {
-        const currentUrl = (node as any).getURL?.();
-        if (currentUrl && callbacksRef.current.onUrlChange) {
+        const currentUrl = node.getURL?.();
+        if (currentUrl) {
           callbacksRef.current.onUrlChange(currentUrl);
         }
       } catch {}
     };
 
-    const handleZoomChanged = () => {
+    const handleZoomChanged: EventListener = () => {
       const desired = zoomRef.current;
       try {
-        if (typeof (node as any).setZoomFactor === 'function') {
-          (node as any).setZoomFactor(desired);
+        if (typeof node.setZoomFactor === 'function') {
+          node.setZoomFactor(desired);
         }
       } catch {}
     };
 
-    (node as any).addEventListener('did-navigate', handleDidNavigate);
-    (node as any).addEventListener('did-navigate-in-page', handleDidNavigate);
-    (node as any).addEventListener('did-start-loading', handleDidStart);
-    (node as any).addEventListener('did-stop-loading', handleDidStop);
-    (node as any).addEventListener('did-fail-load', handleDidFail);
-    (node as any).addEventListener('dom-ready', handleDomReady);
-    (node as any).addEventListener('zoom-changed', handleZoomChanged);
+    node.addEventListener('did-navigate', handleDidNavigate);
+    node.addEventListener('did-navigate-in-page', handleDidNavigate);
+    node.addEventListener('did-start-loading', handleDidStart);
+    node.addEventListener('did-stop-loading', handleDidStop);
+    node.addEventListener('did-fail-load', handleDidFail);
+    node.addEventListener('dom-ready', handleDomReady);
+    node.addEventListener('zoom-changed', handleZoomChanged);
 
     return () => {
-      (node as any).removeEventListener('dom-ready', applyShadowStyles);
+      node.removeEventListener('dom-ready', shadowStylesListener);
       observer.disconnect();
-      (node as any).removeEventListener('did-navigate', handleDidNavigate);
-      (node as any).removeEventListener('did-navigate-in-page', handleDidNavigate);
-      (node as any).removeEventListener('did-start-loading', handleDidStart);
-      (node as any).removeEventListener('did-stop-loading', handleDidStop);
-      (node as any).removeEventListener('did-fail-load', handleDidFail);
-      (node as any).removeEventListener('dom-ready', handleDomReady);
-      (node as any).removeEventListener('zoom-changed', handleZoomChanged);
+      node.removeEventListener('did-navigate', handleDidNavigate);
+      node.removeEventListener('did-navigate-in-page', handleDidNavigate);
+      node.removeEventListener('did-start-loading', handleDidStart);
+      node.removeEventListener('did-stop-loading', handleDidStop);
+      node.removeEventListener('did-fail-load', handleDidFail);
+      node.removeEventListener('dom-ready', handleDomReady);
+      node.removeEventListener('zoom-changed', handleZoomChanged);
     };
   }, [applyZoomPolicy, emitNavigationState, mode]);
 
@@ -286,8 +305,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof (node as any).goBack === 'function') {
-          (node as any).goBack();
+        if (typeof node.goBack === 'function') {
+          node.goBack();
         }
       } catch {}
     },
@@ -295,8 +314,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof (node as any).goForward === 'function') {
-          (node as any).goForward();
+        if (typeof node.goForward === 'function') {
+          node.goForward();
         }
       } catch {}
     },
@@ -304,8 +323,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        if (typeof (node as any).reload === 'function') {
-          (node as any).reload();
+        if (typeof node.reload === 'function') {
+          node.reload();
         }
       } catch {}
     },
@@ -315,13 +334,13 @@ const WebViewHost = forwardRef(function WebViewHost(
       const target = (url || '').trim();
       if (!target) return;
       try {
-        const maybe = (node as any).loadURL(target);
-        if (maybe && typeof (maybe as any).catch === 'function') {
-          (maybe as any).catch(() => {});
+        const maybe = node.loadURL(target);
+        if (maybe && typeof maybe.catch === 'function') {
+          maybe.catch(() => {});
         }
       } catch {
         try {
-          (node as any).setAttribute('src', target);
+          node.setAttribute('src', target);
         } catch {}
       }
     },
@@ -329,18 +348,18 @@ const WebViewHost = forwardRef(function WebViewHost(
       const node = webviewRef.current;
       if (!node) return;
       try {
-        (node as any).focus();
+        node.focus();
       } catch {}
     },
     getURL: () => {
       const node = webviewRef.current;
       if (!node) return null;
       try {
-        if (typeof (node as any).getURL === 'function') {
-          const current = (node as any).getURL();
-          return typeof current === 'string' ? current : (node as any).src || null;
+        if (typeof node.getURL === 'function') {
+          const current = node.getURL();
+          return typeof current === 'string' ? current : node.src || null;
         }
-        return (node as any).src || null;
+        return node.src || null;
       } catch {
         return null;
       }
