@@ -81,6 +81,77 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     gap: '14px'
   },
+  keyboardToggleButton: {
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.65)',
+    color: '#cbd5f5',
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  keyboardSavedPill: {
+    fontSize: '12px',
+    letterSpacing: '0.08em',
+    textTransform: 'uppercase',
+    padding: '2px 12px',
+    borderRadius: 999,
+    background: 'rgba(16, 185, 129, 0.16)',
+    color: '#34d399',
+    border: '1px solid rgba(16, 185, 129, 0.35)'
+  },
+  keyboardLayoutsList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    maxHeight: '320px',
+    overflowY: 'auto',
+    paddingRight: '6px'
+  },
+  keyboardLayoutRow: {
+    display: 'grid',
+    gridTemplateColumns: 'auto auto 1fr auto',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: '16px',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(17, 24, 39, 0.6)'
+  },
+  keyboardHeaderActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  keyboardLayoutCode: {
+    width: '58px',
+    textAlign: 'center',
+    fontWeight: 600,
+    fontSize: '15px',
+    color: '#f8fafc'
+  },
+  keyboardLayoutId: {
+    color: '#cbd5f5',
+    opacity: 0.85,
+    fontSize: '13px',
+    fontVariantNumeric: 'tabular-nums',
+    letterSpacing: '0.04em'
+  },
+  keyboardRadioLabel: {
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: '8px',
+    fontSize: '13px',
+    color: '#cbd5f5'
+  },
+  keyboardActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
   loading: {
     fontSize: '14px',
     color: '#cbd5f5'

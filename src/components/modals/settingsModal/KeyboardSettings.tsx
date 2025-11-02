@@ -1,52 +1,167 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  useState,
+  useCallback,
+  useMemo,
+  type CSSProperties
+} from 'react';
 import { ipc } from '../../../services/ipc/ipc';
 import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../keyboard/layouts';
+import { settingsModalStyles } from './settingsModalStyles';
+import { settingsModalModeStyles } from './settingsModalModeStyles';
+import { styles as baseStyles } from '../../../styles/styles';
+import type { Mode } from '../../../types/models';
 
-type KeyboardSettings = {
+type KeyboardSettingsState = {
   enabledLayouts: string[];
   defaultLayout: string;
 };
 
-const ALL = LANGUAGE_LAYOUT_IDS; // e.g. ['en','uk','de','pl'] for now
+type KeyboardSettingsProps = {
+  mode: Mode;
+};
 
-export default function KeyboardSettings() {
-  const [loading, setLoading] = useState(true);
+const ALL_LAYOUTS = LANGUAGE_LAYOUT_IDS;
+
+export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
+  const [loading, setLoading] = useState<boolean>(true);
   const [enabled, setEnabled] = useState<string[]>(['en']);
-  const [def, setDef] = useState<string>('en');
+  const [preferred, setPreferred] = useState<string>('en');
   const [savedAt, setSavedAt] = useState<number>(0);
+  const [expanded, setExpanded] = useState<boolean>(false);
 
-  // Load keyboard-only settings from the settings store
+  const styles = settingsModalStyles;
+  const modeStyles = settingsModalModeStyles[mode] || {};
+
+  const blockStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.block,
+      ...(modeStyles.settingsBlock || {})
+    }),
+    [modeStyles, styles.block]
+  );
+
+  const blockBodyStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.blockBody,
+      ...(modeStyles.settingsBlockBody || {})
+    }),
+    [modeStyles, styles.blockBody]
+  );
+
+  const layoutListStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardLayoutsList,
+      ...(modeStyles.settingsKeyboardLayoutsList || {})
+    }),
+    [modeStyles, styles.keyboardLayoutsList]
+  );
+
+  const layoutRowStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardLayoutRow,
+      ...(modeStyles.settingsKeyboardLayoutRow || {})
+    }),
+    [modeStyles, styles.keyboardLayoutRow]
+  );
+
+  const layoutCodeStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardLayoutCode,
+      ...(modeStyles.settingsKeyboardLayoutCode || {})
+    }),
+    [modeStyles, styles.keyboardLayoutCode]
+  );
+
+  const layoutIdStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardLayoutId,
+      ...(modeStyles.settingsKeyboardLayoutId || {})
+    }),
+    [modeStyles, styles.keyboardLayoutId]
+  );
+
+  const radioLabelStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardRadioLabel,
+      ...(modeStyles.settingsKeyboardRadioLabel || {})
+    }),
+    [modeStyles, styles.keyboardRadioLabel]
+  );
+
+  const actionsStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardActions,
+      ...(modeStyles.settingsKeyboardActions || {})
+    }),
+    [modeStyles, styles.keyboardActions]
+  );
+
+  const toggleButtonStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardToggleButton,
+      ...(modeStyles.settingsKeyboardToggleButton || {})
+    }),
+    [modeStyles, styles.keyboardToggleButton]
+  );
+
+  const savedPillStyle = useMemo<CSSProperties>(
+    () => ({
+      ...styles.keyboardSavedPill,
+      ...(modeStyles.settingsKeyboardSavedPill || {})
+    }),
+    [modeStyles, styles.keyboardSavedPill]
+  );
+
+  const baseButtonStyle = useMemo<CSSProperties>(
+    () => ({
+      ...baseStyles.modalButton,
+      minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+      height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
+      borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
+      padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
+      fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15
+    }),
+    [mode]
+  );
+
+  const primaryButtonStyle = useMemo<CSSProperties>(
+    () => ({
+      ...baseButtonStyle,
+      ...baseStyles.modalButtonPrimary
+    }),
+    [baseButtonStyle]
+  );
+
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const kb: KeyboardSettings = await ipc.settings.keyboard.get();
+      const payload: KeyboardSettingsState = await ipc.settings.keyboard.get();
 
       const nextEnabled =
-        Array.isArray(kb?.enabledLayouts) && kb.enabledLayouts.length > 0
-          ? Array.from(new Set(kb.enabledLayouts))
+        Array.isArray(payload?.enabledLayouts) && payload.enabledLayouts.length > 0
+          ? Array.from(new Set(payload.enabledLayouts))
           : ['en'];
 
       const nextDefault =
-        typeof kb?.defaultLayout === 'string' && nextEnabled.includes(kb.defaultLayout)
-          ? kb.defaultLayout
-          : (nextEnabled[0] || 'en');
+        typeof payload?.defaultLayout === 'string' && nextEnabled.includes(payload.defaultLayout)
+          ? payload.defaultLayout
+          : nextEnabled[0] || 'en';
 
       setEnabled(nextEnabled);
-      setDef(nextDefault);
+      setPreferred(nextDefault);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // Initial load on mount
   useEffect(() => {
     load();
   }, [load]);
 
-  // Live-sync when other parts of the app update keyboard settings
   useEffect(() => {
-    const onChanged = (e: Event) => {
-      const detail = (e as CustomEvent<KeyboardSettings>).detail;
+    const handleChange = (event: Event) => {
+      const detail = (event as CustomEvent<KeyboardSettingsState>).detail;
       if (!detail) return;
 
       const nextEnabled =
@@ -57,122 +172,139 @@ export default function KeyboardSettings() {
       const nextDefault =
         typeof detail.defaultLayout === 'string' && nextEnabled.includes(detail.defaultLayout)
           ? detail.defaultLayout
-          : (nextEnabled[0] || 'en');
+          : nextEnabled[0] || 'en';
 
       setEnabled(nextEnabled);
-      setDef(nextDefault);
+      setPreferred(nextDefault);
     };
 
-    window.addEventListener('mzr-osk-settings-changed', onChanged as EventListener);
-    return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
+    window.addEventListener('mzr-osk-settings-changed', handleChange as EventListener);
+    return () => window.removeEventListener('mzr-osk-settings-changed', handleChange as EventListener);
   }, []);
 
-  // Toggle a layout; always keep at least one enabled and keep default valid
   const toggle = useCallback(
     (id: string) => {
-      setEnabled(prev => {
-        let next = prev.includes(id) ? prev.filter(x => x !== id) : [...prev, id];
-
+      setEnabled((prev) => {
+        let next = prev.includes(id) ? prev.filter((value) => value !== id) : [...prev, id];
         if (next.length === 0) {
           next = ['en'];
         }
-
-        if (!next.includes(def)) {
-          setDef(next[0] ?? 'en');
+        if (!next.includes(preferred)) {
+          setPreferred(next[0] ?? 'en');
         }
-
         return next;
       });
     },
-    [def]
+    [preferred]
   );
 
-  // Set default layout; ensure it is enabled
   const setDefault = useCallback((id: string) => {
-    setDef(id);
-    setEnabled(prev => (prev.includes(id) ? prev : [...prev, id]));
+    setPreferred(id);
+    setEnabled((prev) => (prev.includes(id) ? prev : [...prev, id]));
   }, []);
 
-  // Persist settings and show a small "Saved" confirmation
   const onSave = useCallback(async () => {
-    const normalizedDefault = enabled.includes(def) ? def : (enabled[0] ?? 'en');
-
-    const payload: KeyboardSettings = {
+    const normalizedDefault = enabled.includes(preferred) ? preferred : enabled[0] ?? 'en';
+    const payload: KeyboardSettingsState = {
       enabledLayouts: enabled,
-      defaultLayout: normalizedDefault,
+      defaultLayout: normalizedDefault
     };
 
     await ipc.settings.keyboard.update(payload);
-
-    // Notify the app (and this component) to stay in sync at runtime
     window.dispatchEvent(new CustomEvent('mzr-osk-settings-changed', { detail: payload }));
 
-    // Visual confirmation
     setSavedAt(Date.now());
-    setTimeout(() => setSavedAt(0), 1600);
-
-    // If you'd like to re-read exactly what's persisted, uncomment next line:
-    // await load();
-  }, [enabled, def]);
-
-  if (loading) return <div style={{ padding: 12 }}>Loading…</div>;
+    window.setTimeout(() => setSavedAt(0), 1600);
+  }, [enabled, preferred]);
 
   return (
-    <div style={{ padding: 12, display: 'grid', gap: 12 }}>
-      <div style={{ fontWeight: 600, display: 'flex', alignItems: 'center', gap: 12 }}>
-        <span>Keyboard layouts</span>
-        {!!savedAt && (
-          <span
-            aria-live="polite"
-            style={{
-              fontSize: 12,
-              padding: '2px 8px',
-              borderRadius: 999,
-              background: 'rgba(16, 185, 129, 0.15)',
-              color: '#10b981',
-            }}
+    <section style={blockStyle}>
+      <div style={styles.blockHeader}>
+        <h3
+          style={{
+            ...styles.blockTitle,
+            ...(modeStyles.settingsBlockTitle || {})
+          }}
+        >
+          Keyboard layouts
+        </h3>
+        <div
+          style={{
+            ...styles.keyboardHeaderActions,
+            ...(modeStyles.settingsKeyboardHeaderActions || {})
+          }}
+        >
+          {!loading && savedAt > 0 && (
+            <span aria-live="polite" style={savedPillStyle}>
+              Saved
+            </span>
+          )}
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-label={expanded ? 'Collapse keyboard layouts' : 'Expand keyboard layouts'}
+            style={toggleButtonStyle}
           >
-            Saved ✓
-          </span>
-        )}
+            {expanded ? '▾' : '▸'}
+          </button>
+        </div>
       </div>
 
-      <div style={{ display: 'grid', gap: 8 }}>
-        {ALL.map((id) => (
-          <label key={id} style={{ display: 'flex', alignItems: 'center', gap: 8 }}>
-            <input
-              type="checkbox"
-              checked={enabled.includes(id)}
-              onChange={() => toggle(id)}
-            />
-            <span style={{ width: 48, textAlign: 'center', fontWeight: 600 }}>
-              {humanLabel(id as any)}
+      {expanded && (
+        <div style={blockBodyStyle}>
+          {loading ? (
+            <span
+              style={{
+                ...styles.loading,
+                ...(modeStyles.settingsLoading || {}),
+                opacity: 0.85
+              }}
+            >
+              Loading…
             </span>
-            <span style={{ opacity: 0.8 }}>{id}</span>
+          ) : (
+            <>
+              <div
+                style={layoutListStyle}
+                className="settings-keyboard-scroll"
+              >
+                {ALL_LAYOUTS.map((layoutId) => (
+                  <label key={layoutId} style={layoutRowStyle}>
+                    <input
+                      type="checkbox"
+                      checked={enabled.includes(layoutId)}
+                      onChange={() => toggle(layoutId)}
+                      style={{width: '50px', height: '50px'}}
+                    />
+                    <span style={layoutCodeStyle}>{humanLabel(layoutId as never)}</span>
+                    <span style={layoutIdStyle}>{layoutId}</span>
+                    <span style={{ marginInlineStart: 'auto' }}>
+                      <label style={radioLabelStyle}>
+                        <input
+                          type="radio"
+                          name="keyboard-default"
+                          checked={preferred === layoutId}
+                          onChange={() => setDefault(layoutId)}
+                          style={{width: '50px', height: '50px'}}
+                        />
+                        <span>Default</span>
+                      </label>
+                    </span>
+                  </label>
+                ))}
+              </div>
 
-            <span style={{ marginInlineStart: 'auto' }}>
-              <label style={{ display: 'inline-flex', alignItems: 'center', gap: 6 }}>
-                <input
-                  type="radio"
-                  name="kb-default"
-                  checked={def === id}
-                  onChange={() => setDefault(id)}
-                />
-                <span>Default</span>
-              </label>
-            </span>
-          </label>
-        ))}
-      </div>
-
-      <div style={{ display: 'flex', gap: 8 }}>
-        <button onClick={onSave} className="btn btn-primary">Save</button>
-        <button onClick={load} className="btn">Reload</button>
-      </div>
-
-      <p style={{ margin: 0, fontSize: 12, opacity: 0.7 }}>
-        Note: symbol pages (<b>1/2</b>) are switched on the keyboard itself and are not shown here.
-      </p>
-    </div>
+              <div style={actionsStyle}>
+                <button type="button" onClick={onSave} style={primaryButtonStyle}>
+                  Save
+                </button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </section>
   );
-}
+};
+
+export default KeyboardSettings;

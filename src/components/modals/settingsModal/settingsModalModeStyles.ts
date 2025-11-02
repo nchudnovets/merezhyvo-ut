@@ -28,7 +28,16 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsTorInput: {},
     settingsTorInputHint: {},
     settingsTorMessage: {},
-    settingsTorSaveButton: {}
+    settingsTorSaveButton: {},
+    settingsKeyboardToggleButton: {},
+    settingsKeyboardSavedPill: {},
+    settingsKeyboardLayoutsList: {},
+    settingsKeyboardLayoutRow: {},
+    settingsKeyboardLayoutCode: {},
+    settingsKeyboardLayoutId: {},
+    settingsKeyboardRadioLabel: {},
+    settingsKeyboardActions: {},
+    settingsKeyboardHeaderActions: {}
   },
   mobile: {
     settingsModalTitle: {
@@ -123,6 +132,44 @@ export const settingsModalModeStyles: ModeStyleMap = {
       borderRadius: '24px',
       padding: '0 clamp(42px, 6vw, 60px)',
       fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    settingsKeyboardToggleButton: {
+      width: 'clamp(84px, 12vw, 108px)',
+      height: 'clamp(84px, 12vw, 108px)',
+      borderRadius: '28px',
+      fontSize: 'clamp(42px, 6vw, 52px)'
+    },
+    settingsKeyboardSavedPill: {
+      fontSize: 'clamp(30px, 4.6vw, 38px)',
+      letterSpacing: '0.14em',
+      padding: 'clamp(10px, 1.8vw, 18px) clamp(26px, 4vw, 38px)'
+    },
+    settingsKeyboardLayoutsList: {
+      maxHeight: 'clamp(520px, 60vh, 620px)',
+      gap: 'clamp(28px, 4.4vw, 36px)',
+      paddingRight: 'clamp(18px, 3vw, 26px)'
+    },
+    settingsKeyboardLayoutRow: {
+      gap: 'clamp(22px, 3.6vw, 32px)',
+      padding: 'clamp(32px, 4.8vw, 40px)',
+      borderRadius: '32px'
+    },
+    settingsKeyboardLayoutCode: {
+      width: 'clamp(140px, 18vw, 180px)',
+      fontSize: 'clamp(42px, 6vw, 54px)'
+    },
+    settingsKeyboardLayoutId: {
+      fontSize: 'clamp(33px, 4.8vw, 40px)'
+    },
+    settingsKeyboardRadioLabel: {
+      gap: 'clamp(20px, 3.4vw, 30px)',
+      fontSize: 'clamp(33px, 4.8vw, 40px)'
+    },
+    settingsKeyboardActions: {
+      gap: 'clamp(30px, 4.6vw, 38px)'
+    },
+    settingsKeyboardHeaderActions: {
+      gap: 'clamp(22px, 3.5vw, 30px)'
     }
   }
 };
