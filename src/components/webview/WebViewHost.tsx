@@ -1,6 +1,6 @@
 import React, {
-  CSSProperties,
-  ForwardedRef,
+  type CSSProperties,
+  type ForwardedRef,
   forwardRef,
   useCallback,
   useEffect,
@@ -376,12 +376,12 @@ const WebViewHost = forwardRef(function WebViewHost(
   };
 
   return (
-    // eslint-disable-next-line react/no-unknown-property
     <webview
       ref={webviewRef}
       className={className}
       style={composedStyle}
-      //@ts-ignore
+      //@ts-expect-error expexted
+      // eslint-disable-next-line react/no-unknown-property
       allowpopups="true"
     />
   );

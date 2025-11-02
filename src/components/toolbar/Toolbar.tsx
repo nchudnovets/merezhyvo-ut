@@ -1,4 +1,5 @@
-import React, { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
+import React from 'react';
+import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
 // import StatusIndicator from './StatusIndicator';
@@ -41,8 +42,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   tabsReady,
   inputRef,
   inputValue,
-  status,
-  statusLabel,
   torEnabled,
   onBack,
   onForward,

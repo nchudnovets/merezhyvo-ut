@@ -19,7 +19,6 @@ import {
   type IpcMainEvent,
   type IpcMainInvokeEvent,
   type Point,
-  type Rectangle,
   type WebContents
 } from 'electron';
 
@@ -138,7 +137,6 @@ type BrowserWindowOptions = BrowserWindowConstructorOptions & { roundedCorners?:
 type WebContentsWithHost = WebContents & { hostWebContents?: WebContents | null };
 
 declare global {
-  // eslint-disable-next-line no-var
   var lastCtx: ContextState | undefined;
 }
 
@@ -688,7 +686,6 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
     } catch {
       // noop
     }
-    const typed = params as ExtendedContextMenuParams;
     void openCtxWindowFor(contents, params);
   });
 });
@@ -787,7 +784,7 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
         // noop
       }
     }
-  } catch (error) {
+  } catch {
     // ignore errors
   } finally {
     try {

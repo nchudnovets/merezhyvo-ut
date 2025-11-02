@@ -1,4 +1,5 @@
-import React, { RefObject, ChangeEvent, PointerEvent, FocusEvent, FormEvent } from 'react';
+import React from 'react';
+import type { RefObject, ChangeEvent, PointerEvent, FocusEvent, FormEvent } from 'react';
 import type { Mode } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 

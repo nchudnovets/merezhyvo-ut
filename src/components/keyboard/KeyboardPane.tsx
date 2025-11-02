@@ -3,7 +3,7 @@ import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react'
 import Keyboard from 'react-simple-keyboard';
 
 import {
-  LayoutId,
+  type LayoutId,
   humanLabel,
   isSymbols,
   nextLayoutId,
@@ -161,8 +161,6 @@ const KeyboardPane: React.FC<Props> = (p) => {
     const rowsShift = rowsToStrings(fullShiftRows);
     return { layout: { default: rowsDefault, shift: rowsShift } };
   }, [fullDefaultRows, fullShiftRows]);
-
-  const layoutName = shift || caps ? 'shift' : 'default';
 
   const display = useMemo(() => {
     const langLabel = humanLabel(

@@ -1,4 +1,4 @@
-import React, { PointerEvent, ChangeEvent } from 'react';
+import React, { type PointerEvent, type ChangeEvent } from 'react';
 import type { Mode } from '../../types/models';
 import { zoomBarStyles, zoomBarModeStyles } from './zoomBarStyles';
 

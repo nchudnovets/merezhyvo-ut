@@ -1,4 +1,4 @@
-import React, { RefObject, ReactNode } from 'react';
+import React, { type RefObject, type ReactNode } from 'react';
 import type { CSSProperties } from 'react';
 
 interface WebViewPaneProps {

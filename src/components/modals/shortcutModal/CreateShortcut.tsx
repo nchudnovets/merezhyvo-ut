@@ -1,11 +1,11 @@
 import React, {
-  CSSProperties,
-  RefObject,
-  PointerEvent,
-  FocusEvent,
-  ChangeEvent,
-  MouseEvent,
-  FormEvent
+  type CSSProperties,
+  type RefObject,
+  type PointerEvent,
+  type FocusEvent,
+  type ChangeEvent,
+  type MouseEvent,
+  type FormEvent
 } from 'react';
 import type { Mode } from '../../../types/models';
 import { shortcutModalStyles } from './createShortcutStyles';

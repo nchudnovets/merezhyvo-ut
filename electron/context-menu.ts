@@ -1,7 +1,6 @@
 'use strict';
 
 import { ipcRenderer } from 'electron';
-import type { MerezhyvoShortcutRequest } from '../src/types/preload';
 
 let renderLock = false;
 
