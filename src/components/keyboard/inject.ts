@@ -1,5 +1,7 @@
 // src/keyboard/inject.ts
-export type GetWebview = () => any;
+import type { WebviewTag } from 'electron';
+
+export type GetWebview = () => WebviewTag | null;
 
 const ENSURE_EDITABLE_FOCUS_JS = `
     (function(){

@@ -10,8 +10,9 @@ import type {
   ChangeEvent,
   PointerEvent as ReactPointerEvent,
   FocusEvent as ReactFocusEvent,
-  FormEvent,
+  FormEvent
 } from 'react';
+import type { WebviewTag } from 'electron';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import Toolbar from './components/toolbar/Toolbar';
@@ -31,9 +32,10 @@ import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
 import KeyboardPane from './components/keyboard/KeyboardPane';
-import type { LayoutId, OskContext } from './components/keyboard/layouts';
+import type { LayoutId } from './components/keyboard/layouts';
 import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
-import { GetWebview, makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
+import type { GetWebview } from './components/keyboard/inject';
+import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
 import type { Mode, InstalledApp, Tab } from './types/models';
 
 const DEFAULT_URL = defaultTabUrl;
@@ -80,8 +82,6 @@ type LastLoadedInfo = {
   id: string | null;
   url: string | null;
 };
-
-type WebviewTag = any;
 
 type WebviewTitleEvent = {
   title?: string | null;
@@ -331,26 +331,29 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (kbLayout !== 'symbols1' && kbLayout !== 'symbols2') prevAlphaLayoutRef.current = kbLayout;
   }, [kbLayout]);
 
-  const ALL_LAYOUTS = new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]);
+  const availableLayouts = useMemo(
+    () => new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]),
+    []
+  );
 
-  const toLayoutIds = (arr: unknown): LayoutId[] => {
+  const toLayoutIds = useCallback((arr: unknown): LayoutId[] => {
     if (!Array.isArray(arr)) return ['en' as LayoutId];
     const filtered = arr.filter(
-      (x): x is LayoutId => typeof x === 'string' && ALL_LAYOUTS.has(x as LayoutId)
+      (x): x is LayoutId => typeof x === 'string' && availableLayouts.has(x as LayoutId)
     );
     return filtered.length ? filtered : (['en'] as LayoutId[]);
-  };
+  }, [availableLayouts]);
 
-  const pickDefault = (def: unknown, enabled: LayoutId[]): LayoutId => {
+  const pickDefault = useCallback((def: unknown, enabled: LayoutId[]): LayoutId => {
     if (
       typeof def === 'string' &&
-      ALL_LAYOUTS.has(def as LayoutId) &&
+      availableLayouts.has(def as LayoutId) &&
       enabled.includes(def as LayoutId)
     ) {
       return def as LayoutId;
     }
     return (enabled[0] ?? ('en' as LayoutId));
-  };
+  }, [availableLayouts]);
 
   useEffect(() => {
     let alive = true;
@@ -369,7 +372,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
     })();
     return () => { alive = false; };
-  }, [setEnabledKbLayouts, setKbLayout]);
+  }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
 
   useEffect(() => {
     const onChanged = (e: Event) => {
@@ -382,7 +385,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
     window.addEventListener('mzr-osk-settings-changed', onChanged as EventListener);
     return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
-  }, [setEnabledKbLayouts, setKbLayout]);
+  }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
 
   const loadInstalledApps = useCallback(async ({ quiet = false }: LoadInstalledAppsOptions = {}) => {
     if (!quiet) {
@@ -563,47 +566,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
     // 3) За замовчуванням — закриваємо
     return true;
-  }, []);
-
-  const getActiveMainInput = useCallback((): HTMLInputElement | HTMLTextAreaElement | null => {
-    const cands: Array<HTMLInputElement | HTMLTextAreaElement | null | undefined> = [
-      inputRef?.current,
-      modalTitleInputRef?.current,
-      modalUrlInputRef?.current,
-      torContainerInputRef?.current
-    ];
-    for (const el of cands) {
-      if (el && document.activeElement === el) return el;
-    }
-    const el = document.activeElement as (HTMLInputElement | HTMLTextAreaElement | null);
-    if (!el) return null;
-    const tag = (el.tagName || '').toLowerCase();
-    if (tag === 'input' || tag === 'textarea') return el;
-    return null;
-  }, []);
-
-  const refocusWebEditable = React.useCallback(() => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    const js = `
-      (function(){
-        try {
-          const el = document.activeElement;
-          if (el && (el.isContentEditable || typeof el.value === 'string')) {
-            el.focus();
-          }
-        } catch {}
-      })();
-    `;
-    try { wv.executeJavaScript(js, false).catch(() => {}); } catch {}
-  }, [getActiveWebview]);
-
-  const isFocusInMainWindow = () => {
-    const el = document.activeElement as HTMLElement | null;
-    if (!el) return true;
-    const insideWebview = el.closest?.('webview, iframe');
-    return !insideWebview;
-  };
+  }, [isActiveMultiline]);
 
   const closeKeyboard = useCallback(() => setKbVisible(false), []);
 
@@ -625,7 +588,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (await probeWebEditable(getActiveWebview)) { await injectEnterToWeb(); return; }
   }, [getActiveWebview, injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
 
-  const injectArrow = React.useCallback(async (dir: 'ArrowLeft' | 'ArrowRight') => {
+  const injectArrow = React.useCallback(async (dir: KeyboardDirection) => {
     if (isEditableMainNow()) { injectArrowToMain(dir); return; }
     if (await probeWebEditable(getActiveWebview)) { await injectArrowToWeb(dir); return; }
   }, [getActiveWebview, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
@@ -1355,7 +1318,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setShortcutSuccessMsg('');
     activeInputRef.current = null;
     blurActiveInWebview();
-  }, [mode, blurActiveInWebview]);
+  }, [blurActiveInWebview]);
 
   const openSettingsModal = useCallback(() => {
     activeInputRef.current = null;
@@ -1364,14 +1327,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPendingRemoval(null);
     setSettingsBusy(false);
     blurActiveInWebview();
-  }, [mode, blurActiveInWebview]);
+  }, [blurActiveInWebview]);
 
   const closeSettingsModal = useCallback(() => {
     setShowSettingsModal(false);
     setPendingRemoval(null);
     setSettingsMsg('');
     setSettingsBusy(false);
-  }, [mode]);
+  }, []);
 
   const askRemoveApp = useCallback((app: InstalledApp | null | undefined) => {
     if (!app) return;
@@ -1826,15 +1789,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const containerStyle = useMemo(() => {
     return styles.container;
-  }, [isHtmlFullscreen, mode]);
+  }, []);
 
   const modalBackdropStyle = useMemo<CSSProperties>(() => {
     return { ...styles.modalBackdrop };
-  }, [mode]);
+  }, []);
 
   const tabsPanelBackdropStyle = useMemo<CSSProperties>(() => {
     return { ...tabsPanelStyles.backdrop };
-  }, [mode]);
+  }, []);
 
   // --- Shortcut modal helpers ---
   const getCurrentViewUrl = useCallback(() => {
@@ -1936,18 +1899,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setShowTabsPanel(true);
     activeInputRef.current = null;
     blurActiveInWebview();
-  }, [tabsReady, blurActiveInWebview, mode]);
+  }, [tabsReady, blurActiveInWebview]);
 
   const closeTabsPanel = useCallback(() => {
     setShowTabsPanel(false);
-  }, [mode]);
+  }, []);
 
   const handleActivateTab = useCallback((id: string) => {
     if (!id) return;
     activateTabAction(id);
     setShowTabsPanel(false);
     blurActiveInWebview();
-  }, [activateTabAction, blurActiveInWebview, mode]);
+  }, [activateTabAction, blurActiveInWebview]);
 
   const handleCloseTab = useCallback((id: string) => {
     if (!id) return;
@@ -1966,7 +1929,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     requestAnimationFrame(() => {
       try { inputRef.current?.focus?.(); } catch {}
     });
-  }, [mode, blurActiveInWebview, newTabAction]);
+  }, [blurActiveInWebview, newTabAction]);
 
   const statusLabelMap: Record<StatusState, string> = {
     loading: 'Loading',
