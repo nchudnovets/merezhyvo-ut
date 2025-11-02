@@ -30,10 +30,10 @@ import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
-import KeyboardPane from './keyboard/KeyboardPane';
-import type { LayoutId, OskContext } from './keyboard/layouts';
-import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './keyboard/layouts';
-import { GetWebview, makeMainInjects, makeWebInjects, probeWebEditable } from './keyboard/inject';
+import KeyboardPane from './components/keyboard/KeyboardPane';
+import type { LayoutId, OskContext } from './components/keyboard/layouts';
+import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
+import { GetWebview, makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
 import type { Mode, InstalledApp, Tab } from './types/models';
 
 const DEFAULT_URL = defaultTabUrl;

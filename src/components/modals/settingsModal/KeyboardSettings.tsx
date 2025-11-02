@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import { ipc } from '../../../services/ipc/ipc';
-import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../../keyboard/layouts';
+import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../keyboard/layouts';
 
 type KeyboardSettings = {
   enabledLayouts: string[];

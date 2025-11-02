@@ -38,6 +38,9 @@ export function ensureOskCssInjected() {
   .mzr-osk .hg-button.osk-symbols {
     flex: 0 0 auto !important;
   }
+  .mzr-osk .hg-button.osk-enter {
+    min-width: 80px !important;
+  }
 
   /* стрілки поруч */
   .mzr-osk .hg-button.osk-arrow { flex: 0 0 auto !important; }
