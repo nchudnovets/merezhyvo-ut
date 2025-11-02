@@ -96,3 +96,12 @@ export function ensureOskCssInjected() {
   style.textContent = css;
   document.head.appendChild(style);
 }
+
+export const KEYBOARD_CSS_RTL = `
+  .mzr-osk[dir='rtl'] .hg-row {
+    direction: rtl;
+  }
+  .mzr-osk[dir='rtl'] .hg-button {
+    direction: rtl;
+  }
+  `;

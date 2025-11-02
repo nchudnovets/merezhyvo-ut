@@ -319,7 +319,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
-  const [kbContext, setKbContext] = useState<OskContext>('text');
+  // const [kbContext, setKbContext] = useState<OskContext>('text');
 
   const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';

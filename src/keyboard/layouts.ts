@@ -1,105 +1,262 @@
-export type OskContext = 'text' | 'email' | 'url' | 'password';
-export type LangId = 'en' | 'uk' | 'de' | 'pl';
-export type LayoutId = LangId | 'symbols1' | 'symbols2';
+// src/keyboard/layouts.ts
+// Backward-compatible exports + new languages.
+// Provides: LayoutId (incl. 'symbols1'|'symbols2'), LANGUAGE_LAYOUT_IDS (languages only),
+// humanLabel, isRTL, LONG_PRESS, longPressMap (alias), resolveLayoutRows,
+// nextLayoutId, isSymbols, and OskContext.
 
-export const isSymbols = (id: LayoutId) => id === 'symbols1' || id === 'symbols2';
+import React from 'react';
 
-const HUMAN: Record<LangId, string> = {
-  en: 'EN', uk: 'UK', de: 'DE', pl: 'PL'
-};
-export const humanLabel = (id: LayoutId): string => {
-  if (isSymbols(id)) return 'SYM';
-  return HUMAN[id as LangId] || 'EN';
-};
+// --- Types --------------------------------------------------------------
 
-export const nextLayoutId = (curr: LayoutId, enabled: LayoutId[]): LayoutId => {
-  const langs = enabled.filter(l => !isSymbols(l)) as LangId[];
-  const i = Math.max(0, langs.indexOf((isSymbols(curr) ? langs[0] : curr) as LangId));
-  return langs[(i + 1) % Math.max(langs.length, 1)] || 'en';
-};
+export type LanguageId =
+  | 'en' | 'uk' | 'de' | 'pl'
+  | 'es' | 'it' | 'pt' | 'fr' | 'tr' | 'nl' | 'ro' | 'ar';
 
-// --- Базові ряди (спрощено; підганяли під Maliit)
-const EN: string[] = [
-  'q w e r t y u i o p',
-  'a s d f g h j k l',
-  '{shift} z x c v b n m {bksp}',
-  '{symbols} {lang} {space} {arrowleft} {arrowright} {enter}'
-];
+export type SymbolId = 'symbols1' | 'symbols2';
 
-const UK: string[] = [
-  'й ц у к е н г ш щ з х ї',
-  'ф і в а п р о л д ж є',
-  '{shift} я ч с м и т ь б ю {bksp}',
-  '{symbols} {lang} {space} {arrowleft} {arrowright} {enter}'
-];
+// LayoutId intentionally includes symbols pages for backward-compat
+export type LayoutId = LanguageId | SymbolId;
 
-const DE: string[] = [
-  'q w e r t z u i o p',
-  'a s d f g h j k l',
-  '{shift} y x c v b n m {bksp}',
-  '{symbols} {lang} {space} {arrowleft} {arrowright} {enter}'
-];
+type Rows = string[][];
 
-const PL: string[] = [
-  'q w e r t y u i o p',
-  'a s d f g h j k l',
-  '{shift} z x c v b n m {bksp}',
-  '{symbols} {lang} {space} {arrowleft} {arrowright} {enter}'
-];
+// --- Language registry --------------------------------------------------
 
-// --- Символи: сторінка 1 (часті)
-const SYM1: string[] = [
-  '1 2 3 4 5 6 7 8 9 0',
-  `@ # $ % & * ( ) - _`,
-  `! ? : ; ' " , . / \\ |`,
-  '{sym12} {lang} {space} {arrowleft} {arrowright} {enter} {bksp} {abc}'
-];
+export const LANGUAGE_LAYOUT_IDS: readonly LanguageId[] = [
+  'en', 'uk', 'de', 'pl',
+  'es', 'it', 'pt', 'fr', 'tr', 'nl', 'ro', 'ar'
+] as const;
 
-// --- Символи: сторінка 2 (рідші, валюти, лапки, тире)
-const SYM2: string[] = [
-  '€ £ ₴ ¥ • … — – _',
-  '§ + = ~ ^ < > [ ]',
-  '« » “ ” ’ ʼ ° ¶ © ®',
-  '{sym12} {lang} {space} {arrowleft} {arrowright} {enter} {bksp} {abc}'
-];
+// Symbols pages are NOT part of the selectable languages list
+export const SYMBOL_LAYOUT_IDS: readonly SymbolId[] = ['symbols1', 'symbols2'] as const;
 
-export const resolveLayoutRows = (id: LayoutId, _ctx: OskContext): string[] => {
+export function humanLabel(id: LayoutId): string {
   switch (id) {
-    case 'en': return EN;
-    case 'uk': return UK;
-    case 'de': return DE;
-    case 'pl': return PL;
-    case 'symbols1': return SYM1;
-    case 'symbols2': return SYM2;
-    default: return EN;
+    case 'en': return 'EN';
+    case 'uk': return 'UK';
+    case 'de': return 'DE';
+    case 'pl': return 'PL';
+    case 'es': return 'ES';
+    case 'it': return 'IT';
+    case 'pt': return 'PT';
+    case 'fr': return 'FR';
+    case 'tr': return 'TR';
+    case 'nl': return 'NL';
+    case 'ro': return 'RO';
+    case 'ar': return 'AR';
+    case 'symbols1': return 'SYM1';
+    case 'symbols2': return 'SYM2';
   }
+}
+
+// Only Arabic is RTL here
+export function isRTL(id: LayoutId): boolean {
+  return id === 'ar';
+}
+
+export function isSymbols(id: LayoutId): id is SymbolId {
+  return id === 'symbols1' || id === 'symbols2';
+}
+
+// --- Long-press maps ----------------------------------------------------
+
+export const LONG_PRESS: Record<LanguageId, Record<string, string[]>> = {
+  // English
+  en: {
+    a: ["á","à","ä","â","ã","å"],
+    e: ["é","è","ë","ê"],
+    i: ["í","ï","î"],
+    o: ["ó","ö","ô","õ"],
+    u: ["ú","ü","û"],
+    c: ["ç"],
+    n: ["ñ"],
+    "'": ["ʼ"]
+  },
+
+  // Ukrainian (apostrophe, ґ, ₴)
+  uk: {
+    "'": ["ʼ"],
+    г: ["ґ"],
+    Г: ["Ґ"],
+    $: ["₴"]
+  },
+
+  // German
+  de: {
+    a: ["ä"], A: ["Ä"],
+    o: ["ö"], O: ["Ö"],
+    u: ["ü"], U: ["Ü"],
+    s: ["ß"]
+  },
+
+  // Polish
+  pl: {
+    a: ["ą"], A: ["Ą"],
+    c: ["ć"], C: ["Ć"],
+    e: ["ę"], E: ["Ę"],
+    l: ["ł"], L: ["Ł"],
+    n: ["ń"], N: ["Ń"],
+    o: ["ó"], O: ["Ó"],
+    s: ["ś"], S: ["Ś"],
+    z: ["ż","ź"], Z: ["Ż","Ź"]
+  },
+
+  // Spanish
+  es: {
+    a: ["á"],
+    e: ["é"],
+    i: ["í"],
+    o: ["ó"],
+    u: ["ú","ü"],
+    n: ["ñ"],
+    "?": ["¿"],
+    "!": ["¡"]
+  },
+
+  // Italian
+  it: {
+    a: ["à"],
+    e: ["è","é"],
+    i: ["ì"],
+    o: ["ò"],
+    u: ["ù"]
+  },
+
+  // Portuguese (generic)
+  pt: {
+    a: ["á","à","ã","â"],
+    e: ["é","ê"],
+    i: ["í"],
+    o: ["ó","ô","õ"],
+    u: ["ú"],
+    c: ["ç"]
+  },
+
+  // French
+  fr: {
+    a: ["à","â","æ"],
+    e: ["é","è","ê","ë"],
+    i: ["î","ï"],
+    o: ["ô","œ"],
+    u: ["ù","û","ü"],
+    c: ["ç"],
+    y: ["ÿ"]
+  },
+
+  // Turkish
+  tr: {
+    g: ["ğ"], G: ["Ğ"],
+    s: ["ş"], S: ["Ş"],
+    i: ["ı","İ"],
+    o: ["ö"], O: ["Ö"],
+    u: ["ü"], U: ["Ü"],
+    c: ["ç"], C: ["Ç"]
+  },
+
+  // Dutch
+  nl: {
+    a: ["á","ä","â"],
+    e: ["é","ë","è"],
+    i: ["í","ï"],
+    o: ["ó","ö","ô"],
+    u: ["ú","ü","û"]
+  },
+
+  // Romanian
+  ro: {
+    a: ["ă","â"], A: ["Ă","Â"],
+    i: ["î"],     I: ["Î"],
+    s: ["ș","ş"], S: ["Ș","Ş"],
+    t: ["ț","ţ"], T: ["Ț","Ţ"]
+  },
+
+  // Arabic – handled via Arabic alpha rows; keep empty
+  ar: {}
 };
 
-// --- Long-press альтернативи (мінімально необхідне + приклади)
-export const longPressMap: Record<string, string[]> = {
-  // апостроф: ASCII → укр. апостроф (U+02BC) → типографський ’
-  "'": ['ʼ','’'],
+// Back-compat alias (some files import this name)
+export const longPressMap = LONG_PRESS;
 
-  // укр. специфіка
-  'г': ['ґ'], 'Г': ['Ґ'],
-  'і': ['ї','І','Ї'], 'И': ['І'], 'и': ['і'],
-  'є': ['Є'],
+// --- Alpha rows ---------------------------------------------------------
 
-  // латиниця (приклади)
-  'a': ['á','à','â','ä','å','ā'], 'A': ['Á','À','Â','Ä','Å','Ā'],
-  'e': ['é','è','ê','ë','ē'],     'E': ['É','È','Ê','Ë','Ē'],
-  'i': ['í','ì','î','ï','ī'],     'I': ['Í','Ì','Î','Ï','Ī'],
-  'o': ['ó','ò','ô','ö','ō'],     'O': ['Ó','Ò','Ô','Ö','Ō'],
-  'u': ['ú','ù','û','ü','ū'],     'U': ['Ú','Ù','Û','Ü','Ū'],
+const EN_ROWS_DEFAULT: Rows = [
+  ["q","w","e","r","t","y","u","i","o","p"],
+  ["a","s","d","f","g","h","j","k","l"],
+  ["z","x","c","v","b","n","m"]
+];
+const EN_ROWS_SHIFT: Rows = EN_ROWS_DEFAULT.map(r => r.map(k => k.toUpperCase()));
 
-  // тире / дефіси
-  '-': ['–','—','-'],
+// Ukrainian (mobile-like, close to Maliit; includes ʼ on third row)
+const UK_ROWS_DEFAULT: Rows = [
+  ["й","ц","у","к","е","н","г","ш","щ","з","х","ї"],
+  ["ф","і","в","а","п","р","о","л","д","ж","є"],
+  ["я","ч","с","м","и","т","ь","б","ю","ʼ"]
+];
+const UK_ROWS_SHIFT: Rows = UK_ROWS_DEFAULT.map(r => r.map(k => k.toUpperCase()));
 
-  // лапки
-  '"': ['“','”','„','«','»'],
+// Arabic 101-like rows (no uppercase)
+const AR_ROWS_DEFAULT: Rows = [
+  ["ض","ص","ث","ق","ف","غ","ع","ه","خ","ح","ج","د"],
+  ["ش","س","ي","ب","ل","ا","ت","ن","م","ك","ط"],
+  ["ئ","ء","ؤ","ر","لا","ى","ة","و","ز","ظ"]
+];
+const AR_ROWS_SHIFT: Rows = AR_ROWS_DEFAULT;
 
-  // гривня на довге натискання $
-  '$': ['₴']
+// Hook to plug custom rows if you already have them for uk/de/pl etc.
+const CUSTOM_ROWS: Partial<Record<LanguageId, { default: Rows; shift: Rows }>> = {
+  uk: { default: UK_ROWS_DEFAULT, shift: UK_ROWS_SHIFT },
+  ar: { default: AR_ROWS_DEFAULT, shift: AR_ROWS_SHIFT }
+  // Add de/pl/es/... here when you introduce their native rows.
 };
 
-export const LANGUAGE_LAYOUT_IDS = (Object.keys({ en:1, uk:1, de:1, pl:1 }) as LangId[]);
+export function alphaRowsFor(id: LanguageId, shift: boolean): Rows {
+  const custom = CUSTOM_ROWS[id];
+  if (custom) return shift ? custom.shift : custom.default;
+  return shift ? EN_ROWS_SHIFT : EN_ROWS_DEFAULT;
+}
+
+// --- Symbols rows (two pages, like Maliit 1/2) --------------------------
+
+const SYMBOLS_ROWS_1: Rows = [
+  ["1","2","3","4","5","6","7","8","9","0"],
+  ["@","#","$","%","&","*","-","+","/","\\"],
+  ["(",")","[","]","{","}",";","'", "\"",":"]
+];
+
+const SYMBOLS_ROWS_2: Rows = [
+  ["~","`","^","|","•","…","€","£","¥","₴"],
+  ["<",">","=","_","±","×","÷","§","°","¢"],
+  ["?", "!", ".", ",", "¿", "¡", "©", "®", "™", "¶"]
+];
+
+// --- Resolve rows (back-compat replacement for resolveLayoutRows) -------
+
+export function resolveLayoutRows(layoutId: LayoutId, shift: boolean): Rows {
+  if (layoutId === 'symbols1') return SYMBOLS_ROWS_1;
+  if (layoutId === 'symbols2') return SYMBOLS_ROWS_2;
+  // Otherwise treat as language id
+  const lang = layoutId as LanguageId;
+  return alphaRowsFor(lang, shift);
+}
+
+// --- Cycling helper -----------------------------------------------------
+
+export function nextLayoutId(current: LayoutId, enabled: LayoutId[]): LayoutId {
+  if (!enabled || enabled.length === 0) return 'en';
+  const idx = enabled.indexOf(current);
+  if (idx === -1) return enabled[0] as LayoutId;
+
+  const n = (idx + 1) % enabled.length;
+  const val = enabled[n] as LayoutId | undefined;
+  return (val ?? enabled[0] ?? 'en') as LayoutId;
+}
+
+// --- Back-compat context ------------------------------------------------
+
+export interface OskContextValue {
+  longPress: typeof LONG_PRESS;
+}
+
+// Some code imports OskContext from layouts.ts; provide a harmless default.
+export const OskContext = React.createContext<OskContextValue>({
+  longPress: LONG_PRESS
+});
