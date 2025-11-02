@@ -2,143 +2,192 @@
 
 # merezhyvo
 
-merezhyvo — мінімалістичний Chromium-браузер для **Ubuntu Touch (Lomiri)**. Це повноекранне вікно Electron з легким React-UI, оптимізоване під портретний режим. Включені прапорці апаратного прискорення (VA-API, EGL) — де можливо, відео декодується на GPU.
+**merezhyvo** is a minimalist Chromium browser for **Ubuntu Touch (Lomiri)**. It’s an Electron fullscreen window with a lightweight React UI, optimized for portrait mode. Where possible, hardware acceleration (VA-API, EGL) is enabled so video decoding happens on the GPU.
 
-> ⚠️ Безпека: пакет використовує AppArmor-профіль `unconfined`. Це **лише для особистого використання** (не пройде рев’ю OpenStore).
+> ⚠️ Security: the package ships with an `unconfined` AppArmor profile. This is **for personal use only** (it will not pass OpenStore review).
 
 ## Highlights
 
-*   Повноекранний запуск під Lomiri; `Esc` закриває вікно.
+*   Fullscreen under Lomiri; `Esc` exits the app.
     
-*   Просте UI: адресний рядок + `<webview>` із пошуковим фолбеком.
+*   Minimal UI: address bar + `<webview>` with a search fallback.
     
-*   ARM64-збірка Electron пакується **локально**, `.click` збирається **через Clickable** (контейнер, де є `click` CLI).
+*   Local ARM64 Electron packaging; final `.click` is built via **Clickable** (container with `click` CLI).
     
-*   Один `.click` артефакт для встановлення на пристрій UT.
+*   Single `.click` artifact ready to sideload on your UT device.
     
+*   **Integrated on-screen keyboard (OSK)** tailored for mobile:
+    
+    *   Based on `react-simple-keyboard`, Maliit-like layout and behavior.
+        
+    *   Multi-language: **EN, UK, DE, PL, ES, IT, PT, FR, TR, NL, RO, AR**.
+        
+    *   Long-press alternates (e.g., `o → ó, ö, ô, õ`; Ukrainian `ʼ, ґ, ₴`; Turkish `ğ, ş`, etc.).
+        
+    *   Symbols **1/2** pages, **Shift** tap for one uppercase, **Shift long-press → Caps**.
+        
+    *   Language switcher shows the current layout label **on the Space key**.
+        
+    *   Works in the main window and inside the `<webview>` without stealing focus.
+        
 
 ## Project layout
 
-bash
 
-Копіювати код
+``merezhyvo/ ├─ dist-electron/main.js          # Electron main (compiled from TS) ├─ src/ │  ├─ App.tsx │  ├─ index.html │  ├─ index.tsx                   # React renderer │  └─ keyboard/ │     ├─ KeyboardPane.tsx         # OSK component │     ├─ layouts.ts               # languages, long-press, symbols 1/2 │     ├─ keyboardCss.ts           # runtime CSS injection for OSK │     └─ inject.ts                # text injection (webview + main window) ├─ electron/ │  ├─ lib/keyboard-settings.ts    # settings read/write (keyboard section) │  └─ preload.ts                  # exposes `window.merezhyvo.*` API ├─ app.desktop                    # Lomiri desktop file ├─ manifest.json                  # Click manifest ├─ merezhyvo.apparmor             # AppArmor (unconfined) ├─ merezhyvo_256.png              # app icon ├─ tools/ │  └─ build-click.sh              # one-shot end-to-end .click build ├─ package.json ├─ .electronignore └─ .gitignore``
 
-`merezhyvo/ ├─ dist-electron/main.js  # головний процес Electron (зібраний з TS) ├─ src/ │  ├─ App.tsx │  ├─ index.html │  └─ index.tsx          # React renderer ├─ app.desktop             # Lomiri desktop-файл ├─ manifest.json           # Click manifest ├─ merezhyvo.apparmor      # AppArmor (unconfined) ├─ package.json            # Node/Electron налаштування ├─ merezhyvo_256.png                # іконка застосунку ├─ tools/ │  └─ build-click.sh       # скрипт повної збірки (.click) ├─ .electronignore └─ .gitignore`
+## Prerequisites (on your dev machine)
 
-## Prerequisites (на робочій машині)
-
-*   **Node.js 18+** та **npm** (рекомендовано через nvm).
+*   **Node.js 18+** and **npm** (nvm recommended)
     
-*   **Clickable** (pip-версія або snap/apt — будь-яка, важливо щоб працювала команда `clickable`).
+*   **Clickable** (pip/snap/apt — any installation where `clickable` works)
     
-*   **Docker** для Clickable-контейнера (саме для упакування `.click`; npm ми запускаємо локально).
+*   **Docker** (used by Clickable to build the final `.click`)
     
 
-Перевірка:
-
-bash
-
-Копіювати код
+Quick check:
 
 `node -v npm -v clickable --version docker ps`
 
 ## Local development
 
-bash
-
-Копіювати код
 
 `npm install npm start`
 
-Додаткові корисні скрипти:
+Useful scripts:
 
-*   `npm run lint` — ESLint (warnings допустимі, помилки треба виправляти).
-*   `npm run typecheck` — типова перевірка TypeScript (`allowJs` лишається увімкненим).
-*   `npm run build` — зібрати рендерер у `dist/` (те саме робить `npm start` перед запуском).
-
-`npm start` зіб’є React у `dist/` + головний процес у `dist-electron/`, після чого запустить Electron: `electron dist-electron/main.js`.  
-Для повноекранного тесту на ПК додай: `npm start -- -- --fullscreen`
+*   `npm run lint` – ESLint (fix errors; warnings are acceptable)
     
+*   `npm run typecheck` – TypeScript check (`allowJs` enabled)
+    
+*   `npm run build` – build renderer to `dist/` (also run by `npm start`)
+    
+
+`npm start` compiles React to `dist/` and the main process to `dist-electron/`, then launches:
+
+
+`electron dist-electron/main.js`
+
+For fullscreen test on desktop:
+
+
+`npm start -- -- --fullscreen`
 
 ## Packaging for Ubuntu Touch (.click)
 
-> Ми використовуємо **двоетапну** схему:  
-> (1) локально пакуємо ARM64 Electron → `./app/`  
-> (2) Clickable у контейнері збирає `.click` (там є `click` CLI).
+> Two-stage process:
+> 
+> 1.  locally package ARM64 Electron into `./app/`
+>     
+> 2.  run Clickable in a container to produce the `.click`
+>     
 
-### Один рядок
+### One command
 
-bash
-
-Копіювати код
 
 `tools/build-click.sh`
 
-### Або вручну, покроково
+### Or step by step
 
-bash
 
-Копіювати код
+`# 1) locally prepare ARM64 Electron payload npm ci npm run package  # 2) build .click (inside Clickable container with click CLI) clickable clean clickable build --arch arm64 --accept-review-errors`
 
-`# 1) Локально: зібрати ARM64 Electron і підготувати ./app/ npm ci npm run package  # 2) Упакувати в .click (через контейнер із click CLI) clickable clean clickable build --arch arm64 --accept-review-errors`
+The artifact will be in `build/`, e.g.:
 
-Після успіху артефакт лежить у `build/`, наприклад:
-
-arduino
-
-Копіювати код
 
 `build/merezhyvo.naz.r_0.1.0_arm64.click`
 
-> Маніфест використовує `framework: "ubuntu-sdk-20.04"` та `architecture: ["@CLICK_ARCH@"]`. Це сумісно з UT 24.04, а Clickable автоматично підставить `arm64`.
+> `manifest.json` uses `framework: "ubuntu-sdk-20.04"` and `architecture: ["@CLICK_ARCH@"]` (UT 24.04 compatible). Clickable substitutes `arm64`.
 
-## Install на пристрій
+## Install on device
 
-Скопіюй `.click` на телефон і виконай на **самому пристрої** (через `adb shell` або SSH):
+Copy the `.click` to your phone and run on the **device** (via `adb shell` or SSH):
 
-bash
-
-Копіювати код
 
 `click install /path/to/merezhyvo.naz.r_0.1.0_arm64.click`
 
-Після встановлення шукай іконку **merezhyvo**. Якщо запуск із лаунчера мовчить — подивись лог вручну:
-
-bash
-
-Копіювати код
+Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see logs:
 
 `adb shell cd /opt/click.ubuntu.com/merezhyvo.naz.r/current ./app/merezhyvo`
 
-### Підказки по рендеру
+### Rendering tips
 
-Якщо чорний екран/миготіння — спробуй змінити Exec у `app.desktop`:
+If you see a black screen/flicker, try tweaking `Exec` in `app.desktop`:
 
-*   з `env OZONE_PLATFORM=wayland ./app/merezhyvo --fullscreen`
+*   `env OZONE_PLATFORM=wayland ./app/merezhyvo --fullscreen`
     
-*   на просто `./app/merezhyvo --fullscreen` (без OZONE),
+*   or simply `./app/merezhyvo --fullscreen` (no `OZONE_PLATFORM`)
     
-*   або навпаки додати `--enable-features=UseOzonePlatform`.
+*   or add `--enable-features=UseOzonePlatform`
     
+
+## On-screen keyboard (OSK) & Settings
+
+*   **Languages supported**: `en, uk, de, pl, es, it, pt, fr, tr, nl, ro, ar`
+    
+*   **Symbols**: two pages (`1/2`) with common and extended symbols/currency.
+    
+*   **Long-press**: alternative characters per language (e.g., `ñ, ä, ß, ₴, ğ, ș/ţ`, etc.).
+    
+*   **Shift / Caps**: tap for Shift; long-press Shift for Caps (icon switches to `⇪`).
+    
+*   **Language switch**: cycles enabled layouts; active language label shown on **Space**.
+    
+
+### Where OSK settings live
+
+*   File: `~/.config/<AppName>/settings.json`
+    
+    
+    `{   "keyboard": {     "enabledLayouts": ["en", "uk", "de"],     "defaultLayout": "en"   } }`
+    
+*   In-app: **Settings → Keyboard**
+    
+    *   Enable/disable layouts (at least one must remain enabled).
+        
+    *   Set a default layout.
+        
+    *   Click **Save** to persist. The UI applies changes immediately.
+        
+
+> Heads-up: other settings (Tor, Installed Apps) currently write under  
+> `~/.config/<AppName>/profiles/default/`. We’ll consolidate all settings into a single schema/file in a future update.
 
 ## Scripts
 
-*   **`npm run lint`** — статичний аналіз коду (ESLint).
-*   **`npm run typecheck`** — TypeScript перевірка без емісії.
-*   **`npm run build`** — збірка UI (React → `dist/`).
+*   `npm run lint` — static code analysis (ESLint)
     
-*   **`npm run package`** — `build` + пакування Electron ARM64 у `app/`.
+*   `npm run typecheck` — TypeScript check without emit
     
-*   **`tools/build-click.sh`** — повний цикл до `.click`.
+*   `npm run build` — build UI (React → `dist/`)
+    
+*   `npm run package` — build + package Electron ARM64 into `app/`
+    
+*   `tools/build-click.sh` — full cycle to `.click`
     
 
 ## Known limitations
 
-*   AppArmor: `unconfined` (приватна інсталяція, не для OpenStore).
+*   AppArmor profile is **unconfined** → not OpenStore-ready.
     
-*   On-screen keyboard (OSK) у мобільному режимі поки **не інтегрована** (фокус на desktop/convergence).
+*   Browser features (history/bookmarks/passwords) are **WIP**.
     
-*   Рамка UI мінімальна; історія/закладки/паролі — WIP.
+*   UT specifics: graphics flags can vary by device; see “Rendering tips”.
+    
+
+## Troubleshooting
+
+*   **“No space left on device” during electron-packager**  
+    Usually recursive packaging because `build/` got included. Clean `build/` and verify `.electronignore`.
+    
+*   **Clickable complains about framework/maintainer**  
+    Use `framework: "ubuntu-sdk-20.04"` and `Maintainer: "Name <email>"`. For `unconfined`, pass `--accept-review-errors`.
+    
+*   **`click: command not found` on host**  
+    You don’t need it locally — Clickable runs it inside the container.
+    
+*   **OSK does not appear or doesn’t type**  
+    Ensure at least one language layout is enabled in Settings; defaults to `en`. The OSK listens to focus changes in inputs (`<input>`, `<textarea>`, `contenteditable`) both in the main window and inside `<webview>`.
     
 
 ## License
@@ -146,14 +195,3 @@ bash
 MIT © Naz.R
 
 - - -
-
-### Додаток: типові збої та швидкі фікси
-
-*   **`ENOSPC: no space left on device` під час electron-packager**  
-    Зазвичай це рекурсивне пакування через включення `build/` у вхід. Вирішено `.electronignore` та очищення `build/` перед `npm run package`.
-    
-*   **Clickable лається на framework/maintainer**  
-    Використовуй `framework: "ubuntu-sdk-20.04"` та формат `Maintainer: "Name <email>"`. Для `unconfined` додавай `--accept-review-errors`.
-    
-*   **`click: command not found` на хості**  
-    Ми його не використовуємо напряму; пакування робить Clickable у контейнері (`clickable build --arch arm64 …`).
