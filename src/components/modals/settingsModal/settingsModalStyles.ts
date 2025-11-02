@@ -107,7 +107,7 @@ export const settingsModalStyles: StyleRecord = {
     display: 'flex',
     flexDirection: 'column',
     gap: '12px',
-    maxHeight: '320px',
+    maxHeight: '460px',
     overflowY: 'auto',
     paddingRight: '6px'
   },

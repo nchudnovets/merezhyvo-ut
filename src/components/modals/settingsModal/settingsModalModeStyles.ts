@@ -145,7 +145,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
       padding: 'clamp(10px, 1.8vw, 18px) clamp(26px, 4vw, 38px)'
     },
     settingsKeyboardLayoutsList: {
-      maxHeight: 'clamp(520px, 60vh, 620px)',
+      maxHeight: 'clamp(620px, 60vh, 720px)',
       gap: 'clamp(28px, 4.4vw, 36px)',
       paddingRight: 'clamp(18px, 3vw, 26px)'
     },

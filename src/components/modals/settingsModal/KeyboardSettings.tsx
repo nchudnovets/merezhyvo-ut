@@ -245,7 +245,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
             aria-label={expanded ? 'Collapse keyboard layouts' : 'Expand keyboard layouts'}
             style={toggleButtonStyle}
           >
-            {expanded ? '▾' : '▸'}
+            {expanded ? '︿' : '﹀'}
           </button>
         </div>
       </div>
