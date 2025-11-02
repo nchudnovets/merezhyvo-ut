@@ -32,9 +32,10 @@ import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
 import KeyboardPane from './keyboard/KeyboardPane';
 import type { LayoutId, OskContext } from './keyboard/layouts';
+import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './keyboard/layouts';
 import { GetWebview, makeMainInjects, makeWebInjects, probeWebEditable } from './keyboard/inject';
 import type { Mode, InstalledApp, Tab } from './types/models';
- 
+
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
@@ -316,7 +317,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
   const [torAlertMessage, setTorAlertMessage] = useState<string>('');
   const [kbVisible, setKbVisible] = useState<boolean>(false);
-  const enabledKbLayouts = useMemo<LayoutId[]>(() => ['en','uk','symbols'], []);
+  const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
   const [kbContext, setKbContext] = useState<OskContext>('text');
 
@@ -324,36 +325,64 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
   const oskPressGuardRef = useRef(false);
 
-  const prevAlphaLayoutRef = React.useRef(kbLayout); // остання НЕ 'symbols' розкладка
+  const prevAlphaLayoutRef = React.useRef(kbLayout);
+
   useEffect(() => {
-    if (kbLayout !== 'symbols') prevAlphaLayoutRef.current = kbLayout;
+    if (kbLayout !== 'symbols1' && kbLayout !== 'symbols2') prevAlphaLayoutRef.current = kbLayout;
   }, [kbLayout]);
 
-  const cycleKbLayout = useCallback(() => {
-    setKbLayout((prev) => {
-      const pool = enabledKbLayouts.length ? enabledKbLayouts : ['en'];
-      const idx = pool.indexOf(prev as LayoutId);
-      const nextId = pool[(idx >= 0 ? idx + 1 : 0) % pool.length] as LayoutId;
-      return nextId;
-    });
-  }, [enabledKbLayouts, setKbLayout]);
+  const ALL_LAYOUTS = new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]);
 
-  const toggleSymbols = useCallback(() => {
-    setKbLayout(l => (l === 'symbols' ? (prevAlphaLayoutRef.current as any) : 'symbols'));
-  }, []);
+  const toLayoutIds = (arr: unknown): LayoutId[] => {
+    if (!Array.isArray(arr)) return ['en' as LayoutId];
+    const filtered = arr.filter(
+      (x): x is LayoutId => typeof x === 'string' && ALL_LAYOUTS.has(x as LayoutId)
+    );
+    return filtered.length ? filtered : (['en'] as LayoutId[]);
+  };
+
+  const pickDefault = (def: unknown, enabled: LayoutId[]): LayoutId => {
+    if (
+      typeof def === 'string' &&
+      ALL_LAYOUTS.has(def as LayoutId) &&
+      enabled.includes(def as LayoutId)
+    ) {
+      return def as LayoutId;
+    }
+    return (enabled[0] ?? ('en' as LayoutId));
+  };
 
   useEffect(() => {
+    let alive = true;
     (async () => {
       try {
-        const state = await ipc.settings.loadState();
-        const list = state?.keyboard?.enabledLayouts as LayoutId[] | undefined;
-        // гарантуємо, що є хоча б 'en'
-        const cleaned = Array.isArray(list) && list.length ? (list as LayoutId[]) : ['en'];
-        // symbols керуємо всередині, НЕ зберігаємо в settings
-        // setEnabledKbLayouts(cleaned.filter(l => l !== 'symbols') as LayoutId[]);
-      } catch {}
+        const kb = await ipc.settings.keyboard.get();
+        if (!alive) return;
+
+        const enabled = toLayoutIds(kb?.enabledLayouts);
+        const def = pickDefault(kb?.defaultLayout, enabled);
+
+        setEnabledKbLayouts(enabled);   // enabled: LayoutId[]
+        setKbLayout(def);               // def: LayoutId
+      } catch {
+        // keep defaults on failure
+      }
     })();
-  }, []);
+    return () => { alive = false; };
+  }, [setEnabledKbLayouts, setKbLayout]);
+
+  useEffect(() => {
+    const onChanged = (e: Event) => {
+      const detail = (e as CustomEvent).detail ?? {};
+      const enabled = toLayoutIds(detail?.enabledLayouts);
+      const def = pickDefault(detail?.defaultLayout, enabled);
+      setEnabledKbLayouts(enabled);
+      setKbLayout(def);
+    };
+
+    window.addEventListener('mzr-osk-settings-changed', onChanged as EventListener);
+    return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
+  }, [setEnabledKbLayouts, setKbLayout]);
 
   const loadInstalledApps = useCallback(async ({ quiet = false }: LoadInstalledAppsOptions = {}) => {
     if (!quiet) {
@@ -2142,6 +2171,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onSetLayout={setKbLayout}
         onEnterShouldClose={onEnterShouldClose}
         onClose={closeKeyboard}
+        onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
       />
     </div>
   );

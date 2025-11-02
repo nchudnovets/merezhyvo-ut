@@ -266,6 +266,15 @@ const exposeApi: MerezhyvoAPI = {
           return { ok: false, error: String(err) };
         }
       }
+    },
+    keyboard: {
+      get: async () => {
+        return await ipcRenderer.invoke('mzr:kb:get');
+      },
+      update: async (payload: any) => {
+        const res = await ipcRenderer.invoke('mzr:kb:update', payload);
+        return res;
+      }
     }
   },
 

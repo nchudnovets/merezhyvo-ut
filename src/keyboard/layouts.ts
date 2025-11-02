@@ -101,3 +101,5 @@ export const longPressMap: Record<string, string[]> = {
   // гривня на довге натискання $
   '$': ['₴']
 };
+
+export const LANGUAGE_LAYOUT_IDS = (Object.keys({ en:1, uk:1, de:1, pl:1 }) as LangId[]);

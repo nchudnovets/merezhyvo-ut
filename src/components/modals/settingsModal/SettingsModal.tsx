@@ -4,6 +4,7 @@ import type { InstalledApp, Mode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
+import KeyboardSettings from './KeyboardSettings';
 
 interface SettingsAppInfo {
   name: string;
@@ -415,6 +416,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
             <div style={blockBodyStyle} />
           </section>
+
+          <KeyboardSettings />
 
           <section
             style={{

@@ -44,7 +44,9 @@ export interface MerezhyvoInstalledAppsResult {
   installedApps: InstalledApp[];
 }
 
-export interface MerezhyvoSettingsState extends SettingsState {}
+export interface MerezhyvoSettingsState extends SettingsState {
+  keyboard?: KeyboardSettings;
+}
 
 export interface MerezhyvoAPI {
   appInfo?: MerezhyvoAppInfo;
@@ -75,6 +77,10 @@ export interface MerezhyvoAPI {
     tor: {
       update(payload: { containerId?: string }): Promise<TorConfigResult>;
     };
+    keyboard: {
+      get(): Promise<KeyboardSettings>;
+      update(patch: Partial<KeyboardSettings>): Promise<KeyboardSettings>;
+    };
   };
   power: {
     start(): Promise<number | null>;
@@ -88,5 +94,3 @@ declare global {
     merezhyvo?: MerezhyvoAPI;
   }
 }
-
-export {};

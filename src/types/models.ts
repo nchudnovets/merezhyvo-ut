@@ -35,10 +35,15 @@ export interface TorSettings {
   containerId: string;
 }
 
+export type KeyboardSettings = {
+  enabledLayouts: string[];
+  defaultLayout: string;
+}
 export interface SettingsState {
   schema: number;
   installedApps: InstalledApp[];
   tor?: TorSettings;
+  keyboard?: KeyboardSettings;
 }
 
 export interface ShortcutIcon {

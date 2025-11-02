@@ -39,6 +39,8 @@ import {
   updateTorConfig,
   sanitizeTorConfig
 } from './lib/tor-settings';
+import { updateKeyboardSettings, getKeyboardSettings } from './lib/keyboard-settings';
+import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
 if (!requireWithExtensions.extensions['.ts']) {
@@ -634,6 +636,7 @@ app.commandLine.appendSwitch('autoplay-policy', 'document-user-activation-requir
 
 registerShortcutHandler(ipcMain);
 tor.registerTorHandlers(ipcMain);
+registerKeyboardSettingsIPC();
 
 app.whenReady().then(() => {
   const initialMode = resolveMode();
@@ -952,6 +955,14 @@ ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown)
   }
 });
 
+ipcMain.handle('settings:keyboard:get', async () => {
+  return getKeyboardSettings();
+});
+
+ipcMain.handle('settings:keyboard:update', async (_evt, patch) => {
+  return updateKeyboardSettings(patch); // patch може бути частковим — lib змерджить
+});
+
 ipcMain.handle('merezhyvo:power:start', () => {
   try {
     if (typeof playbackBlockerId === 'number') {
@@ -986,3 +997,5 @@ ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
     null;
   windows.markTabsReady(win);
 });
+
+

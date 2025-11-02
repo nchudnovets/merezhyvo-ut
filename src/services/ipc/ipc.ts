@@ -109,7 +109,30 @@ export const ipc = {
         return { ok: false, error: String(err) };
       }
       return { ok: false, error: 'Unknown error' };
-    }
+    },
+    keyboard: {
+      async get(): Promise<{ enabledLayouts: string[]; defaultLayout: string }> {
+        try {
+          const res = await getApi()?.settings?.keyboard?.get?.();
+          if (res && typeof res === 'object') {
+            return res as { enabledLayouts: string[]; defaultLayout: string };
+          }
+        } catch (e) {
+          console.error('settings.keyboard.get failed', e);
+        }
+        // Safe fallback (UI все одно нормалізує значення):
+        return { enabledLayouts: ['en'], defaultLayout: 'en' };
+      },
+
+      async update(payload: any) {
+        try {
+          return await getApi()?.settings?.keyboard?.update?.(payload);
+        } catch (e) {
+          console.error('settings.keyboard.update failed', e);
+          return null;
+        }
+      }
+    },
   },
 
   power: {
