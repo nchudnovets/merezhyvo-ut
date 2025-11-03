@@ -1,4 +1,3 @@
-// electron/main/keyboard-settings-ipc.ts
 import { ipcMain } from 'electron';
 import {
   sanitizeKeyboardSettings,

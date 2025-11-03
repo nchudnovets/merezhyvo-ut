@@ -199,8 +199,6 @@ export function registerTorHandlers(ipcMain: IpcMain): void {
     } else {
       await startTorAndProxy(win, { containerId: extractContainerId(payload) });
     }
-
-    // return a shallow copy to avoid accidental mutation on the receiver side
     return { ...torState };
   });
 

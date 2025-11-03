@@ -18,12 +18,6 @@ export function attachLinkPolicy(contents?: WebContents) {
     handleWindowOpenFromContents(contents, url);
     return { action: 'deny' };
   });
-
-  // contents.on('new-window', (event, url) => {
-  //   event.preventDefault();
-  //   windows.handleWindowOpenFromContents(contents, url);
-  // });
-
   contents.on('dom-ready', applyBaseZoom);
   contents.on('did-navigate', applyBaseZoom);
   contents.on('did-navigate-in-page', applyBaseZoom);

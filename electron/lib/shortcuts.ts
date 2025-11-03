@@ -247,7 +247,6 @@ export async function readSettingsState(): Promise<SettingsState> {
     }
   }
 
-  // Legacy fallback: merge old settings.json (profiles) and tor-settings.json if present
   let legacyState: unknown = null;
   try {
     const legacyRaw = await fsp.readFile(getLegacySettingsFilePath(), 'utf8');
