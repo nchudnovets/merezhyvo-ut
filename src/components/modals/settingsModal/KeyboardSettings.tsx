@@ -30,112 +30,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
-
-  // const blockStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.block,
-  //     ...(modeStyles.settingsBlock || {})
-  //   }),
-  //   [modeStyles, styles.block]
-  // );
-
-  // const blockBodyStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.blockBody,
-  //     ...(modeStyles.settingsBlockBody || {})
-  //   }),
-  //   [modeStyles, styles.blockBody]
-  // );
-
-  // const layoutListStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardLayoutsList,
-  //     ...(modeStyles.settingsKeyboardLayoutsList || {})
-  //   }),
-  //   [modeStyles, styles.keyboardLayoutsList]
-  // );
-
-  // const layoutRowStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardLayoutRow,
-  //     ...(modeStyles.settingsKeyboardLayoutRow || {})
-  //   }),
-  //   [modeStyles, styles.keyboardLayoutRow]
-  // );
-
-  // const layoutCodeStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardLayoutCode,
-  //     ...(modeStyles.settingsKeyboardLayoutCode || {})
-  //   }),
-  //   [modeStyles, styles.keyboardLayoutCode]
-  // );
-
-  // const layoutIdStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardLayoutId,
-  //     ...(modeStyles.settingsKeyboardLayoutId || {})
-  //   }),
-  //   [modeStyles, styles.keyboardLayoutId]
-  // );
-
-  // const radioLabelStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardRadioLabel,
-  //     ...(modeStyles.settingsKeyboardRadioLabel || {})
-  //   }),
-  //   [modeStyles, styles.keyboardRadioLabel]
-  // );
-
-  // const actionsStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardActions,
-  //     ...(modeStyles.settingsKeyboardActions || {})
-  //   }),
-  //   [modeStyles, styles.keyboardActions]
-  // );
-
-  // const toggleButtonStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardToggleButton,
-  //     ...(modeStyles.settingsKeyboardToggleButton || {})
-  //   }),
-  //   [modeStyles, styles.keyboardToggleButton]
-  // );
-
-  // const savedPillStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...styles.keyboardSavedPill,
-  //     ...(modeStyles.settingsKeyboardSavedPill || {})
-  //   }),
-  //   [modeStyles, styles.keyboardSavedPill]
-  // );
-
-  // const baseButtonStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...baseStyles.modalButton,
-  //     minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
-  //     height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
-  //     borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-  //     padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
-  //     fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15
-  //   }),
-  //   [mode]
-  // );
-
-  // const primaryButtonStyle = useMemo<CSSProperties>(
-  //   () => ({
-  //     ...baseStyles.modalButton,
-  //     minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
-  //     height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
-  //     borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-  //     padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
-  //     fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
-  //     ...baseStyles.modalButtonPrimary
-  //   }),
-  //   [baseButtonStyle]
-  // );
-
+  
   const load = useCallback(async () => {
     setLoading(true);
     try {
@@ -257,7 +152,17 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
               ...(modeStyles.settingsKeyboardToggleButton || {})
             }}
           >
-            {expanded ? '︿' : '﹀'}
+            {
+              expanded
+                ? <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    {/* <!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--> */}
+                    <path fill="#ffffff" d="M297.4 169.4C309.9 156.9 330.2 156.9 342.7 169.4L534.7 361.4C547.2 373.9 547.2 394.2 534.7 406.7C522.2 419.2 501.9 419.2 489.4 406.7L320 237.3L150.6 406.6C138.1 419.1 117.8 419.1 105.3 406.6C92.8 394.1 92.8 373.8 105.3 361.3L297.3 169.3z"/>
+                  </svg>
+                : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                    {/* <!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--> */}
+                    <path fill="#ffffff" d="M297.4 470.6C309.9 483.1 330.2 483.1 342.7 470.6L534.7 278.6C547.2 266.1 547.2 245.8 534.7 233.3C522.2 220.8 501.9 220.8 489.4 233.3L320 402.7L150.6 233.4C138.1 220.9 117.8 220.9 105.3 233.4C92.8 245.9 92.8 266.2 105.3 278.7L297.3 470.7z"/>
+                  </svg>
+            }
           </button>
         </div>
       </div>
