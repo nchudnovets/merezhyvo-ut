@@ -16,6 +16,7 @@ import type { WebviewTag } from 'electron';
 import { createRoot } from 'react-dom/client';
 import type { Root } from 'react-dom/client';
 import Toolbar from './components/toolbar/Toolbar';
+import { MessengerToolbar } from './components/messenger/MessengerToolbar';
 import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
 import CreateShortcutModal from './components/modals/shortcutModal/CreateShortcut';
@@ -30,13 +31,14 @@ import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
-import { useTabsStore, tabsActions, defaultTabUrl } from './store/tabs';
+import { useTabsStore, tabsActions, defaultTabUrl, getTabsState } from './store/tabs';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import type { LayoutId } from './components/keyboard/layouts';
 import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
-import type { Mode, InstalledApp, Tab } from './types/models';
+import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings } from './types/models';
+import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
@@ -315,6 +317,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
+  const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
+  const [messengerSettingsState, setMessengerSettingsState] = useState<MessengerSettings>(() => sanitizeMessengerSettings(null));
+  const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
+  const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
+  const prevBrowserTabIdRef = useRef<string | null>(null);
+  const pendingMessengerTabIdRef = useRef<string | null>(null);
+  const lastMessengerIdRef = useRef<MessengerId | null>(null);
+  const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
+  const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
+  const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
 
   const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
@@ -325,6 +337,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => {
     if (kbLayout !== 'symbols1' && kbLayout !== 'symbols2') prevAlphaLayoutRef.current = kbLayout;
   }, [kbLayout]);
+
+  useEffect(() => {
+    messengerSettingsRef.current = messengerSettingsState;
+  }, [messengerSettingsState]);
 
   const availableLayouts = useMemo(
     () => new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]),
@@ -368,6 +384,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     })();
     return () => { alive = false; };
   }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const messengerSettings = await ipc.settings.messenger.get();
+        if (!messengerSettings || cancelled) return;
+        setMessengerSettingsState(messengerSettings);
+      } catch {
+        if (!cancelled) {
+          setMessengerSettingsState(sanitizeMessengerSettings(null));
+        }
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setMessengerSettingsState, setMessengerOrderSaving, setMessengerOrderMessage]);
 
   useEffect(() => {
     const onChanged = (e: Event) => {
@@ -447,6 +481,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
+  const orderedMessengers = useMemo(
+    () => resolveOrderedMessengers(messengerSettingsState),
+    [messengerSettingsState]
+  );
 
   const {
     newTab: newTabAction,
@@ -457,6 +495,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
+
+  const ensureMessengerTab = useCallback((definition: MessengerDefinition): string | null => {
+    const map = messengerTabIdsRef.current;
+    const existingId = map.get(definition.id);
+    if (existingId) {
+      const currentState = getTabsState();
+      if (currentState.tabs.some((tab) => tab.id === existingId)) {
+        return existingId;
+      }
+      map.delete(definition.id);
+    }
+    newTabAction(definition.url, { title: definition.title });
+    const nextState = getTabsState();
+    const createdId = nextState.activeId || null;
+    if (createdId) {
+      map.set(definition.id, createdId);
+      updateMetaAction(createdId, { title: definition.title, url: definition.url });
+    }
+    return createdId;
+  }, [newTabAction, updateMetaAction]);
   
   useEffect(() => {
     ipc.notifyTabsReady();
@@ -927,9 +985,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useEffect(() => {
     const base = mode === 'mobile' ? 2.0 : 1.0;
-    zoomRef.current = base;
-    setZoomLevel(base);
-    setZoomClamped(base);
+    if (Math.abs(zoomRef.current - base) < 1e-3) return;
+    const frame = requestAnimationFrame(() => {
+      setZoomClamped(base);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [mode, setZoomClamped]);
 
   const applyZoomPolicy = useCallback(() => {
@@ -1196,7 +1256,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (!url) return;
       newTabAction(String(url));
     });
-    return () => { try { off && off(); } catch {} };
+    return () => {
+      if (typeof off === 'function') {
+        try {
+          off();
+        } catch {}
+      }
+    };
   }, [newTabAction]);
 
   useEffect(() => {
@@ -1298,6 +1364,167 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
     } catch {}
   }, [getActiveWebview]);
+
+  const resetEditingState = useCallback(() => {
+    setIsEditing(false);
+    isEditingRef.current = false;
+    activeInputRef.current = null;
+    try {
+      inputRef.current?.blur?.();
+    } catch {}
+  }, []);
+
+  const exitMessengerMode = useCallback(() => {
+    if (mainViewMode !== 'messenger') return;
+    const idsToClose = Array.from(messengerTabIdsRef.current.values());
+    messengerTabIdsRef.current.clear();
+    pendingMessengerTabIdRef.current = null;
+    setMainViewMode('browser');
+    setActiveMessengerId(null);
+    void ipc.ua.setMode('auto');
+    const previousId = prevBrowserTabIdRef.current;
+    prevBrowserTabIdRef.current = null;
+    if (idsToClose.length) {
+      for (const tabId of idsToClose) {
+        closeTabAction(tabId);
+      }
+    }
+    if (previousId) {
+      const state = getTabsState();
+      if (state.tabs.some((tab) => tab.id === previousId)) {
+        activateTabAction(previousId);
+      }
+    }
+    resetEditingState();
+  }, [activateTabAction, closeTabAction, mainViewMode, resetEditingState]);
+
+  const activateMessenger = useCallback((definition: MessengerDefinition) => {
+    resetEditingState();
+    blurActiveInWebview();
+    const tabId = ensureMessengerTab(definition);
+    if (!tabId) return;
+    pendingMessengerTabIdRef.current = tabId;
+    if (activeIdRef.current !== tabId) {
+      activateTabAction(tabId);
+    }
+    setMainViewMode('messenger');
+    setActiveMessengerId(definition.id);
+    lastMessengerIdRef.current = definition.id;
+    void ipc.ua.setMode('desktop');
+    setInputValue(definition.url);
+  }, [activateTabAction, blurActiveInWebview, ensureMessengerTab, resetEditingState, setInputValue]);
+
+  const handleEnterMessengerMode = useCallback(() => {
+    if (!orderedMessengers.length) return;
+    if (mainViewMode !== 'messenger') {
+      prevBrowserTabIdRef.current = activeIdRef.current;
+    }
+    const fallback = orderedMessengers[0];
+    if (!fallback) return;
+    const lastId = lastMessengerIdRef.current;
+    const preferredId = lastId && orderedMessengers.some((item) => item.id === lastId)
+      ? lastId
+      : fallback.id;
+    const target = orderedMessengers.find((item) => item.id === preferredId) ?? fallback;
+    activateMessenger(target);
+  }, [activateMessenger, mainViewMode, orderedMessengers]);
+
+  const handleMessengerSelect = useCallback((messengerId: MessengerId) => {
+    const target = orderedMessengers.find((item) => item.id === messengerId);
+    if (!target) return;
+    if (mainViewMode !== 'messenger') {
+      prevBrowserTabIdRef.current = activeIdRef.current;
+    }
+    if (activeMessengerId === messengerId && mainViewMode === 'messenger') return;
+    activateMessenger(target);
+  }, [activateMessenger, activeMessengerId, mainViewMode, orderedMessengers]);
+
+  const handleMessengerMove = useCallback(async (messengerId: MessengerId, direction: 'up' | 'down') => {
+    const currentSettings = messengerSettingsRef.current;
+    const currentOrder = Array.isArray(currentSettings?.order) ? currentSettings.order.slice() : [];
+    const index = currentOrder.indexOf(messengerId);
+    if (index === -1) return;
+    const offset = direction === 'up' ? -1 : 1;
+    const targetIndex = index + offset;
+    if (targetIndex < 0 || targetIndex >= currentOrder.length) return;
+
+    const previousOrder = currentOrder.slice();
+    const nextOrder = currentOrder.slice();
+    const [moved] = nextOrder.splice(index, 1);
+    if (!moved) return;
+    nextOrder.splice(targetIndex, 0, moved);
+
+    messengerSettingsRef.current = { order: nextOrder };
+    setMessengerSettingsState({ order: nextOrder });
+    setMessengerOrderSaving(true);
+    setMessengerOrderMessage('');
+
+    try {
+      const saved = await ipc.settings.messenger.update(nextOrder);
+      if (saved && Array.isArray(saved.order)) {
+        messengerSettingsRef.current = saved;
+        setMessengerSettingsState(saved);
+        setMessengerOrderMessage('Messenger order saved');
+      } else {
+        setMessengerOrderMessage('Unable to save messenger order');
+      }
+    } catch {
+      messengerSettingsRef.current = { order: previousOrder };
+      setMessengerSettingsState({ order: previousOrder });
+      setMessengerOrderMessage('Failed to save messenger order');
+    } finally {
+      setMessengerOrderSaving(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (mainViewMode !== 'messenger') return;
+    const map = messengerTabIdsRef.current;
+    for (const [messengerId, tabId] of Array.from(map.entries())) {
+      if (!tabs.some((tab) => tab.id === tabId)) {
+        map.delete(messengerId);
+      }
+    }
+
+    if (pendingMessengerTabIdRef.current && activeId !== pendingMessengerTabIdRef.current) {
+      return;
+    }
+    if (pendingMessengerTabIdRef.current && activeId === pendingMessengerTabIdRef.current) {
+      pendingMessengerTabIdRef.current = null;
+    }
+
+    const activeEntry = Array.from(map.entries()).find(([, tabId]) => tabId === activeId);
+    if (!activeEntry) {
+      if (!pendingMessengerTabIdRef.current) {
+        exitMessengerMode();
+      }
+      return;
+    }
+
+    const [currentMessengerId] = activeEntry;
+    if (activeMessengerId !== currentMessengerId) {
+      setActiveMessengerId(currentMessengerId);
+      lastMessengerIdRef.current = currentMessengerId;
+    }
+  }, [activeId, activeMessengerId, exitMessengerMode, mainViewMode, tabs]);
+
+  useEffect(() => {
+    if (mainViewMode === 'messenger' && orderedMessengers.length === 0) {
+      exitMessengerMode();
+    }
+  }, [exitMessengerMode, mainViewMode, orderedMessengers]);
+
+  useEffect(() => () => {
+    const ids = Array.from(messengerTabIdsRef.current.values());
+    messengerTabIdsRef.current.clear();
+    pendingMessengerTabIdRef.current = null;
+    if (ids.length) {
+      for (const tabId of ids) {
+        closeTabAction(tabId);
+      }
+    }
+    void ipc.ua.setMode('auto');
+  }, [closeTabAction]);
   const closeShortcutModal = useCallback(() => {
     setShowModal(false);
     setBusy(false);
@@ -1947,7 +2174,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
-      {!isHtmlFullscreen && (
+      {!isHtmlFullscreen && mainViewMode === 'browser' && (
         <Toolbar
           mode={mode}
           canGoBack={canGoBack}
@@ -1973,6 +2200,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onOpenTabsPanel={openTabsPanel}
           onToggleTor={handleToggleTor}
           onOpenSettings={openSettingsModal}
+          onEnterMessengerMode={handleEnterMessengerMode}
+        />
+      )}
+
+      {!isHtmlFullscreen && mainViewMode === 'messenger' && (
+        <MessengerToolbar
+          mode={mode}
+          messengers={orderedMessengers}
+          activeMessengerId={activeMessengerId}
+          onSelectMessenger={handleMessengerSelect}
+          onExit={exitMessengerMode}
         />
       )}
 
@@ -2068,6 +2306,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onRequestRemove={askRemoveApp}
           onCancelRemove={cancelRemoveApp}
           onConfirmRemove={confirmRemoveApp}
+          messengerItems={orderedMessengers}
+          messengerOrderSaving={messengerOrderSaving}
+          messengerOrderMessage={messengerOrderMessage}
+          onMessengerMove={handleMessengerMove}
         />
       )}
 
@@ -2203,8 +2445,9 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
   const [status, setStatus] = useState<StatusState>('loading');
   const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
   const powerBlockerIdRef = useRef<number | null>(null);
-  const zoomRef = useRef<number>(mode === 'mobile' ? 2 : 1);
-  const [zoomLevel, setZoomLevel] = useState<number>(zoomRef.current);
+  const initialZoom = mode === 'mobile' ? 2 : 1;
+  const zoomRef = useRef<number>(initialZoom);
+  const [zoomLevel, setZoomLevel] = useState<number>(initialZoom);
 
   const startPowerBlocker = useCallback(async (): Promise<number | null> => {
     if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
@@ -2242,7 +2485,11 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
 
   useEffect(() => {
     const base = mode === 'mobile' ? 2 : 1;
-    setZoomClamped(base);
+    if (Math.abs(zoomRef.current - base) < 1e-3) return;
+    const frame = requestAnimationFrame(() => {
+      setZoomClamped(base);
+    });
+    return () => cancelAnimationFrame(frame);
   }, [mode, setZoomClamped]);
 
   const attachExtraListeners = useCallback((view: WebviewTag | null) => {

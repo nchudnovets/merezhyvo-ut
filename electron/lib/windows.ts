@@ -56,9 +56,13 @@ type WebContentsWithHost = WebContents & { hostWebContents?: WebContents | null 
 let launchConfig: LaunchConfig | null = null;
 let currentMode: Mode | null = null;
 let currentUserAgentMode: Mode = 'desktop';
+let userAgentOverride: Mode | null = null;
 let mainWindow: MerezhyvoWindow | null = null;
 const pendingOpenUrls: string[] = [];
 let tabsReady = false;
+
+const normalizeMode = (mode: Mode | string | null | undefined): Mode =>
+  mode === 'mobile' ? 'mobile' : 'desktop';
 
 export function installDesktopName(): void {
   const desktopAwareApp = app as AppWithDesktopName;
@@ -140,9 +144,39 @@ export function applyUserAgentForUrl(contents: WebContents | null | undefined, u
   }
 }
 
+const refreshUserAgentMode = (): void => {
+  const nextMode = userAgentOverride ?? currentMode ?? 'desktop';
+  if (currentUserAgentMode !== nextMode) {
+    currentUserAgentMode = nextMode;
+    try {
+      session.defaultSession?.setUserAgent(
+        nextMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT
+      );
+    } catch {
+      // noop
+    }
+  }
+  try {
+    for (const win of BrowserWindow.getAllWindows()) {
+      applyUserAgentForUrl(win.webContents, win.webContents.getURL());
+    }
+  } catch {
+    // noop
+  }
+};
+
 export function setCurrentMode(mode: Mode | string | null | undefined): void {
-  currentMode = mode === 'mobile' ? 'mobile' : 'desktop';
-  currentUserAgentMode = currentMode;
+  currentMode = normalizeMode(mode);
+  refreshUserAgentMode();
+}
+
+export function setUserAgentOverride(mode: Mode | 'auto' | null | undefined): void {
+  if (mode === 'desktop' || mode === 'mobile') {
+    userAgentOverride = mode;
+  } else {
+    userAgentOverride = null;
+  }
+  refreshUserAgentMode();
 }
 
 export function getCurrentMode(): Mode | null {
@@ -321,15 +355,14 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   const config = launchConfig ?? {};
   const { url: startUrl = DEFAULT_URL, fullscreen, devtools, modeOverride } = config;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
-  const initialMode = (modeOverride ?? resolveMode()) as Mode;
-  currentMode = initialMode;
+  const initialModeCandidate = (modeOverride ?? resolveMode()) as Mode;
+  const initialMode = normalizeMode(initialModeCandidate);
+  setCurrentMode(initialMode);
 
   if (!fs.existsSync(distIndex)) {
     console.error('[Merezhyvo] Missing renderer bundle at', distIndex);
   }
 
-  const resolvedMode: Mode = initialMode === 'desktop' ? 'desktop' : 'mobile';
-  currentUserAgentMode = resolvedMode;
   installUserAgentOverride(session.defaultSession);
   const webPreferences: WebPreferences & { nativeWindowOpen?: boolean } = {
     contextIsolation: true,

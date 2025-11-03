@@ -173,7 +173,9 @@ const WebViewHost = forwardRef(function WebViewHost(
     }
 
     let observed = false;
-    let observer: MutationObserver;
+    const observer = new MutationObserver(() => {
+      applyShadowStylesInner();
+    });
 
     const ensureObserver = () => {
       const root = node.shadowRoot;
@@ -201,10 +203,6 @@ const WebViewHost = forwardRef(function WebViewHost(
         ensureObserver();
       } catch {}
     };
-
-    observer = new MutationObserver(() => {
-      applyShadowStylesInner();
-    });
 
     const shadowStylesListener: EventListener = () => {
       applyShadowStylesInner();

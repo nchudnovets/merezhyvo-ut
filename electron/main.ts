@@ -35,6 +35,7 @@ import {
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
+import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
 if (!requireWithExtensions.extensions['.ts']) {
@@ -49,7 +50,7 @@ try {
 
 const fsp = fs.promises;
 
-const { DEFAULT_URL, MOBILE_USER_AGENT, DESKTOP_USER_AGENT } = windows;
+const { DEFAULT_URL } = windows;
 
 const SESSION_SCHEMA = 1;
 
@@ -630,16 +631,11 @@ app.commandLine.appendSwitch('autoplay-policy', 'document-user-activation-requir
 registerShortcutHandler(ipcMain);
 tor.registerTorHandlers(ipcMain);
 registerKeyboardSettingsIPC();
+registerMessengerSettingsIPC();
 
 app.whenReady().then(() => {
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
-  const initialUA = initialMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  try {
-    session.defaultSession?.setUserAgent(initialUA);
-  } catch {
-    // noop
-  }
   windows.installUserAgentOverride(session.defaultSession);
   windows.createMainWindow();
 
@@ -936,6 +932,22 @@ ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown)
     console.error('[merezhyvo] settings tor update failed', err);
     return { ok: false, error: String(err) };
   }
+});
+
+ipcMain.handle('merezhyvo:ua:set-mode', (_event, payload: unknown) => {
+  let value: string | null = null;
+  if (typeof payload === 'string') {
+    value = payload;
+  } else if (payload && typeof payload === 'object' && typeof (payload as { mode?: unknown }).mode === 'string') {
+    value = String((payload as { mode?: unknown }).mode);
+  }
+
+  if (value === 'desktop' || value === 'mobile') {
+    windows.setUserAgentOverride(value);
+  } else {
+    windows.setUserAgentOverride(null);
+  }
+  return { ok: true };
 });
 
 ipcMain.handle('merezhyvo:power:start', () => {

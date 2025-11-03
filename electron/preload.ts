@@ -16,6 +16,7 @@ import type {
   MerezhyvoInstalledAppsResult
 } from '../src/types/preload';
 import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
+import { sanitizeMessengerSettings } from '../src/shared/messengers';
 
 type KeyboardSettings = {
   enabledLayouts: string[];
@@ -250,10 +251,11 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return {
-          schema: 1,
+          schema: 2,
           installedApps: [],
           tor: { containerId: '' },
-          keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' }
+          keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
+          messenger: sanitizeMessengerSettings(null)
         };
       }
     },
@@ -312,6 +314,27 @@ const exposeApi: MerezhyvoAPI = {
           return sanitizeKeyboardSettings({});
         }
       }
+    },
+    messenger: {
+      get: async () => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:messenger:get');
+          return sanitizeMessengerSettings(result);
+        } catch (err) {
+          console.error('[merezhyvo] settings.messenger.get failed', err);
+          return sanitizeMessengerSettings(null);
+        }
+      },
+      update: async (order) => {
+        try {
+          const payload = Array.isArray(order) ? order : [];
+          const result = await ipcRenderer.invoke('merezhyvo:settings:messenger:update', payload);
+          return sanitizeMessengerSettings(result);
+        } catch (err) {
+          console.error('[merezhyvo] settings.messenger.update failed', err);
+          return sanitizeMessengerSettings({ order });
+        }
+      }
     }
   },
 
@@ -339,6 +362,16 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] power.isStarted failed', err);
         return false;
+      }
+    }
+  },
+  ua: {
+    setMode: async (mode: 'desktop' | 'mobile' | 'auto') => {
+      const value = mode === 'desktop' || mode === 'mobile' ? mode : 'auto';
+      try {
+        await ipcRenderer.invoke('merezhyvo:ua:set-mode', value);
+      } catch (err) {
+        console.error('[merezhyvo] ua.setMode failed', err);
       }
     }
   }

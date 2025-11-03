@@ -365,5 +365,69 @@ export const settingsModalStyles: StyleRecord = {
     margin: 0,
     fontSize: '13px',
     color: '#fbbf24'
+  },
+  messengerHint: {
+    fontSize: '13px',
+    color: '#cbd5f5'
+  },
+  messengerList: {
+    listStyle: 'none',
+    padding: 0,
+    margin: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  messengerRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px',
+    padding: '12px 16px',
+    borderRadius: '16px',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    backgroundColor: 'rgba(17, 24, 39, 0.6)'
+  },
+  messengerInfo: {
+    flex: '1 1 auto',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '4px',
+    minWidth: 0
+  },
+  messengerName: {
+    fontWeight: 600,
+    fontSize: '15px',
+    color: '#f8fafc',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  messengerUrl: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  messengerActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px'
+  },
+  messengerActionButton: {
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'rgba(15, 23, 42, 0.7)',
+    color: '#cbd5f5',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  messengerMessage: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#a5b4fc'
   }
 } as const;

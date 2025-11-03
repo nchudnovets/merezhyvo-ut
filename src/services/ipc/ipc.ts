@@ -7,8 +7,10 @@ import type {
   ShortcutResult,
   TorState,
   TorConfigResult,
-  Unsubscribe
+  Unsubscribe,
+  MessengerSettings
 } from '../../types/models';
+import { sanitizeMessengerSettings } from '../../shared/messengers';
 
 type InstalledAppsResponse = {
   ok: boolean;
@@ -133,6 +135,26 @@ export const ipc = {
         }
       }
     },
+    messenger: {
+      async get(): Promise<MessengerSettings> {
+        try {
+          const res = await getApi()?.settings?.messenger?.get?.();
+          return sanitizeMessengerSettings(res);
+        } catch (err) {
+          console.error('settings.messenger.get failed', err);
+          return sanitizeMessengerSettings(null);
+        }
+      },
+      async update(order: MessengerSettings['order']): Promise<MessengerSettings> {
+        try {
+          const res = await getApi()?.settings?.messenger?.update?.(order ?? []);
+          return sanitizeMessengerSettings(res);
+        } catch (err) {
+          console.error('settings.messenger.update failed', err);
+          return sanitizeMessengerSettings({ order });
+        }
+      }
+    },
   },
 
   power: {
@@ -183,5 +205,15 @@ export const ipc = {
     try {
       getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1);
     } catch {}
+  },
+
+  ua: {
+    async setMode(mode: 'desktop' | 'mobile' | 'auto'): Promise<void> {
+      try {
+        await getApi()?.ua?.setMode?.(mode);
+      } catch (err) {
+        console.error('ua.setMode failed', err);
+      }
+    }
   }
 };

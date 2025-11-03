@@ -9,7 +9,8 @@ import type {
   TorState,
   TorConfigResult,
   Unsubscribe,
-  KeyboardSettings
+  KeyboardSettings,
+  MessengerSettings
 } from './models';
 
 type MerezhyvoUnsubscribe = Unsubscribe;
@@ -80,11 +81,18 @@ export interface MerezhyvoAPI {
       get(): Promise<KeyboardSettings>;
       update(patch: Partial<KeyboardSettings>): Promise<KeyboardSettings>;
     };
+    messenger: {
+      get(): Promise<MessengerSettings>;
+      update(order: MessengerSettings['order']): Promise<MessengerSettings>;
+    };
   };
   power: {
     start(): Promise<number | null>;
     stop(id?: number | null): Promise<unknown>;
     isStarted(id?: number | null): Promise<boolean>;
+  };
+  ua?: {
+    setMode(mode: 'desktop' | 'mobile' | 'auto'): Promise<void>;
   };
 }
 

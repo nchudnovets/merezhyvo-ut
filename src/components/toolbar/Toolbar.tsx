@@ -5,6 +5,7 @@ import AddressBar from './AddressBar';
 // import StatusIndicator from './StatusIndicator';
 import type { Mode } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
+import { TelegramIcon } from '../messenger/MessengerIcon';
 
 interface ToolbarProps {
   mode: Mode;
@@ -31,6 +32,7 @@ interface ToolbarProps {
   onOpenTabsPanel: () => void;
   onToggleTor: () => void;
   onOpenSettings: () => void;
+  onEnterMessengerMode: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -55,12 +57,27 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenShortcutModal,
   onOpenTabsPanel,
   onToggleTor,
-  onOpenSettings
+  onOpenSettings,
+  onEnterMessengerMode
 }) => {
   const modeStyles = toolbarModeStyles[mode];
 
   return (
   <div style={toolbarStyles.toolbar} className="toolbar">
+    <button
+      type="button"
+      aria-label="Open messenger mode"
+      title="Open messenger mode"
+      onClick={onEnterMessengerMode}
+      style={{
+        ...toolbarStyles.navButton,
+        ...(modeStyles.toolbarBtnRegular ?? {})
+      }}
+      className="btn-regular"
+    >
+      <TelegramIcon size={18} />
+    </button>
+
     <NavButtons
       mode={mode}
       canGoBack={canGoBack}

@@ -5,11 +5,16 @@ import fs from 'fs';
 import https from 'https';
 import http from 'http';
 import { app, type IpcMain } from 'electron';
+import {
+  DEFAULT_MESSENGER_ORDER,
+  sanitizeMessengerSettings as sanitizeSharedMessengerSettings,
+  type MessengerSettings
+} from '../../src/shared/messengers';
 
 type Nullable<T> = T | null;
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 1;
+export const SETTINGS_SCHEMA = 2;
 
 export type InstalledApp = {
   id: string;
@@ -36,6 +41,7 @@ export type SettingsState = {
   installedApps: InstalledApp[];
   keyboard: KeyboardSettings;
   tor: TorConfig;
+  messenger: MessengerSettings;
 };
 
 type SettingsLike = {
@@ -43,6 +49,7 @@ type SettingsLike = {
   installedApps?: unknown;
   keyboard?: unknown;
   tor?: unknown;
+  messenger?: unknown;
 };
 
 type InstalledAppLike = {
@@ -151,11 +158,16 @@ const DEFAULT_TOR_CONFIG: TorConfig = {
   containerId: ''
 };
 
+const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
+  order: [...DEFAULT_MESSENGER_ORDER]
+};
+
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
   installedApps: [],
   keyboard: { ...DEFAULT_KEYBOARD_SETTINGS },
-  tor: { ...DEFAULT_TOR_CONFIG }
+  tor: { ...DEFAULT_TOR_CONFIG },
+  messenger: { ...DEFAULT_MESSENGER_SETTINGS }
 });
 
 export const normalizeInstalledAppUrl = (value: unknown): Nullable<string> => {
@@ -222,12 +234,14 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
 
   const keyboard = sanitizeKeyboardSettings(source.keyboard);
   const tor = sanitizeTorConfig(source.tor);
+  const messenger = sanitizeSharedMessengerSettings(source.messenger);
 
   return {
     schema: SETTINGS_SCHEMA,
     installedApps,
     keyboard,
-    tor
+    tor,
+    messenger
   };
 };
 
@@ -279,7 +293,16 @@ export async function readSettingsState(): Promise<SettingsState> {
 }
 
 export async function writeSettingsState(state: unknown): Promise<SettingsState> {
-  const sanitized = sanitizeSettingsPayload(state);
+  const current = await readSettingsState();
+  const source = (typeof state === 'object' && state !== null) ? state as Partial<SettingsState> : {};
+  const merged = {
+    schema: SETTINGS_SCHEMA,
+    installedApps: source.installedApps ?? current.installedApps,
+    keyboard: source.keyboard ?? current.keyboard,
+    tor: source.tor ?? current.tor,
+    messenger: source.messenger ?? current.messenger
+  };
+  const sanitized = sanitizeSettingsPayload(merged);
   const file = getSettingsFilePath();
   await fsp.mkdir(path.dirname(file), { recursive: true });
   await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');

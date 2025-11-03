@@ -1,5 +1,17 @@
 export type Mode = 'desktop' | 'mobile';
 
+export type MessengerId = 'whatsapp' | 'telegram' | 'messenger' | 'snapchat';
+
+export interface MessengerDefinition {
+  id: MessengerId;
+  title: string;
+  url: string;
+}
+
+export interface MessengerSettings {
+  order: MessengerId[];
+}
+
 export interface Tab {
   id: string;
   url: string;
@@ -45,6 +57,7 @@ export interface SettingsState {
   installedApps: InstalledApp[];
   tor: TorConfig;
   keyboard: KeyboardSettings;
+  messenger: MessengerSettings;
 }
 
 export interface ShortcutIcon {

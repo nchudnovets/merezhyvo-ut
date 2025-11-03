@@ -217,7 +217,13 @@ export function makeMainInjects() {
 
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
-      if (!sel.isCollapsed) dir === 'ArrowLeft' ? sel.collapseToStart() : sel.collapseToEnd();
+      if (!sel.isCollapsed) {
+        if (dir === 'ArrowLeft') {
+          sel.collapseToStart();
+        } else {
+          sel.collapseToEnd();
+        }
+      }
       if (typeof (sel as any).modify === 'function') {
         (sel as any).modify('move', dir === 'ArrowLeft' ? 'backward' : 'forward', 'character');
       } else {

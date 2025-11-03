@@ -41,7 +41,13 @@ export const settingsModalModeStyles: ModeStyleMap = {
       height: '25px'
     },
     settingsKeyboardActions: {},
-    settingsKeyboardHeaderActions: {}
+    settingsKeyboardHeaderActions: {},
+    settingsMessengerRow: {},
+    settingsMessengerActionButton: {},
+    settingsMessengerName: {},
+    settingsMessengerUrl: {},
+    settingsMessengerMessage: {},
+    settingsMessengerHint: {}
   },
   mobile: {
     settingsModalTitle: {
@@ -178,6 +184,28 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsKeyboardHeaderActions: {
       gap: 'clamp(22px, 3.5vw, 30px)'
+    },
+    settingsMessengerRow: {
+      gap: 'clamp(24px, 4vw, 32px)',
+      padding: 'clamp(36px, 5vw, 48px)',
+      borderRadius: '32px'
+    },
+    settingsMessengerActionButton: {
+      width: 'clamp(78px, 11vw, 96px)',
+      height: 'clamp(78px, 11vw, 96px)',
+      borderRadius: '26px'
+    },
+    settingsMessengerName: {
+      fontSize: 'clamp(36px, 5.5vw, 48px)'
+    },
+    settingsMessengerUrl: {
+      fontSize: 'clamp(30px, 4.5vw, 38px)'
+    },
+    settingsMessengerMessage: {
+      fontSize: 'clamp(30px, 4.5vw, 38px)'
+    },
+    settingsMessengerHint: {
+      fontSize: 'clamp(30px, 4.5vw, 38px)'
     }
   }
 };
