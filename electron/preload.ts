@@ -369,11 +369,7 @@ contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
     });
 
     try {
-      const desc = Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
-      if (desc?.get) {
-        // const ua = desc.get.call(navigator);
-        // no UA mutation in preload
-      }
+      void Object.getOwnPropertyDescriptor(Navigator.prototype, 'userAgent');
     } catch {
       // noop
     }

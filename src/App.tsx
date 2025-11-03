@@ -315,7 +315,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
-  // const [kbContext, setKbContext] = useState<OskContext>('text');
 
   const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
@@ -361,8 +360,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const enabled = toLayoutIds(kb?.enabledLayouts);
         const def = pickDefault(kb?.defaultLayout, enabled);
 
-        setEnabledKbLayouts(enabled);   // enabled: LayoutId[]
-        setKbLayout(def);               // def: LayoutId
+        setEnabledKbLayouts(enabled);
+        setKbLayout(def);
       } catch {
         // keep defaults on failure
       }
@@ -546,32 +545,29 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
   const onEnterShouldClose = useCallback(async (): Promise<boolean> => {
-    // 1) Перевірка в головному вікні
+    // Step 1: check input inside the main window
     const el = document.activeElement as HTMLElement | null;
     if (el) {
       const tag = (el.tagName || '').toLowerCase();
       const isMultiMain = el.isContentEditable || tag === 'textarea';
-      if (isMultiMain) return false;       // textarea/CE — не закриваємо
+      if (isMultiMain) return false;
     }
 
-    // 2) Якщо фокус у webview — питаємо інжектор
+    // Step 2: ask the webview injector if the field is multiline
     try {
       const isMulti = await isActiveMultiline?.();
-      if (typeof isMulti === 'boolean') return !isMulti;  // закриваємо, якщо НЕ multiline
+      if (typeof isMulti === 'boolean') return !isMulti;
     } catch {}
 
-    // 3) За замовчуванням — закриваємо
+    // Step 3: default behaviour is to close the keyboard
     return true;
   }, [isActiveMultiline]);
 
   const closeKeyboard = useCallback(() => setKbVisible(false), []);
 
   const injectText = React.useCallback(async (text: string) => {
-    // якщо активний редагований елемент у main — друкуємо тільки туди
     if (isEditableMainNow()) { injectTextToMain(text); return; }
-    // інакше перевіряємо webview
     if (await probeWebEditable(getActiveWebview)) { await injectTextToWeb(text); return; }
-    // якщо ніде — нічого не робимо, клавіатуру не закриваємо
   }, [getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
 
   const injectBackspace = React.useCallback(async () => {
@@ -907,8 +903,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       try { view.focus(); } catch {}
     }
   }, []);
-
-  // --- Zoom management inside the active webview ---
   const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
@@ -1645,8 +1639,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       wv.removeEventListener('console-message', onConsole);
     };
   }, [mode, getActiveWebview, activeId, activeViewRevision]);
-
-  // --- Toolbar event handlers ---
   const handleSubmit = useCallback((event: SubmitEvent) => {
     event?.preventDefault?.();
     const handle = getActiveWebviewHandle();
@@ -1794,8 +1786,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabsPanelBackdropStyle = useMemo<CSSProperties>(() => {
     return { ...tabsPanelStyles.backdrop };
   }, []);
-
-  // --- Shortcut modal helpers ---
   const getCurrentViewUrl = useCallback(() => {
     try {
       const direct = getActiveWebview()?.getURL?.();

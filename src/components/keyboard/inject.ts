@@ -1,4 +1,3 @@
-// src/keyboard/inject.ts
 import type { WebviewTag } from 'electron';
 
 export type GetWebview = () => WebviewTag | null;
@@ -38,9 +37,6 @@ const ENSURE_EDITABLE_FOCUS_JS = `
     })()
     `;
 
-/* =========================
-   MAIN-WINDOW INJECTS
-   ========================= */
 export function makeMainInjects() {
   const getActive = () => document.activeElement as HTMLElement | null;
 
@@ -88,7 +84,6 @@ export function makeMainInjects() {
       return;
     }
 
-    // contentEditable
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       const range = sel.getRangeAt(0);
@@ -133,7 +128,6 @@ export function makeMainInjects() {
       return;
     }
 
-    // contentEditable
     const sel = window.getSelection();
     if (sel && sel.rangeCount > 0) {
       const range = sel.getRangeAt(0);
@@ -242,7 +236,6 @@ export function makeMainInjects() {
     }
   };
 
-  // legacy-аліаси, яких чекає App.tsx
   return {
     text,
     backspace,
@@ -498,7 +491,6 @@ export function makeWebInjects(getWebview: GetWebview) {
     `)
   };
 
-  // legacy-аліаси, яких чекає App.tsx
   return {
     isActiveMultiline,
     text,
