@@ -138,7 +138,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
       fontSize: 'clamp(33px, 4.8vw, 42px)'
     },
     settingsKeyboardToggleButton: {
-      width: 'clamp(84px, 12vw, 108px)',
+      width: 'clamp(65px, 12vw, 108px)',
       height: 'clamp(84px, 12vw, 108px)',
       borderRadius: '28px',
       fontSize: 'clamp(42px, 6vw, 52px)'
