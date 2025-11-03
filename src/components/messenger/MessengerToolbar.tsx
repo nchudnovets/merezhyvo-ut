@@ -38,7 +38,7 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
             ...(modeStyles.exitButton || {})
           }}
         >
-          <BrowserIcon size={18} />
+          <BrowserIcon size={modeStyles.icon?.width} />
           <span style={{ ...base.label, ...(modeStyles.label || {}) }}>Browser</span>
         </button>
       </div>
@@ -63,7 +63,7 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
               }}
             >
               <span style={base.icon}>
-                <MessengerIcon id={messenger.id} size={18} />
+                <MessengerIcon id={messenger.id} size={modeStyles.icon?.width} />
               </span>
               <span style={{ ...base.label, ...(modeStyles.label || {}) }}>{messenger.title}</span>
             </button>
@@ -79,7 +79,7 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
         }}
       >
         <span style={base.icon}>
-          <BrowserIcon size={18} />
+          <BrowserIcon size={modeStyles.icon?.width} />
         </span>
         <span style={{ ...base.label, ...(modeStyles.label || {}) }}>Browser</span>
       </button>

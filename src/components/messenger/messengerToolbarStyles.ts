@@ -81,6 +81,10 @@ export const messengerToolbarModeStyles: Record<Mode, MessengerToolbarModeStyles
     },
     exitButton: {
       fontSize: '14px'
+    },
+    icon: {
+      width: '18px',
+      height: '18px'
     }
   },
   mobile: {
@@ -93,15 +97,20 @@ export const messengerToolbarModeStyles: Record<Mode, MessengerToolbarModeStyles
     },
     button: {
       padding: '6px 10px',
-      minHeight: '40px',
-      fontSize: '13px'
+      minHeight: '90px',
+      fontSize: '36px'
+    },
+    icon: {
+      width: '60px',
+      height: '60px'
     },
     label: {
-      fontSize: '13px'
+      fontSize: '30px'
     },
     exitButton: {
       padding: '6px 12px',
-      fontSize: '13px'
+      fontSize: '30px',
+      minHeight: '90px',
     }
   }
 };

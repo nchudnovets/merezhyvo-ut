@@ -2,11 +2,11 @@ import React from 'react';
 import type { MessengerId } from '../../types/models';
 
 type IconProps = {
-  size?: number;
+  size?: number | string;
   className?: string;
 };
 
-const baseProps = (size: number, className?: string) => ({
+const baseProps = (size: number | string, className?: string) => ({
   width: size,
   height: size,
   viewBox: '0 0 24 24',
@@ -46,7 +46,7 @@ export const BrowserIcon: React.FC<IconProps> = ({ size = 20, className }) => (
   </svg>
 );
 
-export const MessengerIcon: React.FC<{ id: MessengerId; size?: number; className?: string }> = ({ id, size, className }) => {
+export const MessengerIcon: React.FC<{ id: MessengerId; size?: number | string; className?: string }> = ({ id, size, className }) => {
   switch (id) {
     case 'whatsapp':
       return <WhatsAppIcon size={size} className={className} />;

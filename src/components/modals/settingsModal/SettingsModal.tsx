@@ -425,7 +425,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   ...(modeStyles.settingsBlockTitle || {})
                 }}
               >
-                Messenger toolbar
+                Messengers toolbar
               </h3>
             </div>
             <div style={blockBodyStyle}>
@@ -485,8 +485,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         >
                           <svg
                             viewBox="0 0 16 16"
-                            width="14"
-                            height="14"
+                            width={modeStyles.settingsMessengerActionIcn?.width}
+                            height={modeStyles.settingsMessengerActionIcn?.width}
                             xmlns="http://www.w3.org/2000/svg"
                             aria-hidden="true"
                           >
@@ -509,8 +509,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                         >
                           <svg
                             viewBox="0 0 16 16"
-                            width="14"
-                            height="14"
+                            width={modeStyles.settingsMessengerActionIcn?.width}
+                            height={modeStyles.settingsMessengerActionIcn?.width}
                             xmlns="http://www.w3.org/2000/svg"
                             aria-hidden="true"
                           >

@@ -2,7 +2,6 @@ import React from 'react';
 import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
-// import StatusIndicator from './StatusIndicator';
 import type { Mode } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { TelegramIcon } from '../messenger/MessengerIcon';
@@ -75,7 +74,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       }}
       className="btn-regular"
     >
-      <TelegramIcon size={18} />
+      <TelegramIcon size={'70%'} />
     </button>
 
     <NavButtons

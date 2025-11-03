@@ -44,6 +44,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsKeyboardHeaderActions: {},
     settingsMessengerRow: {},
     settingsMessengerActionButton: {},
+    settingsMessengerActionIcn: {
+      width: '20px'
+    },
     settingsMessengerName: {},
     settingsMessengerUrl: {},
     settingsMessengerMessage: {},
@@ -194,6 +197,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
       width: 'clamp(78px, 11vw, 96px)',
       height: 'clamp(78px, 11vw, 96px)',
       borderRadius: '26px'
+    },
+    settingsMessengerActionIcn: {
+      width: '65px'
     },
     settingsMessengerName: {
       fontSize: 'clamp(36px, 5.5vw, 48px)'
