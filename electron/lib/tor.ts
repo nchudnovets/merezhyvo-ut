@@ -184,6 +184,12 @@ export async function stopTorAndProxy(winForFeedback?: TBrowserWindow | null): P
 
 /** Wire IPC handlers for tor controls. */
 export function registerTorHandlers(ipcMain: IpcMain): void {
+  const extractContainerId = (payload: unknown): string => {
+    if (!payload || typeof payload !== 'object') return '';
+    const rawId = (payload as Record<string, unknown>).containerId;
+    return typeof rawId === 'string' ? rawId.trim() : '';
+  };
+
   ipcMain.handle('tor:toggle', async (event: IpcMainInvokeEvent, payload: unknown) => {
     const win =
       BrowserWindow.fromWebContents(event.sender) || getMainWindow?.();
@@ -191,11 +197,7 @@ export function registerTorHandlers(ipcMain: IpcMain): void {
     if (torState.enabled || torState.starting) {
       await stopTorAndProxy(win);
     } else {
-      const containerId =
-        typeof payload === 'object' && payload && typeof (payload as any).containerId === 'string'
-          ? (payload as any).containerId.trim()
-          : '';
-      await startTorAndProxy(win, { containerId });
+      await startTorAndProxy(win, { containerId: extractContainerId(payload) });
     }
 
     // return a shallow copy to avoid accidental mutation on the receiver side

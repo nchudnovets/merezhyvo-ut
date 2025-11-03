@@ -227,7 +227,9 @@ export function downloadBinary(url: string, { timeoutMs = 6000 }: DownloadOption
       }
       if (res.statusCode !== 200) return reject(new Error(`HTTP ${res.statusCode}`));
       const chunks: Buffer[] = [];
-      res.on('data', (chunk) => chunks.push(chunk));
+      res.on('data', (chunk: Buffer) => {
+        chunks.push(chunk);
+      });
       res.on('end', () => {
         const buffer = Buffer.concat(chunks);
         const contentType = (res.headers['content-type'] || '').toLowerCase();
@@ -479,6 +481,29 @@ StartupWMClass=Merezhyvo
   }
 }
 
+const sanitizeShortcutPayload = (raw: unknown): CreateShortcutPayload => {
+  if (!raw || typeof raw !== 'object') {
+    return {};
+  }
+
+  const source = raw as Record<string, unknown>;
+  const payload: CreateShortcutPayload = {};
+
+  if (typeof source.title === 'string') {
+    payload.title = source.title;
+  }
+  if (typeof source.url === 'string') {
+    payload.url = source.url;
+  }
+  if (typeof source.single === 'boolean') {
+    payload.single = source.single;
+  }
+
+  return payload;
+};
+
 export function registerShortcutHandler(ipcMain: IpcMain): void {
-  ipcMain.handle('merezhyvo:createShortcut', async (_event, payload) => handleCreateShortcut(payload));
+  ipcMain.handle('merezhyvo:createShortcut', async (_event, payload) =>
+    handleCreateShortcut(sanitizeShortcutPayload(payload))
+  );
 }

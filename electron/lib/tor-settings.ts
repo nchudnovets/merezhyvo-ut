@@ -18,11 +18,14 @@ function getErrnoCode(err: unknown): string | undefined {
 
 /** Normalize raw config into a safe TorConfig shape. */
 export function sanitizeTorConfig(raw: unknown): TorConfig {
-  const containerId =
-    typeof raw === 'object' && raw !== null && typeof (raw as any).containerId === 'string'
-      ? (raw as any).containerId.trim()
-      : '';
-  return { containerId };
+  if (!raw || typeof raw !== 'object') {
+    return { containerId: '' };
+  }
+  const record = raw as Record<string, unknown>;
+  const value = record.containerId;
+  return {
+    containerId: typeof value === 'string' ? value.trim() : ''
+  };
 }
 
 export async function readTorConfig(): Promise<TorConfig> {

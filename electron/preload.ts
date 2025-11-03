@@ -16,6 +16,7 @@ import type {
   MerezhyvoInstalledAppsResult
 } from '../src/types/preload';
 import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
+import { sanitizeKeyboardSettings, type KeyboardSettings } from './lib/keyboard-settings';
 
 type PackageMeta = {
   productName?: string;
@@ -268,12 +269,23 @@ const exposeApi: MerezhyvoAPI = {
       }
     },
     keyboard: {
-      get: async () => {
-        return await ipcRenderer.invoke('mzr:kb:get');
+      get: async (): Promise<KeyboardSettings> => {
+        try {
+          const result = await ipcRenderer.invoke('mzr:kb:get');
+          return sanitizeKeyboardSettings(result);
+        } catch (err) {
+          console.error('[merezhyvo] keyboard.get failed', err);
+          return sanitizeKeyboardSettings({});
+        }
       },
-      update: async (payload: any) => {
-        const res = await ipcRenderer.invoke('mzr:kb:update', payload);
-        return res;
+      update: async (payload: Partial<KeyboardSettings>): Promise<KeyboardSettings> => {
+        try {
+          const result = await ipcRenderer.invoke('mzr:kb:update', payload ?? {});
+          return sanitizeKeyboardSettings(result);
+        } catch (err) {
+          console.error('[merezhyvo] keyboard.update failed', err);
+          return sanitizeKeyboardSettings({});
+        }
       }
     }
   },
