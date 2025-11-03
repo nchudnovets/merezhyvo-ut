@@ -39,6 +39,7 @@ import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
 import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings } from './types/models';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
+import { setupHostRtlDirection } from './keyboard/hostRtl';
 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
@@ -1613,6 +1614,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       cancelAnimationFrame(frame);
     };
   }, [showModal, closeShortcutModal]);
+
+  useEffect(() => {
+    const teardown = setupHostRtlDirection();
+    return () => teardown();
+  }, []);
 
   useEffect(() => {
     if (!showSettingsModal) {

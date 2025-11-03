@@ -1,5 +1,11 @@
 // src/keyboard/KeyboardPane.tsx
-import React, { useMemo, useRef, useCallback, useState, useEffect } from 'react';
+import React, {
+  useMemo,
+  useRef,
+  useCallback,
+  useState,
+  useEffect,
+} from 'react';
 import Keyboard from 'react-simple-keyboard';
 
 import {
@@ -10,7 +16,7 @@ import {
   isRTL,
   longPressMap,
   type LanguageId,
-  resolveLayoutRows
+  resolveLayoutRows,
 } from './layouts';
 import { ensureOskCssInjected } from './keyboardCss';
 
@@ -31,9 +37,17 @@ type Props = {
 };
 
 const SPECIAL = new Set([
-  '{bksp}','{enter}','{space}','{tab}','{shift}',
-  '{arrowleft}','{arrowright}','{lang}','{symbols}',
-  '{abc}','{sym12}'
+  '{bksp}',
+  '{enter}',
+  '{space}',
+  '{tab}',
+  '{shift}',
+  '{arrowleft}',
+  '{arrowright}',
+  '{lang}',
+  '{symbols}',
+  '{abc}',
+  '{sym12}',
 ]);
 
 const BASE_DISPLAY: Record<string, string> = {
@@ -46,14 +60,40 @@ const BASE_DISPLAY: Record<string, string> = {
   '{symbols}': '?!#',
   '{abc}': 'ABC',
   '{sym12}': '1/2',
-  '{shift}': '⇧'
+  '{shift}': '⇧',
 };
 
 const LONGPRESS_MS = 350;
-const isLetter = (s: string) => s.length === 1 && s.toLowerCase() !== s.toUpperCase();
+const REPEAT_INITIAL_MS = 350;
+const REPEAT_INTERVAL_MS = 33;
+
+const isLetter = (s: string) =>
+  s.length === 1 && s.toLowerCase() !== s.toUpperCase();
 
 // Keep rows as array-of-keys per row
 type Rows = string[][];
+
+/** Only these keys repeat on hold */
+type RepeatableKey = '{bksp}' | '{arrowleft}' | '{arrowright}';
+
+const REPEATABLE = new Set<RepeatableKey>([
+  '{bksp}',
+  '{arrowleft}',
+  '{arrowright}',
+]);
+
+const ICON_TO_TOKEN: Record<string, string> = {
+  '⌫': '{bksp}',
+  '⏎': '{enter}',
+  '←': '{arrowleft}',
+  '→': '{arrowright}',
+  '⇧': '{shift}',
+  '⇪': '{shift}',
+  '🌐': '{lang}',
+  '?!#': '{symbols}',
+  ABC: '{abc}',
+  '1/2': '{sym12}',
+};
 
 // Uppercase letters inside Rows; keep tokens like {shift} intact.
 function toShiftRows(rows: Rows): Rows {
@@ -84,7 +124,15 @@ function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
     } else {
       rows.push(['{bksp}']);
     }
-    rows.push(['{abc}', '{sym12}', '{lang}', '{space}', '{arrowleft}', '{arrowright}', '{enter}']);
+    rows.push([
+      '{abc}',
+      '{sym12}',
+      '{lang}',
+      '{space}',
+      '{arrowleft}',
+      '{arrowright}',
+      '{enter}',
+    ]);
   } else {
     // language: add shift/bksp on 3rd row, and bottom service row
     if (rows.length >= 3 && rows[2]) {
@@ -94,66 +142,112 @@ function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
     } else {
       rows.push(['{shift}', '{bksp}']);
     }
-    rows.push(['{symbols}', '{lang}', '{space}', '{arrowleft}', '{arrowright}', '{enter}']);
+    rows.push([
+      '{symbols}',
+      '{lang}',
+      '{space}',
+      '{arrowleft}',
+      '{arrowright}',
+      '{enter}',
+    ]);
   }
   return rows;
 }
 
-const ICON_TO_TOKEN: Record<string, string> = {
-  '⌫': '{bksp}',
-  '⏎': '{enter}',
-  '←': '{arrowleft}',
-  '→': '{arrowright}',
-  '⇧': '{shift}',
-  '⇪': '{shift}',
-  '🌐': '{lang}',
-  '?!#': '{symbols}',
-  'ABC': '{abc}',
-  '1/2': '{sym12}'
-};
+/** Extract a keyboard token from an event target */
+function extractButtonFromTarget(
+  target: EventTarget | null
+): { btn: string | null; rect: DOMRect | null } {
+  const root =
+    target instanceof HTMLElement ? target.closest('.hg-button') : null;
+  if (!root) return { btn: null, rect: null };
+  const el = root as HTMLElement;
+  const rect = el.getBoundingClientRect();
+
+  const dataAttr = el.getAttribute('data-skbtn');
+  const ds = el.dataset;
+  const dsBtn = ds ? ds['skbtn'] : undefined;
+
+  let btn: string | null = dataAttr ?? dsBtn ?? null;
+  if (!btn) {
+    const raw = (el.textContent || '').trim();
+    btn = ICON_TO_TOKEN[raw] || (raw || null);
+  }
+  return { btn, rect };
+}
 
 const KeyboardPane: React.FC<Props> = (p) => {
   const {
-    visible, layoutId, enabledLayouts,
-    injectText, injectBackspace, injectEnter, injectArrow,
-    onCycleLayout, onSetLayout, onEnterShouldClose, onClose
+    visible,
+    layoutId,
+    enabledLayouts,
+    injectText,
+    injectBackspace,
+    injectEnter,
+    injectArrow,
+    onCycleLayout,
+    onSetLayout,
+    onEnterShouldClose,
+    onClose,
   } = p;
 
-  const kbRef = useRef<any>(null);
+  // We keep a ref for compatibility; not used directly here
+  const kbRef = useRef<unknown>(null);
 
   // Long-press / pointer-state
   const holdTimer = useRef<number | null>(null);
   const holdActivated = useRef<boolean>(false);
   const heldButton = useRef<string | null>(null);
   const capsFired = useRef<boolean>(false);
-  const isPressing = useRef<boolean>(false); // ignore onKeyPress while pointer is down
+  const isPressing = useRef<boolean>(false); // block library onKeyPress while pointer is down
 
-  const [popup, setPopup] = useState<{ key: string; alts: string[]; x: number; y: number } | null>(null);
+  // Auto-repeat timers for repeatable keys
+  const repeatStartTimer = useRef<number | null>(null);
+  const repeatInterval = useRef<number | null>(null);
+
+  const [popup, setPopup] = useState<{
+    key: string;
+    alts: string[];
+    x: number;
+    y: number;
+  } | null>(null);
   const [shift, setShift] = useState(false);
   const [caps, setCaps] = useState(false);
 
-  useEffect(() => { ensureOskCssInjected(); }, []);
+  useEffect(() => {
+    ensureOskCssInjected();
+  }, []);
 
   // Block context-menu while interacting with OSK (prevents UT bubble)
   useEffect(() => {
     if (!visible) return;
+    const options: AddEventListenerOptions = { capture: true };
     const handler = (e: MouseEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (t && t.closest('.mzr-osk')) {
+      const t = e.target;
+      if (t instanceof HTMLElement && t.closest('.mzr-osk')) {
         e.preventDefault();
         e.stopPropagation();
       }
     };
-    window.addEventListener('contextmenu', handler, { capture: true });
-    return () => window.removeEventListener('contextmenu', handler as any, { capture: true } as any);
+    window.addEventListener('contextmenu', handler, options);
+    return () => window.removeEventListener('contextmenu', handler, options);
   }, [visible]);
 
   // Base alphabet/symbols rows (no service keys here)
-  const baseAlphaRows = useMemo<Rows>(() => resolveLayoutRows(layoutId, false), [layoutId]);
+  const baseAlphaRows = useMemo<Rows>(
+    () => resolveLayoutRows(layoutId, false),
+    [layoutId]
+  );
 
   // Full rows with service keys for default & shift
-  const fullDefaultRows = useMemo<Rows>(() => addServiceRows(layoutId, baseAlphaRows), [layoutId, baseAlphaRows]);
-  const fullShiftRows = useMemo<Rows>(() => addServiceRows(layoutId, toShiftRows(baseAlphaRows)), [layoutId, baseAlphaRows]);
+  const fullDefaultRows = useMemo<Rows>(
+    () => addServiceRows(layoutId, baseAlphaRows),
+    [layoutId, baseAlphaRows]
+  );
+  const fullShiftRows = useMemo<Rows>(
+    () => addServiceRows(layoutId, toShiftRows(baseAlphaRows)),
+    [layoutId, baseAlphaRows]
+  );
 
   // Build keyboard layout object expected by react-simple-keyboard (string[] per layer)
   const layout = useMemo(() => {
@@ -164,12 +258,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
 
   const display = useMemo(() => {
     const langLabel = humanLabel(
-      isSymbols(layoutId) ? (enabledLayouts.find((l) => !isSymbols(l)) || 'en') : layoutId
+      isSymbols(layoutId)
+        ? (enabledLayouts.find((l) => !isSymbols(l)) || 'en')
+        : layoutId
     );
     return {
       ...BASE_DISPLAY,
       '{space}': langLabel,
-      '{shift}': caps ? '⇪' : '⇧'
+      '{shift}': caps ? '⇪' : '⇧',
     };
   }, [layoutId, enabledLayouts, caps]);
 
@@ -193,7 +289,9 @@ const KeyboardPane: React.FC<Props> = (p) => {
           try {
             const shouldClose = await (onEnterShouldClose?.() ?? false);
             if (shouldClose) onClose?.();
-          } catch {}
+          } catch {
+            /* ignore */
+          }
           return;
         }
         case '{space}':
@@ -235,7 +333,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
         }
 
         case '{abc}': {
-          const firstLang = enabledLayouts.find((id) => !isSymbols(id)) || 'en';
+          const firstLang =
+            enabledLayouts.find((id) => !isSymbols(id)) || 'en';
           onSetLayout?.(firstLang);
           return;
         }
@@ -265,7 +364,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
       onCycleLayout,
       onSetLayout,
       onEnterShouldClose,
-      onClose
+      onClose,
     ]
   );
 
@@ -279,29 +378,26 @@ const KeyboardPane: React.FC<Props> = (p) => {
     [popup, typeKey]
   );
 
-  const clearHold = useCallback(() => {
-    if (holdTimer.current != null) {
-      clearTimeout(holdTimer.current);
-      holdTimer.current = null;
+  const clearRepeat = useCallback(() => {
+    if (repeatStartTimer.current !== null) {
+      window.clearTimeout(repeatStartTimer.current);
+      repeatStartTimer.current = null;
     }
-    holdActivated.current = false;
-    heldButton.current = null;
+    if (repeatInterval.current !== null) {
+      window.clearInterval(repeatInterval.current);
+      repeatInterval.current = null;
+    }
   }, []);
 
-  const extractButtonFromTarget = (
-    target: EventTarget | null
-  ): { btn: string | null; rect: DOMRect | null } => {
-    const el = (target as HTMLElement | null)?.closest('.hg-button') as HTMLElement | null;
-    if (!el) return { btn: null, rect: null };
-    const rect = el.getBoundingClientRect();
-    const ds: any = (el as any).dataset || {};
-    let btn: string | null = el.getAttribute('data-skbtn') || ds.skbtn || null;
-    if (!btn) {
-      const raw = (el.textContent || '').trim();
-      btn = ICON_TO_TOKEN[raw] || (raw || null);
+  const clearHold = useCallback(() => {
+    if (holdTimer.current !== null) {
+      window.clearTimeout(holdTimer.current);
+      holdTimer.current = null;
     }
-    return { btn, rect };
-  };
+    clearRepeat();
+    holdActivated.current = false;
+    heldButton.current = null;
+  }, [clearRepeat]);
 
   const onPointerDownCapture = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -316,6 +412,22 @@ const KeyboardPane: React.FC<Props> = (p) => {
       heldButton.current = btn;
       holdActivated.current = false;
 
+      // Auto-repeat for repeatable keys: immediate action + repeat after delay
+      if (REPEATABLE.has(btn.toLowerCase() as RepeatableKey)) {
+        // Immediate single action
+        void typeKey(btn);
+        // Mark as "handled" to avoid extra on release
+        holdActivated.current = true;
+
+        repeatStartTimer.current = window.setTimeout(() => {
+          repeatInterval.current = window.setInterval(() => {
+            if (heldButton.current) void typeKey(heldButton.current);
+          }, REPEAT_INTERVAL_MS);
+        }, REPEAT_INITIAL_MS);
+
+        return;
+      }
+
       // Long-press Shift => Caps
       if (btn.toLowerCase() === '{shift}') {
         holdTimer.current = window.setTimeout(() => {
@@ -328,22 +440,23 @@ const KeyboardPane: React.FC<Props> = (p) => {
       }
 
       // Long-press alternates (language-specific)
+      const btnLower = btn.toLowerCase();
       const alts =
-        lpMap[btn] || lpMap[btn.toLowerCase?.() ?? ''] || lpMap[btn.toUpperCase?.() ?? ''];
-      if (alts && alts.length && rect) {
+        lpMap[btn] || lpMap[btnLower] || lpMap[btn.toUpperCase()] || [];
+      if (alts.length && rect) {
         holdTimer.current = window.setTimeout(() => {
           holdActivated.current = true;
           setPopup({
             key: btn,
             alts,
             x: Math.round(rect.left + rect.width / 2),
-            y: Math.round(rect.top - 10)
+            y: Math.round(rect.top - 10),
           });
         }, LONGPRESS_MS);
         return;
       }
     },
-    [visible, lpMap]
+    [visible, lpMap, typeKey]
   );
 
   const onPointerUpCapture = useCallback(() => {
@@ -372,11 +485,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
     [injectText, shift, caps]
   );
 
-  const absorbContext = useCallback((e: any) => {
-    e.preventDefault();
-    e.stopPropagation();
-    return false;
-  }, []);
+  const absorbContext = useCallback(
+    (e: React.MouseEvent<HTMLElement>) => {
+      e.preventDefault();
+      e.stopPropagation();
+      return false;
+    },
+    []
+  );
 
   if (!visible) return null;
 
@@ -385,6 +501,17 @@ const KeyboardPane: React.FC<Props> = (p) => {
       data-soft-keyboard="true"
       className="mzr-osk fixed-osk"
       dir={isRTL(layoutId) ? 'rtl' : 'ltr'}
+      tabIndex={-1}
+      role="application"
+      aria-label="On-screen keyboard"
+      // Keep focus in the webview / never focus the keyboard UI
+      onMouseDown={(e: React.MouseEvent<HTMLDivElement>) => {
+        e.preventDefault();
+      }}
+      onFocus={(e: React.FocusEvent<HTMLDivElement>) => {
+        e.currentTarget.blur();
+      }}
+      // Our pointer handlers (capture) control long-press/hold logic
       onPointerDownCapture={onPointerDownCapture}
       onPointerUpCapture={onPointerUpCapture}
       onPointerCancel={onPointerCancel}
@@ -392,32 +519,25 @@ const KeyboardPane: React.FC<Props> = (p) => {
       onContextMenu={absorbContext}
     >
       <Keyboard
-        keyboardRef={(r) => (kbRef.current = r)}
+        keyboardRef={(r) => {
+          kbRef.current = r;
+        }}
         layout={layout.layout}
         layoutName={shift || caps ? 'shift' : 'default'}
         display={display}
         theme="hg-theme-default hg-layout-default mzr-osk-theme"
         onKeyPress={onKeyPress}
-        onRender={() => {}}
-        preventMouseDownDefault={true}
-        preventMouseUpDefault={true}
-        stopMouseDownPropagation={true}
-        stopMouseUpPropagation={true}
-        buttonTheme={[
-          { class: `osk-enter`, buttons: '{enter}' },
-          { class: `osk-bksp`, buttons: '{bksp}' },
-          { class: `osk-arrow`, buttons: '{arrowleft} {arrowright}' },
-          { class: `osk-space`, buttons: '{space}' },
-          { class: `osk-lang`, buttons: '{lang}' },
-          { class: `osk-symbols`, buttons: '{symbols} {sym12} {abc}' },
-          { class: `osk-shift${shift || caps ? ' osk-active' : ''}`, buttons: '{shift}' }
-        ]}
       />
 
       {popup && (
         <div className="mzr-osk-popup" style={{ left: popup.x, top: popup.y }}>
           {popup.alts.map((a) => (
-            <button key={a} className="mzr-osk-popup-btn" onClick={() => onPickAlt(a)}>
+            <button
+              key={a}
+              className="mzr-osk-popup-btn"
+              onClick={() => onPickAlt(a)}
+              type="button"
+            >
               {a}
             </button>
           ))}

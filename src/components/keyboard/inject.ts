@@ -325,6 +325,11 @@ export function makeWebInjects(
     const wv = getActiveWebview();
     return wv ? wv.getWebContentsId() : null;
   };
+  const focusActiveWebview = (): void => {
+    const wv = getActiveWebview();
+    // HTMLElement#focus exists on <webview>; brings caret back visually
+    if (wv) wv.focus();
+  };
 
   const sendCharsTrusted = async (text: string): Promise<boolean> => {
     const wcId = getWcId();
@@ -332,6 +337,8 @@ export function makeWebInjects(
     for (const ch of Array.from(String(text))) {
       await ipc.osk.char(wcId, ch);
     }
+    // Ensure the caret stays visible in the webview after input
+    focusActiveWebview();
     return true;
   };
 
@@ -339,6 +346,8 @@ export function makeWebInjects(
     const wcId = getWcId();
     if (wcId == null) return false;
     await ipc.osk.key(wcId, key);
+    // Ensure the caret stays visible in the webview after input
+    focusActiveWebview();
     return true;
   };
 

@@ -1016,10 +1016,19 @@ ipcMain.handle(
     const wc = webContents.fromId(Number(wcId));
     if (!wc) return { ok: false, error: 'webContents not found' };
 
+    // Map DOM-style keys to Chromium's keyCode strings for sendInputEvent
+    const keyCodeMap: Record<string, string> = {
+      ArrowLeft: 'Left',
+      ArrowRight: 'Right',
+      ArrowUp: 'Up',
+      ArrowDown: 'Down',
+    };
+    const keyCode = keyCodeMap[key] ?? key;
+
     // Send real key press/release sequence (trusted)
-    const down: KeyboardInputEvent = { type: 'keyDown', keyCode: key, modifiers };
+    const down: KeyboardInputEvent = { type: 'keyDown', keyCode, modifiers };
     wc.sendInputEvent(down);
-    wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
+    wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
 
     return { ok: true };
   }
