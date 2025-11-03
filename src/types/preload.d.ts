@@ -94,6 +94,18 @@ export interface MerezhyvoAPI {
   ua?: {
     setMode(mode: 'desktop' | 'mobile' | 'auto'): Promise<void>;
   };
+  osk: {
+    char(
+      wcId: number,
+      text: string
+    ): Promise<{ ok: boolean; error?: string }>;
+
+    key(
+      wcId: number,
+      key: string,
+      modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
+    ): Promise<{ ok: boolean; error?: string }>;
+  };
 }
 
 declare global {

@@ -21,6 +21,7 @@ import {
   type Point,
   type WebContents
 } from 'electron';
+import type { KeyboardInputEvent } from 'electron';
 
 import { resolveMode } from './mode';
 import * as windows from './lib/windows';
@@ -984,3 +985,43 @@ ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
     null;
   windows.markTabsReady(win);
 });
+
+ipcMain.handle(
+  'mzr:osk:char',
+  (_e, { wcId, text }: { wcId: number; text: string }) => {
+    const wc = webContents.fromId(Number(wcId));
+    if (!wc) return { ok: false, error: 'webContents not found' };
+    // Send printable characters as 'char' so pages receive trusted events
+    for (const ch of Array.from(String(text ?? ''))) {
+      wc.sendInputEvent({ type: 'char', keyCode: ch });
+    }
+    return { ok: true };
+  }
+);
+
+ipcMain.handle(
+  'mzr:osk:key',
+  (
+    _e,
+    {
+      wcId,
+      key,
+      modifiers,
+    }: {
+      wcId: number;
+      key: string;
+      modifiers?: KeyboardInputEvent['modifiers'];
+    }
+  ) => {
+    const wc = webContents.fromId(Number(wcId));
+    if (!wc) return { ok: false, error: 'webContents not found' };
+
+    // Send real key press/release sequence (trusted)
+    const down: KeyboardInputEvent = { type: 'keyDown', keyCode: key, modifiers };
+    wc.sendInputEvent(down);
+    wc.sendInputEvent({ type: 'keyUp', keyCode: key, modifiers });
+
+    return { ok: true };
+  }
+);
+

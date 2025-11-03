@@ -984,7 +984,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [getActiveWebview]);
 
   useEffect(() => {
-    const base = mode === 'mobile' ? 2.0 : 1.0;
+    const base = mode === 'mobile' ? 2.3 : 1.0;
     if (Math.abs(zoomRef.current - base) < 1e-3) return;
     const frame = requestAnimationFrame(() => {
       setZoomClamped(base);

@@ -215,5 +215,18 @@ export const ipc = {
         console.error('ua.setMode failed', err);
       }
     }
-  }
+  },
+
+  osk: {
+  char(wcId: number, text: string) {
+    return window.merezhyvo?.osk.char(wcId, text);
+  },
+  key(
+    wcId: number,
+    key: string,
+    modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
+  ) {
+    return window.merezhyvo?.osk.key(wcId, key, modifiers);
+  },
+},
 };

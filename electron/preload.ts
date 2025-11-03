@@ -374,7 +374,24 @@ const exposeApi: MerezhyvoAPI = {
         console.error('[merezhyvo] ua.setMode failed', err);
       }
     }
-  }
+  },
+  osk: {
+    /**
+     * Send printable characters as trusted 'char' events.
+     */
+    char: (wcId: number, text: string) =>
+      ipcRenderer.invoke('mzr:osk:char', { wcId, text }),
+
+    /**
+     * Send special keys as trusted keyDown/keyUp events.
+     * Examples: 'Backspace', 'Enter', 'ArrowLeft', 'ArrowRight', etc.
+     */
+    key: (
+      wcId: number,
+      key: string,
+      modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
+    ) => ipcRenderer.invoke('mzr:osk:key', { wcId, key, modifiers }),
+  },
 };
 
 contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
