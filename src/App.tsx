@@ -91,10 +91,6 @@ type WebviewFaviconEvent = {
   favicons?: unknown;
 };
 
-type WebviewZoomEvent = {
-  newZoomFactor?: number | null;
-};
-
 type KeyboardDirection = 'ArrowLeft' | 'ArrowRight';
 
 type TabViewEntry = {
@@ -959,8 +955,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
     const onReady = () => applyZoomPolicy();
     const onNavigate = () => applyZoomPolicy();
-    const onZoomChanged = (event: WebviewZoomEvent | null | undefined) => {
-      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : view.getZoomFactor?.();
+    const onZoomChanged = () => {
+      const raw = typeof view.getZoomFactor === 'function' ? view.getZoomFactor() : undefined;
       if (typeof raw !== 'number' || Number.isNaN(raw)) return;
       const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
       zoomRef.current = normalized;

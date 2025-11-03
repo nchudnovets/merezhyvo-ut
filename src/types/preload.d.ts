@@ -8,7 +8,8 @@ import type {
   ShortcutResult,
   TorState,
   TorConfigResult,
-  Unsubscribe
+  Unsubscribe,
+  KeyboardSettings
 } from './models';
 
 type MerezhyvoUnsubscribe = Unsubscribe;
@@ -44,9 +45,7 @@ export interface MerezhyvoInstalledAppsResult {
   installedApps: InstalledApp[];
 }
 
-export interface MerezhyvoSettingsState extends SettingsState {
-  keyboard?: KeyboardSettings;
-}
+export type MerezhyvoSettingsState = SettingsState;
 
 export interface MerezhyvoAPI {
   appInfo?: MerezhyvoAppInfo;

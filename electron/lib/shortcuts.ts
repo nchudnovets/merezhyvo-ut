@@ -22,14 +22,27 @@ export type InstalledApp = {
   updatedAt: number;
 };
 
+export type KeyboardSettings = {
+  enabledLayouts: string[];
+  defaultLayout: string;
+};
+
+export type TorConfig = {
+  containerId: string;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   installedApps: InstalledApp[];
+  keyboard: KeyboardSettings;
+  tor: TorConfig;
 };
 
 type SettingsLike = {
   schema?: unknown;
   installedApps?: unknown;
+  keyboard?: unknown;
+  tor?: unknown;
 };
 
 type InstalledAppLike = {
@@ -41,6 +54,25 @@ type InstalledAppLike = {
   single?: unknown;
   createdAt?: unknown;
   updatedAt?: unknown;
+};
+
+const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+
+export const sanitizeKeyboardSettings = (raw: unknown): KeyboardSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Record<string, unknown> : {};
+  const enabledRaw = Array.isArray(source.enabledLayouts)
+    ? source.enabledLayouts.filter(isNonEmptyString)
+    : [];
+  const enabled = enabledRaw.length > 0 ? Array.from(new Set(enabledRaw)) : ['en'];
+  const defCandidate = isNonEmptyString(source.defaultLayout) ? source.defaultLayout.trim() : undefined;
+  const defaultLayout = defCandidate && enabled.includes(defCandidate) ? defCandidate : enabled[0] ?? 'en';
+  return { enabledLayouts: enabled, defaultLayout };
+};
+
+export const sanitizeTorConfig = (raw: unknown): TorConfig => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Record<string, unknown> : {};
+  const value = isNonEmptyString(source.containerId) ? source.containerId.trim() : '';
+  return { containerId: value };
 };
 
 type DownloadOptions = {
@@ -106,11 +138,24 @@ export const getProfileDir = (): string => {
 };
 
 export const getSessionFilePath = (): string => path.join(getProfileDir(), 'session.json');
-export const getSettingsFilePath = (): string => path.join(getProfileDir(), 'settings.json');
+const getLegacySettingsFilePath = (): string => path.join(getProfileDir(), 'settings.json');
+const getLegacyTorSettingsFilePath = (): string => path.join(getProfileDir(), 'tor-settings.json');
+export const getSettingsFilePath = (): string => path.join(app.getPath('userData'), 'settings.json');
+
+const DEFAULT_KEYBOARD_SETTINGS: KeyboardSettings = {
+  enabledLayouts: ['en'],
+  defaultLayout: 'en'
+};
+
+const DEFAULT_TOR_CONFIG: TorConfig = {
+  containerId: ''
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
-  installedApps: []
+  installedApps: [],
+  keyboard: { ...DEFAULT_KEYBOARD_SETTINGS },
+  tor: { ...DEFAULT_TOR_CONFIG }
 });
 
 export const normalizeInstalledAppUrl = (value: unknown): Nullable<string> => {
@@ -164,49 +209,72 @@ export const sanitizeInstalledAppEntry = (raw: unknown): Nullable<InstalledApp> 
 };
 
 export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
-  if (!payload || typeof payload !== 'object' || (payload as SettingsLike).schema !== SETTINGS_SCHEMA) {
-    return createDefaultSettingsState();
-  }
-  const source = (Array.isArray((payload as SettingsLike).installedApps)
-    ? (payload as SettingsLike).installedApps
-    : []) as unknown[];
+  const source = (typeof payload === 'object' && payload !== null)
+    ? (payload as SettingsLike)
+    : {};
+
+  const appsSource = Array.isArray(source.installedApps) ? source.installedApps : [];
   const installedApps: InstalledApp[] = [];
-  for (const raw of source) {
+  for (const raw of appsSource) {
     const sanitized = sanitizeInstalledAppEntry(raw);
     if (sanitized) installedApps.push(sanitized);
   }
+
+  const keyboard = sanitizeKeyboardSettings(source.keyboard);
+  const tor = sanitizeTorConfig(source.tor);
+
   return {
     schema: SETTINGS_SCHEMA,
-    installedApps
+    installedApps,
+    keyboard,
+    tor
   };
 };
 
 export async function readSettingsState(): Promise<SettingsState> {
-  const file = getSettingsFilePath();
-  let parsed: unknown = null;
+  const targetFile = getSettingsFilePath();
   try {
-    const raw = await fsp.readFile(file, 'utf8');
-    parsed = JSON.parse(raw) as unknown;
-  } catch (err: unknown) {
+    const raw = await fsp.readFile(targetFile, 'utf8');
+    const parsed = JSON.parse(raw) as unknown;
+    const sanitized = sanitizeSettingsPayload(parsed);
+    await fsp.mkdir(path.dirname(targetFile), { recursive: true });
+    await fsp.writeFile(targetFile, JSON.stringify(sanitized, null, 2), 'utf8');
+    return sanitized;
+  } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
     if (code !== 'ENOENT') {
-      console.warn('[merezhyvo] settings read failed, falling back', err);
-    }
-    if (!parsed) {
-      const defaults = createDefaultSettingsState();
-      try {
-        await fsp.writeFile(file, JSON.stringify(defaults, null, 2), 'utf8');
-      } catch (writeErr) {
-        console.error('[merezhyvo] settings init failed', writeErr);
-      }
-      return defaults;
+      console.warn('[merezhyvo] settings read failed, attempting legacy fallback', err);
     }
   }
-  const sanitized = sanitizeSettingsPayload(parsed);
+
+  // Legacy fallback: merge old settings.json (profiles) and tor-settings.json if present
+  let legacyState: unknown = null;
   try {
-    await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');
-  } catch (err) {
-    console.error('[merezhyvo] settings sanitize write failed', err);
+    const legacyRaw = await fsp.readFile(getLegacySettingsFilePath(), 'utf8');
+    legacyState = JSON.parse(legacyRaw) as unknown;
+  } catch {
+    legacyState = null;
+  }
+
+  let legacyTor: unknown = null;
+  try {
+    const torRaw = await fsp.readFile(getLegacyTorSettingsFilePath(), 'utf8');
+    legacyTor = JSON.parse(torRaw) as unknown;
+  } catch {
+    legacyTor = null;
+  }
+
+  const merged = {
+    ...(typeof legacyState === 'object' && legacyState !== null ? legacyState : {}),
+    tor: legacyTor
+  };
+
+  const sanitized = sanitizeSettingsPayload(merged);
+  try {
+    await fsp.mkdir(path.dirname(targetFile), { recursive: true });
+    await fsp.writeFile(targetFile, JSON.stringify(sanitized, null, 2), 'utf8');
+  } catch (writeErr) {
+    console.error('[merezhyvo] settings write failed', writeErr);
   }
   return sanitized;
 }
@@ -214,6 +282,7 @@ export async function readSettingsState(): Promise<SettingsState> {
 export async function writeSettingsState(state: unknown): Promise<SettingsState> {
   const sanitized = sanitizeSettingsPayload(state);
   const file = getSettingsFilePath();
+  await fsp.mkdir(path.dirname(file), { recursive: true });
   await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');
   return sanitized;
 }

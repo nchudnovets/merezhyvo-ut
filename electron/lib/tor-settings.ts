@@ -1,60 +1,20 @@
 'use strict';
 
-import path from 'path';
-import fs from 'fs';
-const fsp: typeof fs.promises = fs.promises;
-import { getProfileDir, ensureDir } from './shortcuts';
-
-export const TOR_SETTINGS_FILE: string = path.join(getProfileDir(), 'tor-settings.json');
-
-type TorConfig = {
-  containerId: string;
-};
-
-/** Extract errno-like code from unknown error. */
-function getErrnoCode(err: unknown): string | undefined {
-  return (err as NodeJS.ErrnoException)?.code;
-}
-
-/** Normalize raw config into a safe TorConfig shape. */
-export function sanitizeTorConfig(raw: unknown): TorConfig {
-  if (!raw || typeof raw !== 'object') {
-    return { containerId: '' };
-  }
-  const record = raw as Record<string, unknown>;
-  const value = record.containerId;
-  return {
-    containerId: typeof value === 'string' ? value.trim() : ''
-  };
-}
+import { sanitizeTorConfig, type TorConfig, readSettingsState, writeSettingsState } from './shortcuts';
 
 export async function readTorConfig(): Promise<TorConfig> {
-  try {
-    const raw = await fsp.readFile(TOR_SETTINGS_FILE, 'utf8');
-    const parsed: unknown = JSON.parse(raw);
-    return sanitizeTorConfig(parsed);
-  } catch (err) {
-    const code = getErrnoCode(err);
-    if (code !== 'ENOENT') {
-      console.warn('[merezhyvo] tor config read failed, falling back', err);
-    }
-    return sanitizeTorConfig(null);
-  }
+  const state = await readSettingsState();
+  return sanitizeTorConfig(state.tor);
 }
 
 export async function writeTorConfig(config: unknown): Promise<TorConfig> {
+  const state = await readSettingsState();
   const sanitized = sanitizeTorConfig(config);
-  try {
-    ensureDir(path.dirname(TOR_SETTINGS_FILE));
-    await fsp.writeFile(TOR_SETTINGS_FILE, JSON.stringify(sanitized, null, 2), 'utf8');
-  } catch (err) {
-    console.error('[merezhyvo] tor config write failed', err);
-    throw err;
-  }
+  await writeSettingsState({ ...state, tor: sanitized });
   return sanitized;
 }
 
 export async function updateTorConfig(partial: Partial<TorConfig> | null | undefined): Promise<TorConfig> {
   const current = await readTorConfig();
-  return writeTorConfig({ ...current, ...(partial || {}) });
+  return writeTorConfig({ ...current, ...(partial ?? {}) });
 }

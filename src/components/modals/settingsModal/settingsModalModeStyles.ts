@@ -36,6 +36,10 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsKeyboardLayoutCode: {},
     settingsKeyboardLayoutId: {},
     settingsKeyboardRadioLabel: {},
+    settingsKeyboardInput: {
+      width: '25px',
+      height: '25px'
+    },
     settingsKeyboardActions: {},
     settingsKeyboardHeaderActions: {}
   },
@@ -164,6 +168,10 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsKeyboardRadioLabel: {
       gap: 'clamp(20px, 3.4vw, 30px)',
       fontSize: 'clamp(33px, 4.8vw, 40px)'
+    },
+    settingsKeyboardInput: {
+      width: '50px',
+      height: '50px'
     },
     settingsKeyboardActions: {
       gap: 'clamp(30px, 4.6vw, 38px)'

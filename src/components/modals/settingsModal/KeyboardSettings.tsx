@@ -2,8 +2,6 @@ import React, {
   useEffect,
   useState,
   useCallback,
-  useMemo,
-  type CSSProperties
 } from 'react';
 import { ipc } from '../../../services/ipc/ipc';
 import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../keyboard/layouts';
@@ -33,105 +31,110 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
 
-  const blockStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.block,
-      ...(modeStyles.settingsBlock || {})
-    }),
-    [modeStyles, styles.block]
-  );
+  // const blockStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.block,
+  //     ...(modeStyles.settingsBlock || {})
+  //   }),
+  //   [modeStyles, styles.block]
+  // );
 
-  const blockBodyStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.blockBody,
-      ...(modeStyles.settingsBlockBody || {})
-    }),
-    [modeStyles, styles.blockBody]
-  );
+  // const blockBodyStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.blockBody,
+  //     ...(modeStyles.settingsBlockBody || {})
+  //   }),
+  //   [modeStyles, styles.blockBody]
+  // );
 
-  const layoutListStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardLayoutsList,
-      ...(modeStyles.settingsKeyboardLayoutsList || {})
-    }),
-    [modeStyles, styles.keyboardLayoutsList]
-  );
+  // const layoutListStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardLayoutsList,
+  //     ...(modeStyles.settingsKeyboardLayoutsList || {})
+  //   }),
+  //   [modeStyles, styles.keyboardLayoutsList]
+  // );
 
-  const layoutRowStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardLayoutRow,
-      ...(modeStyles.settingsKeyboardLayoutRow || {})
-    }),
-    [modeStyles, styles.keyboardLayoutRow]
-  );
+  // const layoutRowStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardLayoutRow,
+  //     ...(modeStyles.settingsKeyboardLayoutRow || {})
+  //   }),
+  //   [modeStyles, styles.keyboardLayoutRow]
+  // );
 
-  const layoutCodeStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardLayoutCode,
-      ...(modeStyles.settingsKeyboardLayoutCode || {})
-    }),
-    [modeStyles, styles.keyboardLayoutCode]
-  );
+  // const layoutCodeStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardLayoutCode,
+  //     ...(modeStyles.settingsKeyboardLayoutCode || {})
+  //   }),
+  //   [modeStyles, styles.keyboardLayoutCode]
+  // );
 
-  const layoutIdStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardLayoutId,
-      ...(modeStyles.settingsKeyboardLayoutId || {})
-    }),
-    [modeStyles, styles.keyboardLayoutId]
-  );
+  // const layoutIdStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardLayoutId,
+  //     ...(modeStyles.settingsKeyboardLayoutId || {})
+  //   }),
+  //   [modeStyles, styles.keyboardLayoutId]
+  // );
 
-  const radioLabelStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardRadioLabel,
-      ...(modeStyles.settingsKeyboardRadioLabel || {})
-    }),
-    [modeStyles, styles.keyboardRadioLabel]
-  );
+  // const radioLabelStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardRadioLabel,
+  //     ...(modeStyles.settingsKeyboardRadioLabel || {})
+  //   }),
+  //   [modeStyles, styles.keyboardRadioLabel]
+  // );
 
-  const actionsStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardActions,
-      ...(modeStyles.settingsKeyboardActions || {})
-    }),
-    [modeStyles, styles.keyboardActions]
-  );
+  // const actionsStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardActions,
+  //     ...(modeStyles.settingsKeyboardActions || {})
+  //   }),
+  //   [modeStyles, styles.keyboardActions]
+  // );
 
-  const toggleButtonStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardToggleButton,
-      ...(modeStyles.settingsKeyboardToggleButton || {})
-    }),
-    [modeStyles, styles.keyboardToggleButton]
-  );
+  // const toggleButtonStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardToggleButton,
+  //     ...(modeStyles.settingsKeyboardToggleButton || {})
+  //   }),
+  //   [modeStyles, styles.keyboardToggleButton]
+  // );
 
-  const savedPillStyle = useMemo<CSSProperties>(
-    () => ({
-      ...styles.keyboardSavedPill,
-      ...(modeStyles.settingsKeyboardSavedPill || {})
-    }),
-    [modeStyles, styles.keyboardSavedPill]
-  );
+  // const savedPillStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...styles.keyboardSavedPill,
+  //     ...(modeStyles.settingsKeyboardSavedPill || {})
+  //   }),
+  //   [modeStyles, styles.keyboardSavedPill]
+  // );
 
-  const baseButtonStyle = useMemo<CSSProperties>(
-    () => ({
-      ...baseStyles.modalButton,
-      minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
-      height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
-      borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-      padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
-      fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15
-    }),
-    [mode]
-  );
+  // const baseButtonStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...baseStyles.modalButton,
+  //     minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+  //     height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
+  //     borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
+  //     padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
+  //     fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15
+  //   }),
+  //   [mode]
+  // );
 
-  const primaryButtonStyle = useMemo<CSSProperties>(
-    () => ({
-      ...baseButtonStyle,
-      ...baseStyles.modalButtonPrimary
-    }),
-    [baseButtonStyle]
-  );
+  // const primaryButtonStyle = useMemo<CSSProperties>(
+  //   () => ({
+  //     ...baseStyles.modalButton,
+  //     minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+  //     height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
+  //     borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
+  //     padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
+  //     fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
+  //     ...baseStyles.modalButtonPrimary
+  //   }),
+  //   [baseButtonStyle]
+  // );
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -218,7 +221,10 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
   }, [enabled, preferred]);
 
   return (
-    <section style={blockStyle}>
+    <section style={{
+      ...styles.block,
+      ...(modeStyles.settingsBlock || {})
+    }}>
       <div style={styles.blockHeader}>
         <h3
           style={{
@@ -235,7 +241,10 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
           }}
         >
           {!loading && savedAt > 0 && (
-            <span aria-live="polite" style={savedPillStyle}>
+            <span aria-live="polite" style={{
+              ...styles.keyboardSavedPill,
+              ...(modeStyles.settingsKeyboardSavedPill || {})
+            }}>
               Saved
             </span>
           )}
@@ -243,7 +252,10 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
             type="button"
             onClick={() => setExpanded((value) => !value)}
             aria-label={expanded ? 'Collapse keyboard layouts' : 'Expand keyboard layouts'}
-            style={toggleButtonStyle}
+            style={{
+              ...styles.keyboardToggleButton,
+              ...(modeStyles.settingsKeyboardToggleButton || {})
+            }}
           >
             {expanded ? '︿' : '﹀'}
           </button>
@@ -251,7 +263,10 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
       </div>
 
       {expanded && (
-        <div style={blockBodyStyle}>
+        <div style={{
+          ...styles.blockBody,
+          ...(modeStyles.settingsBlockBody || {})
+        }}>
           {loading ? (
             <span
               style={{
@@ -265,27 +280,47 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
           ) : (
             <>
               <div
-                style={layoutListStyle}
+                style={{
+                  ...styles.keyboardLayoutsList,
+                  ...(modeStyles.settingsKeyboardLayoutsList || {})
+                }}
                 className="settings-keyboard-scroll"
               >
                 {ALL_LAYOUTS.map((layoutId) => (
-                  <label key={layoutId} style={layoutRowStyle}>
+                  <label key={layoutId}
+                    style={{
+                    ...styles.keyboardLayoutRow,
+                    ...(modeStyles.settingsKeyboardLayoutRow || {})
+                  }}>
                     <input
                       type="checkbox"
                       checked={enabled.includes(layoutId)}
                       onChange={() => toggle(layoutId)}
-                      style={{width: '50px', height: '50px'}}
+                      style={modeStyles.settingsKeyboardInput}
                     />
-                    <span style={layoutCodeStyle}>{humanLabel(layoutId as never)}</span>
-                    <span style={layoutIdStyle}>{layoutId}</span>
+                    <span style={{
+                      ...styles.keyboardLayoutCode,
+                      ...(modeStyles.settingsKeyboardLayoutCode || {})
+                    }}>
+                      {humanLabel(layoutId as never)}
+                    </span>
+                    <span style={{
+                      ...styles.keyboardLayoutId,
+                      ...(modeStyles.settingsKeyboardLayoutId || {})
+                    }}>
+                      {layoutId}
+                    </span>
                     <span style={{ marginInlineStart: 'auto' }}>
-                      <label style={radioLabelStyle}>
+                      <label style={{
+                        ...styles.keyboardRadioLabel,
+                        ...(modeStyles.settingsKeyboardRadioLabel || {})
+                      }}>
                         <input
                           type="radio"
                           name="keyboard-default"
                           checked={preferred === layoutId}
                           onChange={() => setDefault(layoutId)}
-                          style={{width: '50px', height: '50px'}}
+                          style={modeStyles.settingsKeyboardInput}
                         />
                         <span>Default</span>
                       </label>
@@ -294,8 +329,19 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
                 ))}
               </div>
 
-              <div style={actionsStyle}>
-                <button type="button" onClick={onSave} style={primaryButtonStyle}>
+              <div style={{
+                ...styles.keyboardActions,
+                ...(modeStyles.settingsKeyboardActions || {})
+              }}>
+                <button type="button" onClick={onSave} style={{
+                  ...baseStyles.modalButton,
+                  minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+                  height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
+                  borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
+                  padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
+                  fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
+                  ...baseStyles.modalButtonPrimary
+                }}>
                   Save
                 </button>
               </div>

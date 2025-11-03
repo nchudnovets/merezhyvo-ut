@@ -33,12 +33,7 @@ import {
   registerShortcutHandler
 } from './lib/shortcuts';
 import * as tor from './lib/tor';
-import {
-  readTorConfig,
-  updateTorConfig,
-  sanitizeTorConfig
-} from './lib/tor-settings';
-import { updateKeyboardSettings, getKeyboardSettings } from './lib/keyboard-settings';
+import { updateTorConfig } from './lib/tor-settings';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
@@ -890,19 +885,10 @@ ipcMain.handle('merezhyvo:session:save', async (_event: IpcMainInvokeEvent, payl
 
 ipcMain.handle('merezhyvo:settings:load', async () => {
   try {
-    const settings = await readSettingsState();
-    const torConfig = await readTorConfig();
-    return { ...settings, tor: torConfig };
+    return await readSettingsState();
   } catch (err) {
     console.error('[merezhyvo] settings load failed', err);
-    const fallback = createDefaultSettingsState();
-    let torConfig = sanitizeTorConfig(null);
-    try {
-      torConfig = await readTorConfig();
-    } catch {
-      // noop
-    }
-    return { ...fallback, tor: torConfig };
+    return createDefaultSettingsState();
   }
 });
 
@@ -952,14 +938,6 @@ ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown)
   }
 });
 
-ipcMain.handle('settings:keyboard:get', async () => {
-  return getKeyboardSettings();
-});
-
-ipcMain.handle('settings:keyboard:update', async (_evt, patch) => {
-  return updateKeyboardSettings(patch); // patch може бути частковим — lib змерджить
-});
-
 ipcMain.handle('merezhyvo:power:start', () => {
   try {
     if (typeof playbackBlockerId === 'number') {
@@ -994,5 +972,3 @@ ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
     null;
   windows.markTabsReady(win);
 });
-
-

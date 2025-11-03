@@ -31,19 +31,20 @@ export interface InstalledApp {
   updatedAt?: number;
 }
 
-export interface TorSettings {
+export interface TorConfig {
   containerId: string;
 }
 
-export type KeyboardSettings = {
+export interface KeyboardSettings {
   enabledLayouts: string[];
   defaultLayout: string;
 }
+
 export interface SettingsState {
   schema: number;
   installedApps: InstalledApp[];
-  tor?: TorSettings;
-  keyboard?: KeyboardSettings;
+  tor: TorConfig;
+  keyboard: KeyboardSettings;
 }
 
 export interface ShortcutIcon {

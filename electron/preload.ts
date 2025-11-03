@@ -16,7 +16,27 @@ import type {
   MerezhyvoInstalledAppsResult
 } from '../src/types/preload';
 import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
-import { sanitizeKeyboardSettings, type KeyboardSettings } from './lib/keyboard-settings';
+
+type KeyboardSettings = {
+  enabledLayouts: string[];
+  defaultLayout: string;
+};
+
+const sanitizeKeyboardSettings = (raw: unknown): KeyboardSettings => {
+  if (!raw || typeof raw !== 'object') {
+    return { enabledLayouts: ['en'], defaultLayout: 'en' };
+  }
+  const record = raw as Record<string, unknown>;
+  const layouts = Array.isArray(record.enabledLayouts)
+    ? record.enabledLayouts.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const enabledLayouts = layouts.length > 0 ? Array.from(new Set(layouts)) : ['en'];
+  const defCandidate = typeof record.defaultLayout === 'string' ? record.defaultLayout.trim() : undefined;
+  const defaultLayout = defCandidate && enabledLayouts.includes(defCandidate)
+    ? defCandidate
+    : enabledLayouts[0] ?? 'en';
+  return { enabledLayouts, defaultLayout };
+};
 
 type PackageMeta = {
   productName?: string;
@@ -229,7 +249,12 @@ const exposeApi: MerezhyvoAPI = {
         return (await ipcRenderer.invoke('merezhyvo:settings:load')) as MerezhyvoSettingsState;
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
-        return { schema: 1, installedApps: [], tor: { containerId: '' } };
+        return {
+          schema: 1,
+          installedApps: [],
+          tor: { containerId: '' },
+          keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' }
+        };
       }
     },
     installedApps: {
@@ -301,10 +326,11 @@ const exposeApi: MerezhyvoAPI = {
     },
     stop: async (id?: number | null) => {
       try {
-        return await ipcRenderer.invoke('merezhyvo:power:stop', id ?? null);
+        await ipcRenderer.invoke('merezhyvo:power:stop', id ?? null);
+        return undefined;
       } catch (err) {
         console.error('[merezhyvo] power.stop failed', err);
-        return null;
+        return undefined;
       }
     },
     isStarted: async (id?: number | null) => {
