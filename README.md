@@ -11,6 +11,7 @@
 *   Fullscreen under Lomiri; `Esc` exits the app.
     
 *   Minimal UI: address bar + `<webview>` with a search fallback.
+    *   Includes a **Messenger mode** toolbar with WhatsApp, Telegram, and Messenger shortcuts (desktop UA only) and per-user button ordering.
     
 *   Local ARM64 Electron packaging; final `.click` is built via **Clickable** (container with `click` CLI).
     
@@ -34,7 +35,7 @@
 ## Project layout
 
 
-``merezhyvo/ ├─ dist-electron/main.js          # Electron main (compiled from TS) ├─ src/ │  ├─ App.tsx │  ├─ index.html │  ├─ index.tsx                   # React renderer │  └─ keyboard/ │     ├─ KeyboardPane.tsx         # OSK component │     ├─ layouts.ts               # languages, long-press, symbols 1/2 │     ├─ keyboardCss.ts           # runtime CSS injection for OSK │     └─ inject.ts                # text injection (webview + main window) ├─ electron/ │  ├─ lib/keyboard-settings.ts    # settings read/write (keyboard section) │  └─ preload.ts                  # exposes `window.merezhyvo.*` API ├─ app.desktop                    # Lomiri desktop file ├─ manifest.json                  # Click manifest ├─ merezhyvo.apparmor             # AppArmor (unconfined) ├─ merezhyvo_256.png              # app icon ├─ tools/ │  └─ build-click.sh              # one-shot end-to-end .click build ├─ package.json ├─ .electronignore └─ .gitignore``
+``merezhyvo/ ├─ dist-electron/main.js          # Electron main (compiled from TS) ├─ src/ │  ├─ App.tsx │  ├─ index.html │  ├─ index.tsx                   # React renderer │  ├─ components/messenger/       # Messenger mode toolbar UI │  └─ keyboard/ │     ├─ KeyboardPane.tsx         # OSK component │     ├─ layouts.ts               # languages, long-press, symbols 1/2 │     ├─ keyboardCss.ts           # runtime CSS injection for OSK │     └─ inject.ts                # text injection (webview + main window) ├─ electron/ │  ├─ lib/messenger-settings.ts   # messenger order persistence │  ├─ lib/keyboard-settings.ts    # settings read/write (keyboard section) │  └─ preload.ts                  # exposes `window.merezhyvo.*` API ├─ app.desktop                    # Lomiri desktop file ├─ manifest.json                  # Click manifest ├─ merezhyvo.apparmor             # AppArmor (unconfined) ├─ merezhyvo_256.png              # app icon ├─ tools/ │  └─ build-click.sh              # one-shot end-to-end .click build ├─ package.json ├─ .electronignore └─ .gitignore``
 
 ## Prerequisites (on your dev machine)
 
@@ -137,10 +138,9 @@ If you see a black screen/flicker, try tweaking `Exec` in `app.desktop`:
 ### Where OSK settings live
 
 *   File: `~/.config/<AppName>/settings.json`
-    
-    
-    `{   "keyboard": {     "enabledLayouts": ["en", "uk", "de"],     "defaultLayout": "en"   } }`
-    
+
+    `{   "keyboard": {     "enabledLayouts": ["en", "uk", "de"],     "defaultLayout": "en"   },   "messenger": { "order": ["whatsapp", "telegram", "messenger"] } }`
+
 *   In-app: **Settings → Keyboard**
     
     *   Enable/disable layouts (at least one must remain enabled).
@@ -149,6 +149,8 @@ If you see a black screen/flicker, try tweaking `Exec` in `app.desktop`:
         
     *   Click **Save** to persist. The UI applies changes immediately.
         
+*   Messenger toolbar order is stored under `messenger.order` and can be rearranged in **Settings → Messenger toolbar**.
+
 
 > Heads-up: other settings (Tor, Installed Apps) currently write under  
 > `~/.config/<AppName>/profiles/default/`. We’ll consolidate all settings into a single schema/file in a future update.
