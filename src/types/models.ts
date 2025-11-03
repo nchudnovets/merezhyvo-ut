@@ -1,6 +1,6 @@
 export type Mode = 'desktop' | 'mobile';
 
-export type MessengerId = 'whatsapp' | 'telegram' | 'messenger' | 'snapchat';
+export type MessengerId = 'whatsapp' | 'telegram' | 'messenger';
 
 export interface MessengerDefinition {
   id: MessengerId;
@@ -11,6 +11,8 @@ export interface MessengerDefinition {
 export interface MessengerSettings {
   order: MessengerId[];
 }
+
+export type TabKind = 'browser' | 'messenger';
 
 export interface Tab {
   id: string;
@@ -24,6 +26,7 @@ export interface Tab {
   isYouTube: boolean;
   isPlaying: boolean;
   lastUsedAt: number;
+  kind: TabKind;
 }
 
 export interface TabsSnapshot {

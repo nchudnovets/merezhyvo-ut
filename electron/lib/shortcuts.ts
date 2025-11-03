@@ -256,7 +256,8 @@ export async function readSettingsState(): Promise<SettingsState> {
     return sanitized;
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
-    if (code !== 'ENOENT') {
+    const isSyntaxError = err instanceof SyntaxError;
+    if (!isSyntaxError && code !== 'ENOENT') {
       console.warn('[merezhyvo] settings read failed, attempting legacy fallback', err);
     }
   }
@@ -293,16 +294,7 @@ export async function readSettingsState(): Promise<SettingsState> {
 }
 
 export async function writeSettingsState(state: unknown): Promise<SettingsState> {
-  const current = await readSettingsState();
-  const source = (typeof state === 'object' && state !== null) ? state as Partial<SettingsState> : {};
-  const merged = {
-    schema: SETTINGS_SCHEMA,
-    installedApps: source.installedApps ?? current.installedApps,
-    keyboard: source.keyboard ?? current.keyboard,
-    tor: source.tor ?? current.tor,
-    messenger: source.messenger ?? current.messenger
-  };
-  const sanitized = sanitizeSettingsPayload(merged);
+  const sanitized = sanitizeSettingsPayload(state);
   const file = getSettingsFilePath();
   await fsp.mkdir(path.dirname(file), { recursive: true });
   await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');
@@ -437,7 +429,7 @@ export async function upsertInstalledApp(entry: unknown): Promise<InstalledApp> 
       updatedAt: now
     });
   }
-  const nextState = await writeSettingsState({ schema: SETTINGS_SCHEMA, installedApps: nextApps });
+  const nextState = await writeSettingsState({ ...current, installedApps: nextApps });
   return nextState.installedApps.find((app) => app.id === sanitizedEntry.id) ?? sanitizedEntry;
 }
 
@@ -462,7 +454,7 @@ export async function removeInstalledApp({ id, desktopFilePath }: RemoveInstalle
     const code = (err as NodeJS.ErrnoException)?.code;
     if (code !== 'ENOENT') {
       apps.splice(targetIndex, 0, entry);
-      await writeSettingsState({ schema: SETTINGS_SCHEMA, installedApps: apps });
+      await writeSettingsState({ ...current, installedApps: apps });
       return { ok: false, error: 'Failed to remove shortcut file: ' + String(err) };
     }
   }
@@ -476,7 +468,7 @@ export async function removeInstalledApp({ id, desktopFilePath }: RemoveInstalle
       }
     }
   }
-  const nextState = await writeSettingsState({ schema: SETTINGS_SCHEMA, installedApps: apps });
+  const nextState = await writeSettingsState({ ...current, installedApps: apps });
   return { ok: true, removed: entry, installedApps: nextState.installedApps };
 }
 

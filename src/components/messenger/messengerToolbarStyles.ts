@@ -58,6 +58,7 @@ export const messengerToolbarStyles = {
     alignItems: 'center',
     gap: '8px',
     borderRadius: '16px',
+    minHeight: '44px',
     padding: '8px 16px',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: '#1c2333',

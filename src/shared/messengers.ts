@@ -15,11 +15,6 @@ export const DEFAULT_MESSENGERS: MessengerDefinition[] = [
     id: 'messenger',
     title: 'Messenger',
     url: 'https://www.messenger.com'
-  },
-  {
-    id: 'snapchat',
-    title: 'Snapchat',
-    url: 'https://web.snapchat.com'
   }
 ] as const;
 

@@ -1,6 +1,6 @@
 import { useMemo } from 'react';
 import { useSyncExternalStore } from 'react';
-import type { Tab } from '../types/models';
+import type { Tab, TabKind } from '../types/models';
 
 const DEFAULT_URL = 'https://duckduckgo.com';
 const SESSION_SCHEMA = 1;
@@ -40,6 +40,7 @@ type PersistedSession = {
 type NewTabOptions = {
   pinned?: boolean;
   title?: string;
+  kind?: TabKind;
 };
 
 type UpdateMetaPatch = Partial<
@@ -108,7 +109,8 @@ function createTab(url: string = DEFAULT_URL, overrides: TabOverrides = {}): Tab
     lastUsedAt:
       typeof overrides.lastUsedAt === 'number' && Number.isFinite(overrides.lastUsedAt)
         ? overrides.lastUsedAt
-        : now
+        : now,
+    kind: overrides.kind === 'messenger' ? 'messenger' : 'browser'
   };
   return next;
 }
@@ -175,10 +177,14 @@ function scheduleSave(): void {
 }
 
 function serializeState(current: TabsState) {
+  const persistentTabs = current.tabs.filter((tab) => tab.kind !== 'messenger');
+  const activeId = persistentTabs.some((tab) => tab.id === current.activeId)
+    ? current.activeId
+    : persistentTabs[0]?.id ?? current.activeId;
   return {
     schema: SESSION_SCHEMA,
-    activeId: current.activeId,
-    tabs: current.tabs.map((tab) => ({
+    activeId,
+    tabs: persistentTabs.map((tab) => ({
       id: tab.id,
       url: tab.url,
       title: tab.title || '',
@@ -189,7 +195,8 @@ function serializeState(current: TabsState) {
       discarded: Boolean(tab.discarded),
       isYouTube: Boolean(tab.isYouTube),
       isPlaying: Boolean(tab.isPlaying),
-      lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now()
+      lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now(),
+      kind: tab.kind === 'messenger' ? 'messenger' : 'browser'
     }))
   };
 }
@@ -210,6 +217,10 @@ function sanitizeSession(data: unknown): TabsState {
 
   for (const raw of tabsInput) {
     if (!raw || typeof raw !== 'object') continue;
+    const persistedKind = typeof (raw as { kind?: unknown })?.kind === 'string'
+      && (raw as { kind?: string }).kind === 'messenger'
+      ? 'messenger'
+      : 'browser';
     const tab = createTab(typeof raw.url === 'string' ? raw.url : DEFAULT_URL, {
       id: typeof raw.id === 'string' ? raw.id : undefined,
       title: typeof raw.title === 'string' ? raw.title : '',
@@ -226,7 +237,8 @@ function sanitizeSession(data: unknown): TabsState {
       lastUsedAt:
         typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
           ? raw.lastUsedAt
-          : now
+          : now,
+      kind: persistedKind
     });
     tabs.push(tab);
   }
@@ -329,7 +341,7 @@ if (typeof window !== 'undefined') {
 }
 
 function newTab(url: string, options: NewTabOptions = {}): void {
-  const { pinned = false, title = '' } = options;
+  const { pinned = false, title = '', kind = 'browser' } = options;
   const safeUrl = typeof url === 'string' && url.trim().length ? url.trim() : DEFAULT_URL;
   setState((prev) => {
     const now = Date.now();
@@ -338,7 +350,8 @@ function newTab(url: string, options: NewTabOptions = {}): void {
       title,
       discarded: false,
       lastUsedAt: now,
-      isLoading: true
+      isLoading: true,
+      kind
     });
     const demoted = discardAllTabs(prev.tabs);
     const tabs = demoted.slice();
@@ -362,7 +375,7 @@ function closeTab(id: string): void {
     const now = Date.now();
 
     if (!remaining.length) {
-      const fallbackTab = createTab(DEFAULT_URL, { discarded: false, lastUsedAt: now });
+      const fallbackTab = createTab(DEFAULT_URL, { discarded: false, lastUsedAt: now, kind: 'browser' });
       remaining = [fallbackTab];
       activeId = fallbackTab.id;
     } else if (id === prev.activeId) {

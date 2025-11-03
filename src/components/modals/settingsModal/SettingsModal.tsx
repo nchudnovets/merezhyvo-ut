@@ -5,6 +5,7 @@ import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
 import KeyboardSettings from './KeyboardSettings';
+import MessengerSettings from './MessengerSettings';
 
 interface SettingsAppInfo {
   name: string;
@@ -271,7 +272,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const trimmedTorValue = (torContainerValue || '').trim();
   const savedTorValue = (torSavedContainerId || '').trim();
   const torSaveDisabled = torContainerSaving || trimmedTorValue === savedTorValue;
-  const messengerCount = messengerItems.length;
 
   return (
     <div
@@ -412,132 +412,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             </div>
           </section>
 
-          <section
-            style={{
-              ...styles.block,
-              ...(modeStyles.settingsBlock || {})
-            }}
-          >
-            <div style={styles.blockHeader}>
-              <h3
-                style={{
-                  ...styles.blockTitle,
-                  ...(modeStyles.settingsBlockTitle || {})
-                }}
-              >
-                Messengers toolbar
-              </h3>
-            </div>
-            <div style={blockBodyStyle}>
-              <p
-                style={{
-                  ...styles.messengerHint,
-                  ...(modeStyles.settingsMessengerHint || {})
-                }}
-              >
-                Arrange messengers to control how they appear in the main window toolbar.
-              </p>
-              <ul style={styles.messengerList}>
-                {messengerItems.map((item, index) => {
-                  const isFirst = index === 0;
-                  const isLast = index === messengerCount - 1;
-                  const disableUp = isFirst || messengerOrderSaving;
-                  const disableDown = isLast || messengerOrderSaving;
-                  return (
-                    <li
-                      key={item.id}
-                      style={{
-                        ...styles.messengerRow,
-                        ...(modeStyles.settingsMessengerRow || {})
-                      }}
-                    >
-                      <div style={styles.messengerInfo}>
-                        <span
-                          style={{
-                            ...styles.messengerName,
-                            ...(modeStyles.settingsMessengerName || {})
-                          }}
-                          title={item.title}
-                        >
-                          {item.title}
-                        </span>
-                        <span
-                          style={{
-                            ...styles.messengerUrl,
-                            ...(modeStyles.settingsMessengerUrl || {})
-                          }}
-                          title={item.url}
-                        >
-                          {item.url}
-                        </span>
-                      </div>
-                      <div style={styles.messengerActions}>
-                        <button
-                          type="button"
-                          onClick={() => onMessengerMove(item.id, 'up')}
-                          disabled={disableUp}
-                          aria-label={`Move ${item.title} up`}
-                          style={{
-                            ...styles.messengerActionButton,
-                            ...(modeStyles.settingsMessengerActionButton || {}),
-                            ...(disableUp ? baseStyles.modalButtonDisabled : null)
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            width={modeStyles.settingsMessengerActionIcn?.width}
-                            height={modeStyles.settingsMessengerActionIcn?.width}
-                            xmlns="http://www.w3.org/2000/svg"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M8 4.25 3.75 8.5h2.5V12h3.5V8.5h2.5L8 4.25Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </button>
-                        <button
-                          type="button"
-                          onClick={() => onMessengerMove(item.id, 'down')}
-                          disabled={disableDown}
-                          aria-label={`Move ${item.title} down`}
-                          style={{
-                            ...styles.messengerActionButton,
-                            ...(modeStyles.settingsMessengerActionButton || {}),
-                            ...(disableDown ? baseStyles.modalButtonDisabled : null)
-                          }}
-                        >
-                          <svg
-                            viewBox="0 0 16 16"
-                            width={modeStyles.settingsMessengerActionIcn?.width}
-                            height={modeStyles.settingsMessengerActionIcn?.width}
-                            xmlns="http://www.w3.org/2000/svg"
-                            aria-hidden="true"
-                          >
-                            <path
-                              d="M8 11.75 12.25 7.5h-2.5V4h-3.5v3.5h-2.5L8 11.75Z"
-                              fill="currentColor"
-                            />
-                          </svg>
-                        </button>
-                      </div>
-                    </li>
-                  );
-                })}
-              </ul>
-              {messengerOrderMessage && (
-                <p
-                  style={{
-                    ...styles.messengerMessage,
-                    ...(modeStyles.settingsMessengerMessage || {})
-                  }}
-                  aria-live="polite"
-                >
-                  {messengerOrderMessage}
-                </p>
-              )}
-            </div>
-          </section>
+          <MessengerSettings
+            mode={mode}
+            items={messengerItems}
+            saving={messengerOrderSaving}
+            message={messengerOrderMessage}
+            onMove={onMessengerMove}
+          />
 
           <KeyboardSettings mode={mode} />
 

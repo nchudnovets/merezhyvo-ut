@@ -506,7 +506,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
       map.delete(definition.id);
     }
-    newTabAction(definition.url, { title: definition.title });
+    newTabAction(definition.url, { title: definition.title, kind: 'messenger' });
     const nextState = getTabsState();
     const createdId = nextState.activeId || null;
     if (createdId) {
