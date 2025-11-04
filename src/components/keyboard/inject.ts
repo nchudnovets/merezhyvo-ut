@@ -419,9 +419,16 @@ export function makeWebInjects(
   const ensureSelectionCssInjected = async (): Promise<boolean> => {
     const wv = getActiveWebview();
     if (!wv) return false;
+
     const code = `
       (function(){
-        try{
+        try {
+          // Skip injection on excluded hosts (e.g., Telegram Web)
+          var host = (location && location.hostname) || '';
+          if (/(^|\\.)web\\.telegram\\.org$/i.test(host)) {
+            return true; // do nothing on Telegram
+          }
+
           if (!window.__mzrSel) {
             window.__mzrSel = {
               touching: false,
@@ -431,12 +438,12 @@ export function makeWebInjects(
               lpY: 0,
               moved: false,
               menuReq: null,
-              selectionCreated: false // Added to track selection state
+              selectionCreated: false
             };
           }
           var S = window.__mzrSel;
 
-          // CSS for hiding the system touch-callout (bubble)
+          // Hide default touch-callout bubble inside the page
           var cssId = 'mzr-selection-css';
           if (!document.getElementById(cssId)) {
             var style = document.createElement('style');
@@ -445,36 +452,97 @@ export function makeWebInjects(
             document.documentElement.appendChild(style);
           }
 
-          // Long-press detection and selection
+          var LP_DELAY = 500;   // long-press delay (ms)
+          var MOVE_TOL = 10;    // movement tolerance (px)
+
+          function clearLpTimer() {
+            if (S.lpTimer) {
+              try { clearTimeout(S.lpTimer); } catch(_) {}
+              S.lpTimer = null;
+            }
+          }
+
           document.addEventListener('touchstart', function(ev){
             var t = ev.touches && ev.touches[0];
             if (!t) return;
             S.touching = true;
             S.moved = false;
-            S.lpX = t.clientX; S.lpY = t.clientY;
+            S.lpX = t.clientX;
+            S.lpY = t.clientY;
 
-            if (S.lpTimer) { clearTimeout(S.lpTimer); S.lpTimer = null; }
+            clearLpTimer();
             S.lpTimer = setTimeout(function(){
-              var el = document.elementFromPoint(S.lpX, S.lpY);
-              if (!el || el.closest('[contenteditable]') || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
-                // First long-press on text: create selection but don't open menu
-                var r = document.createRange();
-                r.setStart(el, 0);
-                r.setEnd(el, el.length || 0);
-                window.getSelection().removeAllRanges();
-                window.getSelection().addRange(r);
-                S.selectionCreated = true;
-              } else {
-                // Otherwise request menu for non-text elements
-                S.menuReq = { x: S.lpX, y: S.lpY };
-              }
-            }, 500);
+              try {
+                var el = document.elementFromPoint(S.lpX, S.lpY);
+                var sel = window.getSelection && window.getSelection();
+                var range = null;
+
+                if (document.caretRangeFromPoint) {
+                  range = document.caretRangeFromPoint(S.lpX, S.lpY);
+                } else if (document.caretPositionFromPoint) {
+                  var pos = document.caretPositionFromPoint(S.lpX, S.lpY);
+                  if (pos) {
+                    range = document.createRange();
+                    range.setStart(pos.offsetNode, pos.offset);
+                    range.collapse(true);
+                  }
+                }
+
+                function isEditable(node){
+                  if (!node) return false;
+                  try {
+                    if (node.closest && node.closest('[contenteditable]')) return true;
+                    var tag = (node.tagName||'').toLowerCase();
+                    if (tag === 'textarea' || tag === 'input') return true;
+                  } catch(_) {}
+                  return false;
+                }
+
+                if (isEditable(el) || (sel && range)) {
+                  if (sel && range) {
+                    sel.removeAllRanges();
+                    sel.addRange(range);
+                    // Expand selection to word boundaries, if supported
+                    try {
+                      if (sel.modify) {
+                        sel.modify('move','backward','word');
+                        sel.modify('extend','forward','word');
+                      }
+                    } catch(_) {}
+                  }
+                  S.selectionCreated = true;
+                } else {
+                  // Non-text element long-press → ask host to show custom menu here
+                  S.menuReq = { x: S.lpX, y: S.lpY };
+                }
+              } catch(_) {}
+            }, LP_DELAY);
           }, { capture: true, passive: true });
 
+          document.addEventListener('touchmove', function(ev){
+            var t = ev.touches && ev.touches[0];
+            if (!t) return;
+            if (Math.abs(t.clientX - S.lpX) > MOVE_TOL || Math.abs(t.clientY - S.lpY) > MOVE_TOL) {
+              S.moved = true;
+              clearLpTimer();
+            }
+          }, { capture: true, passive: true });
+
+          function endTouch(){
+            S.touching = false;
+            S.lastTouchTs = Date.now();
+            clearLpTimer();
+          }
+          document.addEventListener('touchend', endTouch,   { capture: true, passive: true });
+          document.addEventListener('touchcancel', endTouch,{ capture: true, passive: true });
+
           return true;
-        }catch(e){ return false; }
+        } catch(e) {
+          return false;
+        }
       })();
     `;
+
     const ok = await wv.executeJavaScript(code);
     return Boolean(ok);
   };

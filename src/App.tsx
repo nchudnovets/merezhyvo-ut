@@ -1025,10 +1025,38 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const entry = tabViewsRef.current.get(tabId);
     const view = entry?.view;
     if (!view) return;
+
     if (activeIdRef.current === tabId) {
       try { view.focus(); } catch {}
     }
-  }, []);
+
+    // Inject long-press selection handlers for non-excluded sites
+    (async () => {
+      try {
+        const url = typeof view.getURL === 'function' ? view.getURL() : '';
+        if (url && isCtxtExcludedSite(url)) return;
+        await ensureSelectionCssInjected();
+      } catch {
+        // ignore transient failures
+      }
+    })();
+  }, [ensureSelectionCssInjected]);
+  
+  useEffect(() => {
+    const run = async () => {
+      try {
+        const view = getActiveWebview();
+        if (!view) return;
+        const currentUrl = typeof view.getURL === 'function' ? view.getURL() : '';
+        if (currentUrl && isCtxtExcludedSite(currentUrl)) return;
+        await ensureSelectionCssInjected();
+      } catch {
+        // ignore transient failures
+      }
+    };
+    void run();
+  }, [activeViewRevision, ensureSelectionCssInjected, getActiveWebview]);
+
   const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
@@ -2561,7 +2589,7 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
   }, []);
 
   useEffect(() => {
-    const base = mode === 'mobile' ? 2 : 1;
+    const base = mode === 'mobile' ? 2.3 : 1;
     if (Math.abs(zoomRef.current - base) < 1e-3) return;
     const frame = requestAnimationFrame(() => {
       setZoomClamped(base);

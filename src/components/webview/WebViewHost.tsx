@@ -8,6 +8,7 @@ import React, {
   useRef
 } from 'react';
 import type { WebviewTag, WebContents } from 'electron';
+import { isCtxtExcludedSite } from '../../helpers/websiteCtxtExclusions';
 
 export type StatusState = 'loading' | 'ready' | 'error';
 
@@ -220,8 +221,11 @@ const WebViewHost = forwardRef(function WebViewHost(
       emitNavigationState();
     };
 
-    const handleDidStart: EventListener = () => {
-      callbacksRef.current.onStatus('loading');
+    const handleDidStartNavigation: EventListener = (event) => {
+      const nav = event as unknown as Electron.DidStartNavigationEvent;
+      if (nav?.isMainFrame && !nav.isInPlace) {
+        callbacksRef.current.onStatus('loading');
+      }
     };
 
     const handleDidStop: EventListener = () => {
@@ -246,16 +250,20 @@ const WebViewHost = forwardRef(function WebViewHost(
       callbacksRef.current.onDomReady?.();
 
       // —— MOBILE-ONLY: suppress default long-press callout
-      // Keep selection enabled; block the small bubble menu.
+      // Keep selection enabled; block the small bubble menu — but not on excluded sites.
       try {
         if (mode === 'mobile' && typeof node.insertCSS === 'function') {
-          node.insertCSS(`
-            html, body, * {
-              -webkit-touch-callout: none !important;
-            }
-          `);
+          const currentUrl = node.getURL?.() ?? '';
+          if (!isCtxtExcludedSite(currentUrl)) {
+            node.insertCSS(`
+              html, body, * {
+                -webkit-touch-callout: none !important;
+              }
+            `);
+          }
         }
       } catch {}
+
       try {
         const currentUrl = node.getURL?.();
         if (currentUrl) {
@@ -264,33 +272,23 @@ const WebViewHost = forwardRef(function WebViewHost(
       } catch {}
     };
 
-    const handleZoomChanged: EventListener = () => {
-      const desired = zoomRef.current;
-      try {
-        if (typeof node.setZoomFactor === 'function') {
-          node.setZoomFactor(desired);
-        }
-      } catch {}
-    };
-
     node.addEventListener('did-navigate', handleDidNavigate);
     node.addEventListener('did-navigate-in-page', handleDidNavigate);
-    node.addEventListener('did-start-loading', handleDidStart);
+    // Main-frame only loading → use did-start-navigation
+    node.addEventListener('did-start-navigation', handleDidStartNavigation);
     node.addEventListener('did-stop-loading', handleDidStop);
     node.addEventListener('did-fail-load', handleDidFail);
     node.addEventListener('dom-ready', handleDomReady);
-    node.addEventListener('zoom-changed', handleZoomChanged);
 
     return () => {
       node.removeEventListener('dom-ready', shadowStylesListener);
       observer.disconnect();
       node.removeEventListener('did-navigate', handleDidNavigate);
       node.removeEventListener('did-navigate-in-page', handleDidNavigate);
-      node.removeEventListener('did-start-loading', handleDidStart);
+      node.removeEventListener('did-start-navigation', handleDidStartNavigation);
       node.removeEventListener('did-stop-loading', handleDidStop);
       node.removeEventListener('did-fail-load', handleDidFail);
       node.removeEventListener('dom-ready', handleDomReady);
-      node.removeEventListener('zoom-changed', handleZoomChanged);
     };
   }, [applyZoomPolicy, emitNavigationState, mode]);
 
