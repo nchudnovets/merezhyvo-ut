@@ -26,6 +26,8 @@ export interface WebInjects {
   getSelectionRect(): Promise<{ left: number; top: number; width: number; height: number } | null>;
   clearSelection(): Promise<boolean>;
   ensureSelectionCssInjected(): Promise<boolean>;
+  getSelectionTouchState(): Promise<{ touching: boolean; lastTouchTs: number }>;
+  pollMenuRequest(): Promise<{ x: number; y: number } | null>;
 }
 
 export type GetWebview = () => HTMLElementTagNameMap['webview'] | null;
@@ -420,18 +422,109 @@ export function makeWebInjects(
     const code = `
       (function(){
         try{
-          var id = 'mzr-selection-css';
-          if (document.getElementById(id)) return true;
-          var style = document.createElement('style');
-          style.id = id;
-          style.textContent = '* { -webkit-touch-callout: none !important; }';
-          document.documentElement.appendChild(style);
+          if (!window.__mzrSel) {
+            window.__mzrSel = {
+              touching: false,
+              lastTouchTs: 0,
+              lpTimer: null,
+              lpX: 0,
+              lpY: 0,
+              moved: false,
+              menuReq: null,
+              selectionCreated: false // Added to track selection state
+            };
+          }
+          var S = window.__mzrSel;
+
+          // CSS for hiding the system touch-callout (bubble)
+          var cssId = 'mzr-selection-css';
+          if (!document.getElementById(cssId)) {
+            var style = document.createElement('style');
+            style.id = cssId;
+            style.textContent = '* { -webkit-touch-callout: none !important; }';
+            document.documentElement.appendChild(style);
+          }
+
+          // Long-press detection and selection
+          document.addEventListener('touchstart', function(ev){
+            var t = ev.touches && ev.touches[0];
+            if (!t) return;
+            S.touching = true;
+            S.moved = false;
+            S.lpX = t.clientX; S.lpY = t.clientY;
+
+            if (S.lpTimer) { clearTimeout(S.lpTimer); S.lpTimer = null; }
+            S.lpTimer = setTimeout(function(){
+              var el = document.elementFromPoint(S.lpX, S.lpY);
+              if (!el || el.closest('[contenteditable]') || el.tagName === 'TEXTAREA' || el.tagName === 'INPUT') {
+                // First long-press on text: create selection but don't open menu
+                var r = document.createRange();
+                r.setStart(el, 0);
+                r.setEnd(el, el.length || 0);
+                window.getSelection().removeAllRanges();
+                window.getSelection().addRange(r);
+                S.selectionCreated = true;
+              } else {
+                // Otherwise request menu for non-text elements
+                S.menuReq = { x: S.lpX, y: S.lpY };
+              }
+            }, 500);
+          }, { capture: true, passive: true });
+
           return true;
         }catch(e){ return false; }
       })();
     `;
     const ok = await wv.executeJavaScript(code);
     return Boolean(ok);
+  };
+
+  const getSelectionTouchState = async (): Promise<{ touching: boolean; lastTouchTs: number }> => {
+    const wv = getActiveWebview();
+    if (!wv) return { touching: false, lastTouchTs: 0 };
+    const code = `
+      (function(){
+        try{
+          var s = (window.__mzrSel || { touching:false, lastTouchTs: 0 });
+          return { touching: !!s.touching, lastTouchTs: Number(s.lastTouchTs||0) };
+        }catch(e){
+          return { touching:false, lastTouchTs:0 };
+        }
+      })();
+    `;
+    const res = await wv.executeJavaScript(code);
+    const touching = !!(res as { touching?: unknown })?.touching;
+    const lastTouchTsRaw = (res as { lastTouchTs?: unknown })?.lastTouchTs;
+    const lastTouchTs = Number(lastTouchTsRaw ?? 0);
+    return { touching, lastTouchTs: Number.isFinite(lastTouchTs) ? lastTouchTs : 0 };
+  };
+
+  const pollMenuRequest = async (): Promise<{ x: number; y: number } | null> => {
+    const wv = getActiveWebview();
+    if (!wv) return null;
+    const code = `
+      (function(){
+        try{
+          var S = window.__mzrSel;
+          if (!S || !S.menuReq) return null;
+          var m = S.menuReq; S.menuReq = null;
+
+          // Only trigger menu if the selection was created
+          if (S.selectionCreated) {
+            return { x: Math.round(Number(m.x)||0), y: Math.round(Number(m.y)||0) };
+          }
+          return null;
+        }catch(e){
+          return null;
+        }
+      })();
+    `;
+    const val = await wv.executeJavaScript(code);
+    if (!val) return null;
+    const x = Number((val as { x?: unknown }).x ?? NaN);
+    const y = Number((val as { y?: unknown }).y ?? NaN);
+    if (!Number.isFinite(x) || !Number.isFinite(y)) return null;
+    return { x, y };
   };
 
   /**
@@ -534,6 +627,8 @@ export function makeWebInjects(
     getSelectionRect,
     clearSelection,
     ensureSelectionCssInjected,
+    getSelectionTouchState,
+    pollMenuRequest,
   };
 }
 

@@ -40,6 +40,7 @@ import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/
 import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings } from './types/models';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
+import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
@@ -583,6 +584,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     hasSelection,
     getSelectionRect,
     clearSelection,
+    getSelectionTouchState,
+    pollMenuRequest,
   } = React.useMemo(() => makeWebInjects(getActiveWebview), [getActiveWebview]);
 
   const {
@@ -594,44 +597,60 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useEffect(() => {
   let cancelled = false;
-  let prevHas = false;
+  let prevShown = false;
 
   const tick = async () => {
     if (cancelled) return;
 
     try {
-      // Idempotent: cheap to call each tick; also re-applies after page navigations
-      await ensureSelectionCssInjected();
+      const [has, touchState] = await Promise.all([
+        hasSelection(),
+        getSelectionTouchState(),
+      ]);
 
-      const has = await hasSelection();
-      if (!has) { prevHas = false; return; }
-      if (prevHas) return;
+      if (!has) { prevShown = false; return; }
 
-      // First time selection is detected -> anchor our menu to selection rect
-      const rect = await getSelectionRect();
-      const wv = getActiveWebview?.();
-      if (!rect || !wv) { prevHas = true; return; }
+      // Don't show menu while user is still touching/dragging selection handles
+      if (touchState.touching) { prevShown = false; return; }
 
-      // Translate guest rect -> host window coordinates
+      const now = Date.now();
+      // Wait a short grace period after touchend so handles settle visually
+      if (now - touchState.lastTouchTs < 250) { return; }
+
+      // First long-press to create selection (skip showing menu)
+      if (!prevShown) {
+        prevShown = true;
+        return;
+      }
+
+      const req = await pollMenuRequest();
+      if (!req) return;
+
+      const wv = getActiveWebview();
+      if (!wv) return;
+      const url = await wv.getURL();
+      if (isCtxtExcludedSite(url)) {
+        return;
+      }
+
       const hostRect = wv.getBoundingClientRect();
-      const cx = Math.round(hostRect.left + rect.left + (rect.width ?? 0) / 2);
-      const cy = Math.round(hostRect.top + rect.top); // show above selection
+      const cx = Math.round(hostRect.left + req.x);
+      const cy = Math.round(hostRect.top + req.y);
 
-      // Open our menu (dpr helps sharp positioning on HiDPI)
       window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1);
-
-      prevHas = true;
     } catch {
-      // ignore transient errors between navigations
+      // ignore transient errors
     }
   };
 
-  const id = window.setInterval(() => { void tick(); }, 300);
+  const id = window.setInterval(() => { void tick(); }, 80);
   return () => { cancelled = true; window.clearInterval(id); };
 }, [
   ensureSelectionCssInjected,
   hasSelection,
   getSelectionRect,
+  getSelectionTouchState,
+  pollMenuRequest,
   getActiveWebview,
 ]);
 

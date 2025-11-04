@@ -37,6 +37,7 @@ import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
+import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
 if (!requireWithExtensions.extensions['.ts']) {
@@ -673,6 +674,11 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
     links.attachLinkPolicy(contents);
   }
   contents.on('context-menu', (event, params) => {
+    const url = contents.getURL();
+    if (isCtxtExcludedSite(url)) {
+      event.preventDefault(); // Don't show our menu for Telegram Web
+      return;
+    }
     try {
       event.preventDefault();
     } catch {
