@@ -22,6 +22,10 @@ export interface WebInjects {
   injectBackspaceToWeb(): Promise<boolean>;
   injectEnterToWeb(): Promise<boolean>;
   injectArrowToWeb(dir: ArrowDir): Promise<boolean>;
+  hasSelection(): Promise<boolean>;
+  getSelectionRect(): Promise<{ left: number; top: number; width: number; height: number } | null>;
+  clearSelection(): Promise<boolean>;
+  ensureSelectionCssInjected(): Promise<boolean>;
 }
 
 export type GetWebview = () => HTMLElementTagNameMap['webview'] | null;
@@ -410,6 +414,111 @@ export function makeWebInjects(
     return sendKeyTrusted(dir);
   };
 
+  const ensureSelectionCssInjected = async (): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const code = `
+      (function(){
+        try{
+          var id = 'mzr-selection-css';
+          if (document.getElementById(id)) return true;
+          var style = document.createElement('style');
+          style.id = id;
+          style.textContent = '* { -webkit-touch-callout: none !important; }';
+          document.documentElement.appendChild(style);
+          return true;
+        }catch(e){ return false; }
+      })();
+    `;
+    const ok = await wv.executeJavaScript(code);
+    return Boolean(ok);
+  };
+
+  /**
+   * True if there's a non-collapsed selection in the document or an input/textarea with selectionStart!=selectionEnd.
+   */
+  const hasSelection = async (): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const code = `
+      (function(){
+        try{
+          var el = document.activeElement;
+          // Input/textarea selection
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+            var s = (typeof el.selectionStart === 'number') ? el.selectionStart : 0;
+            var e = (typeof el.selectionEnd === 'number') ? el.selectionEnd : 0;
+            return e > s;
+          }
+          // Content / contenteditable selection
+          var sel = window.getSelection && window.getSelection();
+          return !!(sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed);
+        }catch(e){ return false; }
+      })();
+    `;
+    const res = await wv.executeJavaScript(code);
+    return Boolean(res);
+  };
+
+  /**
+   * Returns a client rect to anchor the menu.
+   * - For content selections: use range.getBoundingClientRect().
+   * - For input/textarea: fall back to the element's bounding rect center.
+   */
+  const getSelectionRect = async (): Promise<{ left: number; top: number; width: number; height: number } | null> => {
+    const wv = getActiveWebview();
+    if (!wv) return null;
+    const code = `
+      (function(){
+        try{
+          function rectObj(r){
+            return r ? { left: Math.round(r.left), top: Math.round(r.top), width: Math.round(r.width), height: Math.round(r.height) } : null;
+          }
+          var el = document.activeElement;
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+            var r = el.getBoundingClientRect();
+            // anchor near the top center of the control
+            return rectObj({ left: r.left + r.width/2, top: r.top, width: 0, height: 0 });
+          }
+          var sel = window.getSelection && window.getSelection();
+          if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed) {
+            var rr = sel.getRangeAt(0).getBoundingClientRect();
+            return rectObj(rr);
+          }
+          return null;
+        }catch(e){ return null; }
+      })();
+    `;
+    const rect = await wv.executeJavaScript(code);
+    if (!rect || typeof rect.left !== 'number') return null;
+    return rect as { left: number; top: number; width: number; height: number };
+  };
+
+  /**
+   * Collapse/clear selection.
+   */
+  const clearSelection = async (): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const code = `
+      (function(){
+        try{
+          var el = document.activeElement;
+          if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+            var s = (typeof el.selectionEnd === 'number') ? el.selectionEnd : 0;
+            if (typeof el.setSelectionRange === 'function') el.setSelectionRange(s, s);
+            return true;
+          }
+          var sel = window.getSelection && window.getSelection();
+          if (sel) sel.removeAllRanges();
+          return true;
+        }catch(e){ return false; }
+      })();
+    `;
+    const ok = await wv.executeJavaScript(code);
+    return Boolean(ok);
+  };
+
   return {
     isActiveMultiline,
     text,
@@ -421,6 +530,10 @@ export function makeWebInjects(
     injectBackspaceToWeb: backspace,
     injectEnterToWeb: enter,
     injectArrowToWeb: arrow,
+    hasSelection,
+    getSelectionRect,
+    clearSelection,
+    ensureSelectionCssInjected,
   };
 }
 

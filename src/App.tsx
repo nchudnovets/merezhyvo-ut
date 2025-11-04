@@ -563,6 +563,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       cancelled = true;
     };
   }, []);
+
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
     const handle = webviewHandleRef.current;
     if (handle && typeof handle.getWebView === 'function') {
@@ -577,7 +578,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     injectBackspaceToWeb,
     injectEnterToWeb,
     injectArrowToWeb,
-    isActiveMultiline
+    isActiveMultiline,
+    ensureSelectionCssInjected,
+    hasSelection,
+    getSelectionRect,
+    clearSelection,
   } = React.useMemo(() => makeWebInjects(getActiveWebview), [getActiveWebview]);
 
   const {
@@ -586,6 +591,49 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     injectEnterToMain,
     injectArrowToMain,
   } = React.useMemo(() => makeMainInjects(), []);
+
+  useEffect(() => {
+  let cancelled = false;
+  let prevHas = false;
+
+  const tick = async () => {
+    if (cancelled) return;
+
+    try {
+      // Idempotent: cheap to call each tick; also re-applies after page navigations
+      await ensureSelectionCssInjected();
+
+      const has = await hasSelection();
+      if (!has) { prevHas = false; return; }
+      if (prevHas) return;
+
+      // First time selection is detected -> anchor our menu to selection rect
+      const rect = await getSelectionRect();
+      const wv = getActiveWebview?.();
+      if (!rect || !wv) { prevHas = true; return; }
+
+      // Translate guest rect -> host window coordinates
+      const hostRect = wv.getBoundingClientRect();
+      const cx = Math.round(hostRect.left + rect.left + (rect.width ?? 0) / 2);
+      const cy = Math.round(hostRect.top + rect.top); // show above selection
+
+      // Open our menu (dpr helps sharp positioning on HiDPI)
+      window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1);
+
+      prevHas = true;
+    } catch {
+      // ignore transient errors between navigations
+    }
+  };
+
+  const id = window.setInterval(() => { void tick(); }, 300);
+  return () => { cancelled = true; window.clearInterval(id); };
+}, [
+  ensureSelectionCssInjected,
+  hasSelection,
+  getSelectionRect,
+  getActiveWebview,
+]);
 
   const isEditableMainNow = React.useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
