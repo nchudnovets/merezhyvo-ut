@@ -692,8 +692,8 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
   try {
     const ctx = global.lastCtx;
     const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
-    const canBack = wc?.canGoBack?.() ?? false;
-    const canForward = wc?.canGoForward?.() ?? false;
+    const canBack = wc?.navigationHistory.canGoBack?.() ?? false;
+    const canForward = wc?.navigationHistory.canGoForward?.() ?? false;
 
     const params = ctx?.params ?? null;
     const selection = params?.selectionText ?? '';

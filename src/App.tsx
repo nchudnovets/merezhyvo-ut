@@ -1444,6 +1444,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const exitMessengerMode = useCallback(() => {
     if (mainViewMode !== 'messenger') return;
+    const stateBeforeExit = getTabsState();
+    const activeBeforeExit = stateBeforeExit.tabs.find((tab) => tab.id === stateBeforeExit.activeId) ?? null;
+    const shouldRestorePrevious =
+      !activeBeforeExit || activeBeforeExit.kind === 'messenger';
     const idsToClose = Array.from(messengerTabIdsRef.current.values());
     messengerTabIdsRef.current.clear();
     pendingMessengerTabIdRef.current = null;
@@ -1457,7 +1461,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         closeTabAction(tabId);
       }
     }
-    if (previousId) {
+    if (shouldRestorePrevious && previousId) {
       const state = getTabsState();
       if (state.tabs.some((tab) => tab.id === previousId)) {
         activateTabAction(previousId);
