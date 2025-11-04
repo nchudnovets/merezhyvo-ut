@@ -32,27 +32,27 @@ export function ensureOskCssInjected() {
   }
 
   /* робимо службові кнопки вужчими на вузьких екранах */
-  .mzr-osk .hg-button.osk-enter,
-  .mzr-osk .hg-button.osk-bksp,
-  .mzr-osk .hg-button.osk-lang,
-  .mzr-osk .hg-button.osk-symbols {
+  .mzr-osk .hg-button.hg-button-enter,
+  .mzr-osk .hg-button.hg-button-bksp,
+  .mzr-osk .hg-button.hg-button-lang,
+  .mzr-osk .hg-button.hg-button-symbols {
     flex: 0 0 auto !important;
   }
-  .mzr-osk .hg-button.osk-enter {
-    min-width: 80px !important;
+  .mzr-osk .hg-button.hg-button-enter {
+    min-width: 90px !important;
   }
 
   /* стрілки поруч */
-  .mzr-osk .hg-button.osk-arrow { flex: 0 0 auto !important; }
+  .mzr-osk .hg-button.hg-button-arrow { flex: 0 0 auto !important; }
 
   /* ширший пробіл у 2 рази */
-  .mzr-osk .hg-button.osk-space {
+  .mzr-osk .hg-button.hg-button-space {
     flex: 2 1 0 !important;
     min-width: 30vw !important;
   }
 
   /* активний Shift/Caps */
-  .mzr-osk .hg-button.osk-shift.osk-active {
+  .mzr-osk .hg-button.hg-button-shift.hg-button-active {
     background: #3b82f6 !important;
     color: #fff !important;
   }
