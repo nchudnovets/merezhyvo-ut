@@ -375,6 +375,15 @@ const openCtxWindowFor = async (
   const targetWc = getTargetWebContents(contents);
   if (!targetWc || targetWc.isDestroyed()) return;
 
+  try {
+    const currentUrl = targetWc.getURL?.() ?? '';
+    if (currentUrl && isCtxtExcludedSite(currentUrl)) {
+      return;
+    }
+  } catch {
+    // ignore URL resolution issues
+  }
+
   const ownerWin = resolveOwnerWindow(targetWc);
   if (!ownerWin || ownerWin.isDestroyed()) return;
 
@@ -1039,4 +1048,3 @@ ipcMain.handle(
     return { ok: true };
   }
 );
-
