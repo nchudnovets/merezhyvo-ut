@@ -2284,6 +2284,40 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeTabAction(id);
   }, [closeTabAction]);
 
+  const handleCleanCloseTab = useCallback(async (id: string) => {
+    if (!id) return false;
+    const tab = tabs.find((item) => item.id === id) ?? null;
+    const url = tab?.url?.trim() ?? '';
+    let webContentsId: number | null = null;
+    try {
+      const entry = tabViewsRef.current.get(id);
+      const view = entry?.view ?? null;
+      if (view && typeof view.getWebContentsId === 'function') {
+        const maybeId = view.getWebContentsId();
+        if (typeof maybeId === 'number' && Number.isFinite(maybeId)) {
+          webContentsId = maybeId;
+        }
+      }
+    } catch {
+      webContentsId = null;
+    }
+    try {
+      if (url) {
+        const result = await ipc.tabs.cleanData({
+          url,
+          webContentsId: typeof webContentsId === 'number' ? webContentsId : undefined
+        });
+        closeTabAction(id);
+        return Boolean(result?.ok);
+      }
+      closeTabAction(id);
+      return true;
+    } catch {
+      closeTabAction(id);
+      return false;
+    }
+  }, [tabs, closeTabAction]);
+
   const handleTogglePin = useCallback((id: string) => {
     if (!id) return;
     pinTabAction(id);
@@ -2405,6 +2439,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onNewTab={handleNewTab}
           onActivateTab={handleActivateTab}
           onTogglePin={handleTogglePin}
+          onCleanClose={handleCleanCloseTab}
           onCloseTab={handleCloseTab}
           displayTitle={displayTitleForTab}
           displaySubtitle={displaySubtitleForTab}

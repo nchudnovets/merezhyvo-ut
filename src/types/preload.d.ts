@@ -46,6 +46,20 @@ export interface MerezhyvoInstalledAppsResult {
   installedApps: InstalledApp[];
 }
 
+export interface MerezhyvoTabCleanPayload {
+  url: string;
+  webContentsId?: number | null;
+}
+
+export interface MerezhyvoTabCleanResult {
+  ok: boolean;
+  error?: string;
+}
+
+export interface MerezhyvoTabsAPI {
+  cleanData(payload: MerezhyvoTabCleanPayload): Promise<MerezhyvoTabCleanResult>;
+}
+
 export type MerezhyvoSettingsState = SettingsState;
 
 export interface MerezhyvoAPI {
@@ -94,6 +108,7 @@ export interface MerezhyvoAPI {
   ua?: {
     setMode(mode: 'desktop' | 'mobile' | 'auto'): Promise<void>;
   };
+  tabs?: MerezhyvoTabsAPI;
   osk: {
     char(
       wcId: number,

@@ -13,7 +13,8 @@ import type {
   MerezhyvoTorState,
   MerezhyvoSessionState,
   MerezhyvoSettingsState,
-  MerezhyvoInstalledAppsResult
+  MerezhyvoInstalledAppsResult,
+  MerezhyvoTabCleanResult
 } from '../src/types/preload';
 import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
@@ -211,6 +212,22 @@ const exposeApi: MerezhyvoAPI = {
           // noop
         }
       };
+    }
+  },
+
+  tabs: {
+    cleanData: async (input) => {
+      const url = typeof input?.url === 'string' ? input.url.trim() : '';
+      const webContentsId =
+        typeof input?.webContentsId === 'number' ? input.webContentsId : undefined;
+      try {
+        return (await ipcRenderer.invoke('merezhyvo:tabs:clean-data', {
+          url,
+          webContentsId
+        })) as MerezhyvoTabCleanResult;
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
     }
   },
 

@@ -201,6 +201,30 @@ export const ipc = {
     }
   },
 
+  tabs: {
+    async cleanData(input: { url: string; webContentsId?: number }): Promise<{ ok: boolean; error?: string }> {
+      const url = typeof input?.url === 'string' ? input.url.trim() : '';
+      if (!url) {
+        return { ok: false, error: 'URL is required.' };
+      }
+      const webContentsId = typeof input?.webContentsId === 'number' ? input.webContentsId : undefined;
+      try {
+        const api = getApi();
+        const result = await api?.tabs?.cleanData?.({ url, webContentsId });
+        if (result && typeof result === 'object') {
+          const { ok = false, error } = result as { ok?: boolean; error?: unknown };
+          return {
+            ok: Boolean(ok),
+            error: typeof error === 'string' ? error : undefined
+          };
+        }
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
+      return { ok: false, error: 'Operation not supported.' };
+    }
+  },
+
   openContextMenuAt(x: number, y: number, dpr?: number): void {
     try {
       getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1);

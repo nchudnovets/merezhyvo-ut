@@ -191,5 +191,16 @@ export const tabsPanelStyles: StyleRecord = {
   tabIcon: {
     width: '16px',
     height: '16px'
+  },
+  feedbackBanner: {
+    alignSelf: 'stretch',
+    padding: '10px 16px',
+    borderRadius: '12px',
+    border: '1px solid rgba(34, 197, 94, 0.45)',
+    background: 'rgba(21, 128, 61, 0.18)',
+    color: '#bbf7d0',
+    fontSize: '13px',
+    fontWeight: 600,
+    letterSpacing: '0.01em'
   }
 } as const;

@@ -993,6 +993,77 @@ ipcMain.handle('merezhyvo:power:isStarted', (_event, explicitId: number | null |
   return typeof id === 'number' && powerSaveBlocker.isStarted(id);
 });
 
+ipcMain.handle('merezhyvo:tabs:clean-data', async (_event, payload: unknown) => {
+  const url =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { url?: unknown }).url === 'string'
+      ? ((payload as { url?: string }).url ?? '')
+      : '';
+  const trimmedUrl = url.trim();
+  if (!trimmedUrl) {
+    return { ok: false, error: 'URL is required.' };
+  }
+
+  const webContentsId =
+    typeof payload === 'object' && payload && typeof (payload as { webContentsId?: unknown }).webContentsId === 'number'
+      ? ((payload as { webContentsId?: number }).webContentsId ?? null)
+      : null;
+
+  let origin: string | null = null;
+  try {
+    const parsed = new URL(trimmedUrl);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      origin = `${parsed.protocol}//${parsed.host}`;
+    } else if (parsed.origin && parsed.origin !== 'null') {
+      origin = parsed.origin;
+    }
+  } catch {
+    origin = null;
+  }
+
+  try {
+    const targetContents =
+      typeof webContentsId === 'number' && Number.isFinite(webContentsId)
+        ? webContents.fromId(webContentsId)
+        : null;
+    const targetSession = targetContents?.session ?? session.defaultSession;
+    if (!targetSession) {
+      return { ok: false, error: 'No session available.' };
+    }
+
+    const storages: Array<'cookies' | 'filesystem' | 'indexdb' | 'localstorage' | 'shadercache' | 'websql' | 'serviceworkers' | 'cachestorage'> = [
+      'cookies',
+      'filesystem',
+      'indexdb',
+      'localstorage',
+      'shadercache',
+      'websql',
+      'serviceworkers',
+      'cachestorage'
+    ];
+    const storageOptions = origin
+      ? {
+          origin,
+          storages
+        }
+      : null;
+
+    const tasks: Array<Promise<unknown>> = [];
+    if (storageOptions) {
+      tasks.push(targetSession.clearStorageData(storageOptions));
+    }
+    tasks.push(targetSession.clearCache());
+    tasks.push(targetSession.clearHostResolverCache());
+    tasks.push(targetSession.clearAuthCache());
+    await Promise.allSettled(tasks);
+    return { ok: true };
+  } catch (err) {
+    console.error('[merezhyvo] tabs clean data failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
 ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
   const win =
     BrowserWindow.fromWebContents(event.sender) ??
