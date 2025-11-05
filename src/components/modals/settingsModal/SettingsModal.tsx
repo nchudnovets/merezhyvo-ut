@@ -30,12 +30,15 @@ interface SettingsModalProps {
   torSavedContainerId: string;
   torContainerSaving: boolean;
   torContainerMessage: string;
+  torKeepEnabled: boolean;
+  torKeepEnabledDraft: boolean;
   torInputRef: RefObject<HTMLInputElement | null>;
   onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
   onTorInputFocus: (event: ReactFocusEvent<HTMLInputElement>) => void;
   onTorInputBlur: (event: ReactFocusEvent<HTMLInputElement>) => void;
   onTorContainerChange: (value: string) => void;
   onSaveTorContainer: () => void;
+  onTorKeepChange: (value: boolean) => void;
   onClose: () => void;
   onRequestRemove: (app: InstalledApp) => void;
   onCancelRemove: () => void;
@@ -192,12 +195,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torSavedContainerId,
   torContainerSaving,
   torContainerMessage,
+  torKeepEnabled,
+  torKeepEnabledDraft,
   torInputRef,
   onTorInputPointerDown,
   onTorInputFocus,
   onTorInputBlur,
   onTorContainerChange,
   onSaveTorContainer,
+  onTorKeepChange,
   onClose,
   onRequestRemove,
   onCancelRemove,
@@ -271,7 +277,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const torContainerInputId = 'settings-tor-container-id';
   const trimmedTorValue = (torContainerValue || '').trim();
   const savedTorValue = (torSavedContainerId || '').trim();
-  const torSaveDisabled = torContainerSaving || trimmedTorValue === savedTorValue;
+  const keepCheckboxDisabled = trimmedTorValue.length === 0;
+  const containerDirty = trimmedTorValue !== savedTorValue;
+  const keepDirty = torKeepEnabledDraft !== torKeepEnabled;
+  const torSaveDisabled = torContainerSaving || (!containerDirty && !keepDirty);
 
   return (
     <div
@@ -397,6 +406,34 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 >
                   Set the Libertine container ID where Tor is installed.
                 </p>
+                <label
+                  style={{
+                    ...styles.torKeepRow,
+                    ...(modeStyles.settingsTorKeepRow || {})
+                  }}
+                  title={keepCheckboxDisabled ? 'Set the Libertine container identifier first' : undefined}
+                >
+                  <input
+                    type="checkbox"
+                    checked={torKeepEnabledDraft}
+                    disabled={keepCheckboxDisabled}
+                    onChange={(event) => onTorKeepChange(event.target.checked)}
+                    style={{
+                      ...styles.torKeepCheckbox,
+                      ...(modeStyles.settingsTorKeepCheckbox || {}),
+                      ...(keepCheckboxDisabled ? { cursor: 'not-allowed' } : {})
+                    }}
+                  />
+                  <span
+                    style={{
+                      ...styles.torKeepLabel,
+                      ...(keepCheckboxDisabled ? styles.torKeepLabelDisabled : {}),
+                      ...(modeStyles.settingsTorKeepLabel || {})
+                    }}
+                  >
+                    Keep Tor enabled
+                  </span>
+                </label>
                 {torContainerMessage && (
                   <p
                     style={{

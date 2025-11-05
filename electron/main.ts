@@ -35,6 +35,7 @@ import {
 } from './lib/shortcuts';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
+import type { TorConfig } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
@@ -941,9 +942,18 @@ ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown)
     typeof payload === 'object' && payload && typeof (payload as { containerId?: unknown }).containerId === 'string'
       ? ((payload as { containerId?: string }).containerId ?? '').trim()
       : '';
+  const keepEnabledRaw =
+    typeof payload === 'object' && payload && typeof (payload as { keepEnabled?: unknown }).keepEnabled === 'boolean'
+      ? ((payload as { keepEnabled?: boolean }).keepEnabled ?? false)
+      : undefined;
   try {
-    const torConfig = await updateTorConfig({ containerId });
-    return { ok: true, containerId: torConfig.containerId };
+    const patch: Partial<TorConfig> = {};
+    patch.containerId = containerId;
+    if (typeof keepEnabledRaw === 'boolean') {
+      patch.keepEnabled = keepEnabledRaw;
+    }
+    const torConfig = await updateTorConfig(patch);
+    return { ok: true, containerId: torConfig.containerId, keepEnabled: torConfig.keepEnabled };
   } catch (err) {
     console.error('[merezhyvo] settings tor update failed', err);
     return { ok: false, error: String(err) };

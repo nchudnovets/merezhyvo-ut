@@ -270,7 +270,7 @@ const exposeApi: MerezhyvoAPI = {
         return {
           schema: 2,
           installedApps: [],
-          tor: { containerId: '' },
+          tor: { containerId: '', keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null)
         };
@@ -300,7 +300,7 @@ const exposeApi: MerezhyvoAPI = {
       }
     },
     tor: {
-      update: async (payload?: { containerId?: string }) => {
+      update: async (payload?: { containerId?: string; keepEnabled?: boolean }) => {
         try {
           return (await ipcRenderer.invoke(
             'merezhyvo:settings:tor:update',

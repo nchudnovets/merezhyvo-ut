@@ -311,6 +311,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torEnabled, setTorEnabled] = useState<boolean>(false);
   const [torContainerId, setTorContainerId] = useState<string>('');
   const [torContainerDraft, setTorContainerDraft] = useState<string>('');
+  const [torKeepEnabled, setTorKeepEnabled] = useState<boolean>(false);
+  const [torKeepEnabledDraft, setTorKeepEnabledDraft] = useState<boolean>(false);
   const [torConfigSaving, setTorConfigSaving] = useState<boolean>(false);
   const [torConfigFeedback, setTorConfigFeedback] = useState<string>('');
   const [torIp, setTorIp] = useState<string>('');
@@ -481,6 +483,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const activeTabRef = useRef<Tab | null>(activeTab ?? null);
   const lastLoadedRef = useRef<LastLoadedInfo>({ id: null, url: null });
   const torIpRequestRef = useRef<number>(0);
+  const torAutoStartGuardRef = useRef<boolean>(false);
+  const torAutoStartKeyRef = useRef<string>('');
 
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
   const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
@@ -547,6 +551,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const dismissTorAlert = useCallback(() => {
     setTorAlertMessage('');
   }, []);
+
+  const autoStartTorIfNeeded = useCallback(async (keep: boolean, containerIdValue: string) => {
+    const trimmed = containerIdValue.trim();
+    if (!keep || !trimmed) return;
+    if (torAutoStartGuardRef.current) return;
+    torAutoStartGuardRef.current = true;
+    try {
+      const currentState = await torService.getState();
+      if (!currentState?.enabled) {
+        await torService.toggle({ containerId: trimmed });
+      }
+    } catch (err) {
+      console.error('[Merezhyvo] tor auto-start failed', err);
+      torAutoStartGuardRef.current = false;
+    }
+  }, []);
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -554,11 +574,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const state = await ipc.settings.loadState();
         if (!state || cancelled) return;
         const containerId = state.tor?.containerId ? state.tor.containerId : '';
+        const keepEnabled = !!state.tor?.keepEnabled;
         setTorContainerId(containerId);
         setTorContainerDraft(containerId);
+        setTorKeepEnabled(keepEnabled);
+        setTorKeepEnabledDraft(keepEnabled);
       } catch {
         if (!cancelled) {
           setTorContainerId('');
+          setTorKeepEnabled(false);
+          setTorKeepEnabledDraft(false);
         }
       }
     };
@@ -1728,6 +1753,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     loadInstalledApps();
     setTorContainerDraft(torContainerId);
+    setTorKeepEnabledDraft(torKeepEnabled);
     setTorConfigFeedback('');
     refreshTorIp();
     const handleKeyDown = (event: KeyboardEvent) => {
@@ -1740,23 +1766,43 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, loadInstalledApps, closeSettingsModal, torContainerId, refreshTorIp]);
+  }, [showSettingsModal, loadInstalledApps, closeSettingsModal, torContainerId, torKeepEnabled, refreshTorIp]);
 
   const handleTorContainerInputChange = useCallback((value: string) => {
     setTorContainerDraft(value);
     setTorConfigFeedback('');
+    if (!value.trim()) {
+      setTorKeepEnabledDraft(false);
+    }
   }, []);
+
+  const handleTorKeepChange = useCallback((next: boolean) => {
+    if (next && !torContainerDraft.trim()) {
+      setTorKeepEnabledDraft(false);
+      return;
+    }
+    setTorKeepEnabledDraft(next);
+    setTorConfigFeedback('');
+  }, [torContainerDraft]);
 
   const handleSaveTorContainer = useCallback(async () => {
     const trimmed = torContainerDraft.trim();
     setTorConfigSaving(true);
     setTorConfigFeedback('');
     try {
-      const result = await ipc.settings.saveTorConfig(trimmed);
+      const result = await ipc.settings.saveTorConfig({
+        containerId: trimmed,
+        keepEnabled: torKeepEnabledDraft && !!trimmed
+      });
       if (result?.ok) {
         const nextId = result.containerId ?? trimmed;
+        const nextKeep = typeof result.keepEnabled === 'boolean'
+          ? result.keepEnabled
+          : (torKeepEnabledDraft && !!trimmed);
         setTorContainerId(nextId);
         setTorContainerDraft(nextId);
+        setTorKeepEnabled(nextKeep && !!nextId.trim());
+        setTorKeepEnabledDraft(nextKeep && !!nextId.trim());
         setTorConfigFeedback('Saved');
       } else {
         setTorConfigFeedback(result?.error || 'Failed to save container identifier.');
@@ -1766,7 +1812,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } finally {
       setTorConfigSaving(false);
     }
-  }, [torContainerDraft]);
+  }, [torContainerDraft, torKeepEnabledDraft]);
 
   const handleToggleTor = useCallback(async () => {
     const trimmedContainerId = (torContainerId || '').trim();
@@ -1807,6 +1853,21 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       .catch(() => {});
     return () => { if (typeof off === 'function') off(); };
   }, []);
+
+  useEffect(() => {
+    const trimmed = torContainerId.trim();
+    if (!torKeepEnabled || !trimmed) {
+      torAutoStartGuardRef.current = false;
+      torAutoStartKeyRef.current = '';
+      return;
+    }
+    const key = `${trimmed}|${torKeepEnabled ? '1' : '0'}`;
+    if (torAutoStartKeyRef.current !== key) {
+      torAutoStartGuardRef.current = false;
+      torAutoStartKeyRef.current = key;
+    }
+    void autoStartTorIfNeeded(torKeepEnabled, trimmed);
+  }, [autoStartTorIfNeeded, torKeepEnabled, torContainerId]);
 
   useEffect(() => {
     refreshTorIp();
@@ -2489,12 +2550,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           torSavedContainerId={torContainerId}
           torContainerSaving={torConfigSaving}
           torContainerMessage={torConfigFeedback}
+          torKeepEnabled={torKeepEnabled}
+          torKeepEnabledDraft={torKeepEnabledDraft}
           torInputRef={torContainerInputRef}
           onTorInputPointerDown={handleTorInputPointerDown}
           onTorInputFocus={handleTorInputFocus}
           onTorInputBlur={handleTorInputBlur}
           onTorContainerChange={handleTorContainerInputChange}
           onSaveTorContainer={handleSaveTorContainer}
+          onTorKeepChange={handleTorKeepChange}
           onClose={closeSettingsModal}
           onRequestRemove={askRemoveApp}
           onCancelRemove={cancelRemoveApp}

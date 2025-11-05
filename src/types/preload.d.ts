@@ -89,7 +89,7 @@ export interface MerezhyvoAPI {
       ): Promise<{ ok: boolean; error?: string }>;
     };
     tor: {
-      update(payload: { containerId?: string }): Promise<TorConfigResult>;
+      update(payload: { containerId?: string; keepEnabled?: boolean }): Promise<TorConfigResult>;
     };
     keyboard: {
       get(): Promise<KeyboardSettings>;

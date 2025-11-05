@@ -29,6 +29,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsTorInputHint: {},
     settingsTorMessage: {},
     settingsTorSaveButton: {},
+    settingsTorKeepRow: {},
+    settingsTorKeepCheckbox: {},
+    settingsTorKeepLabel: {},
     settingsKeyboardToggleButton: {},
     settingsKeyboardSavedPill: {},
     settingsKeyboardLayoutsList: {},
@@ -144,6 +147,16 @@ export const settingsModalModeStyles: ModeStyleMap = {
       height: 'clamp(78px, 10vw, 96px)',
       borderRadius: '24px',
       padding: '0 clamp(42px, 6vw, 60px)',
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    settingsTorKeepRow: {
+      gap: 'clamp(22px, 3.5vw, 30px)'
+    },
+    settingsTorKeepCheckbox: {
+      width: 'clamp(54px, 8vw, 66px)',
+      height: 'clamp(54px, 8vw, 66px)'
+    },
+    settingsTorKeepLabel: {
       fontSize: 'clamp(33px, 4.8vw, 42px)'
     },
     settingsKeyboardToggleButton: {

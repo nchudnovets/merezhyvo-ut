@@ -361,6 +361,27 @@ export const settingsModalStyles: StyleRecord = {
     fontSize: '12px',
     color: '#94a3b8'
   },
+  torKeepRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px'
+  },
+  torKeepCheckbox: {
+    width: '18px',
+    height: '18px',
+    cursor: 'pointer',
+    accentColor: '#2563eb'
+  },
+  torKeepLabel: {
+    fontSize: '13px',
+    fontWeight: 600,
+    color: '#f8fafc',
+    cursor: 'pointer'
+  },
+  torKeepLabelDisabled: {
+    color: '#64748b',
+    cursor: 'not-allowed'
+  },
   torMessage: {
     margin: 0,
     fontSize: '13px',

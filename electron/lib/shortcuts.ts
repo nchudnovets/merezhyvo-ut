@@ -34,6 +34,7 @@ export type KeyboardSettings = {
 
 export type TorConfig = {
   containerId: string;
+  keepEnabled: boolean;
 };
 
 export type SettingsState = {
@@ -79,7 +80,11 @@ export const sanitizeKeyboardSettings = (raw: unknown): KeyboardSettings => {
 export const sanitizeTorConfig = (raw: unknown): TorConfig => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Record<string, unknown> : {};
   const value = isNonEmptyString(source.containerId) ? source.containerId.trim() : '';
-  return { containerId: value };
+  let keepEnabled = typeof source.keepEnabled === 'boolean' ? source.keepEnabled : false;
+  if (!value) {
+    keepEnabled = false;
+  }
+  return { containerId: value, keepEnabled };
 };
 
 type DownloadOptions = {
@@ -155,7 +160,8 @@ const DEFAULT_KEYBOARD_SETTINGS: KeyboardSettings = {
 };
 
 const DEFAULT_TOR_CONFIG: TorConfig = {
-  containerId: ''
+  containerId: '',
+  keepEnabled: false
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {

@@ -101,9 +101,9 @@ export const ipc = {
       }
       return { ok: false, error: 'Unknown error' };
     },
-    async saveTorConfig(containerId: string): Promise<SaveTorConfigResponse> {
+    async saveTorConfig(payload: { containerId: string; keepEnabled: boolean }): Promise<SaveTorConfigResponse> {
       try {
-        const res = await getApi()?.settings?.tor?.update?.({ containerId });
+        const res = await getApi()?.settings?.tor?.update?.(payload);
         if (res && typeof res === 'object') {
           return res as SaveTorConfigResponse;
         }

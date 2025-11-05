@@ -48,6 +48,7 @@ export interface InstalledApp {
 
 export interface TorConfig {
   containerId: string;
+  keepEnabled: boolean;
 }
 
 export interface KeyboardSettings {
@@ -92,6 +93,7 @@ export interface TorState {
 export interface TorConfigResult {
   ok: boolean;
   containerId?: string;
+  keepEnabled?: boolean;
   error?: string;
 }
 
