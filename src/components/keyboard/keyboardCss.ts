@@ -14,9 +14,33 @@ export function ensureOskCssInjected() {
   }
 
   .mzr-osk-theme {
-    padding: 8px 6px calc(10px + 50px);
+    position: relative;
+    padding: 8px 6px calc(18px + 48px);
     background: rgba(24,24,24,0.95);
     backdrop-filter: blur(6px);
+  }
+  .mzr-osk-close {
+    position: absolute;
+    bottom: 12px;
+    left: 50%;
+    transform: translateX(-50%);
+    background: transparent;
+    border: none;
+    color: rgba(203, 213, 225, 0.85);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 48px;
+    height: 36px;
+    padding: 4px;
+    cursor: pointer;
+    transition: color 0.2s ease, transform 0.15s ease;
+  }
+  .mzr-osk-close:active {
+    transform: translateX(-50%) translateY(2px);
+  }
+  .mzr-osk-close:hover {
+    color: rgba(241, 245, 249, 0.95);
   }
 
   .mzr-osk .hg-button {

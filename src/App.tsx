@@ -317,6 +317,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
   const [torAlertMessage, setTorAlertMessage] = useState<string>('');
   const [kbVisible, setKbVisible] = useState<boolean>(false);
+  const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
+  const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
   const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
@@ -466,6 +468,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const previousActiveTabRef = useRef<Tab | null>(activeTab ?? null);
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const backgroundHostRef = useRef<HTMLDivElement | null>(null);
+  const zoomBarRef = useRef<HTMLDivElement | null>(null);
   const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
   const backgroundTabRef = useRef<string | null>(null);
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState<boolean>(false);
@@ -2107,6 +2110,45 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeInputRef.current === 'torContainer') activeInputRef.current = null;
   }, []);
 
+  const handleKeyboardHeightChange = useCallback((height: number) => {
+    setKeyboardHeight(height > 0 ? height : 0);
+  }, []);
+
+  useEffect(() => {
+    if (isHtmlFullscreen) {
+      setZoomBarHeight(0);
+      return;
+    }
+    const node = zoomBarRef.current;
+    if (!node) {
+      setZoomBarHeight(0);
+      return;
+    }
+    const notify = () => {
+      try {
+        const rect = node.getBoundingClientRect();
+        const next = Number.isFinite(rect.height) ? rect.height : 0;
+        setZoomBarHeight(next > 0 ? next : 0);
+      } catch {
+        setZoomBarHeight(0);
+      }
+    };
+    notify();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => notify());
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+        setZoomBarHeight(0);
+      };
+    }
+    const id = window.setInterval(() => notify(), 200);
+    return () => {
+      window.clearInterval(id);
+      setZoomBarHeight(0);
+    };
+  }, [isHtmlFullscreen]);
+
   const containerStyle = useMemo(() => {
     return styles.container;
   }, []);
@@ -2118,6 +2160,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabsPanelBackdropStyle = useMemo<CSSProperties>(() => {
     return { ...tabsPanelStyles.backdrop };
   }, []);
+  const webviewHostHeight = useMemo(() => {
+    if (!kbVisible) return '100%';
+    const offset = Math.max(0, keyboardHeight);
+    const zoomOffset = Math.max(0, zoomBarHeight);
+    if (offset <= 0 && zoomOffset <= 0) return '100%';
+    return `calc(100% - ${offset}px + ${zoomOffset}px - 10px)`;
+  }, [kbVisible, keyboardHeight, zoomBarHeight]);
   const getCurrentViewUrl = useCallback(() => {
     try {
       const direct = getActiveWebview()?.getURL?.();
@@ -2323,13 +2372,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         webviewHostRef={webviewHostRef}
         backgroundHostRef={backgroundHostRef}
         webviewStyle={styles.webviewMount}
-        webviewHostStyle={styles.webviewHost}
+        webviewHostStyle={{
+          ...styles.webviewHost,
+          height: webviewHostHeight
+        }}
         backgroundStyle={styles.backgroundShelf}
         overlay={tabLoadingOverlay}
       />
 
       {!isHtmlFullscreen && (
         <ZoomBar
+          ref={zoomBarRef}
           mode={mode}
           zoomLevel={zoomLevel}
           zoomDisplay={zoomDisplay}
@@ -2468,6 +2521,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onEnterShouldClose={onEnterShouldClose}
         onClose={closeKeyboard}
         onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
+        onHeightChange={handleKeyboardHeightChange}
       />
     </div>
   );

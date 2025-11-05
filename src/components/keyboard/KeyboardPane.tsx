@@ -34,6 +34,7 @@ type Props = {
   onSetLayout?: (id: LayoutId) => void;
   onEnterShouldClose?: () => Promise<boolean> | boolean;
   onClose?: () => void;
+  onHeightChange?: (height: number) => void;
 };
 
 const SPECIAL = new Set([
@@ -189,10 +190,12 @@ const KeyboardPane: React.FC<Props> = (p) => {
     onSetLayout,
     onEnterShouldClose,
     onClose,
+    onHeightChange,
   } = p;
 
   // We keep a ref for compatibility; not used directly here
   const kbRef = useRef<unknown>(null);
+  const containerRef = useRef<HTMLDivElement | null>(null);
 
   // Long-press / pointer-state
   const holdTimer = useRef<number | null>(null);
@@ -217,6 +220,40 @@ const KeyboardPane: React.FC<Props> = (p) => {
   useEffect(() => {
     ensureOskCssInjected();
   }, []);
+
+  useEffect(() => {
+    if (!onHeightChange) return;
+    if (!visible) {
+      onHeightChange(0);
+      return;
+    }
+    const node = containerRef.current;
+    if (!node) {
+      onHeightChange(0);
+      return;
+    }
+    const notify = () => {
+      try {
+        onHeightChange(node.getBoundingClientRect().height);
+      } catch {
+        onHeightChange(0);
+      }
+    };
+    notify();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => notify());
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+        onHeightChange(0);
+      };
+    }
+    const id = window.setInterval(() => notify(), 200);
+    return () => {
+      window.clearInterval(id);
+      onHeightChange(0);
+    };
+  }, [visible, onHeightChange]);
 
   // Block context-menu while interacting with OSK (prevents UT bubble)
   useEffect(() => {
@@ -498,6 +535,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
 
   return (
     <div
+      ref={containerRef}
       data-soft-keyboard="true"
       className="mzr-osk fixed-osk"
       dir={isRTL(layoutId) ? 'rtl' : 'ltr'}
@@ -528,6 +566,27 @@ const KeyboardPane: React.FC<Props> = (p) => {
         theme="hg-theme-default hg-layout-default mzr-osk-theme"
         onKeyPress={onKeyPress}
       />
+      {onClose && (
+        <button
+          type="button"
+          className="mzr-osk-close"
+          aria-label="Hide keyboard"
+          title="Hide keyboard"
+          onClick={() => onClose?.()}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width="28"
+            height="28"
+            aria-hidden="true"
+          >
+            <path
+              d="M6.7 9.3a1 1 0 0 1 1.4 0L12 13.17l3.9-3.87a1 1 0 1 1 1.4 1.43l-4.6 4.56a1 1 0 0 1-1.4 0L6.7 10.73a1 1 0 0 1 0-1.43Z"
+              fill="currentColor"
+            />
+          </svg>
+        </button>
+      )}
 
       {popup && (
         <div className="mzr-osk-popup" style={{ left: popup.x, top: popup.y }}>

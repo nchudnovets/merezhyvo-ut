@@ -1,4 +1,9 @@
-import React, { type PointerEvent, type ChangeEvent } from 'react';
+import React, {
+  forwardRef,
+  type PointerEvent,
+  type ChangeEvent,
+  type ForwardedRef
+} from 'react';
 import type { Mode } from '../../types/models';
 import { zoomBarStyles, zoomBarModeStyles } from './zoomBarStyles';
 
@@ -13,17 +18,20 @@ interface ZoomBarProps {
   onChange: (event: ChangeEvent<HTMLInputElement>) => void;
 }
 
-const ZoomBar: React.FC<ZoomBarProps> = ({
-  mode,
-  zoomLevel,
-  zoomDisplay,
-  min,
-  max,
-  step,
-  onPointerDown,
-  onChange
-}) => (
-  <div className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
+const ZoomBar = forwardRef<HTMLDivElement, ZoomBarProps>((
+  {
+    mode,
+    zoomLevel,
+    zoomDisplay,
+    min,
+    max,
+    step,
+    onPointerDown,
+    onChange
+  },
+  ref: ForwardedRef<HTMLDivElement>
+) => (
+  <div ref={ref} className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
     <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
     <div style={zoomBarStyles.zoomSliderContainer}>
       <input
@@ -42,6 +50,8 @@ const ZoomBar: React.FC<ZoomBarProps> = ({
     </div>
     <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
   </div>
-);
+));
+
+ZoomBar.displayName = 'ZoomBar';
 
 export default ZoomBar;
