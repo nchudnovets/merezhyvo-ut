@@ -30,8 +30,8 @@ export function ensureOskCssInjected() {
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 48px;
-    height: 36px;
+    width: 65px;
+    height: 50px;
     padding: 4px;
     cursor: pointer;
     transition: color 0.2s ease, transform 0.15s ease;
@@ -45,9 +45,9 @@ export function ensureOskCssInjected() {
 
   .mzr-osk .hg-button {
     font-family: Roboto, Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif !important;
-    font-size: 52px !important; 
+    font-size: 60px !important; 
     line-height: 1.05 !important;
-    padding: 6px 8px !important;
+    padding: 6px 6px !important;
     margin: 4px 3px !important;
     min-width: 0 !important;
     height: 88px !important; 
@@ -67,7 +67,9 @@ export function ensureOskCssInjected() {
   }
 
   /* стрілки поруч */
-  .mzr-osk .hg-button.hg-button-arrow { flex: 0 0 auto !important; }
+  .mzr-osk .hg-button.hg-button-arrow,
+  .mzr-osk .hg-button-arrowleft,
+  .mzr-osk .hg-button-arrowright { flex: 0 0 auto !important; width: 60px }
 
   /* ширший пробіл у 2 рази */
   .mzr-osk .hg-button.hg-button-space {

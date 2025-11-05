@@ -576,8 +576,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
         >
           <svg
             viewBox="0 0 24 24"
-            width="28"
-            height="28"
+            width="50"
+            height="50"
             aria-hidden="true"
           >
             <path
