@@ -54,6 +54,11 @@ export function ensureOskCssInjected() {
     border-radius: 10px !important;
     display: inline-flex; align-items: center; justify-content: center;
   }
+  .mzr-osk .hg-button:active { 
+    filter: brightness(1.5);
+    border-color: #f7e78f;
+    transform: translateX(-2px) translateY(2px);
+  }
 
   /* робимо службові кнопки вужчими на вузьких екранах */
   .mzr-osk .hg-button.hg-button-enter,
