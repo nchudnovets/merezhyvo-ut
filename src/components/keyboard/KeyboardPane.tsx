@@ -158,10 +158,10 @@ function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
 /** Extract a keyboard token from an event target */
 function extractButtonFromTarget(
   target: EventTarget | null
-): { btn: string | null; rect: DOMRect | null } {
+): { btn: string | null; rect: DOMRect | null; element: HTMLElement | null } {
   const root =
     target instanceof HTMLElement ? target.closest('.hg-button') : null;
-  if (!root) return { btn: null, rect: null };
+  if (!root) return { btn: null, rect: null, element: null };
   const el = root as HTMLElement;
   const rect = el.getBoundingClientRect();
 
@@ -174,7 +174,7 @@ function extractButtonFromTarget(
     const raw = (el.textContent || '').trim();
     btn = ICON_TO_TOKEN[raw] || (raw || null);
   }
-  return { btn, rect };
+  return { btn, rect, element: el };
 }
 
 const KeyboardPane: React.FC<Props> = (p) => {
@@ -203,6 +203,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
   const heldButton = useRef<string | null>(null);
   const capsFired = useRef<boolean>(false);
   const isPressing = useRef<boolean>(false); // block library onKeyPress while pointer is down
+  const activeButtonRef = useRef<HTMLElement | null>(null);
 
   // Auto-repeat timers for repeatable keys
   const repeatStartTimer = useRef<number | null>(null);
@@ -415,6 +416,19 @@ const KeyboardPane: React.FC<Props> = (p) => {
     [popup, typeKey]
   );
 
+  const setActiveButton = useCallback((next: HTMLElement | null) => {
+    const prev = activeButtonRef.current;
+    if (prev && prev !== next) {
+      prev.classList.remove('mzr-osk-pressed');
+    }
+    if (next) {
+      next.classList.add('mzr-osk-pressed');
+      activeButtonRef.current = next;
+    } else {
+      activeButtonRef.current = null;
+    }
+  }, []);
+
   const clearRepeat = useCallback(() => {
     if (repeatStartTimer.current !== null) {
       window.clearTimeout(repeatStartTimer.current);
@@ -434,7 +448,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
     clearRepeat();
     holdActivated.current = false;
     heldButton.current = null;
-  }, [clearRepeat]);
+    setActiveButton(null);
+  }, [clearRepeat, setActiveButton]);
 
   const onPointerDownCapture = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
@@ -443,8 +458,13 @@ const KeyboardPane: React.FC<Props> = (p) => {
 
       isPressing.current = true;
 
-      const { btn, rect } = extractButtonFromTarget(e.target);
-      if (!btn) return;
+      const { btn, rect, element } = extractButtonFromTarget(e.target);
+      if (!btn) {
+        setActiveButton(null);
+        return;
+      }
+
+      setActiveButton(element);
 
       heldButton.current = btn;
       holdActivated.current = false;
@@ -472,6 +492,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
           setShift(false);
           capsFired.current = true;
           holdActivated.current = true;
+          setActiveButton(null);
         }, LONGPRESS_MS);
         return;
       }
@@ -483,6 +504,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
       if (alts.length && rect) {
         holdTimer.current = window.setTimeout(() => {
           holdActivated.current = true;
+          setActiveButton(null);
           setPopup({
             key: btn,
             alts,
@@ -493,7 +515,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
         return;
       }
     },
-    [visible, lpMap, typeKey]
+    [visible, lpMap, typeKey, setActiveButton]
   );
 
   const onPointerUpCapture = useCallback(() => {
