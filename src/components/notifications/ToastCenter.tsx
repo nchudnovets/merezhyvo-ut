@@ -1,4 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
+import { toastCenterStyles } from './ToastCenterStyles';
 
 type ToastPayload = {
   title: string;
@@ -82,18 +83,7 @@ export const ToastCenter: React.FC = () => {
   if (visible.length === 0) return null;
 
   return (
-    <div
-      style={{
-        position: 'fixed',
-        right: 12,
-        bottom: 12,
-        zIndex: 10001,
-        display: 'flex',
-        flexDirection: 'column',
-        gap: 10,
-        pointerEvents: 'none' // let clicks pass through except on cards
-      }}
-    >
+    <div style={toastCenterStyles.container}>
       {visible.map((t) => (
         <div
           key={t.id}
@@ -108,34 +98,10 @@ export const ToastCenter: React.FC = () => {
             );
             setItems((prev) => prev.filter((x) => x.id !== t.id));
           }}
-          style={{
-            width: 'min(380px, 92vw)',
-            display: 'grid',
-            gridTemplateColumns: '40px 1fr',
-            gap: 10,
-            padding: '10px 12px',
-            borderRadius: 12,
-            border: '1px solid rgba(255,255,255,0.12)',
-            background: 'rgba(17,19,23,0.96)',
-            boxShadow: '0 10px 22px rgba(0,0,0,0.4)',
-            color: '#e5e7eb',
-            pointerEvents: 'auto',
-            transition: 'transform 120ms ease, opacity 120ms ease'
-          }}
+          style={toastCenterStyles.toast}
         >
           {/* Icon */}
-          <div
-            style={{
-              width: 40,
-              height: 40,
-              borderRadius: 8,
-              background: 'rgba(255,255,255,0.06)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              overflow: 'hidden'
-            }}
-          >
+          <div style={toastCenterStyles.icon}>
             {t.options.icon ? (
               <img
                 src={t.options.icon}
@@ -148,48 +114,21 @@ export const ToastCenter: React.FC = () => {
           </div>
 
           {/* Text */}
-          <div style={{ display: 'flex', flexDirection: 'column', minWidth: 0 }}>
-            <div style={{ fontWeight: 700, fontSize: 14, lineHeight: 1.3, overflow: 'hidden', textOverflow: 'ellipsis' }}>
-              {t.title}
-            </div>
+          <div style={toastCenterStyles.content}>
+            <div style={toastCenterStyles.title}>{t.title}</div>
             {t.options.body ? (
-              <div
-                style={{
-                  marginTop: 4,
-                  fontSize: 13,
-                  lineHeight: 1.35,
-                  opacity: 0.9,
-                  overflow: 'hidden',
-                  textOverflow: 'ellipsis',
-                  display: '-webkit-box',
-                  WebkitLineClamp: 2,
-                  WebkitBoxOrient: 'vertical'
-                }}
-              >
-                {t.options.body}
-              </div>
+              <div style={toastCenterStyles.body}>{t.options.body}</div>
             ) : null}
 
-            {/* Close button */}
-            <div style={{ marginTop: 8 }}>
-              <button
-                onClick={(ev) => {
-                  ev.stopPropagation();
-                  setItems((prev) => prev.filter((x) => x.id !== t.id));
-                }}
-                style={{
-                  padding: '6px 10px',
-                  fontSize: 12,
-                  borderRadius: 8,
-                  border: '1px solid rgba(255,255,255,0.15)',
-                  background: 'transparent',
-                  color: '#e5e7eb',
-                  cursor: 'pointer'
-                }}
-              >
-                Dismiss
-              </button>
-            </div>
+            <button
+              onClick={(ev) => {
+                ev.stopPropagation();
+                setItems((prev) => prev.filter((x) => x.id !== t.id));
+              }}
+              style={toastCenterStyles.dismiss}
+            >
+              Dismiss
+            </button>
           </div>
         </div>
       ))}

@@ -53,7 +53,43 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsMessengerName: {},
     settingsMessengerUrl: {},
     settingsMessengerMessage: {},
-    settingsMessengerHint: {}
+    settingsMessengerHint: {},
+    permissionsHeaderActions: {},
+    permissionsToggleButton: {},
+    permissionsDefaultsCard: {},
+    permissionsDefaultsHeader: {},
+    permissionsDefaultsDescription: {},
+    permissionsDefaultsOptions: {},
+    permissionsDefaultsLabel: {},
+    permissionsDefaultsHeaderTitle: {},
+    permissionsDefaultsHeaderLabel: {},
+    permissionsDefaultsButtonGroup: {},
+    permissionsDefaultsMobileList: {},
+    permissionsDefaultsMobileRow: {},
+    permissionsDefaultsMobileButtons: {},
+    permissionsOptionBase: {},
+    permissionsOptionNeutral: {},
+    permissionsOptionPrimary: {},
+    permissionsOptionDestructive: {},
+    permissionsOptionActive: {},
+    permissionsResetButton: {},
+    permissionsSearchRow: {},
+    permissionsSearchInput: {},
+    permissionsSiteContainer: {},
+    permissionsSiteHeader: {},
+    permissionsSiteRow: {},
+    permissionsSiteOrigin: {},
+    permissionsSiteButtons: {},
+    permissionsSiteActions: {},
+    permissionsSiteResetButton: {},
+    permissionsSiteEmpty: {},
+    permissionsSiteCard: {},
+    permissionsSiteCardHeader: {},
+    permissionsSiteCardOrigin: {},
+    permissionsSiteCardPermissions: {},
+    permissionsSiteCardPermissionRow: {},
+    permissionsSiteCardPermissionLabel: {},
+    permissionsSiteHeaderActions: {}
   },
   mobile: {
     settingsModalTitle: {
@@ -225,6 +261,104 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsMessengerHint: {
       fontSize: 'clamp(30px, 4.5vw, 38px)'
+    },
+    permissionsBadge: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)',
+      lineHeight: 1.4
+    },
+    permissionsHeaderActions: {
+      gap: 'clamp(22px, 3.5vw, 30px)'
+    },
+    permissionsToggleButton: {
+      width: 'clamp(65px, 12vw, 108px)',
+      height: 'clamp(84px, 12vw, 108px)',
+      borderRadius: '28px'
+    },
+    permissionsDefaultsCard: {
+      padding: '16px 14px',
+      gap: 12
+    },
+    permissionsDefaultsHeader: {
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      gap: 12
+    },
+    permissionsDefaultsTitle: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsDefaultsDescription: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)',
+      maxWidth: '100%'
+    },
+    permissionsDefaultsOptions: {
+      display: 'flex',
+      flexDirection: 'column',
+      gap: 10
+    },
+    permissionsDefaultsLabel: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsDefaultsHeaderTitle: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsDefaultsHeaderLabel: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsOptionBase: {
+      padding: '10px 14px',
+      minWidth: 'auto',
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsResetButton: {
+      width: '100%',
+      textAlign: 'center',
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsSearchRow: {
+      flexDirection: 'column',
+      alignItems: 'stretch',
+      gap: 12
+    },
+    permissionsSearchInput: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsSiteHeader: {
+      display: 'none'
+    },
+    permissionsSiteRow: {
+      display: 'none'
+    },
+    permissionsSiteCard: {
+      borderTop: '1px solid rgba(148,163,184,0.22)',
+      padding: '16px 18px',
+      gap: 12
+    },
+    permissionsSiteCardHeader: {
+      flexDirection: 'row'
+    },
+    permissionsSiteCardOrigin: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsSiteCardPermissions: {
+      gap: 10
+    },
+    permissionsSiteCardPermissionRow: {
+      flexDirection: 'row',
+      gap: 12
+    },
+    permissionsSiteCardPermissionLabel: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsSiteButtons: {
+      gap: 10
+    },
+    permissionsSiteResetButton: {
+      width: 'auto',
+      fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    permissionsSiteEmpty: {
+      fontSize: 'clamp(33px, 4.8vw, 42px)',
+      lineHeight: 1.4
     }
   }
 };

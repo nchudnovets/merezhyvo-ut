@@ -460,7 +460,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <KeyboardSettings mode={mode} />
 
-          <PermissionsSettings />
+          <PermissionsSettings mode={mode} />
 
           <section
             style={{

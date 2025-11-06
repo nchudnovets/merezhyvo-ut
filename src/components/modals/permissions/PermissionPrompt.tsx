@@ -1,5 +1,7 @@
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, type CSSProperties } from 'react';
 import { ipc, type PermissionType } from '../../../services/ipc/ipc';
+import { useMerezhyvoMode } from '../../../hooks/useMerezhyvoMode';
+import { permissionPromptStyles, permissionPromptModeStyles } from './permissionPromptStyles';
 
 type PromptReq = {
   id: string;
@@ -119,118 +121,112 @@ export const PermissionPrompt: React.FC = () => {
     return () => window.removeEventListener('keydown', onKey);
   }, [current, decide]);
 
+  const mode = useMerezhyvoMode();
+  const styles = permissionPromptStyles;
+  const modeStyles = permissionPromptModeStyles[mode] || {};
+
+  const compose = <K extends keyof typeof styles>(key: K): CSSProperties => ({
+    ...styles[key],
+    ...(modeStyles[key] || {})
+  });
+
+  const buttonStyle = (...keys: (keyof typeof styles)[]): CSSProperties =>
+    keys.reduce(
+      (acc, key) => ({
+        ...acc,
+        ...compose(key)
+      }),
+      {}
+    );
+
   if (!current) return null;
 
   const multi = current.types.length > 1;
   const anyUnchecked = multi && current.types.some((t) => selected[t] === false);
 
   return (
-    <div
-      role="dialog"
-      aria-modal="true"
-      style={{
-        position: 'fixed',
-        inset: 0,
-        backgroundColor: 'rgba(0,0,0,0.5)',
-        zIndex: 10000,
-        display: 'flex',
-        alignItems: 'center',
-        justifyContent: 'center',
-        padding: '16px'
-      }}
-    >
-      <div
-        style={{
-          width: 'min(560px, 96vw)',
-          backgroundColor: '#111317',
-          color: '#e5e7eb',
-          borderRadius: 12,
-          boxShadow: '0 10px 30px rgba(0,0,0,0.35)',
-          border: '1px solid rgba(255,255,255,0.08)'
-        }}
-      >
-        <div style={{ padding: '18px 20px', borderBottom: '1px solid rgba(255,255,255,0.06)' }}>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Allow access?</div>
-          <div style={{ marginTop: 6, fontSize: 13, opacity: 0.85 }}>
-            <span style={{ opacity: 0.8 }}>Site</span>{' '}
-            <span style={{ fontWeight: 600 }}>{humanSite(current.origin)}</span> requests:{' '}
-            <span style={{ fontStyle: 'italic' }}>{labels}</span>
+    <div role="dialog" aria-modal="true" style={compose('shell')}>
+      <div style={compose('card')}>
+        <div style={compose('section')}>
+          <div style={compose('badge')}>Permission request</div>
+          <div style={compose('title')}>Allow access?</div>
+          <div style={compose('metaColumn')}>
+            <span style={compose('siteText')}>
+              <span style={compose('sitePrefix')}>Site</span>{' '}
+              <span style={{ fontWeight: 600 }}>{humanSite(current.origin)}</span> requests{' '}
+              <span style={compose('requestList')}>{labels}</span>
+            </span>
+            {multi ? (
+              <span style={compose('multiNote')}>
+                Unchecking an item remembers your choice for next time. This specific request is only granted if every
+                item stays checked.
+              </span>
+            ) : null}
           </div>
-          {multi ? (
-            <div style={{ marginTop: 6, fontSize: 12, opacity: 0.75 }}>
-              Unchecking any item will deny this particular request (partial grant isn’t supported by Chromium), but your
-              choices will be remembered per type for future requests.
-            </div>
-          ) : null}
         </div>
 
-        <div style={{ padding: '16px 20px' }}>
-          <ul style={{ margin: 0, paddingLeft: 18, lineHeight: 1.7, fontSize: 14 }}>
-            {current.types.map((t) => (
-              <li key={t} style={{ textTransform: 'none', display: 'flex', gap: 8, alignItems: 'center' }}>
-                {t === 'camera' || t === 'microphone' ? (
-                  <>
+        <div style={compose('divider')} />
+
+        <div
+          style={{
+            ...compose('section'),
+            gap: 14
+          }}
+        >
+          <div style={compose('permissionsList')}>
+            {current.types.map((t) => {
+              const canToggle = t === 'camera' || t === 'microphone';
+              const rowStyle: CSSProperties = {
+                ...compose('permissionRow'),
+                ...(selected[t] ? compose('permissionRowSelected') : {}),
+                cursor: canToggle ? 'pointer' : 'default'
+              };
+              return (
+                <label key={t} style={rowStyle}>
+                  <div style={compose('permissionInfo')}>
+                    <span style={compose('permissionLabel')}>{typeLabel(t)}</span>
+                    <span style={compose('permissionHint')}>
+                      {canToggle ? 'Toggle to remember a different default for this site.' : 'Handled automatically.'}
+                    </span>
+                  </div>
+                  {canToggle ? (
                     <input
                       type="checkbox"
                       checked={selected[t]}
                       onChange={() => toggle(t)}
-                      style={{ transform: 'translateY(1px)' }}
+                      style={compose('checkbox')}
                     />
-                    <span>{typeLabel(t)}</span>
-                  </>
-                ) : (
-                  <span>{typeLabel(t)}</span>
-                )}
-              </li>
-            ))}
-          </ul>
+                  ) : null}
+                </label>
+              );
+            })}
+          </div>
 
-          <label style={{ display: 'flex', alignItems: 'center', gap: 8, marginTop: 14, fontSize: 13 }}>
+          <div style={compose('rememberRow')}>
             <input
               type="checkbox"
               checked={remember}
               onChange={(e) => setRemember(e.target.checked)}
-              style={{ transform: 'translateY(1px)' }}
+              style={compose('checkbox')}
             />
-            Remember for this site
-          </label>
+            <span style={compose('rememberLabel')}>Remember this choice for this site</span>
+          </div>
         </div>
 
-        <div
-          style={{
-            display: 'flex',
-            gap: 10,
-            justifyContent: 'flex-end',
-            padding: '14px 16px',
-            borderTop: '1px solid rgba(255,255,255,0.06)'
-          }}
-        >
-          <button
-            onClick={() => decide(false)}
-            style={{
-              padding: '8px 14px',
-              fontSize: 14,
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'transparent',
-              color: '#e5e7eb',
-              cursor: 'pointer'
-            }}
-          >
+        <div style={compose('divider')} />
+
+        <div style={compose('actions')}>
+          <button onClick={() => decide(false)} style={buttonStyle('actionButton', 'actionButtonOutline')}>
             Deny
           </button>
           <button
             onClick={() => decide(true)}
-            style={{
-              padding: '8px 14px',
-              fontSize: 14,
-              borderRadius: 8,
-              border: anyUnchecked ? '1px solid #a78bfa' : '1px solid #3b82f6',
-              background: anyUnchecked ? '#6d28d9' : '#2563eb',
-              color: 'white',
-              cursor: 'pointer'
-            }}
-            title={anyUnchecked ? 'Some items are unchecked. The current request will still be denied.' : undefined}
+            style={buttonStyle(
+              'actionButton',
+              'actionButtonPrimary',
+              ...(anyUnchecked ? (['actionButtonMuted'] as const) : [])
+            )}
+            title={anyUnchecked ? 'Some permissions are unchecked so this request will still be denied.' : undefined}
           >
             Allow
           </button>

@@ -1,5 +1,15 @@
-import React, { useCallback, useEffect, useMemo, useState, startTransition } from 'react';
+import React, {
+  useCallback,
+  useEffect,
+  useMemo,
+  useState,
+  startTransition,
+  type CSSProperties
+} from 'react';
 import { ipc, type PermissionType } from '../../../services/ipc/ipc';
+import type { Mode } from '../../../types/models';
+import { settingsModalStyles } from './settingsModalStyles';
+import { settingsModalModeStyles } from './settingsModalModeStyles';
 
 type PermDecision = 'allow' | 'deny';
 type PermDefault = 'allow' | 'deny' | 'prompt';
@@ -25,14 +35,42 @@ function labelFor(p: PermissionType): string {
   }
 }
 
-export const PermissionsSettings: React.FC = () => {
+type PermissionsSettingsProps = {
+  mode: Mode;
+};
+
+export const PermissionsSettings: React.FC<PermissionsSettingsProps> = ({ mode }) => {
   const [state, setState] = useState<PermState | null>(null);
   const [query, setQuery] = useState<string>('');
+  const [expanded, setExpanded] = useState<boolean>(false);
+
+  const styles = settingsModalStyles;
+  const modeStyles = settingsModalModeStyles[mode] || {};
+  const isMobile = mode === 'mobile';
+
+  const compose = <K extends keyof typeof styles>(key: K): CSSProperties => ({
+    ...styles[key],
+    ...(modeStyles[key] || {})
+  });
+
+  const optionStyle = (tone: 'neutral' | 'primary' | 'destructive', active: boolean): CSSProperties => {
+    const toneKey =
+      tone === 'primary'
+        ? 'permissionsOptionPrimary'
+        : tone === 'destructive'
+        ? 'permissionsOptionDestructive'
+        : 'permissionsOptionNeutral';
+    return {
+      ...compose('permissionsOptionBase'),
+      ...compose(toneKey as keyof typeof styles),
+      ...(active ? compose('permissionsOptionActive') : {})
+    };
+  };
 
   const refresh = useCallback(async () => {
     const st = await ipc.permissions.store.get();
     startTransition(() => {
-        setState(st as PermState);
+      setState(st as PermState);
     });
   }, []);
 
@@ -91,240 +129,212 @@ export const PermissionsSettings: React.FC = () => {
     await refresh();
   }, [refresh]);
 
-  function segStyle(active: boolean, tone: 'blue' | 'gray' | 'red'): React.CSSProperties {
-    const border =
-      tone === 'blue' ? 'rgba(59,130,246,0.5)' : tone === 'red' ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)';
-    const bg = active ? (tone === 'blue' ? '#2563eb' : tone === 'red' ? '#ef4444' : 'rgba(255,255,255,0.08)') : 'transparent';
-    const color = active ? '#fff' : 'inherit';
-    return {
-      padding: '6px 10px',
-      borderRadius: 8,
-      border: `1px solid ${border}`,
-      background: bg,
-      color,
-      cursor: 'pointer',
-      fontSize: 12,
-      minWidth: 76
-    };
-  }
-
   return (
-    <section style={{ marginTop: 18 }}>
-      <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 8 }}>Permissions</h3>
-
-      <div
-        style={{
-          padding: '10px 12px',
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 10,
-          background: 'rgba(255,255,255,0.03)',
-          marginBottom: 12
-        }}
-      >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
-          <div>
-            <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 6 }}>Global defaults</div>
-            <div style={{ fontSize: 12, opacity: 0.65 }}>
-              Choose what to do when a site requests permission and no site-specific rule exists.
-            </div>
-          </div>
-          <button
-            onClick={resetDefaultsToPrompt}
+    <section
+      style={{
+        ...styles.block,
+        ...(modeStyles.settingsBlock || {})
+      }}
+    >
+      <div style={styles.blockHeader}>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '6px' }}>
+          <h3
             style={{
-              padding: '8px 10px',
-              borderRadius: 8,
-              border: '1px solid rgba(255,255,255,0.15)',
-              background: 'transparent',
-              color: 'inherit',
-              cursor: 'pointer',
-              fontSize: 12,
-              whiteSpace: 'nowrap'
+              ...styles.blockTitle,
+              ...(modeStyles.settingsBlockTitle || {})
             }}
-            title="Set all to Prompt"
           >
-            Reset to Prompt
+            Permissions
+          </h3>
+          <span style={compose('permissionsBadge')}>Site &amp; device access</span>
+        </div>
+        <div style={compose('permissionsHeaderActions')}>
+          <button
+            type="button"
+            onClick={() => setExpanded((value) => !value)}
+            aria-label={expanded ? 'Collapse permissions settings' : 'Expand permissions settings'}
+            aria-expanded={expanded}
+            style={compose('permissionsToggleButton')}
+          >
+            {expanded ? (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                <path
+                  fill="#ffffff"
+                  d="M297.4 169.4C309.9 156.9 330.2 156.9 342.7 169.4L534.7 361.4C547.2 373.9 547.2 394.2 534.7 406.7C522.2 419.2 501.9 419.2 489.4 406.7L320 237.3L150.6 406.6C138.1 419.1 117.8 419.1 105.3 406.6C92.8 394.1 92.8 373.8 105.3 361.3L297.3 169.3z"
+                />
+              </svg>
+            ) : (
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
+                <path
+                  fill="#ffffff"
+                  d="M297.4 470.6C309.9 483.1 330.2 483.1 342.7 470.6L534.7 278.6C547.2 266.1 547.2 245.8 534.7 233.3C522.2 220.8 501.9 220.8 489.4 233.3L320 402.7L150.6 233.4C138.1 220.9 117.8 220.9 105.3 233.4C92.8 245.9 92.8 266.2 105.3 278.7L297.3 470.7z"
+                />
+              </svg>
+            )}
           </button>
         </div>
-
-        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '200px repeat(3, 120px)', gap: 8 }}>
-          <div style={{ fontSize: 12, opacity: 0.7 }}>Permission</div>
-          <div style={{ fontSize: 12, textAlign: 'center' }}>Prompt</div>
-          <div style={{ fontSize: 12, textAlign: 'center' }}>Allow</div>
-          <div style={{ fontSize: 12, textAlign: 'center' }}>Deny</div>
-
-          {PERM_TYPES.map((t) => {
-            const cur: PermDefault = state?.defaults?.[t] ?? 'prompt';
-            return (
-              <React.Fragment key={t}>
-                <div style={{ fontSize: 13 }}>{labelFor(t)}</div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button
-                    style={segStyle(cur === 'prompt', 'gray')}
-                    onClick={() => setDefault(t, 'prompt')}
-                  >
-                    Prompt
-                  </button>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button
-                    style={segStyle(cur === 'allow', 'blue')}
-                    onClick={() => setDefault(t, 'allow')}
-                  >
-                    Allow
-                  </button>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'center' }}>
-                  <button
-                    style={segStyle(cur === 'deny', 'red')}
-                    onClick={() => setDefault(t, 'deny')}
-                  >
-                    Deny
-                  </button>
-                </div>
-              </React.Fragment>
-            );
-          })}
-        </div>
       </div>
 
-      {/* Search */}
-      <div style={{ display: 'flex', gap: 8, alignItems: 'center', marginBottom: 10 }}>
-        <input
-          type="text"
-          value={query}
-          onChange={(e) => setQuery(e.target.value)}
-          placeholder="Search sites…"
-          style={{
-            flex: '1 1 auto',
-            padding: '8px 10px',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: 'transparent',
-            color: 'inherit',
-            outline: 'none'
-          }}
-        />
-        <button
-          onClick={resetAll}
-          style={{
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: '1px solid rgba(255,255,255,0.15)',
-            background: 'transparent',
-            color: 'inherit',
-            cursor: 'pointer'
-          }}
-        >
-          Reset all
-        </button>
-      </div>
-
-      {/* Table */}
-      <div
-        style={{
-          border: '1px solid rgba(255,255,255,0.08)',
-          borderRadius: 10,
-          overflow: 'hidden'
-        }}
-      >
+      {expanded && (
         <div
-          style={{
-            display: 'grid',
-            gridTemplateColumns: 'minmax(220px, 1fr) repeat(4, 120px) 110px',
-            gap: 0,
-            padding: '10px 12px',
-            background: 'rgba(255,255,255,0.03)',
-            fontSize: 12,
-            fontWeight: 700
-          }}
+          style={{ ...styles.blockBody, ...(modeStyles.settingsBlockBody || {}), ...compose('permissionsBody') }}
         >
-          <div>Site</div>
-          {PERM_TYPES.map((t) => (
-            <div key={t} style={{ textAlign: 'center' }}>
-              {labelFor(t)}
-            </div>
-          ))}
-          <div style={{ textAlign: 'right' }}>Actions</div>
-        </div>
-
-        {sites.length === 0 ? (
-          <div style={{ padding: '14px 12px', fontSize: 13, opacity: 0.8 }}>No sites yet.</div>
-        ) : (
-          sites.map(([origin, rec]) => (
-            <div
-              key={origin}
-              style={{
-                display: 'grid',
-                gridTemplateColumns: 'minmax(220px, 1fr) repeat(4, 120px) 110px',
-                gap: 0,
-                padding: '10px 12px',
-                borderTop: '1px solid rgba(255,255,255,0.06)',
-                alignItems: 'center',
-                fontSize: 13
-              }}
-            >
-              <div style={{ overflow: 'hidden', textOverflow: 'ellipsis' }} title={origin}>
-                {origin}
+          <div style={compose('permissionsDefaultsCard')}>
+            <div style={compose('permissionsDefaultsHeader')}>
+              <div>
+                <span style={compose('permissionsDefaultsTitle')}>Global defaults: </span>
+                <span style={compose('permissionsDefaultsDescription')}>
+                  Decide what happens when a site asks for access and no site-specific rule exists.
+                </span>
               </div>
+              <button
+                onClick={resetDefaultsToPrompt}
+                style={compose('permissionsResetButton')}
+                title="Set all to Prompt"
+              >
+                Reset to Prompt
+              </button>
+            </div>
 
-              {PERM_TYPES.map((t) => {
-                const val = rec[t]; // 'allow' | 'deny' | undefined
+            {isMobile ? (
+              <div style={compose('permissionsDefaultsMobileList')}>
+                {PERM_TYPES.map((t) => {
+                  const cur: PermDefault = state?.defaults?.[t] ?? 'prompt';
+                  return (
+                    <div key={t} style={compose('permissionsDefaultsMobileRow')}>
+                      <span style={compose('permissionsDefaultsLabel')}>{labelFor(t)}</span>
+                      <div style={compose('permissionsDefaultsMobileButtons')}>
+                        <button
+                          style={optionStyle('neutral', cur === 'prompt')}
+                          onClick={() => setDefault(t, 'prompt')}
+                        >
+                          Prompt
+                        </button>
+                        <button
+                          style={optionStyle('primary', cur === 'allow')}
+                          onClick={() => setDefault(t, 'allow')}
+                        >
+                          Allow
+                        </button>
+                        <button
+                          style={optionStyle('destructive', cur === 'deny')}
+                          onClick={() => setDefault(t, 'deny')}
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </div>
+                  );
+                })}
+              </div>
+            ) : (
+              <div style={compose('permissionsDefaultsOptions')}>
+                <div style={compose('permissionsDefaultsHeaderTitle')}>Permission</div>
+                <div style={compose('permissionsDefaultsHeaderLabel')}>Prompt</div>
+                <div style={compose('permissionsDefaultsHeaderLabel')}>Allow</div>
+                <div style={compose('permissionsDefaultsHeaderLabel')}>Deny</div>
+
+                {PERM_TYPES.map((t) => {
+                  const cur: PermDefault = state?.defaults?.[t] ?? 'prompt';
+                  return (
+                    <React.Fragment key={t}>
+                      <div style={compose('permissionsDefaultsLabel')}>{labelFor(t)}</div>
+                      <div style={compose('permissionsDefaultsButtonGroup')}>
+                        <button
+                          style={optionStyle('neutral', cur === 'prompt')}
+                          onClick={() => setDefault(t, 'prompt')}
+                        >
+                          Prompt
+                        </button>
+                      </div>
+                      <div style={compose('permissionsDefaultsButtonGroup')}>
+                        <button
+                          style={optionStyle('primary', cur === 'allow')}
+                          onClick={() => setDefault(t, 'allow')}
+                        >
+                          Allow
+                        </button>
+                      </div>
+                      <div style={compose('permissionsDefaultsButtonGroup')}>
+                        <button
+                          style={optionStyle('destructive', cur === 'deny')}
+                          onClick={() => setDefault(t, 'deny')}
+                        >
+                          Deny
+                        </button>
+                      </div>
+                    </React.Fragment>
+                  );
+                })}
+              </div>
+            )}
+          </div>
+
+          <div style={compose('permissionsSearchRow')}>
+            <input
+              type="text"
+              value={query}
+              onChange={(e) => setQuery(e.target.value)}
+              placeholder="Search sites…"
+              style={compose('permissionsSearchInput')}
+            />
+            <button onClick={resetAll} style={compose('permissionsResetButton')}>
+              Reset all
+            </button>
+          </div>
+
+          <div style={compose('permissionsSiteContainer')}>
+            {sites.length === 0 ? (
+              <div style={compose('permissionsSiteEmpty')}>No sites yet.</div>
+            ) : (
+              sites.map(([origin, rec], index) => {
+                const cardBase = compose('permissionsSiteCard');
+                const cardStyle = {
+                  ...cardBase,
+                  borderTop: index === 0 ? 'none' : cardBase.borderTop
+                };
+
                 return (
-                  <div key={t} style={{ display: 'flex', justifyContent: 'center', gap: 6 }}>
-                    <button
-                      onClick={() => updateSite(origin, { [t]: 'allow' })}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: 7,
-                        border: '1px solid rgba(59,130,246,0.5)',
-                        background: val === 'allow' ? '#2563eb' : 'transparent',
-                        color: val === 'allow' ? '#fff' : 'inherit',
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        minWidth: 64
-                      }}
-                    >
-                      Allow
-                    </button>
-                    <button
-                      onClick={() => updateSite(origin, { [t]: 'deny' })}
-                      style={{
-                        padding: '6px 8px',
-                        borderRadius: 7,
-                        border: '1px solid rgba(239,68,68,0.5)',
-                        background: val === 'deny' ? '#ef4444' : 'transparent',
-                        color: val === 'deny' ? '#fff' : 'inherit',
-                        cursor: 'pointer',
-                        fontSize: 12,
-                        minWidth: 64
-                      }}
-                    >
-                      Deny
-                    </button>
+                  <div key={origin} style={cardStyle}>
+                    <div style={compose('permissionsSiteCardHeader')}>
+                      <div style={compose('permissionsSiteCardOrigin')} title={origin}>
+                        {origin}
+                      </div>
+                      <button onClick={() => resetSite(origin)} style={compose('permissionsSiteResetButton')}>
+                        Reset
+                      </button>
+                    </div>
+                    <div style={compose('permissionsSiteCardPermissions')}>
+                      {PERM_TYPES.map((t) => {
+                        const val = rec[t];
+                        return (
+                          <div key={t} style={compose('permissionsSiteCardPermissionRow')}>
+                            <span style={compose('permissionsSiteCardPermissionLabel')}>{labelFor(t)}</span>
+                            <div style={compose('permissionsSiteButtons')}>
+                              <button
+                                onClick={() => updateSite(origin, { [t]: 'allow' })}
+                                style={optionStyle('primary', val === 'allow')}
+                              >
+                                Allow
+                              </button>
+                              <button
+                                onClick={() => updateSite(origin, { [t]: 'deny' })}
+                                style={optionStyle('destructive', val === 'deny')}
+                              >
+                                Deny
+                              </button>
+                            </div>
+                          </div>
+                        );
+                      })}
+                    </div>
                   </div>
                 );
-              })}
-
-              <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-                <button
-                  onClick={() => resetSite(origin)}
-                  style={{
-                    padding: '6px 10px',
-                    borderRadius: 7,
-                    border: '1px solid rgba(255,255,255,0.15)',
-                    background: 'transparent',
-                    color: 'inherit',
-                    cursor: 'pointer',
-                    fontSize: 12
-                  }}
-                >
-                  Reset
-                </button>
-              </div>
-            </div>
-          ))
-        )}
-      </div>
+              })
+            )}
+          </div>
+        </div>
+      )}
     </section>
   );
 };

@@ -4,14 +4,14 @@ type StyleRecord = Record<string, CSSProperties>;
 
 export const settingsModalStyles: StyleRecord = {
   container: {
-    width: 'min(480px, 94vw)',
+    width: 'min(620px, 94vw)',
     height: '93vh',
     maxHeight: '100vh',
     borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.96)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
-    color: '#f8fafc',
+    color: '#e2e8f0',
     display: 'flex',
     flexDirection: 'column',
     padding: '24px',
@@ -450,5 +450,265 @@ export const settingsModalStyles: StyleRecord = {
     margin: 0,
     fontSize: '13px',
     color: '#a5b4fc'
+  },
+  permissionsBadge: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsHeaderActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
+  permissionsToggleButton: {
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.65)',
+    color: '#cbd5f5',
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
+  permissionsBody: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 18
+  },
+  permissionsDefaultsCard: {
+    border: '1px solid rgba(148,163,184,0.25)',
+    borderRadius: 16,
+    background: 'rgba(17, 24, 39, 0.66)',
+    padding: '18px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 14
+  },
+  permissionsDefaultsHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  permissionsDefaultsTitle: {
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsDefaultsDescription: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4,
+    maxWidth: 420
+  },
+  permissionsDefaultsOptions: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(160px, 1.3fr) repeat(3, minmax(120px, 1fr))',
+    gap: 10,
+    alignItems: 'center'
+  },
+  permissionsDefaultsLabel: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsDefaultsButtonGroup: {
+    display: 'flex',
+    justifyContent: 'center'
+  },
+  permissionsDefaultsHeaderTitle: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsDefaultsHeaderLabel: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4,
+    textAlign: 'center'
+  },
+  permissionsOptionBase: {
+    padding: '8px 14px',
+    borderRadius: 10,
+    border: '1px solid rgba(148,163,184,0.28)',
+    background: 'transparent',
+    color: '#e2e8f0',
+    fontSize: '14px',
+    fontWeight: 600,
+    letterSpacing: '0.02em',
+    cursor: 'pointer',
+    minWidth: 100,
+    transition: 'background-color 0.2s ease, border-color 0.2s ease',
+    display: 'inline-flex',
+    justifyContent: 'center',
+    alignItems: 'center'
+  },
+  permissionsOptionNeutral: {},
+  permissionsOptionPrimary: {
+    border: '1px solid rgba(37,99,235,0.55)',
+    color: '#f8fafc',
+    background: 'rgba(37, 99, 235, 0.07)'
+  },
+  permissionsOptionDestructive: {
+    border: '1px solid rgba(239,68,68,0.55)',
+    color: '#f8fafc',
+    background: 'rgba(239,68,68,0.07)'
+  },
+  permissionsOptionActive: {
+    background: 'rgba(37, 99, 235, 0.28)'
+  },
+  permissionsDefaultsMobileList: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10
+  },
+  permissionsDefaultsMobileRow: {
+    border: '1px solid rgba(148,163,184,0.25)',
+    borderRadius: 14,
+    padding: '12px 14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10,
+    background: 'rgba(15,23,42,0.62)'
+  },
+  permissionsDefaultsMobileButtons: {
+    display: 'flex',
+    gap: 10,
+    flexWrap: 'wrap'
+  },
+  permissionsResetButton: {
+    padding: '9px 14px',
+    borderRadius: 12,
+    border: '1px solid rgba(148,163,184,0.28)',
+    background: 'rgba(15,23,42,0.6)',
+    color: '#e2e8f0',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  permissionsSearchRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: 12
+  },
+  permissionsSearchInput: {
+    flex: '1 1 auto',
+    padding: '11px 16px',
+    borderRadius: 12,
+    border: '1px solid rgba(148,163,184,0.28)',
+    background: 'rgba(15,23,42,0.55)',
+    color: '#e2e8f0',
+    outline: 'none',
+    fontSize: '14px'
+  },
+  permissionsSiteContainer: {
+    border: '1px solid rgba(148,163,184,0.25)',
+    borderRadius: 16,
+    background: 'rgba(11,17,29,0.72)',
+    overflow: 'hidden'
+  },
+  permissionsSiteHeader: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(120px, 1fr)) minmax(110px, 1fr)',
+    alignItems: 'center',
+    gap: 0,
+    padding: '12px 14px',
+    background: 'rgba(148,163,184,0.08)',
+    fontSize: '14px',
+    fontWeight: 600,
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsSiteHeaderActions: {
+    textAlign: 'right'
+  },
+  permissionsSiteRow: {
+    display: 'grid',
+    gridTemplateColumns: 'minmax(220px, 2fr) repeat(4, minmax(120px, 1fr)) minmax(110px, 1fr)',
+    alignItems: 'center',
+    gap: 0,
+    padding: '12px 14px',
+    borderTop: '1px solid rgba(148,163,184,0.22)',
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsSiteOrigin: {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    fontSize: '14px',
+    color: '#e2e8f0',
+    fontWeight: 600,
+    lineHeight: 1.4
+  },
+  permissionsSiteButtons: {
+    display: 'flex',
+    gap: 10,
+    justifyContent: 'center'
+  },
+  permissionsSiteActions: {
+    display: 'flex',
+    justifyContent: 'flex-end'
+  },
+  permissionsSiteResetButton: {
+    padding: '8px 14px',
+    borderRadius: 10,
+    border: '1px solid rgba(148,163,184,0.28)',
+    background: 'rgba(15,23,42,0.6)',
+    color: '#e2e8f0',
+    fontSize: '14px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
+  permissionsSiteEmpty: {
+    padding: '16px 18px',
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4
+  },
+  permissionsSiteCard: {
+    borderTop: '1px solid rgba(148,163,184,0.22)',
+    padding: '16px 18px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 12
+  },
+  permissionsSiteCardHeader: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12
+  },
+  permissionsSiteCardOrigin: {
+    fontWeight: 600,
+    fontSize: '14px',
+    color: '#e2e8f0',
+    lineHeight: 1.4,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis'
+  },
+  permissionsSiteCardPermissions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: 10
+  },
+  permissionsSiteCardPermissionRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+    border: '1px solid rgba(148,163,184,0.22)',
+    borderRadius: 12,
+    padding: '10px 12px'
+  },
+  permissionsSiteCardPermissionLabel: {
+    fontSize: '14px',
+    color: '#e2e8f0',
+    fontWeight: 500,
+    lineHeight: 1.4
   }
 } as const;
