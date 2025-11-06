@@ -43,6 +43,7 @@ export type SettingsState = {
   keyboard: KeyboardSettings;
   tor: TorConfig;
   messenger: MessengerSettings;
+  permissions?: unknown;
 };
 
 type SettingsLike = {
@@ -51,6 +52,7 @@ type SettingsLike = {
   keyboard?: unknown;
   tor?: unknown;
   messenger?: unknown;
+  permissions?: unknown;
 };
 
 type InstalledAppLike = {
@@ -241,13 +243,18 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const keyboard = sanitizeKeyboardSettings(source.keyboard);
   const tor = sanitizeTorConfig(source.tor);
   const messenger = sanitizeSharedMessengerSettings(source.messenger);
+  const permissions =
+    typeof source.permissions === 'object' && source.permissions !== null
+      ? source.permissions
+      : undefined;
 
   return {
     schema: SETTINGS_SCHEMA,
     installedApps,
     keyboard,
     tor,
-    messenger
+    messenger,
+    ...(permissions ? { permissions } : {})
   };
 };
 
@@ -299,12 +306,27 @@ export async function readSettingsState(): Promise<SettingsState> {
   return sanitized;
 }
 
-export async function writeSettingsState(state: unknown): Promise<SettingsState> {
-  const sanitized = sanitizeSettingsPayload(state);
+export async function writeSettingsState(patch: SettingsLike | SettingsState): Promise<SettingsState> {
   const file = getSettingsFilePath();
-  await fsp.mkdir(path.dirname(file), { recursive: true });
-  await fsp.writeFile(file, JSON.stringify(sanitized, null, 2), 'utf8');
-  return sanitized;
+
+  // 1) Read current state from disk, but do NOT write defaults here.
+  let current: SettingsState | null = null;
+  try {
+    current = await readSettingsState();
+  } catch {
+    current = null;
+  }
+
+  // 2) Merge current-on-disk with incoming patch (patch wins), then sanitize once.
+  const merged = sanitizeSettingsPayload({
+    ...(current ?? {}),
+    ...(patch ?? {})
+  });
+
+  // 3) Persist merged result.
+  await fs.promises.mkdir(path.dirname(file), { recursive: true });
+  await fs.promises.writeFile(file, JSON.stringify(merged, null, 2), 'utf8');
+  return merged;
 }
 
 export function downloadBinary(url: string, { timeoutMs = 6000 }: DownloadOptions = {}): Promise<DownloadResult> {

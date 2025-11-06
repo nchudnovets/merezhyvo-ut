@@ -41,6 +41,8 @@ import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, Messeng
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
+import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
+import { ToastCenter } from './components/notifications/ToastCenter';
 
 const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
@@ -2622,6 +2624,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
         onHeightChange={handleKeyboardHeightChange}
       />
+      <PermissionPrompt />
+      <ToastCenter />
     </div>
   );
 };

@@ -18,6 +18,8 @@ import type {
 } from '../src/types/preload';
 import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
+import type { PermissionsState } from './lib/permissions-settings';
+import path from 'path';
 
 type KeyboardSettings = {
   enabledLayouts: string[];
@@ -408,6 +410,42 @@ const exposeApi: MerezhyvoAPI = {
       key: string,
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ) => ipcRenderer.invoke('mzr:osk:key', { wcId, key, modifiers }),
+  },
+  permissions: {
+    onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void {
+      const channel = 'merezhyvo:permission:prompt';
+      const wrapped = (_evt: unknown, payload: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => {
+        handler(payload);
+      };
+      ipcRenderer.on(channel, wrapped as never);
+      return () => ipcRenderer.removeListener(channel, wrapped as never);
+    },
+    decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>> }): void {
+      ipcRenderer.send('merezhyvo:permission:decide', payload);
+    },
+    store: {
+      get(): Promise<PermissionsState> {
+        return ipcRenderer.invoke('mzr:perms:get');
+      },
+      updateSite(origin: string, patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>>): Promise<boolean> {
+        return ipcRenderer.invoke('mzr:perms:updateSite', { origin, patch });
+      },
+      resetSite(origin: string): Promise<boolean> {
+        return ipcRenderer.invoke('mzr:perms:resetSite', origin);
+      },
+      resetAll(): Promise<boolean> {
+        return ipcRenderer.invoke('mzr:perms:resetAll');
+      }
+    }
+  },
+  paths: {
+    webviewPreload(): string {
+      // The built file name is webview-preload.js next to this preload bundle.
+      // __dirname points to the compiled electron directory.
+      // Using require here to avoid ESM path pitfalls in preload bundling.
+      // eslint-disable-next-line @typescript-eslint/no-var-requires
+      return path.join(__dirname, 'webview-preload.js');
+    }
   },
 };
 

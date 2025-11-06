@@ -6,6 +6,7 @@ import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
 import KeyboardSettings from './KeyboardSettings';
 import MessengerSettings from './MessengerSettings';
+import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsAppInfo {
   name: string;
@@ -458,6 +459,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           />
 
           <KeyboardSettings mode={mode} />
+
+          <PermissionsSettings />
 
           <section
             style={{

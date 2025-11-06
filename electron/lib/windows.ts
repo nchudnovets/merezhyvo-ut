@@ -14,6 +14,7 @@ import {
   type WebPreferences
 } from 'electron';
 import { resolveMode } from '../mode';
+import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
 export const DEFAULT_URL = 'https://duckduckgo.com';
 export const MOBILE_USER_AGENT =
@@ -396,6 +397,8 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   } catch {
     // noop
   }
+  installPermissionHandlers();
+  connectPermissionPromptTarget(win.webContents);
 
   typedWin.webContents.on('did-attach-webview', (_event, contents) => {
     try {

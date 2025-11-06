@@ -296,6 +296,38 @@ const WebViewHost = forwardRef(function WebViewHost(
     emitNavigationState();
   }, [emitNavigationState]);
 
+  useEffect(() => {
+    const el = webviewRef.current;
+    if (!el) return;
+
+    // Set preload attribute (needed before navigation to guarantee injection).
+    const preloadPath = window.merezhyvo?.paths.webviewPreload();
+    if (el.getAttribute('preload') !== preloadPath) {
+      el.setAttribute('preload', preloadPath || '');
+      // Optional: if the page already navigated before we set preload,
+      // you may reload once to ensure the preload script is applied:
+      // el.reload();
+    }
+
+    // Wire ipc-message listener (mirror notifications to host)
+    const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
+      if (e.channel === 'mzr:webview:notification') {
+        const payload = e.args?.[0] as {
+          title: string;
+          options: { body: string; icon: string; data: unknown; tag: string };
+        };
+        window.dispatchEvent(new CustomEvent('mzr-notification', { detail: payload }));
+      }
+    };
+
+    // Electron.WebviewTag supports this event name
+    el.addEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
+
+    return () => {
+      el.removeEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
+    };
+  }, []);
+
   useImperativeHandle(ref, (): WebViewHandle => ({
     goBack: () => {
       const node = webviewRef.current;

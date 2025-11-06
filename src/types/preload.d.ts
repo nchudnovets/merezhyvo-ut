@@ -121,6 +121,23 @@ export interface MerezhyvoAPI {
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ): Promise<{ ok: boolean; error?: string }>;
   };
+  permissions: {
+    onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void;
+    decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>> }): void;
+    store: {
+      get(): Promise<{
+        schema: 1;
+        defaults: Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny' | 'prompt'>;
+        sites: Record<string, Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>>>;
+      }>;
+      updateSite(origin: string, patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>>): Promise<boolean>;
+      resetSite(origin: string): Promise<boolean>;
+      resetAll(): Promise<boolean>;
+    };
+  };
+  paths: {
+    webviewPreload(): string;
+  };
 }
 
 declare global {

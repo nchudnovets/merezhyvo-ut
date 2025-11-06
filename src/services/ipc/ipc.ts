@@ -26,6 +26,8 @@ type SaveTorConfigResponse = TorConfigResult;
 
 type Bridge = NonNullable<Window['merezhyvo']>;
 
+export type PermissionType = 'camera' | 'microphone' | 'geolocation' | 'notifications';
+
 const getApi = (): Bridge | undefined => {
   if (typeof window === 'undefined') return undefined;
   return window.merezhyvo ?? undefined;
@@ -242,15 +244,34 @@ export const ipc = {
   },
 
   osk: {
-  char(wcId: number, text: string) {
-    return window.merezhyvo?.osk.char(wcId, text);
+    char(wcId: number, text: string) {
+      return window.merezhyvo?.osk.char(wcId, text);
+    },
+    key(
+      wcId: number,
+      key: string,
+      modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
+    ) {
+      return window.merezhyvo?.osk.key(wcId, key, modifiers);
+    },
   },
-  key(
-    wcId: number,
-    key: string,
-    modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
-  ) {
-    return window.merezhyvo?.osk.key(wcId, key, modifiers);
-  },
-},
+  permissions: {
+    onPrompt(handler: (req: { id: string; origin: string; types: PermissionType[] }) => void): () => void {
+      if (window.merezhyvo && window.merezhyvo.permissions) {
+        return window.merezhyvo.permissions.onPrompt(handler);
+      }
+      // No-op unsubscribe when bridge is unavailable (e.g., tests/SSR)
+      return () => {};
+    },
+    decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<PermissionType, 'allow' | 'deny'>> }): void {
+      window.merezhyvo?.permissions.decide(payload);
+    },
+    store: {
+      get: () => window.merezhyvo?.permissions.store.get(),
+      updateSite: (origin: string, patch: Partial<Record<PermissionType, 'allow' | 'deny'>>) =>
+        window.merezhyvo?.permissions.store.updateSite(origin, patch),
+      resetSite: (origin: string) => window.merezhyvo?.permissions.store.resetSite(origin),
+      resetAll: () => window.merezhyvo?.permissions.store.resetAll()
+    }
+  }
 };
