@@ -78,3 +78,11 @@ export async function resetAllPermissions(): Promise<void> {
   state.sites = {};
   await setPermissionsState(state);
 }
+
+export async function updateDefaultPermissions(
+  patch: Partial<Record<PermissionType, Decision>>
+): Promise<void> {
+  const state = await getPermissionsState();
+  state.defaults = { ...state.defaults, ...patch };
+  await setPermissionsState(state);
+}

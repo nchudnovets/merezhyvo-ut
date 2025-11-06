@@ -271,7 +271,10 @@ export const ipc = {
       updateSite: (origin: string, patch: Partial<Record<PermissionType, 'allow' | 'deny'>>) =>
         window.merezhyvo?.permissions.store.updateSite(origin, patch),
       resetSite: (origin: string) => window.merezhyvo?.permissions.store.resetSite(origin),
-      resetAll: () => window.merezhyvo?.permissions.store.resetAll()
+      resetAll: () => window.merezhyvo?.permissions.store.resetAll(),
+      updateDefaults: (
+        patch: Partial<Record<PermissionType, 'allow' | 'deny' | 'prompt'>>
+      ) => window.merezhyvo?.permissions.store.updateDefaults(patch),
     }
   }
 };

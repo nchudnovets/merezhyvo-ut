@@ -4,6 +4,7 @@ import React, {
   forwardRef,
   useCallback,
   useEffect,
+  useLayoutEffect,
   useImperativeHandle,
   useRef
 } from 'react';
@@ -132,6 +133,17 @@ const WebViewHost = forwardRef(function WebViewHost(
   useEffect(() => {
     applyZoomPolicy();
   }, [applyZoomPolicy, mode]);
+
+  useLayoutEffect(() => {
+    const el = webviewRef.current;
+    if (!el) return;
+    const preloadPath = window.merezhyvo?.paths.webviewPreload();
+    if (preloadPath && el.getAttribute('preload') !== preloadPath) {
+      try {
+        el.setAttribute('preload', preloadPath);
+      } catch {}
+    }
+  }, []);
 
   useEffect(() => {
     const node = webviewRef.current;
@@ -297,36 +309,49 @@ const WebViewHost = forwardRef(function WebViewHost(
   }, [emitNavigationState]);
 
   useEffect(() => {
-    const el = webviewRef.current;
-    if (!el) return;
+  const el = webviewRef.current;
+  if (!el) return;
 
-    // Set preload attribute (needed before navigation to guarantee injection).
-    const preloadPath = window.merezhyvo?.paths.webviewPreload();
-    if (el.getAttribute('preload') !== preloadPath) {
-      el.setAttribute('preload', preloadPath || '');
-      // Optional: if the page already navigated before we set preload,
-      // you may reload once to ensure the preload script is applied:
-      // el.reload();
+  // Wire ipc-message listener (mirror notifications to host)
+  const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
+    if (e.channel !== 'mzr:webview:notification') return;
+
+    const raw = e.args?.[0] as {
+      title: string;
+      options: { body: string; icon: string; data: unknown; tag: string };
+    };
+
+    // Determine current URL of this webview for toast → focus mapping
+    let currentUrl: string | undefined;
+    try {
+      const got = el.getURL?.();
+      currentUrl = typeof got === 'string' ? got : el.src || undefined;
+    } catch {
+      currentUrl = el.src || undefined;
     }
 
-    // Wire ipc-message listener (mirror notifications to host)
-    const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
-      if (e.channel === 'mzr:webview:notification') {
-        const payload = e.args?.[0] as {
-          title: string;
-          options: { body: string; icon: string; data: unknown; tag: string };
-        };
-        window.dispatchEvent(new CustomEvent('mzr-notification', { detail: payload }));
-      }
+    const detail = {
+      title: raw.title,
+      options: {
+        body: raw.options?.body ?? '',
+        icon: raw.options?.icon ?? '',
+        data: raw.options?.data ?? null,
+        tag: raw.options?.tag ?? ''
+      },
+      source: { url: currentUrl } as { url?: string }
     };
 
-    // Electron.WebviewTag supports this event name
-    el.addEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
+    window.dispatchEvent(new CustomEvent('mzr-notification', { detail }));
+  };
 
-    return () => {
-      el.removeEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
-    };
-  }, []);
+  // Electron.WebviewTag supports this event name
+  el.addEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
+
+  return () => {
+    el.removeEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
+  };
+}, []);
+
 
   useImperativeHandle(ref, (): WebViewHandle => ({
     goBack: () => {

@@ -2324,6 +2324,38 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     event.stopPropagation();
   }, []);
 
+  const focusTab = useCallback(
+    (wanted: { tabId?: string; url?: string }) => {
+      if (!wanted) return;
+
+      // 1) Try by tabId
+      if (wanted.tabId) {
+        activateTabAction(wanted.tabId);
+        return;
+      }
+
+      // 2) Fallback: find first tab with matching URL
+      if (wanted.url) {
+        const hit = tabs.find((t) => t.url === wanted.url);
+        if (hit) {
+          activateTabAction(hit.id);
+        }
+      }
+    },
+    [tabs, activateTabAction]
+  );
+
+  useEffect(() => {
+    const onFocus = (e: Event) => {
+      const detail = (e as CustomEvent<{ tabId?: string; url?: string }>).detail;
+      focusTab(detail);
+    };
+    window.addEventListener('mzr-focus-tab' as unknown as keyof WindowEventMap, onFocus as EventListener);
+    return () => {
+      window.removeEventListener('mzr-focus-tab' as unknown as keyof WindowEventMap, onFocus as EventListener);
+    };
+  }, [focusTab]);
+
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
     setShowTabsPanel(true);

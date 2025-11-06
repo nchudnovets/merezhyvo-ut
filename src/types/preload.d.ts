@@ -133,6 +133,7 @@ export interface MerezhyvoAPI {
       updateSite(origin: string, patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>>): Promise<boolean>;
       resetSite(origin: string): Promise<boolean>;
       resetAll(): Promise<boolean>;
+      updateDefaults(patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny' | 'prompt'>>): Promise<boolean>;
     };
   };
   paths: {

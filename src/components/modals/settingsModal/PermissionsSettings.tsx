@@ -73,11 +73,45 @@ export const PermissionsSettings: React.FC = () => {
     await refresh();
   }, [refresh]);
 
+  const setDefault = useCallback(
+    async (perm: PermissionType, next: PermDefault) => {
+      await ipc.permissions.store.updateDefaults({ [perm]: next });
+      await refresh();
+    },
+    [refresh]
+  );
+
+  const resetDefaultsToPrompt = useCallback(async () => {
+    await ipc.permissions.store.updateDefaults({
+      camera: 'prompt',
+      microphone: 'prompt',
+      geolocation: 'prompt',
+      notifications: 'prompt'
+    });
+    await refresh();
+  }, [refresh]);
+
+  function segStyle(active: boolean, tone: 'blue' | 'gray' | 'red'): React.CSSProperties {
+    const border =
+      tone === 'blue' ? 'rgba(59,130,246,0.5)' : tone === 'red' ? 'rgba(239,68,68,0.5)' : 'rgba(255,255,255,0.15)';
+    const bg = active ? (tone === 'blue' ? '#2563eb' : tone === 'red' ? '#ef4444' : 'rgba(255,255,255,0.08)') : 'transparent';
+    const color = active ? '#fff' : 'inherit';
+    return {
+      padding: '6px 10px',
+      borderRadius: 8,
+      border: `1px solid ${border}`,
+      background: bg,
+      color,
+      cursor: 'pointer',
+      fontSize: 12,
+      minWidth: 76
+    };
+  }
+
   return (
     <section style={{ marginTop: 18 }}>
       <h3 style={{ fontSize: 16, fontWeight: 700, margin: 0, marginBottom: 8 }}>Permissions</h3>
 
-      {/* Defaults (read-only placeholder for now) */}
       <div
         style={{
           padding: '10px 12px',
@@ -87,19 +121,69 @@ export const PermissionsSettings: React.FC = () => {
           marginBottom: 12
         }}
       >
-        <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 6 }}>Global defaults</div>
-        <div style={{ display: 'flex', gap: 12, flexWrap: 'wrap', fontSize: 13 }}>
-          {PERM_TYPES.map((t) => (
-            <div key={t} style={{ display: 'flex', gap: 6, alignItems: 'center' }}>
-              <span style={{ opacity: 0.8 }}>{labelFor(t)}:</span>
-              <code style={{ opacity: 0.9 }}>
-                {state?.defaults?.[t] ?? 'prompt'}
-              </code>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 10 }}>
+          <div>
+            <div style={{ fontSize: 13, opacity: 0.85, marginBottom: 6 }}>Global defaults</div>
+            <div style={{ fontSize: 12, opacity: 0.65 }}>
+              Choose what to do when a site requests permission and no site-specific rule exists.
             </div>
-          ))}
+          </div>
+          <button
+            onClick={resetDefaultsToPrompt}
+            style={{
+              padding: '8px 10px',
+              borderRadius: 8,
+              border: '1px solid rgba(255,255,255,0.15)',
+              background: 'transparent',
+              color: 'inherit',
+              cursor: 'pointer',
+              fontSize: 12,
+              whiteSpace: 'nowrap'
+            }}
+            title="Set all to Prompt"
+          >
+            Reset to Prompt
+          </button>
         </div>
-        <div style={{ fontSize: 12, opacity: 0.65, marginTop: 6 }}>
-          Editing global defaults will be added next. You can manage site-specific decisions below.
+
+        <div style={{ marginTop: 10, display: 'grid', gridTemplateColumns: '200px repeat(3, 120px)', gap: 8 }}>
+          <div style={{ fontSize: 12, opacity: 0.7 }}>Permission</div>
+          <div style={{ fontSize: 12, textAlign: 'center' }}>Prompt</div>
+          <div style={{ fontSize: 12, textAlign: 'center' }}>Allow</div>
+          <div style={{ fontSize: 12, textAlign: 'center' }}>Deny</div>
+
+          {PERM_TYPES.map((t) => {
+            const cur: PermDefault = state?.defaults?.[t] ?? 'prompt';
+            return (
+              <React.Fragment key={t}>
+                <div style={{ fontSize: 13 }}>{labelFor(t)}</div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    style={segStyle(cur === 'prompt', 'gray')}
+                    onClick={() => setDefault(t, 'prompt')}
+                  >
+                    Prompt
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    style={segStyle(cur === 'allow', 'blue')}
+                    onClick={() => setDefault(t, 'allow')}
+                  >
+                    Allow
+                  </button>
+                </div>
+                <div style={{ display: 'flex', justifyContent: 'center' }}>
+                  <button
+                    style={segStyle(cur === 'deny', 'red')}
+                    onClick={() => setDefault(t, 'deny')}
+                  >
+                    Deny
+                  </button>
+                </div>
+              </React.Fragment>
+            );
+          })}
         </div>
       </div>
 

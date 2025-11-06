@@ -435,6 +435,9 @@ const exposeApi: MerezhyvoAPI = {
       },
       resetAll(): Promise<boolean> {
         return ipcRenderer.invoke('mzr:perms:resetAll');
+      },
+      updateDefaults(patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny' | 'prompt'>>): Promise<boolean> {
+        return ipcRenderer.invoke('mzr:perms:updateDefaults', patch);
       }
     }
   },

@@ -3,6 +3,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 type ToastPayload = {
   title: string;
   options: { body: string; icon: string; data: unknown; tag: string };
+  source?: { tabId?: string; url?: string };
 };
 
 type ToastItem = ToastPayload & {
@@ -99,7 +100,13 @@ export const ToastCenter: React.FC = () => {
           role="status"
           aria-live="polite"
           onClick={() => {
-            // reserve for future: focus tab, open source, etc.
+            // Ask App to focus the source tab (or match by URL)
+            window.dispatchEvent(
+              new CustomEvent('mzr-focus-tab', {
+                detail: { tabId: t.source?.tabId, url: t.source?.url }
+              })
+            );
+            setItems((prev) => prev.filter((x) => x.id !== t.id));
           }}
           style={{
             width: 'min(380px, 92vw)',

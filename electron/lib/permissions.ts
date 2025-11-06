@@ -12,7 +12,8 @@ import {
   resetAllPermissions,
   defaultPermissionsState,
   isPermissionsState,
-  type PermissionsState
+  type PermissionsState,
+  updateDefaultPermissions
 } from './permissions-settings';
 
 type RendererDecision = {
@@ -63,6 +64,13 @@ export function installPermissionHandlers(): void {
     await resetAllPermissions();
     return true;
   });
+  ipcMain.handle(
+    'mzr:perms:updateDefaults',
+    async (_e, patch: Partial<Record<PermissionType, 'allow' | 'deny' | 'prompt'>>) => {
+      await updateDefaultPermissions(patch);
+      return true;
+    }
+  );
 
   // Decision from renderer
   ipcMain.on('merezhyvo:permission:decide', (_e: ElectronEvent, decision: RendererDecision) => {
@@ -103,7 +111,21 @@ export function installPermissionHandlers(): void {
       return;
     }
 
-    // Otherwise ask renderer (modal)
+    // If no per-site decision — check global defaults.
+    // If ALL requested types have the same default (all allow OR all deny), apply it.
+    const allDefaultAllow = types.every((t) => store.defaults[t] === 'allow');
+    const allDefaultDeny  = types.every((t) => store.defaults[t] === 'deny');
+
+    if (allDefaultAllow) {
+      callback(true);
+      return;
+    }
+    if (allDefaultDeny) {
+      callback(false);
+      return;
+    }
+
+    // Mixed defaults or 'prompt' present -> ask renderer (modal)
     const id = randomId();
     const payload = {
       id,
@@ -114,6 +136,17 @@ export function installPermissionHandlers(): void {
 
     if (promptTarget) {
       promptTarget.send('merezhyvo:permission:prompt', payload);
+    }
+
+    try {
+      const decide = await waitForRendererDecision(id, 30000);
+      if (decide.remember) {
+        const persist = decide.persist ?? buildPersist(types, decide.allow);
+        await updatePermissionsState(origin, persist);
+      }
+      callback(decide.allow);
+    } catch {
+      callback(false);
     }
 
     try {
