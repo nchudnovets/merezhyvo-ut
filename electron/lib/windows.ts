@@ -38,8 +38,6 @@ const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 
 export type Mode = 'mobile' | 'desktop';
 
-export const baseZoomFor = (mode: Mode | null | undefined): number => (mode === 'mobile' ? 2.0 : 1.0);
-
 type LaunchConfig = {
   url?: string;
   fullscreen?: boolean;
