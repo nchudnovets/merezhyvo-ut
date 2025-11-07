@@ -190,7 +190,25 @@ export const permissionPromptModeStyles: Record<Mode, Partial<Record<StyleKeys, 
       justifyContent: 'center'
     },
     card: {
-      width: 'min(100%, 520px)'
+      width: '98%'
+    },
+    badge: {
+      fontSize: 32,
+    },
+    title: {
+      fontSize: 38,
+    },
+    siteText: {
+      fontSize: 34,
+    },
+    multiNote: {
+      fontSize: 32,
+    },
+    permissionHint: {
+      fontSize: 32,
+    },
+    rememberLabel: {
+      fontSize: 33,
     },
     section: {
       padding: '18px 18px',
@@ -205,7 +223,8 @@ export const permissionPromptModeStyles: Record<Mode, Partial<Record<StyleKeys, 
     },
     actionButton: {
       flex: '1 1 auto',
-      minWidth: 'auto'
+      minWidth: 'auto',
+      fontSize: 34
     }
   }
 };

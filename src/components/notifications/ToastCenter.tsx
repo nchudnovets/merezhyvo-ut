@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { toastCenterStyles } from './ToastCenterStyles';
+import { toastCenterStyles, toastCenterMobStyles } from './ToastCenterStyles';
 
 type ToastPayload = {
   title: string;
@@ -98,7 +98,7 @@ export const ToastCenter: React.FC = () => {
             );
             setItems((prev) => prev.filter((x) => x.id !== t.id));
           }}
-          style={toastCenterStyles.toast}
+          style={{...toastCenterStyles.toast, ...toastCenterMobStyles.toast}}
         >
           {/* Icon */}
           <div style={toastCenterStyles.icon}>
@@ -115,9 +115,9 @@ export const ToastCenter: React.FC = () => {
 
           {/* Text */}
           <div style={toastCenterStyles.content}>
-            <div style={toastCenterStyles.title}>{t.title}</div>
+            <div style={{...toastCenterStyles.title, ...toastCenterMobStyles.title}}>{t.title}</div>
             {t.options.body ? (
-              <div style={toastCenterStyles.body}>{t.options.body}</div>
+              <div style={{...toastCenterStyles.body, ...toastCenterMobStyles.body}}>{t.options.body}</div>
             ) : null}
 
             <button

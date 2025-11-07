@@ -84,3 +84,19 @@ export const toastCenterStyles: Record<ToastCenterStyleKeys, CSSProperties> = {
     alignSelf: 'flex-start'
   }
 };
+
+export const toastCenterMobStyles: Record<ToastCenterStyleKeys, CSSProperties> = {
+  container: {},
+  toast: { },
+  content: {},
+  title: {
+    fontSize: 35,
+  },
+  icon: {},
+  body: {
+    fontSize: 28,
+  },
+  dismiss: {
+    fontSize: 25,
+  }
+};
