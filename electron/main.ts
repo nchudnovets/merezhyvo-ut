@@ -93,6 +93,7 @@ type LaunchConfig = {
   modeOverride: ContextMenuMode | null;
   forceDark: boolean;
   single: boolean;
+  startProvided: boolean;
 };
 
 type SessionTab = {
@@ -583,6 +584,7 @@ const parseLaunchConfig = (): LaunchConfig => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
   let url = DEFAULT_URL;
+  let startProvided = false;
   const envFullscreen = (process.env.MEREZHYVO_FULLSCREEN ?? '').toLowerCase();
   let fullscreen = ['1', 'true', 'yes'].includes(envFullscreen);
   let devtools = process.env.MZV_DEVTOOLS === '1';
@@ -629,10 +631,13 @@ const parseLaunchConfig = (): LaunchConfig => {
 
     if (/^-/.test(rawArg)) continue;
 
-    if (url === DEFAULT_URL) url = normalizeAddress(rawArg);
+    if (url === DEFAULT_URL) {
+      url = normalizeAddress(rawArg);
+      startProvided = true;
+    }
   }
 
-  return { url, fullscreen, devtools, modeOverride, forceDark, single: singleWindow };
+  return { url, fullscreen, devtools, modeOverride, forceDark, single: singleWindow, startProvided };
 };
 
 const launchConfig = parseLaunchConfig();
@@ -641,7 +646,8 @@ windows.setLaunchConfig({
   fullscreen: launchConfig.fullscreen,
   devtools: launchConfig.devtools,
   modeOverride: launchConfig.modeOverride ?? undefined,
-  single: launchConfig.single
+  single: launchConfig.single,
+  startProvided: launchConfig.startProvided
 });
 
 const featureFlags = ['VaapiVideoDecoder'];

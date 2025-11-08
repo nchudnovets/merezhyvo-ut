@@ -44,6 +44,7 @@ type LaunchConfig = {
   devtools?: boolean;
   modeOverride?: Mode;
   single?: boolean;
+  startProvided?: boolean;
 };
 
 type WindowRole = 'main' | 'single' | string;
@@ -352,7 +353,13 @@ type CreateMainWindowOptions = {
 
 export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoWindow {
   const config = launchConfig ?? {};
-  const { url: startUrl = DEFAULT_URL, fullscreen, devtools, modeOverride } = config;
+  const {
+    url: startUrl = DEFAULT_URL,
+    fullscreen,
+    devtools,
+    modeOverride,
+    startProvided = false
+  } = config;
   const distIndex = path.resolve(__dirname, '..', 'dist', 'index.html');
   const initialModeCandidate = (modeOverride ?? resolveMode()) as Mode;
   const initialMode = normalizeMode(initialModeCandidate);
@@ -442,7 +449,11 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   }
   typedWin.__mzrRole = role;
 
-  const query: Record<string, string> = { start: startUrl, mode: initialMode };
+  const query: Record<string, string> = {
+    start: startUrl,
+    mode: initialMode,
+    startProvided: startProvided ? '1' : '0'
+  };
   if (role === 'single') {
     query.single = '1';
   }

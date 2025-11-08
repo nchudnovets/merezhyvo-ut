@@ -215,6 +215,7 @@ const parseStartUrl = (): StartParams => {
   try {
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('start');
+    const providedParam = params.get('startProvided');
     const singleParam = params.get('single');
 
     let url = DEFAULT_URL;
@@ -225,7 +226,15 @@ const parseStartUrl = (): StartParams => {
       } catch {
         url = raw;
       }
-      hasStartParam = true;
+      const normalizedRaw = url.trim();
+      const providedFlag = (providedParam || '').toLowerCase();
+      const explicitlyProvided = ['1', 'true', 'yes'].includes(providedFlag);
+      if (explicitlyProvided && normalizedRaw) {
+        hasStartParam = true;
+      } else if (!providedParam && normalizedRaw && normalizedRaw !== DEFAULT_URL) {
+        // Backwards compatibility with builds that don't set startProvided.
+        hasStartParam = true;
+      }
     }
 
     const single = typeof singleParam === 'string'
