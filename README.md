@@ -30,6 +30,19 @@
     *   Language switcher shows the current layout label **on the Space key**.
         
     *   Works in the main window and inside the `<webview>` without stealing focus.
+- **Permissions & privacy (new)**
+  - Built-in permission broker for **geolocation, camera, microphone, notifications**.
+  - Per-site rules (**Allow / Deny**) + **Global defaults** (**Prompt / Allow / Deny**).
+  - UI: runtime **Permission Prompt** + **Settings → Permissions** panel (search/reset).
+- **System notifications (new)**
+  - Site `Notification` calls are **delivered via Lomiri system notifications** by default.
+  - In-app toasts exist for debugging but are disabled by default.
+- **Geolocation without Google API key (new)**
+  - A system backend uses **QtPositioning** via a tiny QML helper (`qmlscene -platform offscreen`).
+  - Falls back to GeoClue2 when available.
+  - Works on-device without any Google Geolocation API/Billing.
+- **Stable config path (new)**: all state lives under `~/.config/merezhyvo`.
+
         
 
 ## Project layout
@@ -49,30 +62,6 @@
 Quick check:
 
 `node -v npm -v clickable --version docker ps`
-
-## Local development
-
-
-`npm install npm start`
-
-Useful scripts:
-
-*   `npm run lint` – ESLint (fix errors; warnings are acceptable)
-    
-*   `npm run typecheck` – TypeScript check (`allowJs` enabled)
-    
-*   `npm run build` – build renderer to `dist/` (also run by `npm start`)
-    
-
-`npm start` compiles React to `dist/` and the main process to `dist-electron/`, then launches:
-
-
-`electron dist-electron/main.js`
-
-For fullscreen test on desktop:
-
-
-`npm start -- -- --fullscreen`
 
 ## Packaging for Ubuntu Touch (.click)
 
@@ -100,6 +89,15 @@ The artifact will be in `build/`, e.g.:
 
 > `manifest.json` uses `framework: "ubuntu-sdk-20.04"` and `architecture: ["@CLICK_ARCH@"]` (UT 24.04 compatible). Clickable substitutes `arm64`.
 
+### Packaging notes
+
+*   `apparmor.json` is referenced from `manifest.json → hooks.<your-hook>.apparmor`.
+    
+*   We copy `electron/ut/location_once.qml` into the package under `app/resources/ut/location_once.qml` so that `process.resourcesPath/ut/location_once.qml` is available on device.
+    
+*   `dbus-next` is used in the main process (GeoClue2 path). Esbuild excludes optional native `x11` with `--external:x11` in the **main** bundle.
+
+
 ## Install on device
 
 Copy the `.click` to your phone and run on the **device** (via `adb shell` or SSH):
@@ -111,16 +109,6 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
 
 `adb shell cd /opt/click.ubuntu.com/merezhyvo.naz.r/current ./app/merezhyvo`
 
-### Rendering tips
-
-If you see a black screen/flicker, try tweaking `Exec` in `app.desktop`:
-
-*   `env OZONE_PLATFORM=wayland ./app/merezhyvo --fullscreen`
-    
-*   or simply `./app/merezhyvo --fullscreen` (no `OZONE_PLATFORM`)
-    
-*   or add `--enable-features=UseOzonePlatform`
-    
 
 ## On-screen keyboard (OSK) & Settings
 
@@ -151,9 +139,64 @@ If you see a black screen/flicker, try tweaking `Exec` in `app.desktop`:
         
 *   Messenger toolbar order is stored under `messenger.order` and can be rearranged in **Settings → Messenger toolbar**.
 
+- - -
 
-> Heads-up: other settings (Tor, Installed Apps) currently write under  
-> `~/.config/<AppName>/profiles/default/`. We’ll consolidate all settings into a single schema/file in a future update.
+## Permissions & Prompts
+
+*   **Permission Prompt** appears on first use (per origin) for: **geolocation, camera, microphone, notifications**.
+    
+*   Decisions can be persisted per-site (Allow/Deny) or handled by **Global defaults** (Prompt/Allow/Deny per type).
+    
+*   Manage saved rules in **Settings → Permissions**:
+    
+    *   Search by origin, clear one or all.
+        
+    *   Adjust Global defaults.
+        
+*   Chromium‐side `session.setPermissionRequestHandler` is wired to the same broker, so native permission requests and our “soft requests” share one UI and storage.
+    
+
+- - -
+
+## Notifications
+
+*   Site calls to `new Notification(title, options)` are intercepted in the WebView and **forwarded to system notifications**.
+    
+*   If system notifications are not available, an internal toast center can be enabled for development (off by default).
+    
+
+- - -
+
+## Geolocation (no Google API key)
+
+*   We override `navigator.geolocation` in the **page’s main world** (CSP-safe), and dispatch requests to the main process.
+    
+*   Main process tries:
+    
+    1.  **QtPositioning** via `qmlscene -platform offscreen` and `electron/ut/location_once.qml`.
+        
+    2.  **GeoClue2** via D-Bus (`org.freedesktop.GeoClue2`) if present.
+        
+*   This avoids the Chromium Google WebService provider and works on UT without any Google keys.
+    
+### Requirements on device
+
+*   `qmlscene`, Qt offscreen platform plugin, and `QtPositioning` QML module (present on stock UT images).
+    
+*   AppArmor policy groups include: `location`, `networking` (plus `camera`, `microphone`, `audio` for other features).
+
+### Debugging
+
+*   Logs are written to `~/.config/merezhyvo/geo.log`.
+    
+*   Typical useful commands on device:
+    
+    bash
+    
+    Копіювати код
+    
+    `tail -f ~/.config/merezhyvo/geo.log journalctl -kf | grep -i 'apparmor\|denied' journalctl -f  | grep -Ei 'qmlscene|QtPositioning|geoclue|lomiri' which qmlscene && qmlscene -version`
+
 
 ## Scripts
 
