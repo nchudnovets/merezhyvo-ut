@@ -13,7 +13,7 @@
     "clean": "rimraf dist dist-electron app-bin app build",
     "build:renderer": "esbuild src/index.js --bundle --outfile=dist/renderer.js --format=iife --platform=browser --target=es2020 --loader:.js=jsx",
     "build:static": "mkdirp dist && cp src/index.html dist/index.html",
-    "build:electron": "esbuild electron/main.ts electron/preload.ts electron/mode.ts --bundle --outdir=dist-electron --platform=node --target=node18 --format=cjs --log-level=info --external:electron && esbuild electron/context-menu.ts --bundle --outfile=dist-electron/context-menu.js --platform=node --target=node18 --format=cjs --log-level=info --external:electron",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts electron/mode.ts --bundle --external:x11 --outdir=dist-electron --platform=node --target=node18 --format=cjs --log-level=info --external:electron && esbuild electron/context-menu.ts --bundle --outfile=dist-electron/context-menu.js --platform=node --target=node18 --format=cjs --log-level=info --external:electron",
     "build": "npm run clean && npm run build:static && npm run build:renderer && npm run build:electron",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "lint": "eslint --ext .js,.jsx,.ts,.tsx src electron",
@@ -35,6 +35,7 @@
     "click:install": "adb push build/*.click /home/phablet/Downloads/ && adb shell 'click install --allow-untrusted /home/phablet/Downloads/*.click'"
   },
   "dependencies": {
+    "dbus-next": "^0.10.2",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-simple-keyboard": "^3.8.132",

@@ -14,6 +14,9 @@ npm ci
 echo "==> Step 2/3: npm run package (build React + pack Electron for ${ARCH})"
 npm run package
 
+mkdir -p app/resources/ut
+cp electron/ut/location_once.qml app/resources/ut/location_once.qml
+
 # sanity-check: бінар має існувати
 if [ ! -f "./app/merezhyvo" ]; then
   echo "ERROR: ./app/merezhyvo не знайдено після 'npm run package'."

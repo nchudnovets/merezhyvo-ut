@@ -1,5 +1,11 @@
 {
   "template": "unconfined",
   "policy_version": "@APPARMOR_POLICY@",
-  "policy_groups": []
+  "policy_groups": [
+    "networking",
+    "location",
+    "camera",
+    "microphone",
+    "audio"
+  ]
 }

@@ -1,4 +1,5 @@
 import {
+  app,
   ipcMain,
   session,
   type WebContents,
@@ -15,6 +16,22 @@ import {
   type PermissionsState,
   updateDefaultPermissions
 } from './permissions-settings';
+import { getSystemPosition } from './system-location';
+import fs from 'fs';
+import path from 'path';
+
+let _mzrPermHandlersInstalled = false;
+
+// small local logger for geolocation/perm IPC
+function geoIpcLog(msg: string): void {
+  try {
+    const file = path.join(app.getPath('userData'), 'geo.log');
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
+  } catch {
+    // ignore
+  }
+}
+geoIpcLog('permissions module init');
 
 type RendererDecision = {
   id: string;
@@ -42,6 +59,15 @@ function safeMediaTypes(val: unknown): ChromiumMediaType[] {
 }
 
 export function installPermissionHandlers(): void {
+  if (_mzrPermHandlersInstalled) {
+    // already installed (avoid double ipcMain.handle registration)
+    try { /* optional: leave for diagnostics */ }
+    finally {
+      //no-op
+    }
+    return;
+  }
+  _mzrPermHandlersInstalled = true;
   const ses = session.defaultSession;
 
   // Store API
@@ -71,6 +97,59 @@ export function installPermissionHandlers(): void {
       return true;
     }
   );
+  // Soft permission request (used by webview-preload geolocation shim)
+  ipcMain.handle(
+    'mzr:perms:softRequest',
+    async (_e, payload: { origin: string; types: PermissionType[] }) => {
+      geoIpcLog(`softRequest origin=${payload.origin} types=${payload.types.join(',')}`);
+      const { origin, types } = payload;
+      const store = await getPermissionsState();
+      const site = store.sites[origin] ?? {};
+
+      // Per-site saved decision?
+      const savedForAll = types.every((t) => site[t] === 'allow' || site[t] === 'deny');
+      if (savedForAll) {
+        return types.every((t) => site[t] === 'allow');
+      }
+
+      // Global defaults homogeneous?
+      const allDefaultAllow = types.every((t) => store.defaults[t] === 'allow');
+      const allDefaultDeny  = types.every((t) => store.defaults[t] === 'deny');
+      if (allDefaultAllow) return true;
+      if (allDefaultDeny) return false;
+
+      // Ask user via existing permissions prompt UI
+      const id = randomId();
+      if (promptTarget) {
+        promptTarget.send('merezhyvo:permission:prompt', { id, webContentsId: 0, origin, types });
+      }
+      try {
+        const decide = await waitForRendererDecision(id, 30000);
+        if (decide.remember) {
+          const persist = decide.persist ?? buildPersist(types, decide.allow);
+          await updatePermissionsState(origin, persist);
+        }
+        return decide.allow;
+      } catch {
+        return false;
+      }
+    }
+  );
+
+  // Geolocation: current position via system D-Bus backend
+  ipcMain.handle(
+    'mzr:geo:getCurrentPosition',
+    async (_e, opts: { timeoutMs?: number } | undefined) => {
+      geoIpcLog(`geo:getCurrentPosition timeoutMs=${opts?.timeoutMs ?? 0}`);
+      const fix = await getSystemPosition(opts?.timeoutMs ?? 8000);
+      geoIpcLog(`geo:getCurrentPosition result=${fix ? (fix.latitude + ',' + fix.longitude + '±' + fix.accuracy) : 'null'}`);
+      return fix; // null if unavailable
+    }
+  );
+
+  ipcMain.handle('mzr:geo:log', async (_e, msg: string) => {
+    geoIpcLog(`preload: ${msg}`);
+  });
 
   // Decision from renderer
   ipcMain.on('merezhyvo:permission:decide', (_e: ElectronEvent, decision: RendererDecision) => {

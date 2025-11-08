@@ -39,6 +39,7 @@ import type { TorConfig } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
+import { installPermissionHandlers } from './lib/permissions';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
 if (!requireWithExtensions.extensions['.ts']) {
@@ -50,6 +51,18 @@ try {
 } catch {
   // noop
 }
+
+// ---- Force stable userData dir: ~/.config/merezhyvo ----
+(function ensureStableUserData() {
+  try {
+    const home = app.getPath('home'); // safe before 'ready'
+    const target = path.join(home, '.config', 'merezhyvo');
+    app.setPath('userData', target);
+    try { app.setAppLogsPath(target); } catch {}
+  } catch {
+    // If anything goes wrong, Electron falls back to its default path
+  }
+})();
 
 const fsp = fs.promises;
 
@@ -646,6 +659,8 @@ registerKeyboardSettingsIPC();
 registerMessengerSettingsIPC();
 
 app.whenReady().then(() => {
+  // Register permission IPC handlers (must run before any webContents asks for them)
+  installPermissionHandlers();
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);
