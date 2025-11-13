@@ -134,16 +134,16 @@ const WebViewHost = forwardRef(function WebViewHost(
     applyZoomPolicy();
   }, [applyZoomPolicy, mode]);
 
-  useLayoutEffect(() => {
-    const el = webviewRef.current;
-    if (!el) return;
-    const preloadPath = window.merezhyvo?.paths.webviewPreload();
-    if (preloadPath && el.getAttribute('preload') !== preloadPath) {
-      try {
-        el.setAttribute('preload', preloadPath);
-      } catch {}
-    }
-  }, []);
+  // useLayoutEffect(() => {
+  //   const el = webviewRef.current;
+  //   if (!el) return;
+  //   const preloadPath = window.merezhyvo?.paths.webviewPreload();
+  //   if (preloadPath && el.getAttribute('preload') !== preloadPath) {
+  //     try {
+  //       el.setAttribute('preload', preloadPath);
+  //     } catch {}
+  //   }
+  // }, []);
 
   useEffect(() => {
     const node = webviewRef.current;

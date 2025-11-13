@@ -14,7 +14,8 @@ import {
   type WebPreferences
 } from 'electron';
 import { resolveMode } from '../mode';
-import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
+// temporary commented out
+// import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
 export const DEFAULT_URL = 'https://duckduckgo.com';
 export const MOBILE_USER_AGENT =
@@ -618,8 +619,9 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   } catch {
     // noop
   }
-  installPermissionHandlers();
-  connectPermissionPromptTarget(win.webContents);
+  // temporary commented out
+  // installPermissionHandlers();  // TO INVESTIGATE: this one breaks out fullscreen mode for videos
+  // connectPermissionPromptTarget(win.webContents);
 
   typedWin.webContents.on(
     'will-attach-webview',
