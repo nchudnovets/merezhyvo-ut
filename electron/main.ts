@@ -39,7 +39,8 @@ import type { TorConfig } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
-import { installPermissionHandlers } from './lib/permissions';
+// import { installPermissionHandlers } from './lib/permissions';
+// import { installGeoHandlers } from './lib/geo-ipc';
 
 const requireWithExtensions = require as NodeJS.Require & { extensions: NodeJS.RequireExtensions };
 if (!requireWithExtensions.extensions['.ts']) {
@@ -665,8 +666,8 @@ registerKeyboardSettingsIPC();
 registerMessengerSettingsIPC();
 
 app.whenReady().then(() => {
-  // Register permission IPC handlers (must run before any webContents asks for them)
-  installPermissionHandlers();
+  // installPermissionHandlers();
+  // installGeoHandlers();
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);

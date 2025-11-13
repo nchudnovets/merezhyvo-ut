@@ -139,6 +139,9 @@ export interface MerezhyvoAPI {
   paths: {
     webviewPreload(): string;
   };
+  debug?: {
+    logGeo(msg: string): void;
+  };
 }
 
 declare global {

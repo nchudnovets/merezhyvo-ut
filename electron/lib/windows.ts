@@ -36,6 +36,222 @@ const DESKTOP_ONLY_HOSTS = new Set<string>([
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 
+function geoIpcLog(msg: string): void {
+  try {
+    // const file = path.join(app.getPath('userData'), 'geo.log');
+    // fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
+  } catch {
+    // ignore
+  }
+};
+
+function ensureDir(p: string): void {
+  try { fs.mkdirSync(p, { recursive: true }); } catch {}
+}
+
+// Мінімальна версія прелоада (CommonJS), самодостатня, без залежності від шляхів у пакеті
+
+// commenting it out tmporary and replasing with a silent version below
+
+// const WEBVIEW_PRELOAD_SRC = `
+// // *** Merezhyvo webview preload (generated at runtime) ***
+// (function(){
+//   const { ipcRenderer, webFrame } = require('electron');
+//   try { Promise.resolve(ipcRenderer.invoke('mzr:geo:log', 'preload init')); } catch {}
+
+//   // Mirror Notification to host
+//   const NativeNotification = window.Notification;
+//   class MirrorNotification extends NativeNotification {
+//     constructor(title, options) {
+//       super(title, options);
+//       try {
+//         ipcRenderer.sendToHost('mzr:webview:notification', {
+//           title,
+//           options: {
+//             body: (options && options.body) || '',
+//             icon: (options && options.icon) || '',
+//             data: (options && options.data) || null,
+//             tag: (options && options.tag) || ''
+//           }
+//         });
+//       } catch {}
+//     }
+//   }
+//   try { Object.defineProperty(window, 'Notification', { value: MirrorNotification, configurable: true }); } catch {}
+
+//   // Bridge page <-> preload
+//   window.addEventListener('message', async (ev) => {
+//     var d = ev && ev.data;
+//     if (!d || d.channel !== 'MZR_GEO_REQ' || !d.id) return;
+//     var origin = window.location.origin;
+
+//     try { await ipcRenderer.invoke('mzr:geo:log', 'preload: req kind=' + (d.kind || 'get') + ' origin=' + origin); } catch {}
+
+//     try {
+//       const allowed = await ipcRenderer.invoke('mzr:perms:softRequest', { origin, types: ['geolocation'] });
+//       if (!allowed) {
+//         try { await ipcRenderer.invoke('mzr:geo:log', 'preload: denied by softRequest'); } catch {}
+//         window.postMessage({ channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 1, errorMessage: 'Permission denied' }, '*');
+//         return;
+//       }
+
+//       const timeoutMs = (d.options && typeof d.options.timeout === 'number') ? d.options.timeout : 8000;
+//       const fix = await ipcRenderer.invoke('mzr:geo:getCurrentPosition', { timeoutMs });
+
+//       if (fix) {
+//         try { await ipcRenderer.invoke('mzr:geo:log', 'preload: ok lat=' + fix.latitude + ' lon=' + fix.longitude + ' ±' + fix.accuracy); } catch {}
+//         window.postMessage({ channel: 'MZR_GEO_RES', id: d.id, ok: true, fix }, '*');
+//       } else {
+//         try { await ipcRenderer.invoke('mzr:geo:log', 'preload: no position (null)'); } catch {}
+//         window.postMessage({ channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 2, errorMessage: 'Position unavailable' }, '*');
+//       }
+//     } catch (e) {
+//       try { await ipcRenderer.invoke('mzr:geo:log', 'preload: error ' + String(e)); } catch {}
+//       window.postMessage({ channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 2, errorMessage: String(e) }, '*');
+//     }
+//   });
+
+//   // Inject MAIN-world shim now (bypasses CSP)
+//   (function install(){
+//     const code = \`
+//       (function(){
+//         if (!('geolocation' in navigator)) return;
+
+//         function onceHandler(id, success, error) {
+//           function onMsg(ev) {
+//             var d = ev && ev.data;
+//             if (!d || d.channel !== 'MZR_GEO_RES' || d.id !== id) return;
+//             window.removeEventListener('message', onMsg);
+//             if (d.ok && d.fix) {
+//               var pos = {
+//                 coords: {
+//                   latitude: d.fix.latitude,
+//                   longitude: d.fix.longitude,
+//                   accuracy: d.fix.accuracy,
+//                   altitude: null,
+//                   altitudeAccuracy: null,
+//                   heading: null,
+//                   speed: null
+//                 },
+//                 timestamp: d.fix.timestamp
+//               };
+//               try { success(pos); } catch(_) {}
+//             } else if (typeof error === 'function') {
+//               error({ code: d.errorCode || 2, message: d.errorMessage || 'Position unavailable' });
+//             }
+//           }
+//           return onMsg;
+//         }
+
+//         var geoShim = {
+//           getCurrentPosition: function(success, error, options){
+//             var id = Math.random().toString(36).slice(2);
+//             var handler = onceHandler(id, success, error);
+//             window.addEventListener('message', handler);
+//             window.postMessage({ channel: 'MZR_GEO_REQ', id: id, kind: 'get', options: { timeout: options && options.timeout, enableHighAccuracy: options && options.enableHighAccuracy, maximumAge: options && options.maximumAge } }, '*');
+//           },
+//           watchPosition: function(success, error, options){
+//             var poll = Math.max(1000, (options && options.maximumAge) || 3000);
+//             var active = true;
+//             var wid = (Date.now() ^ Math.floor(Math.random()*1e9));
+//             function tick(){
+//               if (!active) return;
+//               var id = Math.random().toString(36).slice(2);
+//               var handler = onceHandler(id, success, error);
+//               window.addEventListener('message', handler);
+//               window.postMessage({ channel: 'MZR_GEO_REQ', id: id, kind: 'get', options: { timeout: options && options.timeout, enableHighAccuracy: options && options.enableHighAccuracy, maximumAge: options && options.maximumAge } }, '*');
+//               if (active) setTimeout(tick, poll);
+//             }
+//             setTimeout(tick, 0);
+//             (window.__mzrGeoCancel || (window.__mzrGeoCancel = {}))[wid] = function(){ active = false; };
+//             return wid;
+//           },
+//           clearWatch: function(wid){
+//             if (window.__mzrGeoCancel && typeof window.__mzrGeoCancel[wid] === 'function') {
+//               window.__mzrGeoCancel[wid]();
+//               delete window.__mzrGeoCancel[wid];
+//             }
+//           }
+//         };
+
+//         try {
+//           Object.defineProperty(navigator, 'geolocation', { value: geoShim, configurable: true });
+//         } catch(_){
+//           try {
+//             navigator.geolocation.getCurrentPosition = geoShim.getCurrentPosition;
+//             navigator.geolocation.watchPosition = geoShim.watchPosition;
+//             navigator.geolocation.clearWatch = geoShim.clearWatch;
+//           } catch(__){}
+//         }
+//       })();
+//     \`;
+//     try { webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]); } catch (e) {}
+//   })();
+// })();
+// `;
+
+// temporary silent one
+
+const WEBVIEW_PRELOAD_SRC = `
+  // *** Merezhyvo webview preload (GEO PAUSED) ***
+  (() => {
+    const { ipcRenderer } = require('electron');
+
+    // Mirror Notification to host (залишаємо як було)
+    const NativeNotification = window.Notification;
+    class MirrorNotification extends NativeNotification {
+      constructor(title, options) {
+        super(title, options);
+        try {
+          ipcRenderer.sendToHost('mzr:webview:notification', {
+            title,
+            options: { body: (options && options.body) || '' }
+          });
+        } catch {}
+      }
+    }
+    try { (window as any).Notification = MirrorNotification; } catch {}
+
+    // TEMP: повністю відключаємо геолокацію в Web API (без IPC, без UI, без логів)
+    try {
+      const g = (navigator as any).geolocation;
+      if (g) {
+        const denied = (errCb?: (e: any) => void) => {
+          if (typeof errCb === 'function') {
+            const e: any = new Error('Geolocation disabled');
+            e.code = 1; // PERMISSION_DENIED
+            e.PERMISSION_DENIED = 1;
+            e.POSITION_UNAVAILABLE = 2;
+            e.TIMEOUT = 3;
+            errCb(e);
+          }
+        };
+        g.getCurrentPosition = (_ok: any, err?: any) => denied(err);
+        g.watchPosition = (_ok: any, err?: any) => { denied(err); return -1 as any; };
+        g.clearWatch = (_id: number) => {};
+      }
+    } catch {}
+  })();
+  `;
+
+function ensureWebviewPreloadOnDisk(): string {
+  const dir = app.getPath('userData'); // ~/.config/merezhyvo
+  const file = path.join(dir, 'webview-preload.js');
+  try {
+    ensureDir(dir);
+    fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8');
+  } catch (e) {
+    // last attempt
+    try { ensureDir(dir); fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8'); } catch {}
+  }
+  try {
+    const sz = fs.statSync(file).size;
+    geoIpcLog(`ensurePreload wrote ${file} (${sz} bytes)`);
+  } catch {}
+  return file;
+}
+
+
 export type Mode = 'mobile' | 'desktop';
 
 type LaunchConfig = {
@@ -404,6 +620,21 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   }
   installPermissionHandlers();
   connectPermissionPromptTarget(win.webContents);
+
+  typedWin.webContents.on(
+    'will-attach-webview',
+    (_event, webPreferences: WebPreferences & { preload?: string }, params: { src?: string }) => {
+      const before = String(webPreferences?.preload || '');
+      const preloadPath = ensureWebviewPreloadOnDisk();
+
+      // Force our preload if empty or different (always OK to override)
+      webPreferences.preload = preloadPath;
+
+      geoIpcLog(
+        `will-attach-webview set preload=${preloadPath} (was='${before}') src=${String(params?.src || '')}`
+      );
+    }
+  );
 
   typedWin.webContents.on('did-attach-webview', (_event, contents) => {
     try {

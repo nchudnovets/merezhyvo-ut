@@ -1,61 +1,51 @@
-import QtQuick 2.4
+import QtQuick 2.12
 import QtPositioning 5.12
 
-QtObject {
+Item {
   id: root
+  property int timeoutMs: 30000
 
-  // Read --timeout=NNN from CLI args (default 8000 ms)
-  property int timeoutMs: 8000
   Component.onCompleted: {
     var args = Qt.application.arguments || []
     for (var i = 0; i < args.length; i++) {
-      var a = args[i]
-      if (typeof a === "string" && a.indexOf("--timeout=") === 0) {
-        var v = parseInt(a.substring("--timeout=".length))
-        if (!isNaN(v) && v > 0) timeoutMs = v
-      }
+      var m = /^--timeout=(\d+)$/.exec(args[i])
+      if (m) { timeoutMs = parseInt(m[1], 10) }
     }
-    // start positioning
     src.active = true
-    // safety timeout
-    timer.interval = timeoutMs
-    timer.running = true
-  }
-
-  function finishWithPosition(pos) {
-    // Print one JSON line to STDOUT and quit
-    // Using print(), not console.log() -> stdout
-    if (pos) {
-      var fix = {
-        latitude:  pos.coordinate.latitude,
-        longitude: pos.coordinate.longitude,
-        // QtPositioning may not expose accuracy uniformly → optional
-        accuracy:  0,
-        timestamp: Date.now()
-      }
-      print("__MZR_FIX__" + JSON.stringify(fix))
-    } else {
-      print("__MZR_FIX__null")
-    }
-    Qt.quit()
-  }
-
-  Timer {
-    id: timer
-    repeat: false
-    onTriggered: root.finishWithPosition(null)
   }
 
   PositionSource {
     id: src
     active: false
-    updateInterval: 1000
+    preferredPositioningMethods: PositionSource.SatellitePositioningMethods | PositionSource.NonSatellitePositioningMethods
+    updateInterval: 0
+
     onPositionChanged: {
-      // Got first fix → return and quit
-      root.finishWithPosition(position)
+      var c = position.coordinate
+      print(JSON.stringify({
+        ok: true,
+        latitude: c.latitude,
+        longitude: c.longitude,
+        accuracy: position.horizontalAccuracy
+      }))
+      Qt.quit()
     }
-    onSourceErrorChanged: {
-      // Keep trying until timeout; do nothing here
+
+    onErrorChanged: {
+      if (error !== PositionSource.NoError) {
+        print(JSON.stringify({ ok: false, error: errorString }))
+        Qt.quit()
+      }
+    }
+  }
+
+  Timer {
+    interval: timeoutMs
+    running: true
+    repeat: false
+    onTriggered: {
+      print(JSON.stringify({ ok: false, error: "timeout" }))
+      Qt.quit()
     }
   }
 }

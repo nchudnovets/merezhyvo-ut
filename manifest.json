@@ -7,7 +7,7 @@
   "architecture": "@CLICK_ARCH@",
   "hooks": {
     "merezhyvo": {
-      "apparmor": "merezhyvo.apparmor",
+      "apparmor": "apparmor.json",
       "desktop": "app.desktop"
     }
   },

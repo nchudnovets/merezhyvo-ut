@@ -1,293 +1,687 @@
-import { systemBus, Variant } from 'dbus-next';
+// electron/lib/system-location.ts
 import { spawn } from 'child_process';
-import path from 'path';
-import { app } from 'electron';
+import { Message, type MessageBus, systemBus, type Variant } from 'dbus-next';
 import fs from 'fs';
+import path from 'path';
+import https from 'https';
 
-export type PositionFix = {
-  latitude: number;
-  longitude: number;
-  accuracy: number;
-  timestamp: number; // ms since epoch
-};
-
-type DBusProps = {
-  Get(interfaceName: string, property: string): Promise<Variant>;
-};
-type GeoClueManager = {
-  CreateClient(): Promise<string>; // object path
-};
-type GeoClueClient = {
-  Start(): Promise<void>;
-  Stop(): Promise<void>;
-};
+type Fix = { latitude: number; longitude: number; accuracy?: number };
 
 function geoLog(msg: string): void {
   try {
-    const dir = app.getPath('userData');
-    const file = path.join(dir, 'geo.log');
-    const line = `[${new Date().toISOString()}] ${msg}\n`;
-    fs.appendFileSync(file, line, 'utf8');
-  } catch {
-    // ignore logging errors
-  }
-}
-
-function asNumber(v: unknown): number | null {
-  const n = typeof v === 'number' ? v : Number(v);
-  return Number.isFinite(n) ? n : null;
-}
-function asString(v: unknown): string | null {
-  return typeof v === 'string' ? v : null;
-}
-function variantValue(v: Variant | unknown): unknown {
-  return (v as Variant)?.value ?? v;
-}
-
-async function getWithGeoClue2(timeoutMs: number): Promise<PositionFix | null> {
-  const bus = systemBus();
-
-  // Manager
-  const managerObj = await bus.getProxyObject('org.freedesktop.GeoClue2', '/org/freedesktop/GeoClue2/Manager');
-  const manager = managerObj.getInterface('org.freedesktop.GeoClue2.Manager') as unknown as GeoClueManager;
-
-  // Client
-  const clientPath = await manager.CreateClient();
-  const clientObj = await bus.getProxyObject('org.freedesktop.GeoClue2', clientPath);
-  const client = clientObj.getInterface('org.freedesktop.GeoClue2.Client') as unknown as GeoClueClient;
-  const clientProps = clientObj.getInterface('org.freedesktop.DBus.Properties') as unknown as DBusProps;
-
-  // Optional: set RequestedAccuracyLevel/DesktopId if available (best-effort, ignore errors)
-  try {
-    const propsIf = clientObj.getInterface('org.freedesktop.DBus.Properties') as unknown as {
-      Set: (iface: string, prop: string, value: Variant) => Promise<void>;
-    };
-    await propsIf.Set(
-      'org.freedesktop.GeoClue2.Client',
-      'RequestedAccuracyLevel',
-      new Variant('u', 3) // 1: country, 2: city, 3: neighborhood, 4: street, 5: exact
-    );
+    const file = path.join(process.env.HOME || '', '.config', 'merezhyvo', 'geo.log');
+    fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
   } catch {
     // ignore
   }
-
-  // Start updates
-  await client.Start();
-
-  const deadline = Date.now() + Math.max(1000, timeoutMs);
-  let lastError: unknown = null;
-
-  try {
-    while (Date.now() < deadline) {
-      try {
-        const locPathVar = await clientProps.Get('org.freedesktop.GeoClue2.Client', 'Location');
-        const locPath = asString(variantValue(locPathVar));
-        if (locPath) {
-          const locObj = await bus.getProxyObject('org.freedesktop.GeoClue2', locPath);
-          const locProps = locObj.getInterface('org.freedesktop.DBus.Properties') as unknown as DBusProps;
-          const lat = asNumber(variantValue(await locProps.Get('org.freedesktop.GeoClue2.Location', 'Latitude')));
-          const lon = asNumber(variantValue(await locProps.Get('org.freedesktop.GeoClue2.Location', 'Longitude')));
-          const acc = asNumber(variantValue(await locProps.Get('org.freedesktop.GeoClue2.Location', 'Accuracy')));
-          const tsVar = await locProps.Get('org.freedesktop.GeoClue2.Location', 'Timestamp'); // optional
-          const tsVal = variantValue(tsVar);
-          const ts = typeof tsVal === 'object' && tsVal !== null && 'seconds' in (tsVal as Record<string, unknown>)
-            ? Number((tsVal as Record<string, unknown>).seconds) * 1000
-            : Date.now();
-
-          if (lat != null && lon != null) {
-            return {
-              latitude: lat,
-              longitude: lon,
-              accuracy: acc ?? 0,
-              timestamp: Number.isFinite(ts) ? ts : Date.now()
-            };
-          }
-        }
-      } catch (e) {
-        lastError = e;
-      }
-      await new Promise((r) => setTimeout(r, 400));
-    }
-  } finally {
-    try {
-      await client.Stop();
-    } catch {
-      // ignore
-    }
-  }
-
-  // No fix
-  const _ = lastError;
-  return null;
 }
 
-async function getWithQtLocation(timeoutMs: number): Promise<PositionFix | null> {
-  // 1) Resolve QML path (resources → dist-electron → source)
-  const qmlCandidates: string[] = [];
-  try {
-    const res = process.resourcesPath || '';
-    if (res) qmlCandidates.push(path.join(res, 'ut', 'location_once.qml'));
-  } catch {}
-  qmlCandidates.push(path.resolve(__dirname, '../ut/location_once.qml'));
-  qmlCandidates.push(path.resolve(__dirname, '../../electron/ut/location_once.qml'));
+/* -------------------------------
+ * Low-level DBus helpers
+ * ------------------------------- */
 
-  let qmlPath = '';
-  for (const p of qmlCandidates) {
-    try {
-      fs.statSync(p);
-      qmlPath = p;
-      break;
-    } catch {}
+function dbusCall(
+  bus: MessageBus,
+  destination: string,
+  objectPath: string,
+  iface: string,
+  member: string,
+  signature: string,
+  body: unknown[]
+) {
+  const msg = new Message({
+    destination,
+    path: objectPath,
+    interface: iface,
+    member,
+    signature,
+    body,
+  });
+  return bus.call(msg);
+}
+
+function vGet(x: unknown): unknown {
+  // Unwrap dbus-next Variant if present
+  const anyObj = x as Record<string, unknown> | null;
+  if (anyObj && typeof anyObj === 'object' && 'value' in anyObj && 'signature' in anyObj) {
+    return (x as Variant).value;
   }
-  if (!qmlPath) {
-    geoLog('QtLocation: QML not found in resources/dev paths');
+  return x;
+}
+
+function nOrNaN(z: unknown): number {
+  const v = Number(z);
+  return Number.isFinite(v) ? v : NaN;
+}
+
+function normalizeTupleLike(x: unknown): Fix | null {
+  // Accept [lat, lon, acc?] or object-like with lat/lon keys.
+  if (Array.isArray(x)) {
+    const lat = nOrNaN(x[0]);
+    const lon = nOrNaN(x[1]);
+    const acc = nOrNaN(x[2]);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { latitude: lat, longitude: lon, accuracy: Number.isFinite(acc) ? acc : undefined };
+    }
     return null;
   }
 
-  // 2) Build Qt env for offscreen usage
-  //    Try common Qt5 locations for UT (arm64/armhf) and generic /usr/lib/qt5
-  const qtRoots = [
-    '/usr/lib/aarch64-linux-gnu/qt5',
-    '/usr/lib/arm-linux-gnueabihf/qt5',
-    '/usr/lib/qt5'
-  ];
-  const pluginPaths: string[] = [];
-  const qmlImportPaths: string[] = [];
-  for (const root of qtRoots) {
-    const pPlugins = path.join(root, 'plugins');
-    const pQml = path.join(root, 'qml');
-    try {
-      if (fs.existsSync(pPlugins)) pluginPaths.push(pPlugins);
-    } catch {}
-    try {
-      if (fs.existsSync(pQml)) qmlImportPaths.push(pQml);
-    } catch {}
+  if (x && typeof x === 'object') {
+    const o = x as Record<string, unknown>;
+    const lat = nOrNaN(o.latitude ?? o.lat ?? o.Latitude ?? o.Lat);
+    const lon = nOrNaN(o.longitude ?? o.lon ?? o.lng ?? o.Longitude ?? o.Lon);
+    const acc = nOrNaN(o.accuracy ?? o['horizontal-accuracy'] ?? o.Accuracy ?? o.hacc);
+    if (Number.isFinite(lat) && Number.isFinite(lon)) {
+      return { latitude: lat, longitude: lon, accuracy: Number.isFinite(acc) ? acc : undefined };
+    }
+    const nested = o.Location ?? o.location ?? o.Position ?? o.position;
+    if (nested != null) return normalizeTupleLike(nested);
   }
 
-  const childEnv = {
-    ...process.env,
-    // Force offscreen so qmlscene won't touch Mir/Lomiri at all
-    QT_QPA_PLATFORM: 'offscreen',
-    // Make sure plugins and QML modules are discoverable
-    ...(pluginPaths.length ? { QT_PLUGIN_PATH: pluginPaths.join(':') } : {}),
-    ...(qmlImportPaths.length ? { QML2_IMPORT_PATH: qmlImportPaths.join(':') } : {})
-  };
+  return null;
+}
 
-  // 3) Spawn qmlscene
-  const cmd = 'qmlscene';
-  const args = ['-platform', 'offscreen', '-quit', qmlPath, `--timeout=${Math.max(1000, timeoutMs)}`];
+function extractFixFromProps(props: Record<string, unknown>): Fix | null {
+  const cand = normalizeTupleLike(props);
+  if (cand) return cand;
 
-  geoLog(`QtLocation: spawning qmlscene: ${cmd} ${args.join(' ')}`);
-  if (childEnv.QT_PLUGIN_PATH) geoLog(`QtLocation: QT_PLUGIN_PATH=${childEnv.QT_PLUGIN_PATH}`);
-  if (childEnv.QML2_IMPORT_PATH) geoLog(`QtLocation: QML2_IMPORT_PATH=${childEnv.QML2_IMPORT_PATH}`);
+  const lat = nOrNaN(props.Latitude ?? props.latitude ?? props.Lat ?? props.lat);
+  const lon = nOrNaN(props.Longitude ?? props.longitude ?? props.Lon ?? props.lon ?? props.lng);
+  const acc = nOrNaN(
+    props.Accuracy ?? props.accuracy ?? props['horizontal-accuracy'] ?? props.HAcc ?? props.hacc
+  );
+
+  if (Number.isFinite(lat) && Number.isFinite(lon)) {
+    return { latitude: lat, longitude: lon, accuracy: Number.isFinite(acc) ? acc : undefined };
+  }
+
+  const nested = props.Location ?? props.location ?? props.Position ?? props.position;
+  if (nested != null) return normalizeTupleLike(nested);
+
+  return null;
+}
+
+async function getManagedObjects(bus: MessageBus, service: string, objPath: string) {
+  try {
+    const reply = await dbusCall(
+      bus,
+      service,
+      objPath,
+      'org.freedesktop.DBus.ObjectManager',
+      'GetManagedObjects',
+      '',
+      []
+    );
+    const raw = (reply.body?.[0] ?? null) as unknown;
+    const out: Array<{ path: string; ifaces: Record<string, Record<string, unknown>> }> = [];
+
+    const objEntries: Array<[string, unknown]> =
+      raw instanceof Map ? Array.from(raw.entries()) : Object.entries((raw as object) || {});
+
+    for (const [p, ifaceMap] of objEntries) {
+      const ifaceEntries: Array<[string, unknown]> =
+        ifaceMap instanceof Map ? Array.from(ifaceMap.entries()) : Object.entries((ifaceMap as object) || {});
+      const ifaces: Record<string, Record<string, unknown>> = {};
+      for (const [ifaceName, propMap] of ifaceEntries) {
+        const propEntries: Array<[string, unknown]> =
+          propMap instanceof Map ? Array.from(propMap.entries()) : Object.entries((propMap as object) || {});
+        const props: Record<string, unknown> = {};
+        for (const [k, v] of propEntries) props[k] = vGet(v);
+        ifaces[ifaceName] = props;
+      }
+      out.push({ path: p, ifaces });
+    }
+
+    geoLog(`ObjectManager: ${service}${objPath} -> ${out.length} objects`);
+    return out;
+  } catch (e) {
+    geoLog(`ObjectManager: failed at ${service}${objPath}: ${String(e)}`);
+    return null;
+  }
+}
+
+async function propsGet(
+  bus: MessageBus,
+  service: string,
+  objPath: string,
+  iface: string,
+  prop: string
+): Promise<unknown | null> {
+  try {
+    const reply = await dbusCall(
+      bus,
+      service,
+      objPath,
+      'org.freedesktop.DBus.Properties',
+      'Get',
+      'ss',
+      [iface, prop]
+    );
+    const val = vGet(reply.body?.[0]);
+    return vGet(val);
+  } catch (e) {
+    geoLog(`Properties.Get ${service}${objPath} ${iface}.${prop} failed: ${String(e)}`);
+    return null;
+  }
+}
+
+async function introspect(bus: MessageBus, service: string, objPath: string): Promise<string | null> {
+  try {
+    const reply = await dbusCall(
+      bus,
+      service,
+      objPath,
+      'org.freedesktop.DBus.Introspectable',
+      'Introspect',
+      '',
+      []
+    );
+    const xml = String(reply.body?.[0] ?? '');
+    return xml || null;
+  } catch (e) {
+    geoLog(`Introspect: failed at ${service}${objPath}: ${String(e)}`);
+    return null;
+  }
+}
+
+/* ---------------------------------------------
+ * DBus discovery helpers
+ * --------------------------------------------- */
+
+let _omProbed = false; // probe ObjectManager only once per process
+
+async function listSystemBusNames(bus: MessageBus): Promise<string[]> {
+  try {
+    const reply = await dbusCall(
+      bus,
+      'org.freedesktop.DBus',
+      '/org/freedesktop/DBus',
+      'org.freedesktop.DBus',
+      'ListNames',
+      '',
+      []
+    );
+    const names = reply.body?.[0] as unknown;
+    if (Array.isArray(names)) return names.map((x) => String(x));
+  } catch (e) {
+    geoLog(`ListNames failed: ${String(e)}`);
+  }
+  return [];
+}
+
+type Introspected = {
+  interfaces: Array<{
+    name: string;
+    methods: Array<{ name: string; inArgs: string[]; outArgs: string[] }>;
+    properties: Array<{ name: string; type: string }>;
+  }>;
+  nodes: string[];
+};
+
+function parseIntrospectXml(xml: string): Introspected {
+  const interfaces: Introspected['interfaces'] = [];
+  const nodes: string[] = [];
+
+  // nodes
+  {
+    const nodeRe = /<node\s+name="([^"]+)"\s*\/>/g;
+    let m: RegExpExecArray | null;
+    while ((m = nodeRe.exec(xml))) nodes.push(m[1]);
+  }
+
+  // interfaces
+  {
+    const ifaceRe = /<interface\s+name="([^"]+)">([\s\S]*?)<\/interface>/g;
+    let m: RegExpExecArray | null;
+    while ((m = ifaceRe.exec(xml))) {
+      const name = m[1];
+      const body = m[2];
+      const properties: Array<{ name: string; type: string }> = [];
+      const methods: Array<{ name: string; inArgs: string[]; outArgs: string[] }> = [];
+
+      // properties in this interface
+      {
+        const propRe = /<property\s+name="([^"]+)"\s+type="([^"]+)"/g;
+        let p: RegExpExecArray | null;
+        while ((p = propRe.exec(body))) {
+          properties.push({ name: p[1], type: p[2] });
+        }
+      }
+
+      // methods in this interface
+      {
+        const methRe = /<method\s+name="([^"]+)">([\s\S]*?)<\/method>/g;
+        let mm: RegExpExecArray | null;
+        while ((mm = methRe.exec(body))) {
+          const mname = mm[1];
+          const inner = mm[2];
+          const argsRe = /<arg\s+[^>]*type="([^"]+)"\s+direction="(in|out)"/g;
+          const inArgs: string[] = [];
+          const outArgs: string[] = [];
+          let a: RegExpExecArray | null;
+          while ((a = argsRe.exec(inner))) {
+            if (a[2] === 'in') inArgs.push(a[1]);
+            else outArgs.push(a[1]);
+          }
+          methods.push({ name: mname, inArgs, outArgs });
+        }
+      }
+
+      interfaces.push({ name, methods, properties });
+    }
+  }
+
+  return { interfaces, nodes };
+}
+
+async function tryCallLikelyMethod(
+  bus: MessageBus,
+  service: string,
+  objPath: string,
+  iface: string,
+  method: { name: string; inArgs: string[]; outArgs: string[] }
+): Promise<Fix | null> {
+  // Only methods with NO inputs and 2–3 double outputs are considered.
+  if (method.inArgs.length > 0) return null;
+  const out = method.outArgs;
+  const allDouble = out.length >= 2 && out.length <= 3 && out.every((t) => t === 'd');
+  if (!allDouble) return null;
 
   try {
-    const child = spawn(cmd, args, {
-      env: childEnv,
-      stdio: ['ignore', 'pipe', 'pipe']
+    const reply = await dbusCall(bus, service, objPath, iface, method.name, '', []);
+    const body = (reply.body ?? []) as unknown[];
+    const nums = body.map((x) => nOrNaN(vGet(x)));
+    if (nums.length >= 2 && Number.isFinite(nums[0]) && Number.isFinite(nums[1])) {
+      const fix: Fix = { latitude: nums[0], longitude: nums[1] };
+      if (Number.isFinite(nums[2])) fix.accuracy = nums[2];
+      geoLog(`DBus(Method): ${service}${objPath} ${iface}.${method.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+      return fix;
+    }
+  } catch (e) {
+    geoLog(`DBus(Method) call ${service}${objPath} ${iface}.${method.name} failed: ${String(e)}`);
+  }
+  return null;
+}
+
+async function tryViaGenericDbusScan(timeoutMs: number): Promise<Fix | null> {
+  const bus = systemBus();
+  const deadline = Date.now() + Math.max(1500, Math.min(timeoutMs, 5000));
+
+  const names = await listSystemBusNames(bus);
+  const candNames = names.filter((n) =>
+    /(lomiri.*location|location.*lomiri|geoclue|geo\.?clue|gnss|gps|ubuntu.*location)/i.test(n)
+  );
+
+  if (candNames.length === 0) {
+    geoLog('DBus(Generic): no candidate service names on system bus');
+    return null;
+  }
+
+  const visited = new Set<string>();
+  const propNames = [
+    'Latitude','longitude','Longitude','latitude','Lat','Lon','lng',
+    'Accuracy','horizontal-accuracy','accuracy','HAcc','hacc',
+    'Location','Position'
+  ];
+
+  for (const svc of candNames) {
+    const queue: string[] = ['/', '/com', '/com/lomiri', '/com/ubuntu', '/org', '/org/freedesktop'];
+    let steps = 0;
+
+    while (queue.length && Date.now() < deadline && steps < 60) {
+      steps++;
+      const p = queue.shift()!;
+      const key = `${svc}::${p}`;
+      if (visited.has(key)) continue;
+      visited.add(key);
+
+      const xml = await introspect(bus, svc, p);
+      if (!xml) continue;
+
+      const parsed = parseIntrospectXml(xml);
+
+      // 1) Try properties we know
+      for (const itf of parsed.interfaces) {
+        if (!/(Location|Position|Geo|Service|Manager)/i.test(itf.name)) continue;
+
+        // Try to fetch properties bucket
+        const bucket: Record<string, unknown> = {};
+        for (const prop of itf.properties) {
+          if (propNames.includes(prop.name)) {
+            const val = await propsGet(bus, svc, p, itf.name, prop.name);
+            if (val !== null && val !== undefined) bucket[prop.name] = vGet(val);
+          }
+        }
+        const fix = extractFixFromProps(bucket);
+        if (fix) {
+          geoLog(`DBus(Generic): fix via Properties ${svc}${p} iface=${itf.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+          return fix;
+        }
+      }
+
+      // 2) If no luck, try "likely" methods (no inputs, 2–3 doubles out)
+      for (const itf of parsed.interfaces) {
+        if (!/(Location|Position|Geo|Service|Manager)/i.test(itf.name)) continue;
+        for (const m of itf.methods) {
+          const fix = await tryCallLikelyMethod(bus, svc, p, itf.name, m);
+          if (fix) return fix;
+        }
+      }
+
+      // enqueue children
+      for (const child of parsed.nodes) {
+        const childPath = p === '/' ? `/${child}` : `${p}/${child}`;
+        if (!visited.has(`${svc}::${childPath}`)) queue.push(childPath);
+      }
+    }
+  }
+
+  return null;
+}
+
+/* ---------------------------------------------
+ * Legacy OM and targeted introspect (kept)
+ * --------------------------------------------- */
+
+async function tryLomiriOverObjectManager(timeoutMs: number): Promise<Fix | null> {
+  if (_omProbed) return null;
+  _omProbed = true;
+
+  const bus = systemBus();
+  const services = ['com.lomiri.location.Service', 'com.ubuntu.location.Service'];
+  const roots = ['/', '/com/lomiri/location', '/com/lomiri/location/Service', '/com/ubuntu/location', '/com/ubuntu/location/Service'];
+
+  const deadline = Date.now() + Math.max(1500, Math.min(timeoutMs, 5000));
+
+  for (const svc of services) {
+    for (const root of roots) {
+      if (Date.now() > deadline) return null;
+      const objs = await getManagedObjects(bus, svc, root);
+      if (!objs || objs.length === 0) continue;
+
+      for (const o of objs) {
+        for (const [ifaceName, props] of Object.entries(o.ifaces)) {
+          if (!/(Location|Position|Geo|Manager|Service)/i.test(ifaceName)) continue;
+          const fix = extractFixFromProps(props);
+          if (fix) {
+            geoLog(`DBus(OM): fix from ${svc}${o.path} iface=${ifaceName} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+            return fix;
+          }
+        }
+      }
+
+      const propNames = [
+        'Latitude','longitude','Longitude','latitude','Lat','Lon','lng',
+        'Accuracy','horizontal-accuracy','accuracy','HAcc','hacc',
+        'Location','Position'
+      ];
+
+      for (const o of objs) {
+        for (const ifaceName of Object.keys(o.ifaces)) {
+          if (!/(Location|Position|Geo|Manager|Service)/i.test(ifaceName)) continue;
+
+          const bucket: Record<string, unknown> = {};
+          for (const p of propNames) {
+            if (Date.now() > deadline) break;
+            const val = await propsGet(bus, svc, o.path, ifaceName, p);
+            if (val !== null && val !== undefined) bucket[p] = vGet(val);
+          }
+          const fix = extractFixFromProps(bucket);
+          if (fix) {
+            geoLog(`DBus(OM): fix via Properties.Get ${svc}${o.path} iface=${ifaceName} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+            return fix;
+          }
+        }
+      }
+    }
+  }
+
+  return null;
+}
+
+async function tryLomiriViaIntrospect(timeoutMs: number): Promise<Fix | null> {
+  const bus = systemBus();
+  const services = ['com.lomiri.location.Service', 'com.ubuntu.location.Service'];
+  const starts = ['/', '/com', '/com/lomiri', '/com/lomiri/location', '/com/lomiri/location/Service', '/com/ubuntu', '/com/ubuntu/location', '/com/ubuntu/location/Service'];
+  const deadline = Date.now() + Math.max(2000, Math.min(timeoutMs, 5000));
+
+  const propNames = [
+    'Latitude','longitude','Longitude','latitude','Lat','Lon','lng',
+    'Accuracy','horizontal-accuracy','accuracy','HAcc','hacc',
+    'Location','Position'
+  ];
+
+  for (const svc of services) {
+    const visited = new Set<string>();
+    const queue = [...starts];
+    let steps = 0;
+    while (queue.length && Date.now() < deadline && steps < 40) {
+      steps++;
+      const p = queue.shift()!;
+      if (visited.has(p)) continue;
+      visited.add(p);
+
+      const xml = await introspect(bus, svc, p);
+      if (!xml) continue;
+
+      const parsed = parseIntrospectXml(xml);
+
+      for (const iface of parsed.interfaces) {
+        if (!/(Location|Position|Geo|Service)/i.test(iface.name)) continue;
+
+        const bucket: Record<string, unknown> = {};
+        for (const pn of propNames) {
+          const val = await propsGet(bus, svc, p, iface.name, pn);
+          if (val !== null && val !== undefined) bucket[pn] = vGet(val);
+        }
+        const fix = extractFixFromProps(bucket);
+        if (fix) {
+          geoLog(`DBus(Introspect): fix from ${svc}${p} iface=${iface.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+          return fix;
+        }
+
+        // Try method-based location as well
+        for (const m of iface.methods) {
+          const viaMethod = await tryCallLikelyMethod(bus, svc, p, iface.name, m);
+          if (viaMethod) return viaMethod;
+        }
+      }
+
+      for (const child of parsed.nodes) {
+        const childPath = p === '/' ? `/${child}` : `${p}/${child}`;
+        if (!visited.has(childPath)) queue.push(childPath);
+      }
+    }
+  }
+  return null;
+}
+
+/* ---------------------------
+ * QtLocation one-shot helper (kept as reserve)
+ * --------------------------- */
+
+function guessClickAppId(): string | null {
+  try {
+    const pkg = 'merezhyvo.naz.r';
+    const base = `/opt/click.ubuntu.com/${pkg}`;
+    const cur = path.join(base, 'current');
+    if (fs.existsSync(cur)) {
+      const real = fs.realpathSync(cur);
+      const version = path.basename(path.dirname(real));
+      if (version && version !== 'current') {
+        return `${pkg}_merezhyvo_${version}`;
+      }
+    }
+    if (fs.existsSync(base)) {
+      const vers = fs.readdirSync(base).filter((d) => /^\d/.test(d)).sort();
+      const last = vers[vers.length - 1];
+      if (last) return `${pkg}_merezhyvo_${last}`;
+    }
+  } catch {
+    // ignore
+  }
+  return null;
+}
+
+function sanitizedEnv(extra: Record<string, string>): NodeJS.ProcessEnv {
+  // Keep a minimal safe subset; drop X/Wayland/Mir hints completely.
+  const allow = new Set(['HOME', 'PATH', 'LANG', 'LC_ALL']);
+  const out: NodeJS.ProcessEnv = {};
+
+  for (const k of Object.keys(process.env)) {
+    if (allow.has(k)) {
+      const v = process.env[k];
+      if (typeof v === 'string') out[k] = v;
+    }
+  }
+
+  // Force remove popular display/session vars by not including them at all.
+  // (DISPLAY, WAYLAND_DISPLAY, XDG_SESSION_TYPE, MIR_SOCKET, QT_QPA_PLATFORMTHEME)
+  return { ...out, ...extra };
+}
+
+function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
+  return new Promise((resolve) => {
+    const qmlPath = '/opt/click.ubuntu.com/merezhyvo.naz.r/current/app/resources/ut/location_once.qml';
+    const args = ['-platform', 'offscreen', qmlPath, `--timeout=${timeoutMs}`];
+
+    const aa = '/usr/bin/aa-exec-click';
+    let cmd = 'qmlscene';
+    let cmdArgs = args;
+
+    if (fs.existsSync(aa)) {
+      const appId = process.env.MZR_CLICK_APP_ID || guessClickAppId();
+      if (appId) {
+        cmd = 'aa-exec-click';
+        cmdArgs = ['-p', appId, '--', 'qmlscene', ...args];
+        geoLog(`QtLocation: spawning via aa-exec-click -p ${appId} -- qmlscene ${args.join(' ')}`);
+      } else {
+        geoLog(`QtLocation: aa-exec-click present but appId unknown; fallback to direct qmlscene`);
+      }
+    } else {
+      geoLog(`QtLocation: spawning qmlscene ${args.join(' ')}`);
+    }
+
+    const child = spawn(cmd, cmdArgs, {
+      env: sanitizedEnv({
+        QSG_RENDER_LOOP: 'basic',
+        QT_QUICK_BACKEND: 'software',
+        QT_LOGGING_RULES: 'qt.positioning.*=true;qt.geoclue.*=true',
+        QT_PLUGIN_PATH: '/usr/lib/aarch64-linux-gnu/qt5/plugins:/usr/lib/arm-linux-gnueabihf/qt5/plugins',
+        QML2_IMPORT_PATH: '/usr/lib/aarch64-linux-gnu/qt5/qml:/usr/lib/arm-linux-gnueabihf/qt5/qml',
+        OZONE_PLATFORM: "wayland"
+      }),
     });
 
-    let outBuf = '';
-    let errBuf = '';
+    let last: Fix | null = null;
+    const onChunk = (buf: Buffer) => {
+      const s = buf.toString();
+      const m = s.match(/__MZR_FIX__\s*([\-0-9.]+)\s*,\s*([\-0-9.]+)\s*,\s*([\-0-9.]+)/);
+      if (m) last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
+      geoLog(`QtLocation: qmlscene log: ${s.trim()}`);
+    };
 
-    const result = await new Promise<PositionFix | null>((resolve) => {
-      const killTimer = setTimeout(() => {
-        try { child.kill('SIGKILL'); } catch {}
-        geoLog('QtLocation: timeout waiting for fix');
-        resolve(null);
-      }, Math.max(1200, timeoutMs + 600));
+    child.stderr.on('data', onChunk);
+    child.stdout.on('data', onChunk);
 
-      child.stdout.setEncoding('utf8');
-      child.stderr.setEncoding('utf8');
+    child.on('exit', () => {
+      if (last) {
+        resolve(last);
+        return;
+      }
+      geoLog('QtLocation: qmlscene exit without fix');
+      resolve(null);
+    });
 
-      child.stdout.on('data', (chunk: string) => {
-        outBuf += chunk;
-        // Parse lines for our marker
-        const lines = outBuf.split('\n');
-        // Keep last partial line in buffer
-        outBuf = lines.pop() || '';
-        for (const line of lines) {
-          if (line.startsWith('__MZR_FIX__')) {
-            try {
-              const payload = line.slice('__MZR_FIX__'.length);
-              const parsed = payload === 'null' ? null : JSON.parse(payload);
-              clearTimeout(killTimer);
-              try { child.kill('SIGKILL'); } catch {}
-              if (parsed && typeof parsed.latitude === 'number' && typeof parsed.longitude === 'number') {
-                const fix: PositionFix = {
-                  latitude: parsed.latitude,
-                  longitude: parsed.longitude,
-                  accuracy: typeof parsed.accuracy === 'number' ? parsed.accuracy : 0,
-                  timestamp: typeof parsed.timestamp === 'number' ? parsed.timestamp : Date.now()
-                };
-                geoLog(`QtLocation: got fix lat=${fix.latitude} lon=${fix.longitude} acc=${fix.accuracy}`);
-                resolve(fix);
-              } else {
-                geoLog('QtLocation: got null/invalid fix');
-                resolve(null);
-              }
+    setTimeout(() => {
+      try { child.kill(); } catch { /* ignore */ }
+    }, Math.max(5000, timeoutMs + 1500));
+  });
+}
+
+/* ---------------------------
+ * Network IP fallback
+ * --------------------------- */
+
+function tryIpFallback(timeoutMs: number): Promise<Fix | null> {
+  return new Promise((resolve) => {
+    const req = https.get('https://ipinfo.io/json', (res) => {
+      let data = '';
+      res.on('data', (c) => (data += c));
+      res.on('end', () => {
+        try {
+          const j = JSON.parse(data) as { loc?: string };
+          if (typeof j.loc === 'string' && j.loc.includes(',')) {
+            const [latStr, lonStr] = j.loc.split(',');
+            const lat = Number(latStr);
+            const lon = Number(lonStr);
+            if (Number.isFinite(lat) && Number.isFinite(lon)) {
+              const fix: Fix = { latitude: lat, longitude: lon, accuracy: 50000 };
+              geoLog(`NetworkIP: fix ${lat},${lon}±${fix.accuracy}`);
+              resolve(fix);
               return;
-            } catch (e) {
-              geoLog(`QtLocation: parse error: ${String(e)}`);
-              resolve(null);
             }
           }
+        } catch {
+          // ignore
         }
-      });
-
-      child.stderr.on('data', (chunk: string) => {
-        errBuf += chunk;
-      });
-
-      child.on('exit', (code, sig) => {
-        clearTimeout(killTimer);
-        if (errBuf.trim()) geoLog(`QtLocation: qmlscene stderr: ${errBuf.trim()}`);
-        geoLog(`QtLocation: qmlscene exit code=${code ?? -1} sig=${sig ?? 'none'}`);
-        resolve(null);
-      });
-
-      child.on('error', (err) => {
-        clearTimeout(killTimer);
-        geoLog(`QtLocation: spawn error: ${String(err)}`);
+        geoLog('NetworkIP: failed null');
         resolve(null);
       });
     });
-
-    return result;
-  } catch (e) {
-    geoLog(`QtLocation: exception spawning qmlscene: ${String(e)}`);
-    return null;
-  }
+    req.setTimeout(Math.min(4000, timeoutMs), () => {
+      try { req.destroy(); } catch { /* ignore */ }
+      resolve(null);
+    });
+    req.on('error', () => resolve(null));
+  });
 }
 
+/* ---------------------------
+ * Public API
+ * --------------------------- */
 
-/**
- * Best-effort Ubuntu legacy backend (placeholder).
- * Many UT images expose GeoClue2; if not, we'll extend to ubuntu-location-service here.
- */
-async function getWithUbuntuLegacy(_timeoutMs: number): Promise<PositionFix | null> {
-  return null;
-}
-
-export async function getSystemPosition(timeoutMs = 8000): Promise<PositionFix | null> {
+export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> {
   geoLog(`getSystemPosition(timeoutMs=${timeoutMs})`);
-  try {
-    const qmlFix = await getWithQtLocation(timeoutMs);
-    if (qmlFix) return qmlFix;
-  } catch {
-    // ignore and try geoclue2
+
+  const qmlTimeout = Math.min(Math.max(timeoutMs, 20000), 60000); // 20–60s window
+  const skipDbus = process.env.MZR_SKIP_DBUS === '1';
+
+  if (!skipDbus) {
+    // 1) Generic DBus scan across location-like services (first, most robust)
+    try {
+      const generic = await tryViaGenericDbusScan(3000);
+      if (generic) return generic;
+    } catch (e) {
+      geoLog(`DBus(Generic): error ${String(e)}`);
+    }
+
+    // 2) Targeted legacy probes (kept for completeness)
+    try {
+      const om = await tryLomiriOverObjectManager(2000);
+      if (om) return om;
+    } catch (e) {
+      geoLog(`DBus(OM): error ${String(e)}`);
+    }
+
+    try {
+      const viaIntrospect = await tryLomiriViaIntrospect(3000);
+      if (viaIntrospect) return viaIntrospect;
+    } catch (e) {
+      geoLog(`DBus(Introspect): error ${String(e)}`);
+    }
+  } else {
+    geoLog('DBus probe skipped by MZR_SKIP_DBUS=1');
   }
+
+  // 3) QML one-shot (reserve) — may still be blocked by X check on some builds
   try {
-    const fix = await getWithGeoClue2(timeoutMs);
-    if (fix) return fix;
-  } catch {
-    // ignore and try legacy
+    const q = await tryQmlOnce(qmlTimeout);
+    if (q) return q;
+  } catch (e) {
+    geoLog(`QtLocation: error ${String(e)}`);
   }
-  try {
-    const fix = await getWithUbuntuLegacy(timeoutMs);
-    if (fix) return fix;
-  } catch {
-    // ignore
-  }
-  return null;
+
+  // 4) Last resort
+  return await tryIpFallback(timeoutMs);
 }

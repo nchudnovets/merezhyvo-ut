@@ -20,6 +20,7 @@ import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
 import path from 'path';
+import fs from 'fs';
 
 type KeyboardSettings = {
   enabledLayouts: string[];
@@ -443,13 +444,34 @@ const exposeApi: MerezhyvoAPI = {
   },
   paths: {
     webviewPreload(): string {
-      // The built file name is webview-preload.js next to this preload bundle.
-      // __dirname points to the compiled electron directory.
-      // Using require here to avoid ESM path pitfalls in preload bundling.
-      // eslint-disable-next-line @typescript-eslint/no-var-requires
-      return path.join(__dirname, 'webview-preload.js');
+      const candidates = [
+        path.join(__dirname, 'webview-preload.js'),
+        path.join(__dirname, 'webview-preload.cjs'),
+        path.join(__dirname, '../electron', 'webview-preload.js'),
+        path.join(process.resourcesPath || '', 'app.asar.unpacked', 'electron', 'webview-preload.js'),
+        path.join(process.resourcesPath || '', 'electron', 'webview-preload.js'),
+      ];
+
+      // for (const p of candidates) {
+      //   try {
+      //     if (fs.existsSync(p)) {
+      //       try { void ipcRenderer.invoke('mzr:geo:log', `paths.webviewPreload: ${p}`); } catch {}
+      //       return p;
+      //     }
+      //   } catch {}
+      // }
+
+      // try { void ipcRenderer.invoke('mzr:geo:log', `paths.webviewPreload: not found (dirname=${__dirname})`); } catch {}
+      return '';
     }
   },
+
+  // Simple debug hook to write into geo.log from the renderer
+  debug: {
+    logGeo(msg: string): void {
+      try { void ipcRenderer.invoke('mzr:geo:log', `renderer: ${msg}`); } catch {}
+    }
+  }
 };
 
 contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
