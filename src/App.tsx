@@ -2449,8 +2449,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const showServiceOverlay = mainViewMode === 'browser' && (isBookmarksService || isHistoryService);
   const serviceContent = showServiceOverlay
     ? isBookmarksService
-      ? <BookmarksPage openInNewTab={openInNewTab} />
-      : <HistoryPage openInNewTab={openInNewTab} />
+      ? <BookmarksPage mode={mode} openInNewTab={openInNewTab} />
+      : <HistoryPage mode={mode} openInNewTab={openInNewTab} />
     : null;
 
   const handleCleanCloseTab = useCallback(async (id: string) => {
@@ -2584,7 +2584,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           overlay={tabLoadingOverlay}
         />
         {serviceContent && (
-          <div style={SERVICE_OVERLAY_STYLE}>
+          <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
             {serviceContent}
           </div>
         )}

@@ -1,6 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import type { BookmarksTree, BookmarkNode } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
+import { bookmarksStyles } from './bookmarksStyles';
+import { bookmarksModeStyles } from './bookmarksModeStyles';
 
 const ROOT_KEYS = ['toolbar', 'mobile', 'other'] as const;
 type RootKey = (typeof ROOT_KEYS)[number];
@@ -9,139 +11,6 @@ const ROOT_LABELS: Record<RootKey, string> = {
   toolbar: 'Toolbar',
   mobile: 'Mobile',
   other: 'Other'
-};
-
-const pageStyles = {
-  container: {
-    color: '#f8fafc',
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '18px',
-    height: '100%',
-    overflow: 'hidden',
-    overflowX: 'hidden'
-  },
-  hero: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center'
-  },
-  heroTitle: {
-    fontSize: '24px',
-    margin: 0
-  },
-  badgeGroup: {
-    display: 'flex',
-    gap: '10px',
-    flexWrap: 'wrap' as const
-  },
-  badge: {
-    padding: '6px 14px',
-    borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(59, 130, 246, 0.18)',
-    color: '#f8fafc',
-    cursor: 'pointer'
-  },
-  badgeActive: {
-    borderColor: 'rgba(59, 130, 246, 0.85)',
-    background: 'rgba(37, 99, 235, 0.35)'
-  },
-  section: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '12px'
-  },
-  label: {
-    fontSize: '12px',
-    textTransform: 'uppercase' as const,
-    letterSpacing: '0.1em',
-    color: '#94a3b8'
-  },
-  form: {
-    display: 'flex',
-    flexWrap: 'wrap' as const,
-    gap: '10px'
-  },
-  input: {
-    padding: '10px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
-    flex: 1,
-    minWidth: '180px'
-  },
-  button: {
-    padding: '10px 16px',
-    borderRadius: '10px',
-    border: '1px solid rgba(37, 99, 235, 0.8)',
-    background: 'rgba(37, 99, 235, 0.25)',
-    color: '#f8fafc',
-    fontWeight: 600,
-    cursor: 'pointer'
-  },
-  list: {
-    flex: 1,
-    overflowY: 'auto' as const,
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '12px',
-    paddingRight: '12px',
-    boxSizing: 'border-box',
-    scrollbarWidth: 'thin',
-    scrollbarColor: '#2563eb #111827'
-  },
-  nodeRow: {
-    display: 'flex',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: '12px 14px',
-    borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: 'rgba(15, 23, 42, 0.8)'
-  },
-  nodeMain: {
-    display: 'flex',
-    flexDirection: 'column' as const,
-    gap: '4px'
-  },
-  nodeActions: {
-    display: 'flex',
-    gap: '6px',
-    alignItems: 'center'
-  },
-  smallButton: {
-    padding: '6px 10px',
-    borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    background: 'rgba(224, 231, 255, 0.08)',
-    color: '#f8fafc',
-    cursor: 'pointer'
-  },
-  select: {
-    padding: '6px 10px',
-    borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    background: 'rgba(15, 23, 42, 0.95)',
-    color: '#f8fafc'
-  },
-  feedback: {
-    fontSize: '12px',
-    color: '#34d399'
-  },
-  searchInput: {
-    padding: '10px 12px',
-    borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
-    width: 'min(640px, 100%)',
-    boxSizing: 'border-box'
-  },
-  placeholder: {
-    color: '#94a3b8'
-  }
 };
 
 const flattenChildren = (tree: BookmarksTree, parentId: string) => {
@@ -172,7 +41,7 @@ const resolveRootForNode = (tree: BookmarksTree, node: BookmarkNode): RootKey | 
   return null;
 };
 
-const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
+const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
   const [tree, setTree] = useState<BookmarksTree | null>(null);
   const [activeRoot, setActiveRoot] = useState<RootKey>('toolbar');
   const [search, setSearch] = useState('');
@@ -180,6 +49,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
   const [folderTitle, setFolderTitle] = useState('');
   const [feedback, setFeedback] = useState<string | null>(null);
   const [busy, setBusy] = useState(false);
+
+  const styles = bookmarksStyles;
+  const modeStyles = bookmarksModeStyles[mode] || {};
+
   const toMessage = (value: unknown): string =>
     value instanceof Error ? value.message : String(value);
 
@@ -189,8 +62,8 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
     try {
       const data = await api.list();
       setTree(data);
-    } catch {
-      // ignore
+    } catch (err) {
+      setFeedback(toMessage(err));
     }
   }, []);
 
@@ -223,6 +96,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
       })
       .map((node) => ({ node, rootKey: resolveRootForNode(tree, node) }));
   }, [tree, search]);
+
+  const displayEntries = useMemo(() => {
+    if (search.trim()) {
+      return searchResults.map((entry) => ({ node: entry.node, depth: 0, rootKey: entry.rootKey }));
+    }
+    return nodesForActiveRoot.map((entry) => ({ node: entry.node, depth: entry.depth, rootKey: resolveRootForNode(tree!, entry.node) }));
+  }, [searchResults, nodesForActiveRoot, search, tree]);
 
   const handleAddBookmark = useCallback(async () => {
     if (busy) return;
@@ -329,24 +209,59 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
 
   if (!tree) {
     return (
-      <div style={pageStyles.container}>
+      <div style={styles.container}>
         <p>Loading bookmarks...</p>
       </div>
     );
   }
 
+  const heroTitleStyle = {
+    ...styles.heroTitle,
+    ...(modeStyles.heroTitle ?? {})
+  };
+  const badgeStyle = {
+    ...styles.badge,
+    ...(modeStyles.badge ?? {})
+  };
+  const listStyle = {
+    ...styles.list,
+    ...(modeStyles.list ?? {})
+  };
+  const nodeRowStyle = (depth: number) => ({
+    ...styles.nodeRow,
+    ...(modeStyles.nodeRow ?? {}),
+    paddingLeft: `${depth * 12}px`
+  });
+  const nodeActionsStyle = {
+    ...styles.nodeActions,
+    ...(modeStyles.nodeActions ?? {})
+  };
+  const nodeTitleStyle = {
+    ...styles.nodeTitle,
+    ...(modeStyles.nodeTitle ?? {})
+  };
+  const nodeUrlStyle = styles.nodeUrl;
+  const smallButtonStyle = {
+    ...styles.smallButton,
+    ...(modeStyles.smallButton ?? {})
+  };
+  const searchInputStyle = {
+    ...styles.searchInput,
+    ...(modeStyles.searchInput ?? {})
+  };
+
   return (
-    <div style={pageStyles.container}>
-      <div style={pageStyles.hero}>
-        <h1 style={pageStyles.heroTitle}>Bookmarks</h1>
-        <div style={pageStyles.badgeGroup}>
+    <div style={styles.container}>
+      <div style={styles.hero}>
+        <h1 style={heroTitleStyle}>Bookmarks</h1>
+        <div style={styles.badgeGroup}>
           {ROOT_KEYS.map((key) => (
             <button
               key={key}
               type="button"
               style={{
-                ...pageStyles.badge,
-                ...(activeRoot === key ? pageStyles.badgeActive : null)
+                ...badgeStyle,
+                ...(activeRoot === key ? styles.badgeActive : null)
               }}
               onClick={() => setActiveRoot(key)}
             >
@@ -356,93 +271,93 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
         </div>
       </div>
 
-      <div style={pageStyles.section}>
-        <div style={pageStyles.label}>Search</div>
+      <div style={styles.section}>
+        <div style={styles.label}>Search</div>
         <input
-          style={pageStyles.searchInput}
+          style={searchInputStyle}
           placeholder="Search title, URL, or tags"
           value={search}
           onChange={(event) => setSearch(event.target.value)}
         />
       </div>
 
-      <div style={pageStyles.section}>
-        <div style={pageStyles.label}>Add Bookmark</div>
-        <div style={pageStyles.form}>
+      <div style={styles.section}>
+        <div style={styles.label}>Add Bookmark</div>
+        <div style={styles.form}>
           <input
             placeholder="Title"
-            style={pageStyles.input}
+            style={styles.input}
             value={bookmarkForm.title}
             onChange={(event) => setBookmarkForm((prev) => ({ ...prev, title: event.target.value }))}
           />
           <input
             placeholder="URL"
-            style={pageStyles.input}
+            style={styles.input}
             value={bookmarkForm.url}
             onChange={(event) => setBookmarkForm((prev) => ({ ...prev, url: event.target.value }))}
           />
           <input
             placeholder="Tags (comma separated)"
-            style={pageStyles.input}
+            style={styles.input}
             value={bookmarkForm.tags}
             onChange={(event) => setBookmarkForm((prev) => ({ ...prev, tags: event.target.value }))}
           />
-          <button style={pageStyles.button} type="button" onClick={handleAddBookmark} disabled={busy}>
+          <button style={styles.button} type="button" onClick={handleAddBookmark} disabled={busy}>
             Save Bookmark
           </button>
         </div>
-        <div style={pageStyles.label}>Add Folder</div>
-        <div style={pageStyles.form}>
+        <div style={styles.label}>Add Folder</div>
+        <div style={styles.form}>
           <input
             placeholder="Folder name"
-            style={pageStyles.input}
+            style={styles.input}
             value={folderTitle}
             onChange={(event) => setFolderTitle(event.target.value)}
           />
-          <button style={pageStyles.button} type="button" onClick={handleAddFolder} disabled={busy}>
+          <button style={styles.button} type="button" onClick={handleAddFolder} disabled={busy}>
             Create Folder
           </button>
         </div>
-        {feedback && <div style={pageStyles.feedback}>{feedback}</div>}
+        {feedback && <div style={styles.feedback}>{feedback}</div>}
       </div>
 
-      <div style={pageStyles.section}>
-        <div style={pageStyles.label}>{search.trim() ? 'Search Results' : `${ROOT_LABELS[activeRoot]} Content`}</div>
-        <div style={pageStyles.list} className="service-scroll">
-          {(search.trim() ? searchResults : nodesForActiveRoot).map((entry) => {
+      <div style={styles.section}>
+        <div style={styles.label}>{search.trim() ? 'Search Results' : `${ROOT_LABELS[activeRoot]} Content`}</div>
+        <div style={listStyle} className="service-scroll">
+          {displayEntries.map((entry) => {
             const node = entry.node;
-            const depth = search.trim() ? 0 : entry.depth;
-            const rootKey = search.trim() ? entry.rootKey : resolveRootForNode(tree, node);
+            const depth = entry.depth;
+            const rootKey = entry.rootKey;
             return (
-              <div key={node.id} style={pageStyles.nodeRow}>
-                <div style={{ ...pageStyles.nodeMain, paddingLeft: `${depth * 12}px` }}>
-                  <span>
+              <div key={node.id} style={nodeRowStyle(depth)}>
+                <div style={styles.nodeMain}>
+                  <span style={nodeTitleStyle}>
                     <strong>{node.title}</strong> {node.type === 'folder' ? '📁' : '🔖'}
                   </span>
-                  {node.url && <span style={{ fontSize: '12px', color: '#94a3b8' }}>{node.url}</span>}
+                  {node.url && <span style={nodeUrlStyle}>{node.url}</span>}
                   {node.tags && node.tags.length > 0 && (
                     <span style={{ fontSize: '11px', color: '#94a3b8' }}>Tags: {node.tags.join(', ')}</span>
                   )}
                   {rootKey && <span style={{ fontSize: '11px', color: '#94a3b8' }}>{ROOT_LABELS[rootKey]}</span>}
                 </div>
-                <div style={pageStyles.nodeActions}>
+                <div style={nodeActionsStyle}>
                   {node.url && (
                     <button
                       type="button"
-                      style={pageStyles.smallButton}
+                      style={smallButtonStyle}
                       onClick={() => openInNewTab(node.url ?? '')}
                     >
                       Open
                     </button>
                   )}
-                  <button type="button" style={pageStyles.smallButton} onClick={() => handleRename(node)}>
+                  <button type="button" style={smallButtonStyle} onClick={() => handleRename(node)}>
                     Rename
                   </button>
-                  <button type="button" style={pageStyles.smallButton} onClick={() => handleDelete(node)}>
+                  <button type="button" style={smallButtonStyle} onClick={() => handleDelete(node)}>
                     Delete
                   </button>
                   <select
-                    style={pageStyles.select}
+                    style={styles.select}
                     value={rootKey ?? activeRoot}
                     onChange={(event) => {
                       const targetKey = event.target.value as RootKey;
@@ -460,8 +375,12 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ openInNewTab }) => {
               </div>
             );
           })}
-          {!search.trim() && nodesForActiveRoot.length === 0 && <span style={pageStyles.placeholder}>No entries yet in this section.</span>}
-          {search.trim() && searchResults.length === 0 && <span style={pageStyles.placeholder}>No bookmarks match your search.</span>}
+          {!search.trim() && nodesForActiveRoot.length === 0 && (
+            <span style={styles.placeholder}>No entries yet in this section.</span>
+          )}
+          {search.trim() && searchResults.length === 0 && (
+            <span style={styles.placeholder}>No bookmarks match your search.</span>
+          )}
         </div>
       </div>
     </div>
