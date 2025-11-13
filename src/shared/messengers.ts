@@ -9,7 +9,7 @@ export const DEFAULT_MESSENGERS: MessengerDefinition[] = [
   {
     id: 'telegram',
     title: 'Telegram',
-    url: 'https://web.telegram.org/a/'
+    url: 'https://web.telegram.org'
   },
   {
     id: 'messenger',
