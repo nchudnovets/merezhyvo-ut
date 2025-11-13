@@ -38,6 +38,9 @@ import { updateTorConfig } from './lib/tor-settings';
 import type { TorConfig } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
+import { registerHistoryIpc } from './lib/history-ipc';
+import { registerBookmarksIpc } from './lib/bookmarks-ipc';
+import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
@@ -664,6 +667,9 @@ registerShortcutHandler(ipcMain);
 tor.registerTorHandlers(ipcMain);
 registerKeyboardSettingsIPC();
 registerMessengerSettingsIPC();
+registerHistoryIpc(ipcMain);
+registerBookmarksIpc(ipcMain);
+registerFaviconsIpc(ipcMain);
 
 app.whenReady().then(() => {
   // installPermissionHandlers();

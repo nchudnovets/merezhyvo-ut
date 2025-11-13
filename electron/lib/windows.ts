@@ -14,6 +14,8 @@ import {
   type WebPreferences
 } from 'electron';
 import { resolveMode } from '../mode';
+import { addVisit, updateTitle, updateFavicon } from './history';
+import { saveFromBuffer } from './favicons';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
@@ -36,6 +38,7 @@ const DESKTOP_ONLY_HOSTS = new Set<string>([
 
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
+const fsp = fs.promises;
 
 function geoIpcLog(msg: string): void {
   try {
@@ -647,6 +650,126 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     }
     contents.on('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
       if (isMainFrame) applyUserAgentForUrl(contents, navUrl);
+    });
+
+    const deriveOrigin = (value: string): string | null => {
+      try {
+        const parsed = new URL(value);
+        if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+          return parsed.origin;
+        }
+      } catch {
+        // noop
+      }
+      return null;
+    };
+
+    const getCurrentUrl = (): string => {
+      try {
+        return typeof contents.getURL === 'function' ? contents.getURL() || '' : '';
+      } catch {
+        return '';
+      }
+    };
+
+    const safeAddVisit = async (navUrl: string | undefined, transition: string): Promise<void> => {
+      const target = navUrl?.trim();
+      if (!target) return;
+      try {
+        await addVisit({
+          url: target,
+          origin: deriveOrigin(target),
+          transition,
+          ts: Date.now(),
+          wcId: contents.id
+        });
+      } catch {
+        // ignore history errors
+      }
+    };
+
+    const safeUpdateTitle = async (title: string | undefined): Promise<void> => {
+      const value = typeof title === 'string' ? title.trim() : '';
+      const url = getCurrentUrl();
+      if (!url || !value) return;
+      try {
+        await updateTitle(url, value);
+      } catch {
+        // swallow
+      }
+    };
+
+    const parseDataUri = (value: string): { buffer: Buffer; contentType?: string } | null => {
+      if (!value.startsWith('data:')) return null;
+      const comma = value.indexOf(',');
+      if (comma === -1) return null;
+      const meta = value.substring(5, comma);
+      const data = value.substring(comma + 1);
+      const isBase64 = meta.includes('base64');
+      const buffer = isBase64 ? Buffer.from(data, 'base64') : Buffer.from(decodeURIComponent(data), 'utf8');
+      const firstSegment = meta.split(';')[0];
+      return { buffer, contentType: firstSegment || undefined };
+    };
+
+    const fetchFaviconBuffer = async (href: string): Promise<{ buffer: Buffer; contentType?: string } | null> => {
+      if (!href) return null;
+      const fromData = parseDataUri(href);
+      if (fromData) return fromData;
+      try {
+        const parsed = new URL(href);
+        if (parsed.protocol === 'file:') {
+          const filePath = decodeURI(parsed.pathname);
+          const buffer = await fsp.readFile(filePath);
+          return { buffer };
+        }
+      } catch {
+        // ignore
+      }
+      const universalFetch = typeof globalThis.fetch === 'function' ? globalThis.fetch : null;
+      if (!universalFetch) return null;
+      try {
+        const response = await universalFetch(href, { method: 'GET' });
+        if (!response.ok) return null;
+        const arrayBuffer = await response.arrayBuffer();
+        const buffer = Buffer.from(arrayBuffer);
+        const contentType = response.headers.get('content-type') ?? undefined;
+        return { buffer, contentType };
+      } catch {
+        return null;
+      }
+    };
+
+    const safeUpdateFavicon = async (icons: unknown): Promise<void> => {
+      const url = getCurrentUrl();
+      if (!url) return;
+      const list = Array.isArray(icons) ? icons : [];
+      for (const raw of list) {
+        const href = typeof raw === 'string' ? raw.trim() : '';
+        if (!href) continue;
+        try {
+          const data = await fetchFaviconBuffer(href);
+          if (!data) continue;
+          const faviconId = await saveFromBuffer(data.buffer, data.contentType ?? null, href);
+          await updateFavicon(url, faviconId);
+          return;
+        } catch {
+          continue;
+        }
+      }
+    };
+
+    contents.on('did-navigate', (_evt, navUrl: string) => {
+      void safeAddVisit(navUrl, 'link');
+    });
+    contents.on('did-navigate-in-page', (_evt, navUrl: string, isMainFrame: boolean) => {
+      if (!isMainFrame) return;
+      void safeAddVisit(navUrl, 'in-page');
+    });
+    contents.on('page-title-updated', (_evt, title: string) => {
+      void safeUpdateTitle(title);
+    });
+    contents.on('page-favicon-updated', (_evt, icons: unknown) => {
+      void safeUpdateFavicon(icons);
     });
   });
 

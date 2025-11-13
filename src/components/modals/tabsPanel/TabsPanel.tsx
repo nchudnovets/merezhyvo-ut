@@ -20,6 +20,8 @@ interface TabsPanelProps {
   displayTitle: (tab: Tab) => string;
   displaySubtitle: (tab: Tab) => string | null;
   fallbackInitial: (tab: Tab) => string;
+  onOpenBookmarks: () => void;
+  onOpenHistory: () => void;
 }
 
 const TabRow = memo(({
@@ -71,6 +73,97 @@ const TabRow = memo(({
   const iconStyle = {
     ...styles.tabIcon,
     ...(modeStyles.tabIcon || {})
+  };
+  const [bookmarkState, setBookmarkState] = useState<{ yes: boolean; nodeId?: string }>({ yes: false });
+  const [bookmarkBusy, setBookmarkBusy] = useState(false);
+  const safeUrl = (tab.url ?? '').trim();
+  const canBookmark = safeUrl.length > 0;
+  const tabTitleLabel = displayTitle(tab);
+
+  useEffect(() => {
+    let cancelled = false;
+    if (!safeUrl) {
+      setBookmarkState({ yes: false });
+      return () => {
+        cancelled = true;
+      };
+    }
+    const api = typeof window !== 'undefined' ? window.merezhyvo?.bookmarks : undefined;
+    if (!api) {
+      setBookmarkState({ yes: false });
+      return () => {
+        cancelled = true;
+      };
+    }
+    void api
+      .isBookmarked(safeUrl)
+      .then((status) => {
+        if (cancelled) return;
+        setBookmarkState(status);
+      })
+      .catch(() => {
+        if (cancelled) return;
+        setBookmarkState({ yes: false });
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [safeUrl]);
+
+  const handleBookmarkToggle = useCallback(async () => {
+    if (!canBookmark || bookmarkBusy) return;
+    const api = typeof window !== 'undefined' ? window.merezhyvo?.bookmarks : undefined;
+    if (!api) return;
+    setBookmarkBusy(true);
+    try {
+      if (bookmarkState.yes && bookmarkState.nodeId) {
+        const result = await api.remove(bookmarkState.nodeId);
+        if (result?.ok) {
+          setBookmarkState({ yes: false });
+        }
+        return;
+      }
+      const result = await api.add({ type: 'bookmark', title: tabTitleLabel, url: safeUrl });
+      if ('ok' in result && result.ok) {
+        setBookmarkState({ yes: true, nodeId: result.nodeId });
+      }
+    } catch {
+      // noop
+    } finally {
+      setBookmarkBusy(false);
+    }
+  }, [bookmarkBusy, bookmarkState, canBookmark, safeUrl, tabTitleLabel]);
+
+  const renderBookmarkButton = () => {
+    const active = bookmarkState.yes;
+    const bookmarkButtonStyle = {
+      ...baseButtonStyle,
+      ...(active ? styles.tabIconButtonActive : null)
+    };
+    const ariaLabel = active ? 'Remove bookmark' : 'Add bookmark';
+    return (
+      <button
+        type="button"
+        aria-pressed={active}
+        aria-label={ariaLabel}
+        style={bookmarkButtonStyle}
+        disabled={!canBookmark || bookmarkBusy}
+        onClick={(event) => {
+          event.stopPropagation();
+          void handleBookmarkToggle();
+        }}
+      >
+        <svg viewBox="0 0 24 24" style={iconStyle} xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+            fill={active ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      </button>
+    );
   };
   const renderToggleButton = () => (
     <button
@@ -306,21 +399,22 @@ const TabRow = memo(({
           })()}
         </span>
       </span>
-      <span
-        style={{
-          ...styles.tabActions,
-          ...(modeStyles.tabActions || {})
-        }}
-      >
-        {actionsExpanded ? (
-          <>
-            {renderToggleButton()}
-            {renderPinButton()}
-            {renderCleanButton()}
-          </>
-        ) : (
-          renderToggleButton()
-        )}
+        <span
+          style={{
+            ...styles.tabActions,
+            ...(modeStyles.tabActions || {})
+          }}
+        >
+          {actionsExpanded ? (
+            <>
+              {renderToggleButton()}
+              {renderPinButton()}
+              {renderBookmarkButton()}
+              {renderCleanButton()}
+            </>
+          ) : (
+            renderToggleButton()
+          )}
         {renderCloseButton()}
       </span>
     </div>
@@ -343,7 +437,9 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
   onCloseTab,
   displayTitle,
   displaySubtitle,
-  fallbackInitial
+  fallbackInitial,
+  onOpenBookmarks,
+  onOpenHistory
 }) => {
   const styles = tabsPanelStyles;
   const modeStyles = tabsPanelModeStyles[mode] || {};
@@ -425,15 +521,48 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
         aria-labelledby="tabs-panel-title"
       >
         <div style={styles.header}>
-          <h2
-            id="tabs-panel-title"
-            style={{
-              ...styles.title,
-              ...(modeStyles.tabsPanelTitle || {})
-            }}
-          >
-            Tabs
-          </h2>
+          <div style={styles.headerTitleRow}>
+            <h2
+              id="tabs-panel-title"
+              style={{
+                ...styles.title,
+                ...(modeStyles.tabsPanelTitle || {})
+              }}
+            >
+              Tabs
+            </h2>
+            <div style={{
+              ...styles.headerButtons,
+              ...(modeStyles.headerButtons || {})
+            }}>
+              <button
+                type="button"
+                style={{
+                  ...styles.headerButton,
+                  ...(modeStyles.headerButton || {})
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenBookmarks();
+                }}
+              >
+                ⭐ Bookmarks
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.headerButton,
+                  ...(modeStyles.headerButton || {})
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenHistory();
+                }}
+              >
+                🕘 History
+              </button>
+            </div>
+          </div>
           <button
             type="button"
             aria-label="Close tabs dialog"

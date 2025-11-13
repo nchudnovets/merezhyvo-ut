@@ -7,7 +7,7 @@ import { styles as baseStyles } from '../../../styles/styles';
 import MessengerSettings from './MessengerSettings';
 import SettingsSection from './SettingsSection';
 import KeyboardSettings from './KeyboardSettings';
-import { SettingsAppInfo } from './settingsModalTypes';
+import type { SettingsAppInfo } from './settingsModalTypes';
 import TorSettings from './TorSettings';
 import AboutSettings from './AboutSettings';
 // import { PermissionsSettings } from './PermissionsSettings';

@@ -71,6 +71,13 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       alignItems: 'center',
       justifyContent: 'center',
       gap: '10px',
+    },
+    headerButtons: {
+      gap: '18px'
+    },
+    headerButton: {
+      padding: '6px 22px',
+      fontSize: 'clamp(42px, 6vw, 54px)'
     }
   }
 };

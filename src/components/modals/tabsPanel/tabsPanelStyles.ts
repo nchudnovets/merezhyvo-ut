@@ -44,6 +44,27 @@ export const tabsPanelStyles: StyleRecord = {
     justifyContent: 'space-between',
     gap: '16px'
   },
+  headerTitleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    flexWrap: 'wrap' as const
+  },
+  headerButtons: {
+    display: 'flex',
+    gap: '8px',
+    flexWrap: 'wrap'
+  },
+  headerButton: {
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.42)',
+    padding: '6px 12px',
+    background: 'rgba(37, 99, 235, 0.18)',
+    color: '#f8fafc',
+    fontSize: '13px',
+    fontWeight: 600,
+    cursor: 'pointer'
+  },
   title: {
     margin: 0,
     fontSize: '20px',

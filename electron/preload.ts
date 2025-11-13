@@ -20,7 +20,6 @@ import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
 import path from 'path';
-import fs from 'fs';
 
 type KeyboardSettings = {
   enabledLayouts: string[];
@@ -453,6 +452,28 @@ const exposeApi: MerezhyvoAPI = {
       }
     }
   },
+  history: {
+    query: (options) => ipcRenderer.invoke('merezhyvo:history:query', options ?? {}),
+    topSites: (options) => ipcRenderer.invoke('merezhyvo:history:top-sites', options ?? {}),
+    remove: (filter) => ipcRenderer.invoke('merezhyvo:history:remove', filter ?? {}),
+    clearAll: async () => {
+      await ipcRenderer.invoke('merezhyvo:history:clear-all');
+    }
+  },
+  bookmarks: {
+    list: () => ipcRenderer.invoke('merezhyvo:bookmarks:list'),
+    isBookmarked: (url: string) => ipcRenderer.invoke('merezhyvo:bookmarks:isBookmarked', url ?? ''),
+    add: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:add', payload),
+    update: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:update', payload),
+    move: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:move', payload),
+    remove: (id: string) => ipcRenderer.invoke('merezhyvo:bookmarks:remove', id ?? ''),
+    export: () => ipcRenderer.invoke('merezhyvo:bookmarks:export'),
+    import: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:import', payload)
+  },
+  favicons: {
+    getPath: (faviconId: string) =>
+      ipcRenderer.invoke('merezhyvo:favicons:get-path', faviconId ?? '') as Promise<string | null>
+  },
   paths: {
     webviewPreload(): string {
       const candidates = [
@@ -462,6 +483,8 @@ const exposeApi: MerezhyvoAPI = {
         path.join(process.resourcesPath || '', 'app.asar.unpacked', 'electron', 'webview-preload.js'),
         path.join(process.resourcesPath || '', 'electron', 'webview-preload.js'),
       ];
+
+      void candidates;
 
       // for (const p of candidates) {
       //   try {

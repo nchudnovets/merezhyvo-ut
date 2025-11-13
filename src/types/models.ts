@@ -35,6 +35,91 @@ export interface TabsSnapshot {
   activeId: string | null;
 }
 
+export interface HistoryVisit {
+  id: string;
+  ts: number;
+  url: string;
+  title?: string | null;
+  origin?: string | null;
+  transition?: string | null;
+  referrer?: string | null;
+  wcId?: number | null;
+  faviconId?: string | null;
+}
+
+export interface HistoryQueryOptions {
+  q?: string;
+  fromTs?: number;
+  toTs?: number;
+  origin?: string | null;
+  limit?: number;
+  cursor?: number;
+}
+
+export interface HistoryQueryResult {
+  items: HistoryVisit[];
+  nextCursor?: number;
+}
+
+export interface TopSitesOptions {
+  days?: number;
+  limit?: number;
+}
+
+export interface TopSite {
+  origin: string;
+  urlSample: string;
+  titleSample?: string | null;
+  visits: number;
+  lastTs: number;
+  faviconId?: string | null;
+}
+
+export type BookmarkNodeType = 'bookmark' | 'folder';
+
+export interface BookmarkNode {
+  id: string;
+  type: BookmarkNodeType;
+  title: string;
+  parentId: string | null;
+  url?: string;
+  tags?: string[];
+  children?: string[];
+}
+
+export interface BookmarkRoots {
+  toolbar: string;
+  mobile: string;
+  other: string;
+}
+
+export interface BookmarksTree {
+  schema: 1;
+  roots: BookmarkRoots;
+  nodes: Record<string, BookmarkNode>;
+}
+
+export interface BookmarkAddPayload {
+  type?: BookmarkNodeType;
+  title?: string | null;
+  url?: string;
+  parentId?: string;
+  tags?: string[] | null;
+}
+
+export interface BookmarkUpdatePayload {
+  id: string;
+  title?: string | null;
+  url?: string | null;
+  tags?: string[] | null;
+}
+
+export interface BookmarkMovePayload {
+  id: string;
+  newParentId: string;
+  index?: number;
+}
+
 export interface InstalledApp {
   id: string;
   title: string;

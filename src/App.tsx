@@ -27,6 +27,8 @@ import WebViewHost from './components/webview/WebViewHost';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
 import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyles';
 import { styles } from './styles/styles';
+import BookmarksPage from './pages/bookmarks/BookmarksPage';
+import HistoryPage from './pages/history/HistoryPage';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
@@ -209,6 +211,20 @@ const FALLBACK_APP_INFO: AppInfo = {
   chromium: '',
   electron: '',
   node: ''
+};
+
+const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
+  position: 'absolute',
+  inset: 0,
+  background: 'rgba(3, 8, 20, 0.96)',
+  padding: '24px',
+  overflow: 'auto',
+  zIndex: 5
+};
+
+const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
+  position: 'relative',
+  flex: 1
 };
 
 const parseStartUrl = (): StartParams => {
@@ -1275,6 +1291,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const loadUrlIntoView = useCallback((tab: Tab, entry?: TabViewEntry | null) => {
     if (!entry) return;
     const targetUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
+    if (targetUrl.toLowerCase().startsWith('mzr://')) {
+      return;
+    }
     const last = lastLoadedRef.current;
     if (last.id === tab.id && last.url === targetUrl) return;
     lastLoadedRef.current = { id: tab.id, url: targetUrl };
@@ -2407,10 +2426,32 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     blurActiveInWebview();
   }, [activateTabAction, blurActiveInWebview]);
 
+  const openInNewTab = useCallback(
+    (url: string) => {
+      newTabAction(url);
+      setShowTabsPanel(false);
+      blurActiveInWebview();
+    },
+    [newTabAction, blurActiveInWebview]
+  );
+
+  const openBookmarksPage = useCallback(() => openInNewTab('mzr://bookmarks'), [openInNewTab]);
+  const openHistoryPage = useCallback(() => openInNewTab('mzr://history'), [openInNewTab]);
+
   const handleCloseTab = useCallback((id: string) => {
     if (!id) return;
     closeTabAction(id);
   }, [closeTabAction]);
+
+  const serviceUrl = (activeTab?.url ?? '').trim().toLowerCase();
+  const isBookmarksService = serviceUrl.startsWith('mzr://bookmarks');
+  const isHistoryService = serviceUrl.startsWith('mzr://history');
+  const showServiceOverlay = mainViewMode === 'browser' && (isBookmarksService || isHistoryService);
+  const serviceContent = showServiceOverlay
+    ? isBookmarksService
+      ? <BookmarksPage openInNewTab={openInNewTab} />
+      : <HistoryPage openInNewTab={openInNewTab} />
+    : null;
 
   const handleCleanCloseTab = useCallback(async (id: string) => {
     if (!id) return false;
@@ -2530,17 +2571,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         />
       )}
 
-      <WebViewPane
-        webviewHostRef={webviewHostRef}
-        backgroundHostRef={backgroundHostRef}
-        webviewStyle={styles.webviewMount}
-        webviewHostStyle={{
-          ...styles.webviewHost,
-          height: webviewHostHeight
-        }}
-        backgroundStyle={styles.backgroundShelf}
-        overlay={tabLoadingOverlay}
-      />
+      <div style={WEBVIEW_WRAPPER_STYLE}>
+        <WebViewPane
+          webviewHostRef={webviewHostRef}
+          backgroundHostRef={backgroundHostRef}
+          webviewStyle={styles.webviewMount}
+          webviewHostStyle={{
+            ...styles.webviewHost,
+            height: webviewHostHeight
+          }}
+          backgroundStyle={styles.backgroundShelf}
+          overlay={tabLoadingOverlay}
+        />
+        {serviceContent && (
+          <div style={SERVICE_OVERLAY_STYLE}>
+            {serviceContent}
+          </div>
+        )}
+      </div>
 
       {!isHtmlFullscreen && (
         <ZoomBar
@@ -2569,6 +2617,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onTogglePin={handleTogglePin}
           onCleanClose={handleCleanCloseTab}
           onCloseTab={handleCloseTab}
+          onOpenBookmarks={openBookmarksPage}
+          onOpenHistory={openHistoryPage}
           displayTitle={displayTitleForTab}
           displaySubtitle={displaySubtitleForTab}
           fallbackInitial={fallbackInitialForTab}

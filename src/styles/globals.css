@@ -37,6 +37,30 @@ body {
   background: #1d4ed8;
 }
 
+.service-scroll {
+  scrollbar-width: thin;
+  scrollbar-color: #2563eb #111827;
+}
+
+.service-scroll::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+
+.service-scroll::-webkit-scrollbar-track {
+  background: #111827;
+}
+
+.service-scroll::-webkit-scrollbar-thumb {
+  background: #2563eb;
+  border-radius: 999px;
+  border: 2px solid #111827;
+}
+
+.service-scroll::-webkit-scrollbar-thumb:hover {
+  background: #1d4ed8;
+}
+
 .modal-backdrop {
   position: fixed;
   inset: 0;

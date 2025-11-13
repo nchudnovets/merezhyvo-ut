@@ -1,16 +1,24 @@
 import type {
+  BookmarkAddPayload,
+  BookmarkMovePayload,
+  BookmarkUpdatePayload,
+  BookmarksTree,
+  HistoryQueryOptions,
+  HistoryQueryResult,
   InstalledApp,
+  MessengerSettings,
   OpenUrlPayload,
   SessionState,
   SettingsState,
   ShortcutIcon,
   ShortcutRequest,
   ShortcutResult,
+  TopSite,
+  TopSitesOptions,
   TorState,
   TorConfigResult,
   Unsubscribe,
-  KeyboardSettings,
-  MessengerSettings
+  KeyboardSettings
 } from './models';
 
 type MerezhyvoUnsubscribe = Unsubscribe;
@@ -58,6 +66,28 @@ export interface MerezhyvoTabCleanResult {
 
 export interface MerezhyvoTabsAPI {
   cleanData(payload: MerezhyvoTabCleanPayload): Promise<MerezhyvoTabCleanResult>;
+}
+
+export interface MerezhyvoHistoryApi {
+  query(options?: HistoryQueryOptions): Promise<HistoryQueryResult>;
+  topSites(options?: TopSitesOptions): Promise<TopSite[]>;
+  remove(filter?: { url?: string; origin?: string; beforeTs?: number }): Promise<{ removed: number }>;
+  clearAll(): Promise<void>;
+}
+
+export interface MerezhyvoBookmarksApi {
+  list(): Promise<BookmarksTree>;
+  isBookmarked(url: string): Promise<{ yes: boolean; nodeId?: string }>;
+  add(payload: BookmarkAddPayload): Promise<{ ok: true; nodeId: string } | { ok: false; error: string }>;
+  update(payload: BookmarkUpdatePayload): Promise<{ ok: boolean }>;
+  move(payload: BookmarkMovePayload): Promise<{ ok: boolean }>;
+  remove(id: string): Promise<{ ok: boolean }>;
+  export(): Promise<BookmarksTree>;
+  import(payload: unknown): Promise<{ ok: boolean }>;
+}
+
+export interface MerezhyvoFaviconsApi {
+  getPath(faviconId: string): Promise<string | null>;
 }
 
 export type MerezhyvoSettingsState = SettingsState;
@@ -122,6 +152,8 @@ export interface MerezhyvoAPI {
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ): Promise<{ ok: boolean; error?: string }>;
   };
+  history: MerezhyvoHistoryApi;
+  bookmarks: MerezhyvoBookmarksApi;
   permissions: {
     onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void;
     decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>> }): void;
@@ -137,6 +169,9 @@ export interface MerezhyvoAPI {
       updateDefaults(patch: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny' | 'prompt'>>): Promise<boolean>;
     };
   };
+  history: MerezhyvoHistoryApi;
+  bookmarks: MerezhyvoBookmarksApi;
+  favicons: MerezhyvoFaviconsApi;
   paths: {
     webviewPreload(): string;
   };
