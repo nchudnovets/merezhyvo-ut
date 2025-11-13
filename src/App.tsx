@@ -495,6 +495,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const lastLoadedRef = useRef<LastLoadedInfo>({ id: null, url: null });
   const torIpRequestRef = useRef<number>(0);
   const torAutoStartGuardRef = useRef<boolean>(false);
+  const torKeepUpdateIdRef = useRef<number>(0);
   const torAutoStartKeyRef = useRef<string>('');
 
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
@@ -1787,14 +1788,37 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, []);
 
-  const handleTorKeepChange = useCallback((next: boolean) => {
-    if (next && !torContainerDraft.trim()) {
-      setTorKeepEnabledDraft(false);
-      return;
-    }
-    setTorKeepEnabledDraft(next);
-    setTorConfigFeedback('');
-  }, [torContainerDraft]);
+  const handleTorKeepChange = useCallback(
+    (next: boolean) => {
+      const trimmedDraft = torContainerDraft.trim();
+      if (!trimmedDraft) {
+        setTorKeepEnabledDraft(false);
+        setTorConfigFeedback('Set the Libertine container identifier first.');
+        return;
+      }
+
+      const requestId = ++torKeepUpdateIdRef.current;
+      const previousKeep = torKeepEnabled;
+      setTorKeepEnabledDraft(next);
+      setTorConfigFeedback('');
+
+      void (async () => {
+        const result = await ipc.settings.setTorKeepEnabled(next);
+        if (torKeepUpdateIdRef.current !== requestId) return;
+        if (result?.ok) {
+          const keep = Boolean(result.keepEnabled);
+          setTorKeepEnabled(keep);
+          setTorKeepEnabledDraft(keep);
+          setTorConfigFeedback('Saved');
+        } else {
+          setTorKeepEnabled(previousKeep);
+          setTorKeepEnabledDraft(previousKeep);
+          setTorConfigFeedback(result?.error || 'Failed to update Tor preference.');
+        }
+      })();
+    },
+    [torContainerDraft, torKeepEnabled]
+  );
 
   const handleSaveTorContainer = useCallback(async () => {
     const trimmed = torContainerDraft.trim();
@@ -2593,7 +2617,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           torSavedContainerId={torContainerId}
           torContainerSaving={torConfigSaving}
           torContainerMessage={torConfigFeedback}
-          torKeepEnabled={torKeepEnabled}
           torKeepEnabledDraft={torKeepEnabledDraft}
           torInputRef={torContainerInputRef}
           onTorInputPointerDown={handleTorInputPointerDown}

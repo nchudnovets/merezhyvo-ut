@@ -100,6 +100,15 @@ export const settingsModalModeStyles: ModeStyleMap = {
       padding: 'clamp(36px, 5vw, 48px)',
       gap: 'clamp(30px, 4.8vw, 36px)'
     },
+    settingsBlockHeaderActions: {
+      gap: 'clamp(22px, 3.5vw, 30px)'
+    },
+    settingsBlockToggleButton: {
+      width: 'clamp(65px, 12vw, 108px)',
+      height: 'clamp(84px, 12vw, 108px)',
+      borderRadius: '28px',
+      fontSize: 'clamp(42px, 6vw, 52px)'
+    },
     settingsBlockTitle: {
       fontSize: 'clamp(30px, 4.5vw, 36px)',
       letterSpacing: '0.12em'

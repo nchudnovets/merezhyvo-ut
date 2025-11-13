@@ -313,6 +313,17 @@ const exposeApi: MerezhyvoAPI = {
           console.error('[merezhyvo] settings.tor.update failed', err);
           return { ok: false, error: String(err) };
         }
+      },
+      setKeepEnabled: async (keepEnabled: boolean) => {
+        try {
+          return (await ipcRenderer.invoke(
+            'merezhyvo:settings:tor:set-keep',
+            { keepEnabled }
+          )) as TorConfigResult;
+        } catch (err) {
+          console.error('[merezhyvo] settings.tor.setKeepEnabled failed', err);
+          return { ok: false, error: String(err) };
+        }
       }
     },
     keyboard: {

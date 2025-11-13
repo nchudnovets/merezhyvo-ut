@@ -4,7 +4,7 @@ type StyleRecord = Record<string, CSSProperties>;
 
 export const settingsModalStyles: StyleRecord = {
   container: {
-    width: 'min(620px, 94vw)',
+    width: 'min(720px, 94vw)',
     height: '93vh',
     maxHeight: '100vh',
     borderRadius: '24px',
@@ -61,7 +61,8 @@ export const settingsModalStyles: StyleRecord = {
     padding: '18px 15px',
     borderRadius: '18px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(10, 16, 28, 0.85)'
+    backgroundColor: 'rgba(10, 16, 28, 0.85)',
+    position: 'relative'
   },
   blockHeader: {
     display: 'flex',
@@ -69,12 +70,29 @@ export const settingsModalStyles: StyleRecord = {
     justifyContent: 'space-between',
     gap: '16px'
   },
+  blockHeaderActions: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px'
+  },
   blockTitle: {
     margin: 0,
     fontSize: '14px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
     color: '#cbd5f5'
+  },
+  blockToggleButton: {
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'rgba(15, 23, 42, 0.65)',
+    color: '#cbd5f5',
+    width: '36px',
+    height: '36px',
+    borderRadius: '12px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
   },
   blockBody: {
     display: 'flex',
@@ -101,7 +119,11 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: 999,
     background: 'rgba(16, 185, 129, 0.16)',
     color: '#34d399',
-    border: '1px solid rgba(16, 185, 129, 0.35)'
+    border: '1px solid rgba(16, 185, 129, 0.35)',
+    marginBottom: '10px',
+    position: 'absolute',
+    top: '20px',
+    right: '20%'
   },
   keyboardLayoutsList: {
     display: 'flex',
@@ -150,7 +172,8 @@ export const settingsModalStyles: StyleRecord = {
   keyboardActions: {
     display: 'flex',
     justifyContent: 'flex-end',
-    gap: '12px'
+    gap: '12px',
+    paddingTop: '20px'
   },
   loading: {
     fontSize: '14px',

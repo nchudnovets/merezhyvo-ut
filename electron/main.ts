@@ -982,6 +982,25 @@ ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown)
   }
 });
 
+ipcMain.handle('merezhyvo:settings:tor:set-keep', async (_event, payload: unknown) => {
+  const keepEnabled =
+    typeof payload === 'boolean'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { keepEnabled?: unknown }).keepEnabled === 'boolean'
+      ? Boolean((payload as { keepEnabled?: boolean }).keepEnabled)
+      : null;
+  if (typeof keepEnabled !== 'boolean') {
+    return { ok: false, error: 'Invalid keepEnabled flag.' };
+  }
+  try {
+    const torConfig = await updateTorConfig({ keepEnabled });
+    return { ok: true, containerId: torConfig.containerId, keepEnabled: torConfig.keepEnabled };
+  } catch (err) {
+    console.error('[merezhyvo] settings tor keep update failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
 ipcMain.handle('merezhyvo:ua:set-mode', (_event, payload: unknown) => {
   let value: string | null = null;
   if (typeof payload === 'string') {

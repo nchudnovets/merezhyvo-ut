@@ -2,6 +2,7 @@ import React, {
   useEffect,
   useState,
   useCallback,
+  type ReactNode,
 } from 'react';
 import { ipc } from '../../../services/ipc/ipc';
 import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../keyboard/layouts';
@@ -21,12 +22,11 @@ type KeyboardSettingsProps = {
 
 const ALL_LAYOUTS = LANGUAGE_LAYOUT_IDS;
 
-export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
+export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): ReactNode => {
   const [loading, setLoading] = useState<boolean>(true);
   const [enabled, setEnabled] = useState<string[]>(['en']);
   const [preferred, setPreferred] = useState<string>('en');
   const [savedAt, setSavedAt] = useState<number>(0);
-  const [expanded, setExpanded] = useState<boolean>(false);
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -116,145 +116,96 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }) => {
   }, [enabled, preferred]);
 
   return (
-    <section style={{
-      ...styles.block,
-      ...(modeStyles.settingsBlock || {})
-    }}>
-      <div style={styles.blockHeader}>
-        <h3
-          style={{
-            ...styles.blockTitle,
-            ...(modeStyles.settingsBlockTitle || {})
-          }}
-        >
-          Keyboard layouts
-        </h3>
-        <div
-          style={{
-            ...styles.keyboardHeaderActions,
-            ...(modeStyles.settingsKeyboardHeaderActions || {})
-          }}
-        >
-          {!loading && savedAt > 0 && (
-            <span aria-live="polite" style={{
-              ...styles.keyboardSavedPill,
-              ...(modeStyles.settingsKeyboardSavedPill || {})
-            }}>
-              Saved
-            </span>
-          )}
-          <button
-            type="button"
-            onClick={() => setExpanded((value) => !value)}
-            aria-label={expanded ? 'Collapse keyboard layouts' : 'Expand keyboard layouts'}
-            style={{
-              ...styles.keyboardToggleButton,
-              ...(modeStyles.settingsKeyboardToggleButton || {})
-            }}
-          >
-            {
-              expanded
-                ? <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-                    {/* <!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--> */}
-                    <path fill="#ffffff" d="M297.4 169.4C309.9 156.9 330.2 156.9 342.7 169.4L534.7 361.4C547.2 373.9 547.2 394.2 534.7 406.7C522.2 419.2 501.9 419.2 489.4 406.7L320 237.3L150.6 406.6C138.1 419.1 117.8 419.1 105.3 406.6C92.8 394.1 92.8 373.8 105.3 361.3L297.3 169.3z"/>
-                  </svg>
-                : <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 640 640">
-                    {/* <!--!Font Awesome Free v7.1.0 by @fontawesome - https://fontawesome.com License - https://fontawesome.com/license/free Copyright 2025 Fonticons, Inc.--> */}
-                    <path fill="#ffffff" d="M297.4 470.6C309.9 483.1 330.2 483.1 342.7 470.6L534.7 278.6C547.2 266.1 547.2 245.8 534.7 233.3C522.2 220.8 501.9 220.8 489.4 233.3L320 402.7L150.6 233.4C138.1 220.9 117.8 220.9 105.3 233.4C92.8 245.9 92.8 266.2 105.3 278.7L297.3 470.7z"/>
-                  </svg>
-            }
-          </button>
-        </div>
-      </div>
-
-      {expanded && (
-        <div style={{
-          ...styles.blockBody,
-          ...(modeStyles.settingsBlockBody || {})
+    <div>
+      {!loading && savedAt > 0 && (
+        <span aria-live="polite" style={{
+          ...styles.keyboardSavedPill,
+          ...(modeStyles.settingsKeyboardSavedPill || {})
         }}>
-          {loading ? (
-            <span
-              style={{
-                ...styles.loading,
-                ...(modeStyles.settingsLoading || {}),
-                opacity: 0.85
-              }}
-            >
-              Loading…
-            </span>
-          ) : (
-            <>
-              <div
+          Saved
+        </span>
+      )}
+      {loading ? (
+        <span
+          style={{
+            ...styles.loading,
+            ...(modeStyles.settingsLoading || {}),
+            opacity: 0.85
+          }}
+        >
+          Loading…
+        </span>
+      ) : (
+        <>
+          <div
+            style={{
+              ...styles.keyboardLayoutsList,
+              ...(modeStyles.settingsKeyboardLayoutsList || {})
+            }}
+            className="settings-keyboard-scroll"
+          >
+            {ALL_LAYOUTS.map((layoutId) => (
+              <label key={layoutId}
                 style={{
-                  ...styles.keyboardLayoutsList,
-                  ...(modeStyles.settingsKeyboardLayoutsList || {})
-                }}
-                className="settings-keyboard-scroll"
-              >
-                {ALL_LAYOUTS.map((layoutId) => (
-                  <label key={layoutId}
-                    style={{
-                    ...styles.keyboardLayoutRow,
-                    ...(modeStyles.settingsKeyboardLayoutRow || {})
+                ...styles.keyboardLayoutRow,
+                ...(modeStyles.settingsKeyboardLayoutRow || {})
+              }}>
+                <input
+                  type="checkbox"
+                  checked={enabled.includes(layoutId)}
+                  onChange={() => toggle(layoutId)}
+                  style={modeStyles.settingsKeyboardInput}
+                />
+                <span style={{
+                  ...styles.keyboardLayoutCode,
+                  ...(modeStyles.settingsKeyboardLayoutCode || {})
+                }}>
+                  {humanLabel(layoutId as never)}
+                </span>
+                <span style={{
+                  ...styles.keyboardLayoutId,
+                  ...(modeStyles.settingsKeyboardLayoutId || {})
+                }}>
+                  {layoutId}
+                </span>
+                <span style={{ marginInlineStart: 'auto' }}>
+                  <label style={{
+                    ...styles.keyboardRadioLabel,
+                    ...(modeStyles.settingsKeyboardRadioLabel || {})
                   }}>
                     <input
-                      type="checkbox"
-                      checked={enabled.includes(layoutId)}
-                      onChange={() => toggle(layoutId)}
+                      type="radio"
+                      name="keyboard-default"
+                      checked={preferred === layoutId}
+                      onChange={() => setDefault(layoutId)}
                       style={modeStyles.settingsKeyboardInput}
                     />
-                    <span style={{
-                      ...styles.keyboardLayoutCode,
-                      ...(modeStyles.settingsKeyboardLayoutCode || {})
-                    }}>
-                      {humanLabel(layoutId as never)}
-                    </span>
-                    <span style={{
-                      ...styles.keyboardLayoutId,
-                      ...(modeStyles.settingsKeyboardLayoutId || {})
-                    }}>
-                      {layoutId}
-                    </span>
-                    <span style={{ marginInlineStart: 'auto' }}>
-                      <label style={{
-                        ...styles.keyboardRadioLabel,
-                        ...(modeStyles.settingsKeyboardRadioLabel || {})
-                      }}>
-                        <input
-                          type="radio"
-                          name="keyboard-default"
-                          checked={preferred === layoutId}
-                          onChange={() => setDefault(layoutId)}
-                          style={modeStyles.settingsKeyboardInput}
-                        />
-                        <span>Default</span>
-                      </label>
-                    </span>
+                    <span>Default</span>
                   </label>
-                ))}
-              </div>
+                </span>
+              </label>
+            ))}
+          </div>
 
-              <div style={{
-                ...styles.keyboardActions,
-                ...(modeStyles.settingsKeyboardActions || {})
-              }}>
-                <button type="button" onClick={onSave} style={{
-                  ...baseStyles.modalButton,
-                  minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
-                  height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
-                  borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-                  padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
-                  fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
-                  ...baseStyles.modalButtonPrimary
-                }}>
-                  Save
-                </button>
-              </div>
-            </>
-          )}
-        </div>
+          <div style={{
+            ...styles.keyboardActions,
+            ...(modeStyles.settingsKeyboardActions || {})
+          }}>
+            <button type="button" onClick={onSave} style={{
+              ...baseStyles.modalButton,
+              minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+              height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
+              borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
+              padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
+              fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
+              ...baseStyles.modalButtonPrimary
+            }}>
+              Save
+            </button>
+          </div>
+        </>
       )}
-    </section>
+    </div>
   );
 };
 

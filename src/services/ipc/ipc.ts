@@ -114,6 +114,17 @@ export const ipc = {
       }
       return { ok: false, error: 'Unknown error' };
     },
+    async setTorKeepEnabled(keepEnabled: boolean): Promise<SaveTorConfigResponse> {
+      try {
+        const res = await getApi()?.settings?.tor?.setKeepEnabled?.(keepEnabled);
+        if (res && typeof res === 'object') {
+          return res as SaveTorConfigResponse;
+        }
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
+      return { ok: false, error: 'Unknown error' };
+    },
     keyboard: {
       async get(): Promise<{ enabledLayouts: string[]; defaultLayout: string }> {
         try {

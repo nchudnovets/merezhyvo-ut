@@ -1,19 +1,16 @@
 import React, { useEffect, memo } from 'react';
-import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent } from 'react';
+import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent, ReactNode } from 'react';
 import type { InstalledApp, Mode, MessengerDefinition, MessengerId } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
-import KeyboardSettings from './KeyboardSettings';
 import MessengerSettings from './MessengerSettings';
+import SettingsSection from './SettingsSection';
+import KeyboardSettings from './KeyboardSettings';
+import { SettingsAppInfo } from './settingsModalTypes';
+import TorSettings from './TorSettings';
+import AboutSettings from './AboutSettings';
 // import { PermissionsSettings } from './PermissionsSettings';
-
-interface SettingsAppInfo {
-  name: string;
-  version: string;
-  description?: string;
-  chromium?: string;
-}
 
 interface SettingsModalProps {
   mode: Mode;
@@ -31,7 +28,6 @@ interface SettingsModalProps {
   torSavedContainerId: string;
   torContainerSaving: boolean;
   torContainerMessage: string;
-  torKeepEnabled: boolean;
   torKeepEnabledDraft: boolean;
   torInputRef: RefObject<HTMLInputElement | null>;
   onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
@@ -196,7 +192,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torSavedContainerId,
   torContainerSaving,
   torContainerMessage,
-  torKeepEnabled,
   torKeepEnabledDraft,
   torInputRef,
   onTorInputPointerDown,
@@ -261,28 +256,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =
     mode === 'mobile' ? baseStyles.modalCloseMobile : baseStyles.modalClose;
-  const blockBodyStyle = {
-    ...styles.blockBody,
-    ...(modeStyles.settingsBlockBody || {})
-  };
-  const aboutNameRaw = (appInfo?.name || 'Merezhyvo').trim();
-  const aboutName = aboutNameRaw
-    ? aboutNameRaw.charAt(0).toUpperCase() + aboutNameRaw.slice(1)
-    : 'Merezhyvo';
-  const aboutVersion = appInfo?.version || '0.0.0';
-  const chromiumVersion = appInfo?.chromium || 'Unknown';
-  const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
-  const torStatusText = torEnabled ? 'Tor enabled' : 'Tor disabled';
-  const torStatusStyle = torEnabled ? styles.torInfoValueEnabled : styles.torInfoValueDisabled;
-  const torIpText = torIpLoading ? 'Loading…' : (torCurrentIp || 'Unavailable');
-  const torContainerInputId = 'settings-tor-container-id';
-  const trimmedTorValue = (torContainerValue || '').trim();
-  const savedTorValue = (torSavedContainerId || '').trim();
-  const keepCheckboxDisabled = trimmedTorValue.length === 0;
-  const containerDirty = trimmedTorValue !== savedTorValue;
-  const keepDirty = torKeepEnabledDraft !== torKeepEnabled;
-  const torSaveDisabled = torContainerSaving || (!containerDirty && !keepDirty);
-
   return (
     <div
       style={backdropStyle}
@@ -319,150 +292,72 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         </div>
 
         <div style={styles.sections} className="settings-modal-body">
-          <section
-            style={{
-              ...styles.block,
-              ...(modeStyles.settingsBlock || {})
-            }}
-          >
-            <div style={styles.blockHeader}>
-              <h3
-                style={{
-                  ...styles.blockTitle,
-                  ...(modeStyles.settingsBlockTitle || {})
-                }}
-              >
-                Tor
-              </h3>
-            </div>
-            <div style={blockBodyStyle}>
-              <div style={styles.torInfoRow}>
-                <span style={styles.torInfoLabel}>Tor status</span>
-                <span
-                  style={{
-                    ...styles.torInfoValue,
-                    ...torStatusStyle,
-                    ...(modeStyles.settingsTorInfoValue || {})
-                  }}
-                >
-                  {torStatusText}
-                </span>
-              </div>
-              <div style={styles.torInfoRow}>
-                <span style={styles.torInfoLabel}>Current IP</span>
-                <span
-                  style={{
-                    ...styles.torInfoValue,
-                    ...(modeStyles.settingsTorInfoValue || {})
-                  }}
-                >
-                  {torIpText}
-                </span>
-              </div>
-              <div style={styles.torInputGroup}>
-                <label
-                  htmlFor={torContainerInputId}
-                  style={{
-                    ...styles.torInputLabel,
-                    ...(modeStyles.settingsTorInputLabel || {})
-                  }}
-                >
-                  Tor Libertine container identifier
-                </label>
-                <div style={styles.torInputRow}>
-                  <input
-                    id={torContainerInputId}
-                    type="text"
-                    value={torContainerValue ?? ''}
-                    onChange={(event) => onTorContainerChange(event.target.value)}
-                    onPointerDown={onTorInputPointerDown}
-                    onFocus={onTorInputFocus}
-                    onBlur={onTorInputBlur}
-                    ref={torInputRef}
-                    style={{
-                      ...styles.torInput,
-                      ...(modeStyles.settingsTorInput || {})
-                    }}
-                    placeholder="e.g. main"
-                    autoComplete="off"
-                  />
-                  <button
-                    type="button"
-                    onClick={onSaveTorContainer}
-                    disabled={torSaveDisabled}
-                    style={{
-                      ...styles.torSaveButton,
-                      ...(modeStyles.settingsTorSaveButton || {}),
-                      ...(torSaveDisabled ? baseStyles.modalButtonDisabled : null)
-                    }}
-                  >
-                    {torContainerSaving ? 'Saving…' : 'Save'}
-                  </button>
-                </div>
-                <p
-                  style={{
-                    ...styles.torInputHint,
-                    ...(modeStyles.settingsTorInputHint || {})
-                  }}
-                >
-                  Set the Libertine container ID where Tor is installed.
-                </p>
-                <label
-                  style={{
-                    ...styles.torKeepRow,
-                    ...(modeStyles.settingsTorKeepRow || {})
-                  }}
-                  title={keepCheckboxDisabled ? 'Set the Libertine container identifier first' : undefined}
-                >
-                  <input
-                    type="checkbox"
-                    checked={torKeepEnabledDraft}
-                    disabled={keepCheckboxDisabled}
-                    onChange={(event) => onTorKeepChange(event.target.checked)}
-                    style={{
-                      ...styles.torKeepCheckbox,
-                      ...(modeStyles.settingsTorKeepCheckbox || {}),
-                      ...(keepCheckboxDisabled ? { cursor: 'not-allowed' } : {})
-                    }}
-                  />
-                  <span
-                    style={{
-                      ...styles.torKeepLabel,
-                      ...(keepCheckboxDisabled ? styles.torKeepLabelDisabled : {}),
-                      ...(modeStyles.settingsTorKeepLabel || {})
-                    }}
-                  >
-                    Keep Tor enabled
-                  </span>
-                </label>
-                {torContainerMessage && (
-                  <p
-                    style={{
-                      ...styles.torMessage,
-                      ...(modeStyles.settingsTorMessage || {})
-                    }}
-                    aria-live="polite"
-                  >
-                    {torContainerMessage}
-                  </p>
-                )}
-              </div>
-            </div>
-          </section>
-
-          <MessengerSettings
+          <SettingsSection
             mode={mode}
-            items={messengerItems}
-            saving={messengerOrderSaving}
-            message={messengerOrderMessage}
-            onMove={onMessengerMove}
+            title="Tor"
+            expandedDefault
+            body={
+              <TorSettings
+                mode={mode}
+                torEnabled={torEnabled}
+                torCurrentIp={torCurrentIp}
+                torIpLoading={torIpLoading}
+                torContainerValue={torContainerValue}
+                torSavedContainerId={torSavedContainerId}
+                torContainerSaving={torContainerSaving}
+                torContainerMessage={torContainerMessage}
+                torKeepEnabledDraft={torKeepEnabledDraft}
+                torInputRef={torInputRef}
+                onTorInputPointerDown={onTorInputPointerDown}
+                onTorInputFocus={onTorInputFocus}
+                onTorInputBlur={onTorInputBlur}
+                onTorContainerChange={onTorContainerChange}
+                onSaveTorContainer={onSaveTorContainer}
+                onTorKeepChange={onTorKeepChange}
+              />
+            }
           />
 
-          <KeyboardSettings mode={mode} />
+          <SettingsSection
+            mode={mode}
+            title='Messenger toolbar'
+            body={MessengerSettings({
+              mode,
+              items: messengerItems,
+              saving: messengerOrderSaving,
+              message: messengerOrderMessage,
+              onMove: onMessengerMove
+            }) as ReactNode}
+          />
 
-          {/* <PermissionsSettings mode={mode} /> */}
+          <SettingsSection
+            mode={mode}
+            title='Keyboard Layouts'
+            body={KeyboardSettings({mode}) as ReactNode}
+          />
 
-          <section
+          <SettingsSection
+            mode={mode}
+            title="About"
+            expandedDefault
+            body={<AboutSettings mode={mode} appInfo={appInfo} />}
+          />
+        </div>
+
+        {message && (
+          <div
+            style={{
+              ...styles.message,
+              ...(modeStyles.settingsMessage || {})
+            }}
+            role="status"
+          >
+            {message}
+          </div>
+        )}
+        {/* <PermissionsSettings mode={mode} /> */}
+
+          {/* <section
             style={{
               ...styles.block,
               ...(modeStyles.settingsBlock || {})
@@ -509,71 +404,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 </ul>
               )}
             </div>
-          </section>
-
-          <section
-            style={{
-              ...styles.block,
-              ...(modeStyles.settingsBlock || {})
-            }}
-          >
-            <div style={styles.blockHeader}>
-              <h3
-                style={{
-                  ...styles.blockTitle,
-                  ...(modeStyles.settingsBlockTitle || {})
-                }}
-              >
-                About
-              </h3>
-            </div>
-            <div style={blockBodyStyle}>
-              <div
-                style={{
-                  ...styles.aboutCard,
-                  ...(modeStyles.settingsAboutCard || {})
-                }}
-              >
-                <p
-                  style={{
-                    ...styles.aboutName,
-                    ...(modeStyles.settingsAboutName || {})
-                  }}
-                >
-                  {aboutName}
-                </p>
-                <p
-                  style={{
-                    ...styles.aboutVersion,
-                    ...(modeStyles.settingsAboutVersion || {})
-                  }}
-                >
-                  Version {aboutVersion}
-                </p>
-                <p
-                  style={{
-                    ...styles.aboutDescription,
-                    ...(modeStyles.settingsAboutDescription || {})
-                  }}
-                >
-                  {aboutDescription}
-                </p>
-              </div>
-            </div>
-          </section>
-        </div>
-
-        {message && (
-          <div
-            style={{
-              ...styles.message,
-              ...(modeStyles.settingsMessage || {})
-            }}
-            role="status"
-          >
-            {message}
-          </div>
-        )}
+          </section> */}
       </div>
     </div>
   );
