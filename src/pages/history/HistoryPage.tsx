@@ -75,6 +75,8 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
+  const [showClearConfirm, setShowClearConfirm] = useState(false);
+  const [clearBusy, setClearBusy] = useState(false);
 
   const styles = historyStyles;
   const modeStyles = historyModeStyles[mode] || {};
@@ -169,12 +171,27 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
     [refreshHistory]
   );
 
+  const requestClearAll = useCallback(() => {
+    setShowClearConfirm(true);
+  }, []);
+
+  const cancelClearAll = useCallback(() => {
+    if (clearBusy) return;
+    setShowClearConfirm(false);
+  }, [clearBusy]);
+
   const handleClearAll = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.merezhyvo?.history : undefined;
-    if (!api || !window.confirm('Clear entire history?')) return;
-    await api.clearAll();
-    setFeedback('History cleared');
-    await refreshHistory();
+    if (!api) return;
+    setClearBusy(true);
+    try {
+      await api.clearAll();
+      setFeedback('History cleared');
+      await refreshHistory();
+    } finally {
+      setClearBusy(false);
+      setShowClearConfirm(false);
+    }
   }, [refreshHistory]);
 
   const formatTime = (ts: number) => new Date(ts).toLocaleString();
@@ -213,7 +230,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={profileModeStyle('title')}>History</h1>
-        <button type="button" style={{...styles.button, ...modeStyles.button}} onClick={handleClearAll}>
+        <button type="button" style={{...styles.button, ...modeStyles.button}} onClick={requestClearAll}>
           Clear History
         </button>
       </div>
@@ -260,6 +277,51 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
           );
         })}
       </div>
+      {showClearConfirm && (
+        <div style={historyStyles.confirmBackdrop}>
+          <div style={{
+            ...historyStyles.confirmPanel,
+            ...(modeStyles.confirmPanel ?? {})
+          }}>
+            <h2 style={{
+              ...historyStyles.confirmTitle,
+              ...(modeStyles.confirmTitle ?? {})
+            }}>
+              Confirm Clear
+            </h2>
+            <p style={{
+              ...historyStyles.confirmMessage,
+              ...(modeStyles.confirmMessage ?? {})
+            }}>
+              This will remove every visit from your history and cannot be undone.
+            </p>
+            <div style={{
+              ...historyStyles.confirmActions,
+              ...(modeStyles.confirmActions ?? {})
+            }}>
+              <button
+                type="button"
+                style={historyStyles.confirmButton}
+                onClick={cancelClearAll}
+                disabled={clearBusy}
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...historyStyles.confirmButton,
+                  ...(modeStyles.confirmButton ?? {})
+                }}
+                onClick={handleClearAll}
+                disabled={clearBusy}
+              >
+                Clear History
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };

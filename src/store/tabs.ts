@@ -177,7 +177,7 @@ function scheduleSave(): void {
 }
 
 function serializeState(current: TabsState) {
-  const persistentTabs = current.tabs.filter((tab) => tab.kind !== 'messenger');
+  const persistentTabs = current.tabs.filter((tab) => tab.kind !== 'messenger' && !isServiceUrl(tab.url));
   const activeId = persistentTabs.some((tab) => tab.id === current.activeId)
     ? current.activeId
     : persistentTabs[0]?.id ?? current.activeId;
@@ -579,3 +579,7 @@ export {
   isYouTubeLike,
   tabsActions
 };
+
+function isServiceUrl(url: string | undefined): boolean {
+  return typeof url === 'string' && url.trim().toLowerCase().startsWith('mzr://');
+}

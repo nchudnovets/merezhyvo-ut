@@ -514,8 +514,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const torKeepUpdateIdRef = useRef<number>(0);
   const torAutoStartKeyRef = useRef<string>('');
 
-  const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned), [tabs]);
-  const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned), [tabs]);
+  const isServiceTab = (tab: Tab): boolean => (tab.url ?? '').trim().toLowerCase().startsWith('mzr://');
+  const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned && !isServiceTab(tab)), [tabs]);
+  const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned && !isServiceTab(tab)), [tabs]);
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
   const orderedMessengers = useMemo(

@@ -129,5 +129,47 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   },
   placeholder: {
     color: '#94a3b8'
+  },
+  confirmBackdrop: {
+    position: 'fixed',
+    inset: 0,
+    background: 'rgba(2, 6, 23, 0.75)',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 20
+  },
+  confirmPanel: {
+    minWidth: '320px',
+    width: 'min(520px, 90vw)',
+    background: '#0f1729',
+    border: '1px solid rgba(148, 163, 184, 0.25)',
+    borderRadius: '20px',
+    padding: '24px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '18px'
+  },
+  confirmTitle: {
+    margin: 0,
+    fontSize: '24px'
+  },
+  confirmMessage: {
+    fontSize: '16px',
+    color: '#cbd5f5'
+  },
+  confirmActions: {
+    display: 'flex',
+    justifyContent: 'flex-end',
+    gap: '12px'
+  },
+  confirmButton: {
+    padding: '10px 16px',
+    borderRadius: '10px',
+    border: '1px solid rgba(59, 130, 246, 0.8)',
+    background: 'rgba(59, 130, 246, 0.25)',
+    color: '#f8fafc',
+    fontWeight: 600,
+    cursor: 'pointer'
   }
 };
