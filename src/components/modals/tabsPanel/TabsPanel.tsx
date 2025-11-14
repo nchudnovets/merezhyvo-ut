@@ -76,6 +76,7 @@ const TabRow = memo(({
   };
   const [bookmarkState, setBookmarkState] = useState<{ yes: boolean; nodeId?: string }>({ yes: false });
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
+  const [bookmarkRefreshToken, setBookmarkRefreshToken] = useState(0);
   const safeUrl = (tab.url ?? '').trim();
   const canBookmark = safeUrl.length > 0;
   const tabTitleLabel = displayTitle(tab);
@@ -108,7 +109,17 @@ const TabRow = memo(({
     return () => {
       cancelled = true;
     };
-  }, [safeUrl]);
+  }, [safeUrl, bookmarkRefreshToken]);
+
+  useEffect(() => {
+    const handler = () => {
+      setBookmarkRefreshToken((prev) => prev + 1);
+    };
+    window.addEventListener('merezhyvo:bookmarks:changed', handler);
+    return () => {
+      window.removeEventListener('merezhyvo:bookmarks:changed', handler);
+    };
+  }, []);
 
   const handleBookmarkToggle = useCallback(async () => {
     if (!canBookmark || bookmarkBusy) return;

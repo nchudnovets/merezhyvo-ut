@@ -2436,6 +2436,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [newTabAction, blurActiveInWebview]
   );
 
+  const openInActiveTab = useCallback(
+    (url: string) => {
+      navigateActiveAction(url);
+      setShowTabsPanel(false);
+      blurActiveInWebview();
+    },
+    [navigateActiveAction, blurActiveInWebview]
+  );
+
   const openBookmarksPage = useCallback(() => openInNewTab('mzr://bookmarks'), [openInNewTab]);
   const openHistoryPage = useCallback(() => openInNewTab('mzr://history'), [openInNewTab]);
 
@@ -2450,8 +2459,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const showServiceOverlay = mainViewMode === 'browser' && (isBookmarksService || isHistoryService);
   const serviceContent = showServiceOverlay
     ? isBookmarksService
-      ? <BookmarksPage mode={mode} openInNewTab={openInNewTab} />
-      : <HistoryPage mode={mode} openInNewTab={openInNewTab} />
+      ? <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />
+      : <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />
     : null;
 
   const handleCleanCloseTab = useCallback(async (id: string) => {
