@@ -213,7 +213,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
     <div style={styles.container}>
       <div style={styles.header}>
         <h1 style={profileModeStyle('title')}>History</h1>
-        <button type="button" style={styles.button} onClick={handleClearAll}>
+        <button type="button" style={{...styles.button, ...modeStyles.button}} onClick={handleClearAll}>
           Clear History
         </button>
       </div>

@@ -16,7 +16,8 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     tabIconButton: {},
     tabIcon: {},
     tabActions: {},
-    newTabButton: {}
+    newTabButton: {},
+    header: {}
   },
   mobile: {
     tabsPanelTitle: {
@@ -72,8 +73,12 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       justifyContent: 'center',
       gap: '10px',
     },
+    header: {
+      alignItems: 'start',
+    },
     headerButtons: {
-      gap: '18px'
+      gap: '18px',
+      flexWrap: 'nowrap'
     },
     headerButton: {
       padding: '6px 22px',

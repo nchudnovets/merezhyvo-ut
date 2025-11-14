@@ -5,10 +5,14 @@ export const historyModeStyles: Record<Mode, Partial<Record<string, CSSPropertie
   desktop: {
     entryText: {
       maxWidth: '50%'
-    }
+    },
+    button: {}
   },
   mobile: {
     title: { fontSize: 'clamp(42px, 6vw, 54px)' },
+    button: {
+      fontSize: '45px'
+    },
     groupTitle: {
       fontSize: '28px'
     },
