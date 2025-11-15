@@ -1090,7 +1090,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
             <button
               key={item.label}
               type="button"
-              style={styles.contextMenuItem}
+              style={{...styles.contextMenuItem, ...modeStyles.contextMenuItem}}
               onClick={() => {
                 setContextMenu(null);
                 item.action();

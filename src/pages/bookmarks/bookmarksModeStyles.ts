@@ -125,6 +125,7 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       padding: '8px'
     },
     dialog: {
+      width: '90%',
       padding: '32px',
       borderRadius: '20px'
     },
@@ -169,13 +170,16 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       fontSize: '35px'
     },
     folderTitle: {
-      fontSize: '35px'
+      fontSize: '45px'
     },
     folderMeta: {
       fontSize: '35px'
     },
     folderChevron: {
       fontSize: '35px'
+    },
+    contextMenuItem: {
+      fontSize: '33px'
     }
   }
 };
