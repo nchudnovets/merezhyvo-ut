@@ -867,17 +867,17 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
         <h1 style={{ ...styles.heroTitle, ...(modeStyles.heroTitle ?? {}) }}>Bookmarks</h1>
         <div style={styles.badgeGroup}>
           {selectionMode && (
-            <span style={styles.feedback}>{`${selectedIds.size} selected`}</span>
+            <span style={{...styles.feedback, ...modeStyles.feedback}}>{`${selectedIds.size} selected`}</span>
           )}
           {selectionMode && (
-            <button type="button" style={styles.smallButton} onClick={() => toggleSelectionMode(false)}>
+            <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={() => toggleSelectionMode(false)}>
               Done
             </button>
           )}
-          <div style={styles.actionGroup}>
+          <div style={{...styles.actionGroup, ...modeStyles.actionGroup}}>
             <button
               type="button"
-              style={styles.button}
+              style={{...styles.button, ...modeStyles.button}}
               onClick={() => {
                 closeMenus();
                 setShowAddMenu((prev) => !prev);
@@ -891,10 +891,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 className="bookmarks-action-menu"
                 onClick={(event) => event.stopPropagation()}
               >
-                <button style={styles.menuItem} onClick={openAddBookmarkDialog}>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={openAddBookmarkDialog}>
                   Add bookmark…
                 </button>
-                <button style={styles.menuItem} onClick={() => openNewFolderDialog(undefined)}>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => openNewFolderDialog(undefined)}>
                   New folder…
                 </button>
               </div>
@@ -903,7 +903,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
           <div style={styles.actionGroup}>
             <button
               type="button"
-              style={styles.button}
+              style={{...styles.button, ...modeStyles.button}}
               onClick={() => {
                 closeMenus();
                 setShowOverflowMenu((prev) => !prev);
@@ -917,13 +917,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 className="bookmarks-action-menu"
                 onClick={(event) => event.stopPropagation()}
               >
-                <button style={styles.menuItem} onClick={openImportDialog}>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={openImportDialog}>
                   Import…
                 </button>
-                <button style={styles.menuItem} onClick={() => openExportDialog('all')}>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => openExportDialog('all')}>
                   Export…
                 </button>
-                <button style={styles.menuItem} onClick={() => toggleSelectionMode(true)}>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => toggleSelectionMode(true)}>
                   Select
                 </button>
               </div>
@@ -940,7 +940,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
             onChange={(event) => setSearch(event.target.value)}
           />
           {search && (
-            <button type="button" style={styles.clearButton} onClick={clearSearch}>
+            <button type="button" style={{...styles.clearButton, ...modeStyles.clearButton}} onClick={clearSearch}>
               ×
             </button>
           )}
@@ -960,11 +960,11 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       </div>
       <nav style={styles.breadcrumbs}>
         {breadcrumbs.map((crumb, idx) => (
-          <span key={crumb.id} style={styles.crumbItem}> 
+          <span key={crumb.id} style={{...styles.crumbItem, ...modeStyles.crumbItem}}> 
             {idx < breadcrumbs.length - 1 ? (
               <button
                 type="button"
-                style={styles.crumbButton}
+                style={{...styles.crumbButton, ...modeStyles.crumbButton}}
                 onClick={() => setActiveNodeId(crumb.id)}
               >
                 {crumb.label}
@@ -972,7 +972,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
             ) : (
               <span>{crumb.label}</span>
             )}
-            {idx < breadcrumbs.length - 1 && <span style={styles.crumbSeparator}>/</span>}
+            {idx < breadcrumbs.length - 1 && <span style={{...styles.crumbSeparator, ...modeStyles.crumbSeparator}}>/</span>}
           </span>
         ))}
       </nav>
@@ -981,7 +981,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
         {!displayItems.length && (
           <div style={styles.emptyState}>
             <p>No items here yet</p>
-            <button style={styles.button} onClick={openAddBookmarkDialog}>
+            <button style={{...styles.button, ...modeStyles.button}} onClick={openAddBookmarkDialog}>
               Add bookmark
             </button>
           </div>
@@ -1007,31 +1007,31 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                     event.stopPropagation();
                     toggleSelection(node.id);
                   }}
-                  style={styles.checkbox}
+                  style={{...styles.checkbox, ...modeStyles.checkbox}}
                   onClick={(event) => event.stopPropagation()}
                 />
               </label>
             )}
             {isFolder(node) ? (
               <>
-                <span style={styles.folderIcon}>📁</span>
-                <span style={styles.folderTitle}>{node.title}</span>
-                <span style={styles.folderMeta}>{`${(node.children ?? []).length} items`}</span>
-                <span style={styles.folderChevron}>›</span>
+                <span style={{...styles.folderIcon, ...modeStyles.folderIcon}}>📁</span>
+                <span style={{...styles.folderTitle, ...modeStyles.folderTitle}}>{node.title}</span>
+                <span style={{...styles.folderMeta, ...modeStyles.folderMeta}}>{`${(node.children ?? []).length} items`}</span>
+                <span style={{...styles.folderChevron, ...modeStyles.folderChevron}}>›</span>
               </>
             ) : (
               <>
-                <span style={styles.bookmarkFavicon}>🌐</span>
-                <div style={styles.bookmarkDetails}>
-                  <span style={styles.bookmarkTitle}>{node.title}</span>
-                  {node.url && <span style={styles.bookmarkSubtitle}>{formatHostname(node.url)}</span>}
+                <span style={{...styles.bookmarkFavicon, ...modeStyles.bookmarkFavicon}}>🌐</span>
+                <div style={{...styles.bookmarkDetails, ...modeStyles.bookmarkDetails}}>
+                  <span style={{...styles.bookmarkTitle, ...modeStyles.bookmarkTitle}}>{node.title}</span>
+                  {node.url && <span style={{...styles.bookmarkSubtitle, ...modeStyles.bookmarkSubtitle}}>{formatHostname(node.url)}</span>}
                   {node.tags && node.tags.length > 0 && (
                     <div style={styles.tagGroup}>
                       {node.tags.slice(0, 2).map((tag) => (
                         <button
                           key={`${node.id}-${tag}`}
                           type="button"
-                          style={styles.tagChip}
+                          style={{...styles.tagChip, ...modeStyles.tagChip}}
                           onClick={(event) => {
                             event.stopPropagation();
                             applyTagFilter(tag);
@@ -1042,14 +1042,14 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                         </button>
                       ))}
                       {node.tags.length > 2 && (
-                        <span style={styles.tagMore}>+{node.tags.length - 2}</span>
+                        <span style={{...styles.tagMore, ...modeStyles.tagMore}}>+{node.tags.length - 2}</span>
                       )}
                     </div>
                   )}
                 </div>
                 <button
                   type="button"
-                  style={styles.starButton}
+                  style={{...styles.starButton, ...modeStyles.starButton}}
                   onClick={(event) => handleStarClick(node, event)}
                 >
                   ⭐
@@ -1105,19 +1105,20 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {exportDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={styles.dialogTitle}>Export bookmarks</h2>
-            <div style={styles.dialogBody}>
-              <label style={styles.dialogLabel}>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Export bookmarks</h2>
+            <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <input
                   type="radio"
                   name="exportScope"
                   value="all"
                   checked={exportDialog.scope === 'all'}
                   onChange={() => updateExportScope('all')}
+                  style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                 />
                 <span style={{ marginLeft: '10px' }}>All bookmarks</span>
               </label>
-              <label style={styles.dialogLabel}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <input
                   type="radio"
                   name="exportScope"
@@ -1125,6 +1126,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                   checked={exportDialog.scope === 'current'}
                   onChange={() => updateExportScope('current')}
                   disabled={!currentNode}
+                  style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                 />
                 <span style={{ marginLeft: '10px' }}>
                   Current folder
@@ -1132,13 +1134,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 </span>
               </label>
             </div>
-            <div style={styles.dialogActions}>
-              <button type="button" style={styles.smallButton} onClick={closeExportDialog}>
+            <div style={{...styles.dialogActions, ...modeStyles.dialogActions}}>
+              <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={closeExportDialog}>
                 Cancel
               </button>
               <button
                 type="button"
-                style={styles.button}
+                style={{...styles.button, ...modeStyles.button}}
                 onClick={handleExportConfirm}
                 disabled={!tree || (exportDialog.scope === 'current' && !currentNode)}
               >
@@ -1151,21 +1153,21 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {importDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={styles.dialogTitle}>Import bookmarks</h2>
-            <div style={styles.dialogBody}>
-              <label style={styles.dialogLabel}>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Import bookmarks</h2>
+            <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 File
                 <input
                   type="file"
                   accept="application/json"
                   onChange={handleImportFileChange}
-                  style={styles.dialogInput}
+                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                 />
-                <span style={styles.fileHint}>
+                <span style={{...styles.fileHint, ...modeStyles.fileHint}}>
                   {importDialog.file?.name ?? 'No file chosen'}
                 </span>
               </label>
-              <div style={styles.dialogLabel}>
+              <div style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <span>Mode</span>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <label>
@@ -1177,6 +1179,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                       onChange={() =>
                         setImportDialog((prev) => (prev ? { ...prev, mode: 'add' } : prev))
                       }
+                      style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
                     <span style={{ marginLeft: '6px' }}>Add to current folder</span>
                   </label>
@@ -1189,6 +1192,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                       onChange={() =>
                         setImportDialog((prev) => (prev ? { ...prev, mode: 'replace' } : prev))
                       }
+                      style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
                     <span style={{ marginLeft: '6px' }}>Replace current folder</span>
                   </label>
@@ -1202,12 +1206,12 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
               {importDialog.error && <div style={styles.banner}>{importDialog.error}</div>}
             </div>
             <div style={styles.dialogActions}>
-              <button type="button" style={styles.smallButton} onClick={closeImportDialog}>
+              <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={closeImportDialog}>
                 Cancel
               </button>
               <button
                 type="button"
-                style={styles.button}
+                style={{...styles.button, ...modeStyles.button}}
                 onClick={handleImportDialogConfirm}
                 disabled={!importDialog.tree || importDialog.loading || !tree}
               >
@@ -1220,43 +1224,43 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {dialogState && dialogState.type === 'bookmark' && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={styles.dialogTitle}>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>
               {dialogState.mode === 'add' ? 'Add bookmark' : 'Edit bookmark'}
             </h2>
-            <div style={styles.dialogBody}>
-              <label style={styles.dialogLabel}>
+            <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 Title
                 <input
                   type="text"
-                  style={styles.dialogInput}
+                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                   value={bookmarkForm.title}
                   onChange={(event) => setBookmarkForm((prev) => ({ ...prev, title: event.target.value }))}
                 />
               </label>
-              <label style={styles.dialogLabel}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 URL
                 <input
                   type="text"
-                  style={styles.dialogInput}
+                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                   value={bookmarkForm.url}
                   onChange={(event) => setBookmarkForm((prev) => ({ ...prev, url: event.target.value }))}
                 />
               </label>
-              <label style={styles.dialogLabel}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 Tags
                 <input
                   type="text"
-                  style={styles.dialogInput}
+                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                   placeholder="comma separated"
                   value={bookmarkForm.tags}
                   onChange={(event) => setBookmarkForm((prev) => ({ ...prev, tags: event.target.value }))}
                 />
               </label>
               <div style={styles.folderPickerRow}>
-                <span style={styles.folderPickerLabel}>Folder</span>
+                <span style={{...styles.folderPickerLabel, ...modeStyles.folderPickerLabel}}>Folder</span>
                 <button
                   type="button"
-                  style={styles.smallButton}
+                  style={{...styles.smallButton, ...modeStyles.smallButton}}
                   onClick={() =>
                     openFolderPicker(
                       'parent',
@@ -1269,14 +1273,16 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 >
                   Choose…
                 </button>
-                <span style={styles.folderPickerValue}>{folderItemLabel(bookmarkForm.folderId)}</span>
+                <span style={{...styles.folderPickerValue, ...modeStyles.folderPickerValue}}>
+                  {folderItemLabel(bookmarkForm.folderId)}
+                </span>
               </div>
             </div>
             <div style={styles.dialogActions}>
-              <button style={styles.smallButton} type="button" onClick={() => setDialogState(null)}>
+              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setDialogState(null)}>
                 Cancel
               </button>
-              <button style={styles.button} type="button" onClick={handleBookmarkFormSave}>
+              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleBookmarkFormSave}>
                 Save
               </button>
             </div>
@@ -1286,25 +1292,25 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {dialogState && dialogState.type === 'folder' && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={styles.dialogTitle}>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>
               {dialogState.mode === 'create' ? 'New folder' : 'Rename folder'}
             </h2>
             <div style={styles.dialogBody}>
-              <label style={styles.dialogLabel}>
+              <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 Name
                 <input
                   type="text"
-                  style={styles.dialogInput}
+                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                   value={folderForm.title}
                   onChange={(event) => setFolderForm({ title: event.target.value })}
                 />
               </label>
             </div>
             <div style={styles.dialogActions}>
-              <button style={styles.smallButton} type="button" onClick={() => setDialogState(null)}>
+              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setDialogState(null)}>
                 Cancel
               </button>
-              <button style={styles.button} type="button" onClick={handleFolderFormSave}>
+              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleFolderFormSave}>
                 {dialogState.mode === 'create' ? 'Create' : 'Save'}
               </button>
             </div>
@@ -1314,11 +1320,11 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {folderPicker && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={styles.dialogTitle}>{folderPicker.title}</h2>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>{folderPicker.title}</h2>
             <div style={styles.folderPickerActions}>
               <button
                 type="button"
-                style={styles.smallButton}
+                style={{...styles.smallButton, ...modeStyles.smallButton}}
                 onClick={() => {
                   const parentId = folderPicker.selectedId;
                   setFolderPicker(null);
@@ -1335,8 +1341,8 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                   key={folder.id}
                   style={
                     folder.id === folderPicker.selectedId
-                      ? { ...styles.folderPickerRow, ...styles.folderPickerActive }
-                      : styles.folderPickerRow
+                      ? { ...styles.folderPickerRow, ...modeStyles.folderPickerRow, ...styles.folderPickerActive }
+                      : {...styles.folderPickerRow, ...modeStyles.folderPickerRow}
                   }
                   onClick={() => handleFolderPickerSelect(folder.id)}
                 >
@@ -1345,10 +1351,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
               ))}
             </div>
             <div style={styles.dialogActions}>
-              <button style={styles.smallButton} type="button" onClick={() => setFolderPicker(null)}>
+              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setFolderPicker(null)}>
                 Cancel
               </button>
-              <button style={styles.button} type="button" onClick={handleFolderPickerChoose}>
+              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleFolderPickerChoose}>
                 Choose
               </button>
             </div>
@@ -1358,12 +1364,12 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {confirmState && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <p style={styles.dialogMessage}>{confirmState.message}</p>
+            <p style={{...styles.dialogMessage, ...modeStyles.dialogMessage}}>{confirmState.message}</p>
             <div style={styles.dialogActions}>
-              <button style={styles.smallButton} type="button" onClick={() => setConfirmState(null)}>
+              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setConfirmState(null)}>
                 {confirmState.cancelLabel ?? 'Cancel'}
               </button>
-              <button style={styles.button} type="button" onClick={confirmState.onConfirm}>
+              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
                 {confirmState.confirmLabel}
               </button>
             </div>

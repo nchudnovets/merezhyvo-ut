@@ -301,7 +301,10 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
             }}>
               <button
                 type="button"
-                style={historyStyles.confirmButton}
+                style={{
+                  ...historyStyles.confirmButton,
+                  ...(modeStyles.confirmButton ?? {})
+                }}
                 onClick={cancelClearAll}
                 disabled={clearBusy}
               >

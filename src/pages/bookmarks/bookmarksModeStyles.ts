@@ -2,22 +2,34 @@ import type { CSSProperties } from 'react';
 import type { Mode } from '../../types/models';
 
 export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSProperties>>> = {
-  desktop: {},
+  desktop: {
+    dialogRadioInput: {}
+  },
   mobile: {
     container: {
-      padding: '18px'
+      padding: '18px',
+      fontSize: '35px'
     },
     heroTitle: {
-      fontSize: 'clamp(40px, 6vw, 50px)'
+      fontSize: 'clamp(42px, 6vw, 54px)'
+    },
+    feedback: {
+      fontSize: '27px',
+    },
+    smallButton: {
+      fontSize: '37px'
     },
     badge: {
       fontSize: '34px',
       padding: '10px 18px'
     },
     button: {
-      fontSize: '40px',
-      minWidth: '60px',
-      height: '60px'
+      fontSize: '45px',
+      minWidth: '80px',
+      height: '80px'
+    },
+    menuItem: {
+      fontSize: '45px'
     },
     section: {
       gap: '20px'
@@ -32,11 +44,18 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
     breadcrumbs: {
       gap: '8px'
     },
+    crumbItem: {
+      fontSize: '35px'
+    },
     crumbButton: {
-      fontSize: '28px'
+      fontSize: '35px'
+    },
+    crumbSeparator: {
+      fontSize: '35px'
     },
     list: {
-      gap: '18px'
+      gap: '18px',
+      fontSize: '35px'
     },
     nodeRow: {
       flexDirection: 'column',
@@ -60,13 +79,19 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       gap: '16px'
     },
     bookmarkTitle: {
-      fontSize: 'clamp(36px, 6.5vw, 50px)'
+      fontSize: '40px'
     },
     bookmarkSubtitle: {
-      fontSize: '30px'
+      fontSize: '35px'
+    },
+    bookmarkFavicon: {
+      fontSize: '40px'
+    },
+    starButton: {
+      fontSize: '40px'
     },
     clearButton: {
-      fontSize: '36px'
+      fontSize: '38px'
     },
     menu: {
       top: '70px'
@@ -85,16 +110,16 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       fontSize: '32px'
     },
     tagChip: {
-      fontSize: '28px',
+      fontSize: '32px',
       padding: '8px 12px'
     },
     tagMore: {
-      fontSize: '28px',
+      fontSize: '32px',
       padding: '8px 12px'
     },
     checkbox: {
-      width: '28px',
-      height: '28px'
+      width: '40px',
+      height: '40px'
     },
     overlay: {
       padding: '8px'
@@ -111,31 +136,46 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       gap: '12px'
     },
     dialogInput: {
-      fontSize: '30px',
+      fontSize: '33px',
       padding: '18px'
+    },
+    dialogRadioInput: {
+      width: '25px'
     },
     dialogActions: {
       flexDirection: 'column',
       alignItems: 'stretch'
     },
     dialogMessage: {
-      fontSize: '32px'
+      fontSize: '35px'
     },
     folderListPicker: {
       maxHeight: '60vh'
     },
     folderPickerRow: {
-      fontSize: '32px',
+      fontSize: '35px',
       padding: '18px 20px'
     },
     folderPickerValue: {
-      fontSize: '32px'
+      fontSize: '35px'
     },
     folderPickerLabel: {
-      fontSize: '28px'
+      fontSize: '32px'
     },
     folderPickerActions: {
       justifyContent: 'center'
+    },
+    folderIcon: {
+      fontSize: '35px'
+    },
+    folderTitle: {
+      fontSize: '35px'
+    },
+    folderMeta: {
+      fontSize: '35px'
+    },
+    folderChevron: {
+      fontSize: '35px'
     }
   }
 };

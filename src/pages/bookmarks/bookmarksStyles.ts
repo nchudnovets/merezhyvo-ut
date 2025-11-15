@@ -445,7 +445,6 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   },
   dialogLabel: {
     display: 'flex',
-    flexDirection: 'column',
     gap: '6px',
     fontSize: '14px',
     color: '#94a3b8'
@@ -459,6 +458,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     width: '100%',
     boxSizing: 'border-box'
   },
+  dialogRadioInput: {},
   dialogActions: {
     display: 'flex',
     alignItems: 'center',
