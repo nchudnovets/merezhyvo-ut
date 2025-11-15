@@ -27,7 +27,10 @@
         
     *   Symbols **1/2** pages, **Shift** tap for one uppercase, **Shift long-press → Caps**.
         
-    *   Language switcher shows the current layout label **on the Space key**.
+ *   Language switcher shows the current layout label **on the Space key**.
+
+*   **Bookmarks & History manager** (service tabs `mzr://bookmarks`, `mzr://history`)
+    *   Accessed only through the Tabs panel header (⭐ / 🕘). Bookmarks live in a single `MyBookmarks` root, with search/tag filtering, context menus, import/export dialogs, and selection helpers; history groups visits by time, supports per-item/domain removal, and shares the same scrollable service chrome.
         
     *   Works in the main window and inside the `<webview>` without stealing focus.
 - **Permissions & privacy (new)**
@@ -196,6 +199,13 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
     Копіювати код
     
     `tail -f ~/.config/merezhyvo/geo.log journalctl -kf | grep -i 'apparmor\|denied' journalctl -f  | grep -Ei 'qmlscene|QtPositioning|geoclue|lomiri' which qmlscene && qmlscene -version`
+
+
+## Bookmarks & History
+
+*   Service tabs `mzr://bookmarks` and `mzr://history` are reached only through the Tabs panel header buttons (⭐ / 🕘) so they never persist as regular tabs.
+*   **Bookmarks** live under the single `MyBookmarks` root (`profiles/<profile>/bookmarks.json`). The UI gives search (title/URL/tags), tag chips, breadcrumbs, folder picker, context menus (open/edit/move/delete), selection mode, import/export, and a star control on each tab card. Backend writes are atomic and URLs are normalized.
+*   **History** is append-only NDJSON (`profiles/<profile>/history.ndjson`), driven by webview navigation/title/favicon events, grouped by time buckets, searchable, and supports item/domain removal plus “clear all”, with favicons stored under `profiles/<profile>/favicons/<sha1>.<ext>` and provided via the preload API.
 
 
 ## Scripts
