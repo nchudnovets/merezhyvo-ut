@@ -1,7 +1,9 @@
 import type { CSSProperties } from 'react';
 import type { Mode } from '../../types/models';
 
-export const historyModeStyles: Record<Mode, Partial<Record<string, CSSProperties>>> = {
+import type { HistoryStyleKeys } from './historyStyles';
+
+export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CSSProperties>>> = {
   desktop: {
     entryText: {
       maxWidth: '50%'

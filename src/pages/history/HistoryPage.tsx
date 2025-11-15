@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { HistoryVisit } from '../../types/models';
+import type { HistoryVisit, Mode } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
 import { historyStyles } from './historyStyles';
 import { historyModeStyles } from './historyModeStyles';
@@ -13,7 +13,7 @@ const groupLabels = [
 
 type GroupKey = (typeof groupLabels)[number]['key'];
 
-const FaviconIcon: React.FC<{ faviconId?: string | null, mode: string }> = ({ faviconId, mode }) => {
+const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ faviconId, mode }) => {
   const [src, setSrc] = useState<string | null>(null);
 
   useEffect(() => {

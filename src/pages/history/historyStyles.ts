@@ -14,10 +14,16 @@ export type HistoryStyleKeys =
   | 'entryText'
   | 'entryTitle'
   | 'entryUrl'
-  | 'entryActions'
-  | 'actionButton'
-  | 'favicon'
-  | 'placeholder';
+| 'entryActions'
+| 'actionButton'
+| 'favicon'
+| 'placeholder'
+| 'confirmBackdrop'
+| 'confirmPanel'
+| 'confirmTitle'
+| 'confirmMessage'
+| 'confirmActions'
+| 'confirmButton';
 
 export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   container: {

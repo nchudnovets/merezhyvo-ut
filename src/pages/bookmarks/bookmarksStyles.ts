@@ -33,6 +33,16 @@ export type BookmarksStyleKeys =
   | 'tagMore'
   | 'checkboxWrap'
   | 'checkbox'
+  | 'actionGroup'
+  | 'menu'
+  | 'menuItem'
+  | 'clearButton'
+  | 'breadcrumbs'
+  | 'crumbItem'
+  | 'crumbButton'
+  | 'crumbSeparator'
+  | 'banner'
+  | 'emptyState'
   | 'contextMenu'
   | 'contextMenuItem'
   | 'overlay'
@@ -43,13 +53,28 @@ export type BookmarksStyleKeys =
   | 'dialogInput'
   | 'dialogActions'
   | 'dialogMessage'
+  | 'dialogRadioInput'
   | 'folderListPicker'
   | 'folderPickerRow'
   | 'folderPickerActive'
   | 'folderPickerLabel'
   | 'folderPickerActions'
   | 'folderPickerValue'
-  | 'fileHint';
+  | 'fileHint'
+  | 'folderRow'
+  | 'folderIcon'
+  | 'folderTitle'
+  | 'folderMeta'
+  | 'folderChevron'
+  | 'bookmarkRow'
+  | 'bookmarkFavicon'
+  | 'bookmarkDetails'
+  | 'bookmarkTitle'
+  | 'bookmarkSubtitle'
+  | 'starButton'
+  | 'bottomBar'
+  | 'bottomButton'
+  | 'toast';
 
 export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   container: {
@@ -458,7 +483,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     width: '100%',
     boxSizing: 'border-box'
   },
-  dialogRadioInput: {},
+  dialogRadioInput: {
+    marginRight: '6px'
+  },
   dialogActions: {
     display: 'flex',
     alignItems: 'center',
