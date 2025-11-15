@@ -38,17 +38,26 @@ const writeAtomic = async (target: string, payload: Buffer): Promise<void> => {
 };
 
 const resolveExtension = (contentType?: string | null, faviconUrl?: string | null): string => {
-  if (contentType) {
-    const normalized = contentType.split(';')[0].trim().toLowerCase();
+  let normalizedSource = '';
+  if (typeof contentType === 'string' && contentType.trim().length > 0) {
+    normalizedSource = contentType;
+  }
+  if (normalizedSource) {
+    const parts = normalizedSource.split(';');
+    const normalized = (parts[0] ?? '').trim().toLowerCase();
     const mapped = CONTENT_TYPE_MAP[normalized];
     if (mapped) {
       return mapped;
     }
   }
 
-  if (faviconUrl) {
+  let urlCandidate = '';
+  if (typeof faviconUrl === 'string' && faviconUrl.trim().length > 0) {
+    urlCandidate = faviconUrl;
+  }
+  if (urlCandidate) {
     try {
-      const parsed = new URL(faviconUrl);
+      const parsed = new URL(urlCandidate);
       const ext = path.extname(parsed.pathname || '').toLowerCase().replace(/\./g, '');
       if (ext && KNOWN_EXTENSIONS.includes(ext)) {
         return ext;

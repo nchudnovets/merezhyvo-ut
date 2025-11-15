@@ -28,7 +28,7 @@ function dbusCall(
   member: string,
   signature: string,
   body: unknown[]
-) {
+): Promise<Message | null> {
   const msg = new Message({
     destination,
     path: objectPath,
@@ -112,6 +112,7 @@ async function getManagedObjects(bus: MessageBus, service: string, objPath: stri
       '',
       []
     );
+    if (!reply) return null;
     const raw = (reply.body?.[0] ?? null) as unknown;
     const out: Array<{ path: string; ifaces: Record<string, Record<string, unknown>> }> = [];
 
@@ -157,6 +158,7 @@ async function propsGet(
       'ss',
       [iface, prop]
     );
+    if (!reply) return null;
     const val = vGet(reply.body?.[0]);
     return vGet(val);
   } catch (e) {
@@ -176,6 +178,7 @@ async function introspect(bus: MessageBus, service: string, objPath: string): Pr
       '',
       []
     );
+    if (!reply) return null;
     const xml = String(reply.body?.[0] ?? '');
     return xml || null;
   } catch (e) {
@@ -201,6 +204,7 @@ async function listSystemBusNames(bus: MessageBus): Promise<string[]> {
       '',
       []
     );
+    if (!reply) return [];
     const names = reply.body?.[0] as unknown;
     if (Array.isArray(names)) return names.map((x) => String(x));
   } catch (e) {
@@ -226,7 +230,11 @@ function parseIntrospectXml(xml: string): Introspected {
   {
     const nodeRe = /<node\s+name="([^"]+)"\s*\/>/g;
     let m: RegExpExecArray | null;
-    while ((m = nodeRe.exec(xml))) nodes.push(m[1]);
+    while ((m = nodeRe.exec(xml))) {
+      const name = m[1];
+      if (!name) continue;
+      nodes.push(name);
+    }
   }
 
   // interfaces
@@ -234,8 +242,9 @@ function parseIntrospectXml(xml: string): Introspected {
     const ifaceRe = /<interface\s+name="([^"]+)">([\s\S]*?)<\/interface>/g;
     let m: RegExpExecArray | null;
     while ((m = ifaceRe.exec(xml))) {
-      const name = m[1];
-      const body = m[2];
+      const name = (m[1] ?? '').trim();
+      const body = (m[2] ?? '').trim();
+      if (!name || !body) continue;
       const properties: Array<{ name: string; type: string }> = [];
       const methods: Array<{ name: string; inArgs: string[]; outArgs: string[] }> = [];
 
@@ -244,7 +253,10 @@ function parseIntrospectXml(xml: string): Introspected {
         const propRe = /<property\s+name="([^"]+)"\s+type="([^"]+)"/g;
         let p: RegExpExecArray | null;
         while ((p = propRe.exec(body))) {
-          properties.push({ name: p[1], type: p[2] });
+          const pname = ((p[1] ?? '') as string).trim();
+          const ptype = ((p[2] ?? '') as string).trim();
+          if (!pname || !ptype) continue;
+          properties.push({ name: pname, type: ptype });
         }
       }
 
@@ -253,15 +265,18 @@ function parseIntrospectXml(xml: string): Introspected {
         const methRe = /<method\s+name="([^"]+)">([\s\S]*?)<\/method>/g;
         let mm: RegExpExecArray | null;
         while ((mm = methRe.exec(body))) {
-          const mname = mm[1];
-          const inner = mm[2];
+          const mname = ((mm[1] ?? '') as string).trim();
+          const inner = ((mm[2] ?? '') as string).trim();
+          if (!mname || !inner) continue;
           const argsRe = /<arg\s+[^>]*type="([^"]+)"\s+direction="(in|out)"/g;
           const inArgs: string[] = [];
           const outArgs: string[] = [];
           let a: RegExpExecArray | null;
           while ((a = argsRe.exec(inner))) {
-            if (a[2] === 'in') inArgs.push(a[1]);
-            else outArgs.push(a[1]);
+            const atype = a[1];
+            if (typeof atype !== 'string') continue;
+            if (a[2] === 'in') inArgs.push(atype);
+            else outArgs.push(atype);
           }
           methods.push({ name: mname, inArgs, outArgs });
         }
@@ -289,13 +304,19 @@ async function tryCallLikelyMethod(
 
   try {
     const reply = await dbusCall(bus, service, objPath, iface, method.name, '', []);
+    if (!reply) return null;
     const body = (reply.body ?? []) as unknown[];
-    const nums = body.map((x) => nOrNaN(vGet(x)));
-    if (nums.length >= 2 && Number.isFinite(nums[0]) && Number.isFinite(nums[1])) {
-      const fix: Fix = { latitude: nums[0], longitude: nums[1] };
-      if (Number.isFinite(nums[2])) fix.accuracy = nums[2];
-      geoLog(`DBus(Method): ${service}${objPath} ${iface}.${method.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
-      return fix;
+    const nums = body.map<number>((x) => nOrNaN(vGet(x)));
+    if (nums.length >= 2) {
+      const latNum = nums[0];
+      const lonNum = nums[1];
+      if (typeof latNum === 'number' && typeof lonNum === 'number' && Number.isFinite(latNum) && Number.isFinite(lonNum)) {
+        const fix: Fix = { latitude: latNum, longitude: lonNum };
+        const accNum = nums[2];
+        if (typeof accNum === 'number' && Number.isFinite(accNum)) fix.accuracy = accNum;
+        geoLog(`DBus(Method): ${service}${objPath} ${iface}.${method.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
+        return fix;
+      }
     }
   } catch (e) {
     geoLog(`DBus(Method) call ${service}${objPath} ${iface}.${method.name} failed: ${String(e)}`);
@@ -576,8 +597,10 @@ function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
     let last: Fix | null = null;
     const onChunk = (buf: Buffer) => {
       const s = buf.toString();
-      const m = s.match(/__MZR_FIX__\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)/);
-      if (m) last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
+    const m = s.match(/__MZR_FIX__\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)/);
+    if (m && m[1] && m[2] && m[3]) {
+      last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
+    }
       geoLog(`QtLocation: qmlscene log: ${s.trim()}`);
     };
 

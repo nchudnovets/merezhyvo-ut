@@ -280,7 +280,7 @@ export const query = async (options: HistoryQueryOptions = {}): Promise<HistoryQ
     let sliceConsumed = 0;
     const limit = Math.max(1, Math.min(1024, options.limit ?? DEFAULT_QUERY_LIMIT));
     for (let index = 0; index < lines.length; index += 1) {
-      const line = lines[index];
+    const line = lines[index] ?? '';
       const hasMoreAfter = index < lines.length - 1;
       if (!line.trim()) {
         sliceConsumed += Buffer.byteLength(line, 'utf8') + (hasMoreAfter ? 1 : 0);
