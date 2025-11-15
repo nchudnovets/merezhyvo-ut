@@ -29,7 +29,7 @@ import path from 'path';
 let _permInstalled = false;
 let promptTarget: WebContents | null = null;
 
-function geoIpcLog(msg: string): void {
+function geoIpcLog(_msg: string): void {
   try {
     // const file = path.join(app.getPath('userData'), 'geo.log');
     // fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
@@ -46,7 +46,6 @@ type RendererDecision = {
   persist?: Partial<Record<PermissionType, 'allow' | 'deny'>>;
 };
 
-type ChromiumMediaType = 'audio' | 'video';
 type PendingResolver = (v: RendererDecision) => void;
 const pending = new Map<string, PendingResolver>();
 
@@ -92,13 +91,6 @@ function handleOnce(channel: string, handler: (...args: any[]) => any): void {
   ipcMain.handle(channel, handler);
 }
 
-function safeMediaTypes(val: unknown): ChromiumMediaType[] {
-  if (!Array.isArray(val)) return [];
-  return (val as unknown[]).filter(
-    (x): x is ChromiumMediaType => x === 'audio' || x === 'video'
-  );
-}
-
 function waitForRendererDecision(id: string, timeoutMs: number): Promise<RendererDecision> {
   return new Promise<RendererDecision>((resolve, reject) => {
     const timer = setTimeout(() => {
@@ -119,15 +111,6 @@ function buildPersist(
   const out: Partial<Record<PermissionType, 'allow' | 'deny'>> = {};
   for (const t of types) out[t] = allow ? 'allow' : 'deny';
   return out;
-}
-
-function safeOrigin(url: string): string {
-  try {
-    const u = new URL(url);
-    return u.origin;
-  } catch {
-    return 'null';
-  }
 }
 
 function randomId(): string {

@@ -8,7 +8,8 @@ import type {
   TorState,
   TorConfigResult,
   Unsubscribe,
-  MessengerSettings
+  MessengerSettings,
+  KeyboardSettings
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 
@@ -139,7 +140,7 @@ export const ipc = {
         return { enabledLayouts: ['en'], defaultLayout: 'en' };
       },
 
-      async update(payload: any) {
+      async update(payload: Partial<KeyboardSettings>) {
         try {
           return await getApi()?.settings?.keyboard?.update?.(payload);
         } catch (e) {

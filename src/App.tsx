@@ -640,7 +640,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     ensureSelectionCssInjected,
     hasSelection,
     getSelectionRect,
-    clearSelection,
+    clearSelection: _clearSelection,
     getSelectionTouchState,
     pollMenuRequest,
   } = React.useMemo(() => makeWebInjects(getActiveWebview), [getActiveWebview]);

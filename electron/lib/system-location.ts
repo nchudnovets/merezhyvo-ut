@@ -576,7 +576,7 @@ function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
     let last: Fix | null = null;
     const onChunk = (buf: Buffer) => {
       const s = buf.toString();
-      const m = s.match(/__MZR_FIX__\s*([\-0-9.]+)\s*,\s*([\-0-9.]+)\s*,\s*([\-0-9.]+)/);
+      const m = s.match(/__MZR_FIX__\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)/);
       if (m) last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
       geoLog(`QtLocation: qmlscene log: ${s.trim()}`);
     };

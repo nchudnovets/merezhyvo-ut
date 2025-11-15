@@ -40,7 +40,7 @@ const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10)
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 const fsp = fs.promises;
 
-function geoIpcLog(msg: string): void {
+function geoIpcLog(_msg: string): void {
   try {
     // const file = path.join(app.getPath('userData'), 'geo.log');
     // fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
@@ -244,7 +244,7 @@ function ensureWebviewPreloadOnDisk(): string {
   try {
     ensureDir(dir);
     fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8');
-  } catch (e) {
+  } catch {
     // last attempt
     try { ensureDir(dir); fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8'); } catch {}
   }
