@@ -11,42 +11,45 @@
       background: transparent;
       font-family: system-ui, -apple-system, Segoe UI, Roboto, Ubuntu, Cantarell, "Noto Sans", sans-serif;
       user-select: none;
-      overflow: hidden; /* no scrollbars */
+      overflow: hidden;
     }
     .menu {
       min-width: 240px;
       max-width: 360px;
-      background: rgba(28,28,28,0.98);
-      color: #eee;
-      border: 1px solid rgba(255,255,255,0.08);
-      border-radius: 5px;
+      background: #0f1729;
+      color: #f8fafc;
+      border: 1px solid rgba(148, 163, 184, 0.45);
+      border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.35);
       overflow: hidden;
-      backdrop-filter: blur(6px);
+      padding: 10px;
     }
     .item {
-      padding: 10px 12px;
+      padding: 8px 14px;
       cursor: default;
       white-space: nowrap;
       display: flex;
       align-items: center;
       gap: 10px;
       font-size: 14px;
+      border-radius: 8px;
     }
     .item[disabled] { opacity: .45; pointer-events: none; }
     .item:hover { background: rgba(255,255,255,0.06); }
-    .sep { height: 1px; background: rgba(255,255,255,0.1); margin: 4px 0; }
-    .kbd { margin-left: auto; opacity: .5; font-size: 12px; }
+    .sep { height: 1px; background: rgba(148, 163, 184, 0.25); margin: 4px 0; }
+    .kbd { margin-left: auto; opacity: .6; font-size: 12px; }
     html[data-mode="mobile"] .menu {
       min-width: 0;
       max-width: none;
       width: fit-content;
       width: max-content;
+      padding: 14px;
     }
     html[data-mode="mobile"] .item {
-      padding: 18px 24px;
+      padding: 16px 22px;
       font-size: 34px;
       gap: 18px;
+      border-radius: 12px;
     }
     html[data-mode="mobile"] .kbd {
       font-size: 22px;

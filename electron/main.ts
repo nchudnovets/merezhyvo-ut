@@ -305,8 +305,16 @@ const normalizeAddress = (value: string | null | undefined): string => {
 const clampToWorkArea = (x: number, y: number, w: number, h: number): Point => {
   const disp = screen.getDisplayNearestPoint({ x, y });
   const wa = disp?.workArea ?? { x: 0, y: 0, width: 1920, height: 1080 };
-  const nx = Math.max(wa.x, Math.min(x, wa.x + wa.width - w));
-  const ny = Math.max(wa.y, Math.min(y, wa.y + h > wa.y + wa.height ? wa.y + wa.height - h : y));
+  const targetW = Math.min(w, wa.width);
+  const targetH = Math.min(h, wa.height);
+  const nx = Math.min(
+    Math.max(wa.x, x),
+    Math.max(wa.x, wa.x + wa.width - targetW)
+  );
+  const ny = Math.min(
+    Math.max(wa.y, y),
+    Math.max(wa.y, wa.y + wa.height - targetH)
+  );
   return { x: nx, y: ny };
 };
 
@@ -871,7 +879,10 @@ ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePa
       targetWidth = Math.min(measuredWidth, maxWidth);
     }
 
-    const pos = clampToWorkArea(bounds.x, bounds.y, targetWidth, targetHeight);
+    const cursor = global.lastCtx?.x != null && global.lastCtx?.y != null
+      ? { x: global.lastCtx.x + 8, y: global.lastCtx.y + 10 }
+      : { x: bounds.x, y: bounds.y };
+    const pos = clampToWorkArea(cursor.x, cursor.y, targetWidth, targetHeight);
     win.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
     if (!win.isVisible()) win.show();
   } catch {
