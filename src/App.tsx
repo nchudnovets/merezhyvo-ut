@@ -311,7 +311,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewReadyRef = useRef<boolean>(false);
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
-  const tabCount = tabs.length;
 
   const [inputValue, setInputValue] = useState<string>(initialUrl);
   const [isEditing, setIsEditing] = useState<boolean>(false);
@@ -517,6 +516,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isServiceTab = (tab: Tab): boolean => (tab.url ?? '').trim().toLowerCase().startsWith('mzr://');
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned && !isServiceTab(tab)), [tabs]);
   const regularTabs = useMemo(() => tabs.filter((tab) => !tab.pinned && !isServiceTab(tab)), [tabs]);
+  const tabCount = pinnedTabs.length + regularTabs.length;
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
   const orderedMessengers = useMemo(
