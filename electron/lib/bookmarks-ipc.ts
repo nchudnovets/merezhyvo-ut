@@ -3,11 +3,14 @@
 import type { IpcMain } from 'electron';
 import {
   add,
+  applyHtmlImport,
+  exportHtml,
   exportJson,
   importJson,
   isBookmarked,
   list,
   move,
+  previewHtmlImport,
   remove,
   update
 } from './bookmarks';
@@ -22,6 +25,9 @@ const ensureTags = (value: unknown): string[] | undefined => {
     .filter((item) => item.length > 0);
   return filtered.length > 0 ? Array.from(new Set(filtered)) : undefined;
 };
+
+const ensureImportScope = (value: unknown): 'add' | 'replace' => (value === 'replace' ? 'replace' : 'add');
+const ensureExportScope = (value: unknown): 'all' | 'current' => (value === 'all' ? 'all' : 'current');
 
 export const registerBookmarksIpc = (ipcMain: IpcMain): void => {
   ipcMain.handle('merezhyvo:bookmarks:list', async () => list());
@@ -91,5 +97,32 @@ export const registerBookmarksIpc = (ipcMain: IpcMain): void => {
     if (!isRecord(payload)) return { ok: false };
     const result = await importJson(payload);
     return { ok: result };
+  });
+
+  ipcMain.handle('merezhyvo:bookmarks:import-html:preview', async (_event, payload) => {
+    const data = isRecord(payload) ? payload : {};
+    const content = typeof data.content === 'string' ? data.content : '';
+    if (!content) {
+      throw new Error("Couldn't import this file. It doesn't look like a bookmarks HTML.");
+    }
+    return previewHtmlImport(content);
+  });
+
+  ipcMain.handle('merezhyvo:bookmarks:import-html:apply', async (_event, payload) => {
+    const data = isRecord(payload) ? payload : {};
+    const content = typeof data.content === 'string' ? data.content : '';
+    if (!content) {
+      throw new Error("Couldn't import this file. It doesn't look like a bookmarks HTML.");
+    }
+    const scope = ensureImportScope(data.scope);
+    const targetFolderId = ensureString(data.targetFolderId);
+    return applyHtmlImport(scope, targetFolderId, content);
+  });
+
+  ipcMain.handle('merezhyvo:bookmarks:export-html', async (_event, payload) => {
+    const data = isRecord(payload) ? payload : {};
+    const scope = ensureExportScope(data.scope);
+    const targetFolderId = ensureString(data.targetFolderId);
+    return exportHtml(scope, targetFolderId);
   });
 };

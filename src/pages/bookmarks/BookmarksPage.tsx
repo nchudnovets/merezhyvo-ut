@@ -65,12 +65,13 @@ type BookmarkFormState = {
 
 type ExportDialogState = {
   scope: 'current' | 'all';
+  loading?: boolean;
 };
 
 type ImportDialogState = {
   mode: 'add' | 'replace';
   file?: File;
-  tree?: BookmarksTree;
+  content?: string;
   preview?: { bookmarks: number; folders: number };
   error?: string;
   loading: boolean;
@@ -98,15 +99,6 @@ const cloneForExport = (node: BookmarkNode): BookmarkNode => ({
   tags: node.tags ? [...node.tags] : undefined,
   children: node.children ? [...node.children] : undefined
 });
-
-const isBookmarksTree = (value: unknown): value is BookmarksTree => {
-  if (!value || typeof value !== 'object') return false;
-  const candidate = value as BookmarksTree;
-  if (candidate.schema !== 1) return false;
-  if (!candidate.roots || typeof candidate.roots !== 'object') return false;
-  if (!candidate.nodes || typeof candidate.nodes !== 'object') return false;
-  return true;
-};
 
 const readFileAsText = (file: File): Promise<string> =>
   new Promise((resolve, reject) => {
@@ -162,16 +154,6 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
     if (typeof window === 'undefined') return;
     window.dispatchEvent(new CustomEvent('merezhyvo:bookmarks:changed'));
   }, []);
-
-  const computePreview = (tree: BookmarksTree) => {
-    let folders = 0;
-    let bookmarksCount = 0;
-    Object.values(tree.nodes).forEach((node) => {
-      if (node.type === 'folder') folders += 1;
-      else bookmarksCount += 1;
-    });
-    return { folders, bookmarks: bookmarksCount };
-  };
 
   const refreshTree = useCallback(async () => {
     const api = getBookmarksApi();
@@ -350,7 +332,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
 
   const openExportDialog = (scope: ExportDialogState['scope']) => {
     closeMenus();
-    setExportDialog({ scope });
+    setExportDialog({ scope, loading: false });
   };
 
   const closeExportDialog = () => {
@@ -367,91 +349,74 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
   };
 
   const updateExportScope = (scope: ExportDialogState['scope']) => {
-    setExportDialog((prev) => (prev ? { ...prev, scope } : { scope }));
+    setExportDialog((prev) =>
+      prev ? { ...prev, scope, loading: prev.loading ?? false } : { scope, loading: false }
+    );
   };
 
-  const handleImportFileChange = (event: React.ChangeEvent<HTMLInputElement>) => {
+  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
     const file = event.target.files?.[0];
     if (!file) return;
-    void readFileAsText(file)
-      .then((text) => {
-        const parsed = JSON.parse(text);
-        if (!isBookmarksTree(parsed)) {
-          throw new Error('Invalid bookmarks file');
-        }
-        setImportDialog((prev) =>
-          prev
-            ? {
-                ...prev,
-                file,
-                tree: parsed,
-                preview: computePreview(parsed),
-                error: undefined
-              }
-            : prev
-        );
-      })
-      .catch(() => {
-        setImportDialog((prev) =>
-          prev
-            ? {
-                ...prev,
-                file,
-                tree: undefined,
-                preview: undefined,
-                error: 'Couldn\'t parse file'
-              }
-            : prev
-        );
-      });
-    if (event.target) {
-      event.target.value = '';
-    }
-  };
-
-  const applyImportedTree = async (sourceTree: BookmarksTree, replace: boolean) => {
     const api = getBookmarksApi();
-    if (!api) throw new Error('Bookmarks API unavailable');
-    const targetId = currentNode?.id ?? tree?.roots.toolbar ?? rootId;
-    if (!targetId) throw new Error('No target folder');
-    if (replace && currentNode) {
-      const children = currentNode.children ?? [];
-      await Promise.all(children.map((childId) => api.remove(childId)));
+    if (!api?.importHtml) {
+      setImportDialog((prev) =>
+        prev
+          ? {
+              ...prev,
+              file,
+              content: undefined,
+              preview: undefined,
+              error: 'Bookmarks API unavailable'
+            }
+          : prev
+      );
+      return;
     }
-    const traverseNode = async (nodeId: string, parentId: string) => {
-      const node = sourceTree.nodes[nodeId];
-      if (!node) return;
-      if (node.type === 'folder') {
-        const result = await api.add({ type: 'folder', title: node.title, parentId });
-        const folderId = result.ok ? result.nodeId : parentId;
-        for (const childId of node.children ?? []) {
-          await traverseNode(childId, folderId);
-        }
-        return;
-      }
-      if (node.type === 'bookmark' && node.url) {
-        await api.add({
-          type: 'bookmark',
-          title: node.title,
-          url: node.url,
-          tags: node.tags,
-          parentId
-        });
-      }
-    };
-    const roots = Array.from(new Set(Object.values(sourceTree.roots)));
-    for (const root of roots) {
-      const rootNode = sourceTree.nodes[root];
-      if (!rootNode) continue;
-      for (const childId of rootNode.children ?? []) {
-        await traverseNode(childId, targetId);
+    const currentTargetId = currentNode?.id ?? tree?.roots.toolbar ?? rootId;
+    setImportDialog((prev) => (prev ? { ...prev, loading: true, error: undefined } : prev));
+    try {
+      const text = await readFileAsText(file);
+      const preview = await api.importHtml.preview({
+        content: text,
+        scope: importDialog?.mode ?? 'add',
+        targetFolderId: currentTargetId
+      });
+      setImportDialog((prev) =>
+        prev
+          ? {
+              ...prev,
+              file,
+              content: text,
+              preview,
+              error: undefined,
+              loading: false
+            }
+          : null
+      );
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Couldn\'t import this file';
+      setImportDialog((prev) =>
+        prev
+          ? {
+              ...prev,
+              file,
+              content: undefined,
+              preview: undefined,
+              error: message,
+              loading: false
+            }
+          : prev
+      );
+      setErrorBanner(message);
+    } finally {
+      if (event.target) {
+        event.target.value = '';
       }
     }
-    notifyBookmarksChanged();
   };
 
   const handleImportDialogConfirm = async () => {
-    if (!importDialog?.tree) {
+    if (!importDialog?.content) {
       setImportDialog((prev) =>
         prev
           ? { ...prev, error: 'Select a valid bookmarks file before importing' }
@@ -465,19 +430,33 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       );
       return;
     }
+    const api = getBookmarksApi();
+    if (!api?.importHtml) {
+      setImportDialog((prev) =>
+        prev ? { ...prev, error: 'Bookmarks API unavailable' } : prev
+      );
+      return;
+    }
+    const targetId = currentNode?.id ?? tree.roots.toolbar ?? rootId;
     setImportDialog((prev) =>
       prev ? { ...prev, loading: true, error: undefined } : prev
     );
     try {
-      await applyImportedTree(importDialog.tree, importDialog.mode === 'replace');
+      await api.importHtml.apply({
+        content: importDialog.content,
+        scope: importDialog.mode,
+        targetFolderId: targetId
+      });
       await refreshTree();
-      showToast('Bookmarks imported');
+      showToast('Import completed');
+      notifyBookmarksChanged();
       setImportDialog(null);
-    } catch {
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Couldn\'t import bookmarks';
       setImportDialog((prev) =>
-        prev ? { ...prev, loading: false, error: 'Couldn\'t import bookmarks' } : prev
+        prev ? { ...prev, loading: false, error: message } : prev
       );
-      setErrorBanner('Couldn\'t save changes. Retry');
+      setErrorBanner(message);
     }
   };
 
@@ -506,7 +485,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
     };
   };
 
-  const handleExportConfirm = () => {
+  const handleJsonExport = () => {
     if (!tree) return;
     const scope = exportDialog?.scope ?? 'all';
     const payload =
@@ -526,6 +505,35 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
     URL.revokeObjectURL(url);
     showToast('Bookmarks exported');
     closeExportDialog();
+  };
+
+  const handleHtmlExportConfirm = async () => {
+    if (!tree) return;
+    const api = getBookmarksApi();
+    if (!api?.exportHtml) {
+      setErrorBanner('Bookmarks API unavailable');
+      return;
+    }
+    setExportDialog((prev) => (prev ? { ...prev, loading: true } : prev));
+    const scope = exportDialog?.scope ?? 'all';
+    const targetFolderId =
+      scope === 'current' ? currentNode?.id ?? tree.roots.toolbar ?? rootId : undefined;
+    try {
+      const result = await api.exportHtml({ scope, targetFolderId });
+      const blob = new Blob([result.htmlContent], { type: 'text/html;charset=utf-8' });
+      const url = URL.createObjectURL(blob);
+      const anchor = document.createElement('a');
+      anchor.href = url;
+      anchor.download = result.filenameSuggested;
+      anchor.click();
+      URL.revokeObjectURL(url);
+      showToast(`Exported to ${result.filenameSuggested}`);
+      setExportDialog(null);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Couldn\'t export bookmarks';
+      setErrorBanner(message);
+      setExportDialog((prev) => (prev ? { ...prev, loading: false } : prev));
+    }
   };
 
   const openContextMenu = (node: BookmarkNode, event: React.MouseEvent<HTMLElement>) => {
@@ -918,10 +926,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 onClick={(event) => event.stopPropagation()}
               >
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={openImportDialog}>
-                  Import…
+                  Import (HTML)…
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => openExportDialog('all')}>
-                  Export…
+                  Export (HTML)…
+                </button>
+                <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={handleJsonExport}>
+                  Export JSON (debug)
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => toggleSelectionMode(true)}>
                   Select
@@ -1105,7 +1116,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {exportDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Export bookmarks</h2>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Export bookmarks (HTML)</h2>
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <input
@@ -1141,10 +1152,14 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
               <button
                 type="button"
                 style={{...styles.button, ...modeStyles.button}}
-                onClick={handleExportConfirm}
-                disabled={!tree || (exportDialog.scope === 'current' && !currentNode)}
+                onClick={handleHtmlExportConfirm}
+                disabled={
+                  !tree ||
+                  exportDialog.loading ||
+                  (exportDialog.scope === 'current' && !currentNode)
+                }
               >
-                Export
+                {exportDialog.loading ? 'Exporting…' : 'Export'}
               </button>
             </div>
           </div>
@@ -1153,13 +1168,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
       {importDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Import bookmarks</h2>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Import bookmarks (HTML)</h2>
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 File
                 <input
                   type="file"
-                  accept="application/json"
+                  accept=".html,.htm,text/html"
                   onChange={handleImportFileChange}
                   style={{...styles.dialogInput, ...modeStyles.dialogInput}}
                 />
@@ -1181,7 +1196,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                       }
                       style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
-                    <span style={{ marginLeft: '6px' }}>Add to current folder</span>
+                    <span style={{ marginLeft: '8px' }}>Add to current folder</span>
                   </label>
                   <label>
                     <input
@@ -1194,18 +1209,22 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                       }
                       style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
-                    <span style={{ marginLeft: '6px' }}>Replace current folder</span>
+                    <span style={{ marginLeft: '8px' }}>Replace current folder</span>
                   </label>
                 </div>
               </div>
               {importDialog.preview && (
-                <p style={styles.feedback}>
-                  {importDialog.preview.folders} folders · {importDialog.preview.bookmarks} bookmarks
+                <p style={{...styles.feedback, ...modeStyles.feedback}}>
+                  Found {importDialog.preview.folders} folders · {importDialog.preview.bookmarks} bookmarks
                 </p>
               )}
-              {importDialog.error && <div style={styles.banner}>{importDialog.error}</div>}
+              {importDialog.error && (
+                <div style={{...styles.banner, ...modeStyles.banner}}>
+                  {importDialog.error}
+                </div>
+              )}
             </div>
-            <div style={styles.dialogActions}>
+            <div style={{...styles.dialogActions, ...modeStyles.dialogActions}}>
               <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={closeImportDialog}>
                 Cancel
               </button>
@@ -1213,7 +1232,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                 type="button"
                 style={{...styles.button, ...modeStyles.button}}
                 onClick={handleImportDialogConfirm}
-                disabled={!importDialog.tree || importDialog.loading || !tree}
+                disabled={!importDialog.content || importDialog.loading || !tree}
               >
                 {importDialog.loading ? 'Importing…' : 'Import'}
               </button>

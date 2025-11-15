@@ -1,5 +1,11 @@
 import type {
   BookmarkAddPayload,
+  BookmarkHtmlExportPayload,
+  BookmarkHtmlExportResult,
+  BookmarkHtmlImportPayload,
+  BookmarkHtmlImportPreviewPayload,
+  BookmarkHtmlImportPreviewResult,
+  BookmarkHtmlImportResult,
   BookmarkMovePayload,
   BookmarkUpdatePayload,
   BookmarksTree,
@@ -84,6 +90,11 @@ export interface MerezhyvoBookmarksApi {
   remove(id: string): Promise<{ ok: boolean }>;
   export(): Promise<BookmarksTree>;
   import(payload: unknown): Promise<{ ok: boolean }>;
+  importHtml: {
+    preview(payload: BookmarkHtmlImportPreviewPayload): Promise<BookmarkHtmlImportPreviewResult>;
+    apply(payload: BookmarkHtmlImportPayload): Promise<BookmarkHtmlImportResult>;
+  };
+  exportHtml(payload: BookmarkHtmlExportPayload): Promise<BookmarkHtmlExportResult>;
 }
 
 export interface MerezhyvoFaviconsApi {

@@ -468,7 +468,13 @@ const exposeApi: MerezhyvoAPI = {
     move: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:move', payload),
     remove: (id: string) => ipcRenderer.invoke('merezhyvo:bookmarks:remove', id ?? ''),
     export: () => ipcRenderer.invoke('merezhyvo:bookmarks:export'),
-    import: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:import', payload)
+    import: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:import', payload),
+    importHtml: {
+      preview: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:import-html:preview', payload ?? {}),
+      apply: (payload) => ipcRenderer.invoke('merezhyvo:bookmarks:import-html:apply', payload ?? {})
+    },
+    exportHtml: (payload) =>
+      ipcRenderer.invoke('merezhyvo:bookmarks:export-html', payload ?? {})
   },
   favicons: {
     getPath: (faviconId: string) =>

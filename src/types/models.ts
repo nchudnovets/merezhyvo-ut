@@ -84,6 +84,9 @@ export interface BookmarkNode {
   parentId: string | null;
   url?: string;
   tags?: string[];
+  faviconId?: string | null;
+  createdAt?: number;
+  updatedAt?: number;
   children?: string[];
 }
 
@@ -118,6 +121,38 @@ export interface BookmarkMovePayload {
   id: string;
   newParentId: string;
   index?: number;
+}
+
+export type BookmarkHtmlImportScope = 'add' | 'replace';
+
+export type BookmarkHtmlExportScope = 'current' | 'all';
+
+export interface BookmarkHtmlImportPayload {
+  content: string;
+  scope?: BookmarkHtmlImportScope;
+  targetFolderId?: string;
+}
+
+export type BookmarkHtmlImportPreviewPayload = BookmarkHtmlImportPayload;
+
+export interface BookmarkHtmlImportPreviewResult {
+  folders: number;
+  bookmarks: number;
+}
+
+export interface BookmarkHtmlImportResult {
+  foldersImported: number;
+  bookmarksImported: number;
+}
+
+export interface BookmarkHtmlExportPayload {
+  scope?: BookmarkHtmlExportScope;
+  targetFolderId?: string;
+}
+
+export interface BookmarkHtmlExportResult {
+  filenameSuggested: string;
+  htmlContent: string;
 }
 
 export interface InstalledApp {

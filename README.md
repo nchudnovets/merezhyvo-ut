@@ -33,6 +33,7 @@
     *   Accessed only through the Tabs panel header (⭐ / 🕘). Bookmarks live in a single `MyBookmarks` root, with search/tag filtering, context menus, import/export dialogs, and selection helpers; history groups visits by time, supports per-item/domain removal, and shares the same scrollable service chrome.
         
     *   Works in the main window and inside the `<webview>` without stealing focus.
+    *   Import/export now understands the Netscape bookmark HTML format (Chrome/Firefox compatible), with scoped preview counts, add/replace modes, canonical headers, icons persisted via `favicons`, and the same IPC surface exposed to renderer pages.
 - **Permissions & privacy (new)**
   - Built-in permission broker for **geolocation, camera, microphone, notifications**.
   - Per-site rules (**Allow / Deny**) + **Global defaults** (**Prompt / Allow / Deny**).
