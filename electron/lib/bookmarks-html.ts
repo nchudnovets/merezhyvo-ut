@@ -27,7 +27,7 @@ export type ParsedFolder = {
 
 export type ParsedEntry = ParsedBookmark | ParsedFolder;
 
-const attributeRegex = /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>\/]+))/g;
+const attributeRegex = /([\w:-]+)\s*=\s*(?:"([^"]*)"|'([^']*)'|([^\s"'>/]+))/g;
 
 const normalizeNumber = (value: string | undefined | null): number | undefined => {
   if (!value) return undefined;
@@ -46,9 +46,6 @@ const extractAttributes = (attrString: string): Record<string, string> => {
   }
   return out;
 };
-
-const unescapeHtml = (text: string): string =>
-  text.replace(/&lt;/g, '<').replace(/&gt;/g, '>').replace(/&quot;/g, '"').replace(/&amp;/g, '&');
 
 type DataUriResult = {
   buffer: Buffer;

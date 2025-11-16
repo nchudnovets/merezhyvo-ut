@@ -932,7 +932,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
                   Export (HTML)…
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={handleJsonExport}>
-                  Export JSON (debug)
+                  Export JSON
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => toggleSelectionMode(true)}>
                   Select

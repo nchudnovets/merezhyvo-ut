@@ -515,7 +515,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     textAlign: 'left',
     color: '#f8fafc',
     cursor: 'pointer',
-    width: '100%',
+    width: '96%',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center'

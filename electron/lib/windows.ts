@@ -648,7 +648,32 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     } catch {
       // noop
     }
-    contents.on('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
+    if (typeof contents.setMaxListeners === 'function') {
+      contents.setMaxListeners(0);
+    }
+    const listeners: Array<{ event: string; handler: (...args: unknown[]) => void }> = [];
+    const register = <T extends unknown[]>(event: string, handler: (...args: T) => void) => {
+      listeners.push({ event, handler: handler as (...args: unknown[]) => void });
+      contents.on(event as never, handler as never);
+    };
+
+    const cleanup = () => {
+      for (const { event, handler } of listeners) {
+        try {
+          contents.removeListener(event as never, handler as never);
+        } catch {
+          // ignore
+        }
+      }
+    };
+    const survived = { destroyed: false };
+    const onDestroyed = () => {
+      if (survived.destroyed) return;
+      survived.destroyed = true;
+      cleanup();
+    };
+
+    register('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
       if (isMainFrame) applyUserAgentForUrl(contents, navUrl);
     });
 
@@ -758,19 +783,20 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
       }
     };
 
-    contents.on('did-navigate', (_evt, navUrl: string) => {
+    register('did-navigate', (_evt, navUrl: string) => {
       void safeAddVisit(navUrl, 'link');
     });
-    contents.on('did-navigate-in-page', (_evt, navUrl: string, isMainFrame: boolean) => {
+    register('did-navigate-in-page', (_evt, navUrl: string, isMainFrame: boolean) => {
       if (!isMainFrame) return;
       void safeAddVisit(navUrl, 'in-page');
     });
-    contents.on('page-title-updated', (_evt, title: string) => {
+    register('page-title-updated', (_evt, title: string) => {
       void safeUpdateTitle(title);
     });
-    contents.on('page-favicon-updated', (_evt, icons: unknown) => {
+    register('page-favicon-updated', (_evt, icons: unknown) => {
       void safeUpdateFavicon(icons);
     });
+    register('destroyed', onDestroyed);
   });
 
   typedWin.once('ready-to-show', () => {

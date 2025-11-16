@@ -141,7 +141,8 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       padding: '18px'
     },
     dialogRadioInput: {
-      width: '25px'
+      width: '25px',
+      height: '25px'
     },
     dialogActions: {
       flexDirection: 'column',

@@ -8,11 +8,9 @@ import { saveFromBuffer } from './favicons';
 import {
   buildHtmlExport,
   detectHtmlBookmarkFile,
-  parseNetscapeHtml,
-  ParsedEntry,
-  ParsedFolder,
-  ParsedBookmark
+  parseNetscapeHtml
 } from './bookmarks-html';
+import type { ParsedEntry } from './bookmarks-html';
 
 const fsp = fs.promises;
 const BOOKMARKS_FILE = path.join(getProfileDir(), 'bookmarks.json');

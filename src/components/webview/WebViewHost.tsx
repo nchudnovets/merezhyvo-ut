@@ -155,20 +155,24 @@ const WebViewHost = forwardRef(function WebViewHost(
     const node = webviewRef.current;
     if (!node) return undefined;
 
+    const flattenEmitter = (emitter: ListenerCapable | null) => {
+      if (!emitter || typeof emitter.setMaxListeners !== 'function') {
+        return;
+      }
+      try {
+        const current = emitter.getMaxListeners?.();
+        if (current !== 0) {
+          emitter.setMaxListeners(0);
+        }
+      } catch {
+        // ignore
+      }
+    };
+
     try {
       const contents = (node as unknown as { getWebContents?: () => WebContents | null }).getWebContents?.() ?? null;
-      if (contents && typeof contents.setMaxListeners === 'function') {
-        const current = contents.getMaxListeners?.() ?? null;
-        if (current == null || current < 50) {
-          contents.setMaxListeners(50);
-        }
-      } else {
-        const emitter = node as unknown as ListenerCapable;
-        const current = emitter.getMaxListeners?.() ?? null;
-        if (current == null || current < 50) {
-          emitter.setMaxListeners?.(50);
-        }
-      }
+      flattenEmitter(contents as ListenerCapable | null);
+      flattenEmitter(node as ListenerCapable);
     } catch {
       // best-effort only
     }
