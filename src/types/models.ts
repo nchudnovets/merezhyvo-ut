@@ -230,6 +230,43 @@ export interface SessionState {
 
 export type Unsubscribe = () => void;
 
+export type FileDialogKind = 'file' | 'folder';
+
+export type FileDialogMode = 'open' | 'save';
+
+export interface FileDialogOptions {
+  kind: FileDialogKind;
+  mode?: FileDialogMode;
+  allowMultiple?: boolean;
+  filters?: string[];
+  title?: string;
+  initialPath?: string;
+}
+
+export interface FileDialogEntry {
+  name: string;
+  path: string;
+  isDirectory: boolean;
+}
+
+export interface FileDialogListing {
+  path: string;
+  parent: string | null;
+  entries: FileDialogEntry[];
+}
+
+export interface FileDialogResult {
+  paths: string[];
+}
+
+export type FileDialogSource = 'internal' | 'external';
+
+export interface FileDialogRequestDetail {
+  id: string;
+  options: FileDialogOptions;
+  source: FileDialogSource;
+}
+
 export interface ZoomState {
   level: number;
   min: number;

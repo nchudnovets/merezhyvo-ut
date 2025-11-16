@@ -9,6 +9,8 @@ import type {
   BookmarkMovePayload,
   BookmarkUpdatePayload,
   BookmarksTree,
+  FileDialogListing,
+  FileDialogOptions,
   HistoryQueryOptions,
   HistoryQueryResult,
   InstalledApp,
@@ -97,6 +99,23 @@ export interface MerezhyvoBookmarksApi {
   exportHtml(payload: BookmarkHtmlExportPayload): Promise<BookmarkHtmlExportResult>;
 }
 
+export interface FileDialogRequestPayload {
+  requestId: string;
+  options: FileDialogOptions;
+}
+
+export interface FileDialogResponsePayload {
+  requestId: string;
+  paths: string[] | null;
+}
+
+export interface MerezhyvoFileDialogApi {
+  list(payload?: { path?: string; filters?: string[] }): Promise<FileDialogListing>;
+  readFile(payload: { path: string }): Promise<string>;
+  onRequest(handler: (payload: FileDialogRequestPayload) => void): () => void;
+  respond(payload: FileDialogResponsePayload): Promise<{ ok: boolean }>;
+}
+
 export interface MerezhyvoFaviconsApi {
   getPath(faviconId: string): Promise<string | null>;
 }
@@ -165,6 +184,7 @@ export interface MerezhyvoAPI {
   };
   history: MerezhyvoHistoryApi;
   bookmarks: MerezhyvoBookmarksApi;
+  fileDialog: MerezhyvoFileDialogApi;
   permissions: {
     onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void;
     decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>> }): void;

@@ -16,7 +16,7 @@ import type {
   MerezhyvoInstalledAppsResult,
   MerezhyvoTabCleanResult
 } from '../src/types/preload';
-import type { Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
+import type { FileDialogOptions, Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
 import path from 'path';
@@ -475,6 +475,31 @@ const exposeApi: MerezhyvoAPI = {
     },
     exportHtml: (payload) =>
       ipcRenderer.invoke('merezhyvo:bookmarks:export-html', payload ?? {})
+  },
+  fileDialog: {
+    list: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:list', payload ?? {}),
+    readFile: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:read', payload ?? {}),
+    onRequest: (handler) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'merezhyvo:file-dialog:open';
+      const listener = (_event: IpcRendererEvent, detail: { requestId?: string; options?: FileDialogOptions }) => {
+        if (!detail?.requestId || !detail.options) return;
+        try {
+          handler({ requestId: detail.requestId, options: detail.options });
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    },
+    respond: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:selection', payload ?? {})
   },
   favicons: {
     getPath: (faviconId: string) =>

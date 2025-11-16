@@ -41,6 +41,7 @@ import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 import { registerHistoryIpc } from './lib/history-ipc';
 import { registerBookmarksIpc } from './lib/bookmarks-ipc';
 import { registerFaviconsIpc } from './lib/favicons-ipc';
+import { registerFileDialogIpc } from './lib/file-dialog-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
@@ -678,6 +679,7 @@ registerMessengerSettingsIPC();
 registerHistoryIpc(ipcMain);
 registerBookmarksIpc(ipcMain);
 registerFaviconsIpc(ipcMain);
+registerFileDialogIpc(ipcMain);
 
 app.whenReady().then(() => {
   // installPermissionHandlers();

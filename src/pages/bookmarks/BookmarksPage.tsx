@@ -3,6 +3,7 @@ import type { BookmarksTree, BookmarkNode, Mode } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
 import { bookmarksStyles } from './bookmarksStyles';
 import { bookmarksModeStyles } from './bookmarksModeStyles';
+import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
 
 const ROOT_LABEL = 'MyBookmarks';
 const SEARCH_DEBOUNCE_MS = 250;
@@ -70,7 +71,7 @@ type ExportDialogState = {
 
 type ImportDialogState = {
   mode: 'add' | 'replace';
-  file?: File;
+  filePath?: string;
   content?: string;
   preview?: { bookmarks: number; folders: number };
   error?: string;
@@ -99,14 +100,6 @@ const cloneForExport = (node: BookmarkNode): BookmarkNode => ({
   tags: node.tags ? [...node.tags] : undefined,
   children: node.children ? [...node.children] : undefined
 });
-
-const readFileAsText = (file: File): Promise<string> =>
-  new Promise((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onload = () => resolve(typeof reader.result === 'string' ? reader.result : '');
-    reader.onerror = () => reject(reader.error);
-    reader.readAsText(file);
-  });
 
 
 const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewTab }) => {
@@ -354,39 +347,46 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
     );
   };
 
-  const handleImportFileChange = async (event: React.ChangeEvent<HTMLInputElement>) => {
-    const file = event.target.files?.[0];
-    if (!file) return;
+  const chooseImportFile = useCallback(async () => {
     const api = getBookmarksApi();
     if (!api?.importHtml) {
       setImportDialog((prev) =>
         prev
-          ? {
-              ...prev,
-              file,
-              content: undefined,
-              preview: undefined,
-              error: 'Bookmarks API unavailable'
-            }
+          ? { ...prev, error: 'Bookmarks API unavailable', loading: false }
           : prev
       );
       return;
     }
-    const currentTargetId = currentNode?.id ?? tree?.roots.toolbar ?? rootId;
-    setImportDialog((prev) => (prev ? { ...prev, loading: true, error: undefined } : prev));
+    setImportDialog((prev) =>
+      prev ? { ...prev, loading: true, error: undefined } : prev
+    );
     try {
-      const text = await readFileAsText(file);
+      const dialogResult = await requestFileDialog({
+        kind: 'file',
+        allowMultiple: false,
+        filters: ['html'],
+        title: 'Import bookmarks (HTML)'
+      });
+      const chosenPath = dialogResult?.paths?.[0];
+      if (!chosenPath) {
+        setImportDialog((prev) => (prev ? { ...prev, loading: false } : prev));
+        return;
+      }
+      const fileContent = await window.merezhyvo?.fileDialog?.readFile?.({ path: chosenPath });
+      if (typeof fileContent !== 'string') {
+        throw new Error('Unable to read file');
+      }
       const preview = await api.importHtml.preview({
-        content: text,
+        content: fileContent,
         scope: importDialog?.mode ?? 'add',
-        targetFolderId: currentTargetId
+        targetFolderId: currentNode?.id ?? rootId
       });
       setImportDialog((prev) =>
         prev
           ? {
               ...prev,
-              file,
-              content: text,
+              filePath: chosenPath,
+              content: fileContent,
               preview,
               error: undefined,
               loading: false
@@ -399,7 +399,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
         prev
           ? {
               ...prev,
-              file,
+              filePath: undefined,
               content: undefined,
               preview: undefined,
               error: message,
@@ -408,12 +408,8 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
           : prev
       );
       setErrorBanner(message);
-    } finally {
-      if (event.target) {
-        event.target.value = '';
-      }
     }
-  };
+  }, [currentNode?.id, importDialog?.mode, rootId, getBookmarksApi]);
 
   const handleImportDialogConfirm = async () => {
     if (!importDialog?.content) {
@@ -1172,15 +1168,19 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 File
-                <input
-                  type="file"
-                  accept=".html,.htm,text/html"
-                  onChange={handleImportFileChange}
-                  style={{...styles.dialogInput, ...modeStyles.dialogInput}}
-                />
-                <span style={{...styles.fileHint, ...modeStyles.fileHint}}>
-                  {importDialog.file?.name ?? 'No file chosen'}
-                </span>
+                <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
+                  <button
+                    type="button"
+                    style={{...styles.smallButton, ...modeStyles.smallButton}}
+                    onClick={chooseImportFile}
+                    disabled={importDialog.loading}
+                  >
+                    {importDialog.filePath ? 'Change file…' : 'Choose file…'}
+                  </button>
+                  <span style={{...styles.fileHint, ...modeStyles.fileHint}}>
+                    {importDialog.filePath ? importDialog.filePath.split(/[\\/]/).pop() : 'No file selected'}
+                  </span>
+                </div>
               </label>
               <div style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <span>Mode</span>

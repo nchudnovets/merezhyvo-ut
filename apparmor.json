@@ -3,9 +3,9 @@
   "policy_version": "@APPARMOR_POLICY@",
   "policy_groups": [
     "networking",
-    "location",
     "camera",
     "microphone",
-    "audio"
+    "audio",
+    "video"
   ]
 }

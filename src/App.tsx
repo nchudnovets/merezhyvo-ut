@@ -43,6 +43,7 @@ import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, Messeng
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
+import FileDialogHost from './components/fileDialog/FileDialog';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -2748,6 +2749,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
         onHeightChange={handleKeyboardHeightChange}
       />
+      <FileDialogHost mode={mode} />
       {/* <PermissionPrompt /> */}
       {/* <ToastCenter /> */}
     </div>
@@ -2991,8 +2993,9 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
   const initialTarget = initialUrl && initialUrl.trim() ? initialUrl.trim() : DEFAULT_URL;
 
   return (
-    <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
-      <div style={singleStyles.webviewWrapper}>
+    <>
+      <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
+        <div style={singleStyles.webviewWrapper}>
         <WebViewHost
           ref={(instance) => {
             webviewHandleRef.current = instance;
@@ -3051,6 +3054,8 @@ const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) =
           <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
         </div>
       )}
-    </div>
+      </div>
+      <FileDialogHost mode={mode} />
+    </>
   );
 };
