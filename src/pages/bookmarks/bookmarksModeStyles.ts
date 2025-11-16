@@ -130,14 +130,15 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       borderRadius: '20px'
     },
     dialogTitle: {
-      fontSize: '40px'
+      fontSize: '45px'
     },
     dialogLabel: {
-      fontSize: '32px',
-      gap: '12px'
+      fontSize: '40px',
+      gap: '12px',
+      marginBottom: '10px'
     },
     dialogInput: {
-      fontSize: '33px',
+      fontSize: '38px',
       padding: '18px'
     },
     dialogRadioInput: {
@@ -146,23 +147,24 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
     },
     dialogActions: {
       flexDirection: 'column',
-      alignItems: 'stretch'
+      alignItems: 'stretch',
+      marginTop: '20px'
     },
     dialogMessage: {
-      fontSize: '35px'
+      fontSize: '40px'
     },
     folderListPicker: {
       maxHeight: '60vh'
     },
     folderPickerRow: {
-      fontSize: '35px',
+      fontSize: '38px',
       padding: '18px 20px'
     },
     folderPickerValue: {
       fontSize: '35px'
     },
     folderPickerLabel: {
-      fontSize: '32px'
+      fontSize: '35px'
     },
     folderPickerActions: {
       justifyContent: 'center'
@@ -180,7 +182,7 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
       fontSize: '35px'
     },
     contextMenuItem: {
-      fontSize: '33px'
+      fontSize: '40px'
     }
   }
 };
