@@ -96,3 +96,21 @@ export const readFileContent = async (filePath: string): Promise<string> => {
   const data = await fsp.readFile(resolved, 'utf8');
   return data;
 };
+
+export const writeFileContent = async (
+  filePath: string,
+  data: string,
+  encoding: BufferEncoding = 'utf8'
+): Promise<void> => {
+  if (!filePath) {
+    throw new Error('Path is required');
+  }
+  const resolved = path.resolve(filePath);
+  const dir = path.dirname(resolved);
+  try {
+    fs.mkdirSync(dir, { recursive: true });
+  } catch {
+    // ignore
+  }
+  await fsp.writeFile(resolved, data, { encoding });
+};

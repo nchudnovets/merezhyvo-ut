@@ -11,6 +11,7 @@ import type {
   BookmarksTree,
   FileDialogListing,
   FileDialogOptions,
+  FileDialogSavePayload,
   HistoryQueryOptions,
   HistoryQueryResult,
   InstalledApp,
@@ -114,6 +115,7 @@ export interface MerezhyvoFileDialogApi {
   readFile(payload: { path: string }): Promise<string>;
   onRequest(handler: (payload: FileDialogRequestPayload) => void): () => void;
   respond(payload: FileDialogResponsePayload): Promise<{ ok: boolean }>;
+  saveFile(payload: FileDialogSavePayload): Promise<{ ok: boolean }>;
 }
 
 export interface MerezhyvoFaviconsApi {

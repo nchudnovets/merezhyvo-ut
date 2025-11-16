@@ -5,17 +5,23 @@ import fs from 'fs';
 import {
   app,
   BrowserWindow,
+  net,
   screen,
   session,
   type App,
+  type DownloadItem,
+  type Event,
+  type IncomingMessage,
   type Input,
   type Session,
   type WebContents,
   type WebPreferences
 } from 'electron';
+import type { FileDialogOptions } from '../../src/types/models';
 import { resolveMode } from '../mode';
 import { addVisit, updateTitle, updateFavicon } from './history';
 import { saveFromBuffer } from './favicons';
+import { promptForPaths } from './file-dialog-ipc';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
@@ -39,6 +45,7 @@ const DESKTOP_ONLY_HOSTS = new Set<string>([
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 const fsp = fs.promises;
+const DOWNLOAD_DIALOG_OPTIONS: FileDialogOptions = { kind: 'folder', title: 'Choose download folder', allowMultiple: false };
 
 function geoIpcLog(_msg: string): void {
   try {
@@ -617,6 +624,61 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     webPreferences
   });
   const typedWin = win as MerezhyvoWindow;
+  const downloadToFile = (url: string, savePath: string, sessionToUse: Session) =>
+    new Promise<void>((resolve, reject) => {
+      const request = net.request({ url, session: sessionToUse });
+      request.on('response', (response: IncomingMessage) => {
+        const fileStream = fs.createWriteStream(savePath);
+        response.on('data', (chunk: Buffer) => fileStream.write(chunk));
+        response.on('end', () => { fileStream.end(); resolve(); });
+        response.on('error', (error: Error) => {
+          fileStream.destroy();
+          fs.unlink(savePath, () => {});
+          reject(error);
+        });
+      });
+      request.on('error', (error: Error) => reject(error));
+      request.end();
+    });
+
+  const handleWillDownload = (event: Event, item: DownloadItem, downloadContents: WebContents | null) => {
+    const url = typeof item.getURL === 'function' ? item.getURL() || '' : '';
+    const isHttpDownload = /^https?:\/\//.test(url);
+    if (!isHttpDownload) {
+      return;
+    }
+    event.preventDefault();
+    item.cancel();
+    const notifyStatus = (status: 'started' | 'completed' | 'failed', file?: string) => {
+      try {
+        console.log('[download] status', status, file);
+        const hostContents = findMainWindow()?.webContents ?? downloadContents ?? typedWin.webContents;
+        hostContents?.send('merezhyvo:download-status', { status, file });
+      } catch {}
+    };
+    (async () => {
+      const hostContents = findMainWindow()?.webContents ?? downloadContents ?? typedWin.webContents;
+      try {
+        console.log('[download] prompt folder for', url);
+        const folders = await promptForPaths(hostContents, DOWNLOAD_DIALOG_OPTIONS);
+        console.log('[download] selected folders', folders);
+        if (!folders?.[0]) {
+          notifyStatus('failed', item.getFilename());
+          return;
+        }
+        const fileName = item.getFilename() || `download-${Date.now()}`;
+        const savePath = path.join(folders[0], fileName);
+        notifyStatus('started', fileName);
+        await downloadToFile(url, savePath, downloadContents?.session ?? session.defaultSession);
+        notifyStatus('completed', fileName);
+      } catch (error) {
+        console.error('[download] manual download failed', error);
+        notifyStatus('failed', item.getFilename());
+        try { item.cancel(); } catch {}
+      }
+    })();
+  };
+  typedWin.webContents.session.on('will-download', handleWillDownload);
   try {
     applyUserAgentForUrl(typedWin.webContents, startUrl);
   } catch {
@@ -823,6 +885,11 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     screen.off('display-metrics-changed', rebalanceBounds);
     screen.off('display-added', rebalanceBounds);
     screen.off('display-removed', rebalanceBounds);
+    try {
+      typedWin.webContents.session.off('will-download', handleWillDownload);
+    } catch {
+      // noop
+    }
   });
 
   let role: WindowRole = opts.role ?? 'main';

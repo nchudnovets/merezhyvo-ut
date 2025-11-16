@@ -259,6 +259,12 @@ export interface FileDialogResult {
   paths: string[];
 }
 
+export interface FileDialogSavePayload {
+  path: string;
+  data: string;
+  encoding?: BufferEncoding;
+}
+
 export type FileDialogSource = 'internal' | 'external';
 
 export interface FileDialogRequestDetail {

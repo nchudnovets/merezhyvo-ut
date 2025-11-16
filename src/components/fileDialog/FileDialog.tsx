@@ -121,12 +121,10 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
   const resolve = (result: FileDialogResult | null) => {
     if (!request) return;
     resolveFileDialogRequest(request.id, result);
-    if (request.source === 'external') {
-      window.merezhyvo?.fileDialog?.respond?.({
-        requestId: request.id,
-        paths: result?.paths ?? null
-      });
-    }
+    window.merezhyvo?.fileDialog?.respond?.({
+      requestId: request.id,
+      paths: result?.paths ?? null
+    });
     setRequest(null);
     requestRef.current = null;
     setListing(null);

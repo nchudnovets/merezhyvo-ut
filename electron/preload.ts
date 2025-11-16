@@ -499,7 +499,8 @@ const exposeApi: MerezhyvoAPI = {
         }
       };
     },
-    respond: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:selection', payload ?? {})
+    respond: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:selection', payload ?? {}),
+    saveFile: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:write', payload ?? {})
   },
   favicons: {
     getPath: (faviconId: string) =>
@@ -538,6 +539,14 @@ const exposeApi: MerezhyvoAPI = {
     }
   }
 };
+
+ipcRenderer.on('merezhyvo:download-status', (_event, payload: { status: 'started' | 'completed' | 'failed'; file?: string }) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:download-status', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
 
 contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
 

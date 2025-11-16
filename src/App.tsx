@@ -205,6 +205,20 @@ const WEBVIEW_BASE_CSS = `
   }
 `;
 
+const downloadToastStyle: CSSProperties = {
+  position: 'fixed',
+  top: '18px',
+  right: '18px',
+  background: 'rgba(16, 185, 129, 0.25)',
+  border: '1px solid rgba(52, 211, 153, 0.6)',
+  borderRadius: '12px',
+  padding: '12px 18px',
+  color: '#0f1729',
+  zIndex: 80,
+  maxWidth: '80vw',
+  boxSizing: 'border-box'
+};
+
 const FALLBACK_APP_INFO: AppInfo = {
   name: 'Merezhyvo',
   version: '0.0.0',
@@ -358,6 +372,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const pendingMessengerTabIdRef = useRef<string | null>(null);
   const lastMessengerIdRef = useRef<MessengerId | null>(null);
   const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
+  const [downloadToast, setDownloadToast] = useState<string | null>(null);
+  const downloadToastTimer = useRef<number | null>(null);
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
 
@@ -2232,6 +2248,38 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
   useEffect(() => {
+    const handler = (event: CustomEvent<{ status: 'started' | 'completed' | 'failed'; file?: string }>) => {
+      const detail = event.detail;
+      const rawName = detail.file?.split(/[\\/]/).pop() ?? detail.file;
+      const fileName = rawName || 'Download';
+      let text = 'Download';
+      if (detail.status === 'started') {
+        text = `${fileName} started`;
+      } else if (detail.status === 'completed') {
+        text = `${fileName} complete`;
+      } else {
+        text = `${fileName} canceled`;
+      }
+      if (downloadToastTimer.current) {
+        window.clearTimeout(downloadToastTimer.current);
+      }
+      setDownloadToast(text);
+      downloadToastTimer.current = window.setTimeout(() => {
+        setDownloadToast(null);
+        downloadToastTimer.current = null;
+      }, 3200);
+    };
+    window.addEventListener('merezhyvo:download-status', handler as EventListener);
+    return () => {
+      window.removeEventListener('merezhyvo:download-status', handler as EventListener);
+      if (downloadToastTimer.current) {
+        window.clearTimeout(downloadToastTimer.current);
+        downloadToastTimer.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     if (isHtmlFullscreen) {
       setZoomBarHeight(0);
       return;
@@ -2750,6 +2798,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onHeightChange={handleKeyboardHeightChange}
       />
       <FileDialogHost mode={mode} />
+      {downloadToast && (
+        <div style={downloadToastStyle}>
+          {downloadToast}
+        </div>
+      )}
       {/* <PermissionPrompt /> */}
       {/* <ToastCenter /> */}
     </div>

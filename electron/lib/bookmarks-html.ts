@@ -97,7 +97,7 @@ export const detectHtmlBookmarkFile = (content: string): boolean => {
 export const parseNetscapeHtml = (content: string): { entries: ParsedEntry[]; folders: number; bookmarks: number } => {
   const state: ParserState = {
     entries: [],
-    stack: [[]],
+    stack: [] as ParsedEntry[][],
     pendingFolder: null,
     currentTag: null,
     currentEntity: null,
@@ -105,6 +105,8 @@ export const parseNetscapeHtml = (content: string): { entries: ParsedEntry[]; fo
     depth: 0,
     count: 0
   };
+
+  state.stack = [state.entries];
 
   const pushChildren = (list: ParsedEntry[]) => {
     state.stack.push(list);
@@ -117,7 +119,7 @@ export const parseNetscapeHtml = (content: string): { entries: ParsedEntry[]; fo
   };
 
   const currentChildren = (): ParsedEntry[] =>
-    state.stack[state.stack.length - 1] ?? state.stack[0] ?? [];
+    state.stack[state.stack.length - 1] ?? state.entries;
 
   const appendEntry = (entry: ParsedEntry) => {
     state.count += 1;
