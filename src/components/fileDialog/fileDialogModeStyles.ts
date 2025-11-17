@@ -38,5 +38,19 @@ export const fileDialogModeStyles: Record<Mode, Partial<Record<FileDialogStyleKe
     ...override('buttonPrimary', {
       fontSize: '32px'
     })
+    ,
+    ...override('hiddenToggleLabel', {
+      fontSize: '35px'
+    }),
+    ...override('breadcrumb', {
+      gap: '12px'
+    }),
+    ...override('breadcrumbButton', {
+      fontSize: '35px'
+    }),
+    ...override('hiddenToggleInput', {
+      width: '32px',
+      height: '32px'
+    })
   }
 };

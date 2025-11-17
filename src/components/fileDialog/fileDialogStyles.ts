@@ -10,6 +10,9 @@ export type FileDialogStyleKeys =
   | 'pathText'
   | 'breadcrumb'
   | 'breadcrumbButton'
+  | 'hiddenToggleRow'
+  | 'hiddenToggleLabel'
+  | 'hiddenToggleInput'
   | 'list'
   | 'entryRow'
   | 'entryName'
@@ -146,5 +149,21 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   placeholder: {
     color: '#94a3b8'
+  }
+  ,
+  hiddenToggleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    marginBottom: '10px'
+  },
+  hiddenToggleLabel: {
+    fontSize: '12px',
+    color: '#94a3b8',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '6px'
+  },
+  hiddenToggleInput: {
+    marginRight: '6px'
   }
 };

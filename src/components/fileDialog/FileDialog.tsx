@@ -38,6 +38,7 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
   const [selected, setSelected] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [showHidden, setShowHidden] = useState(false);
 
   const requestRef = useRef<FileDialogRequestDetail | null>(null);
 
@@ -170,10 +171,18 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
               Filters: {request.options.filters.join(', ')}
             </p>
           )}
-          <div style={styles.pathRow}>
-            <span style={{ ...styles.pathText, ...(modeStyles.pathText ?? {}) }}>{currentPath || 'Loading…'}</span>
-          </div>
-          <div style={styles.breadcrumb}>
+            <div style={{ ...styles.hiddenToggleRow, ...(modeStyles.hiddenToggleRow ?? {}) }}>
+              <label style={{ ...styles.hiddenToggleLabel, ...(modeStyles.hiddenToggleLabel ?? {}) }}>
+                <input
+                  type="checkbox"
+                  checked={showHidden}
+                  onChange={(event) => setShowHidden(event.target.checked)}
+                  style={{ ...styles.hiddenToggleInput, ...(modeStyles.hiddenToggleInput ?? {}) }}
+                />
+                Show hidden files
+              </label>
+            </div>
+            <div style={styles.breadcrumb}>
             {breadcrumbs.map((pathSegment, idx) => (
               <button
                 key={pathSegment + idx}
@@ -181,7 +190,7 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
                 style={{ ...styles.breadcrumbButton, ...(modeStyles.breadcrumbButton ?? {}) }}
                 onClick={() => navigateTo(pathSegment)}
               >
-                {pathSegment === '/' ? '/' : pathSegment.split('/').pop()}
+                {pathSegment === '/' ? '/' : pathSegment.split('/').pop() + ' / '}
               </button>
             ))}
           </div>
@@ -192,7 +201,9 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
           {!loading && listing && listing.entries.length === 0 && (
             <span style={styles.placeholder}>No items found</span>
           )}
-          {listing?.entries.map((entry) => {
+          {listing?.entries
+            .filter((entry) => showHidden || !entry.name.startsWith('.'))
+            .map((entry) => {
             const isSelected = selected.includes(entry.path);
             return (
               <div
