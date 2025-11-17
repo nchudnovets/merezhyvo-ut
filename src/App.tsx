@@ -127,6 +127,7 @@ type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } |
 
 const WEBVIEW_BASE_CSS = `
   :root, html { color-scheme: dark; }
+  :root, html { background-color: #ffffff; }
   @media (prefers-color-scheme: light) {
   }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
