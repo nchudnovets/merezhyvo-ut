@@ -14,9 +14,26 @@ import type {
   MerezhyvoSessionState,
   MerezhyvoSettingsState,
   MerezhyvoInstalledAppsResult,
-  MerezhyvoTabCleanResult
+  MerezhyvoTabCleanResult,
+  PasswordFieldFocusPayload
 } from '../src/types/preload';
-import type { FileDialogOptions, Mode, TorConfigResult, Unsubscribe } from '../src/types/models';
+import type {
+  FileDialogOptions,
+  Mode,
+  TorConfigResult,
+  Unsubscribe,
+  PasswordEntryMeta,
+  PasswordEntrySecret,
+  PasswordSettings,
+  PasswordUpsertPayload,
+  PasswordCsvPreview,
+  PasswordCsvImportResult,
+  PasswordEncryptedExportResult,
+  PasswordImportMode,
+  PasswordImportFormat,
+  PasswordChangeMasterResult,
+  PasswordStatus
+} from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
 import path from 'path';
@@ -506,6 +523,59 @@ const exposeApi: MerezhyvoAPI = {
     getPath: (faviconId: string) =>
       ipcRenderer.invoke('merezhyvo:favicons:get-path', faviconId ?? '') as Promise<string | null>
   },
+  passwords: {
+    status: () => ipcRenderer.invoke('merezhyvo:pw:status') as Promise<PasswordStatus>,
+    unlock: (master: string, durationMinutes?: number) =>
+      ipcRenderer.invoke('merezhyvo:pw:unlock', master, durationMinutes) as Promise<{ ok?: true; error?: string }>,
+    lock: () => ipcRenderer.invoke('merezhyvo:pw:lock') as Promise<{ ok: true }>,
+    changeMasterPassword: (current: string, next: string) =>
+      ipcRenderer.invoke('merezhyvo:pw:change-master', { current, next }) as Promise<{ ok?: true; error?: string }>,
+    createMasterPassword: (master: string) =>
+      ipcRenderer.invoke('merezhyvo:pw:create-master', master) as Promise<PasswordChangeMasterResult>,
+    list: (payload?: { query?: string } | string) =>
+      ipcRenderer.invoke('merezhyvo:pw:list', payload) as Promise<PasswordEntryMeta[]>,
+    get: (id: string) =>
+      ipcRenderer.invoke('merezhyvo:pw:get', id) as Promise<PasswordEntrySecret | { error: string }>,
+    add: (entry: PasswordUpsertPayload) =>
+      ipcRenderer.invoke('merezhyvo:pw:add', entry) as Promise<{ id: string; updated: boolean } | { error: string }>,
+    update: (id: string, entry: PasswordUpsertPayload) =>
+      ipcRenderer.invoke('merezhyvo:pw:update', id, entry) as Promise<{ id: string; updated: boolean } | { error: string }>,
+    remove: (id: string) =>
+      ipcRenderer.invoke('merezhyvo:pw:remove', id) as Promise<{ ok: true } | { error: string }>,
+    notifyFieldFocus: (payload: PasswordFieldFocusPayload) =>
+      ipcRenderer.invoke('merezhyvo:pw:notify-field-focus', payload),
+    notifyFieldBlur: (wcId: number) =>
+      ipcRenderer.invoke('merezhyvo:pw:notify-field-blur', wcId),
+    blacklist: {
+      add: (origin: string) => ipcRenderer.invoke('merezhyvo:pw:blacklist:add', origin),
+      remove: (origin: string) => ipcRenderer.invoke('merezhyvo:pw:blacklist:remove', origin),
+      list: () => ipcRenderer.invoke('merezhyvo:pw:blacklist:list')
+    },
+    settings: {
+      get: () => ipcRenderer.invoke('merezhyvo:pw:settings:get') as Promise<PasswordSettings>,
+      set: (patch: Partial<PasswordSettings>) =>
+        ipcRenderer.invoke('merezhyvo:pw:settings:set', patch) as Promise<PasswordSettings | { error: string }>
+    },
+    import: {
+      detect: (content?: Buffer | string | { content?: Buffer | string }) =>
+        ipcRenderer.invoke('merezhyvo:pw:import:detect', content) as Promise<PasswordImportFormat>,
+      csv: {
+        preview: (text: string) =>
+          ipcRenderer.invoke('merezhyvo:pw:import:csv:preview', text) as Promise<PasswordCsvPreview>,
+        apply: (text: string, mode: PasswordImportMode) =>
+          ipcRenderer.invoke('merezhyvo:pw:import:csv:apply', { text, mode }) as Promise<PasswordCsvImportResult>
+      },
+      mzrpass: {
+        apply: (payload: { content: Buffer | string; mode: PasswordImportMode; password?: string }) =>
+          ipcRenderer.invoke('merezhyvo:pw:import:mzrpass:apply', payload) as Promise<{ imported: number }>
+      }
+    },
+    export: {
+      csv: () => ipcRenderer.invoke('merezhyvo:pw:export:csv') as Promise<string>,
+      mzrpass: (password?: string) =>
+        ipcRenderer.invoke('merezhyvo:pw:export:mzrpass', { password }) as Promise<PasswordEncryptedExportResult>
+    }
+  },
   paths: {
     webviewPreload(): string {
       const candidates = [
@@ -543,6 +613,14 @@ const exposeApi: MerezhyvoAPI = {
 ipcRenderer.on('merezhyvo:download-status', (_event, payload: { status: 'started' | 'completed' | 'failed'; file?: string }) => {
   try {
     window.dispatchEvent(new CustomEvent('merezhyvo:download-status', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
+
+ipcRenderer.on('merezhyvo:pw:unlock-required', (_event, payload: unknown) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:pw:unlock-required', { detail: payload }));
   } catch {
     // noop
   }

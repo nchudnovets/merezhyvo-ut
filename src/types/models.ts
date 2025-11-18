@@ -204,6 +204,94 @@ export interface ShortcutResult {
   installedApp?: InstalledApp;
 }
 
+export interface PasswordEntryMeta {
+  id: string;
+  origin: string;
+  signonRealm: string;
+  formAction?: string;
+  username: string;
+  createdAt: number;
+  updatedAt: number;
+  lastUsedAt: number;
+  useCount: number;
+  notes?: string;
+  tags?: string[];
+}
+
+export interface PasswordEntrySecret {
+  username: string;
+  password: string;
+}
+
+export interface PasswordStatus {
+  locked: boolean;
+  hasMaster: boolean;
+  autoLockMinutes: number;
+}
+
+export interface PasswordSettings {
+  saveAndFill: boolean;
+  offerToSave: boolean;
+  disallowHttp: boolean;
+  autoLockMinutes: number;
+}
+
+export interface PasswordUpsertPayload {
+  id?: string;
+  origin: string;
+  signonRealm: string;
+  formAction?: string;
+  username: string;
+  password: string;
+  notes?: string;
+  tags?: string[];
+}
+
+export interface PasswordCsvRow {
+  name?: string;
+  url: string;
+  username: string;
+}
+
+export interface PasswordCsvPreview {
+  total: number;
+  valid: number;
+  invalid: number;
+  sample: PasswordCsvRow | null;
+}
+
+export type PasswordImportMode = 'add' | 'replace';
+
+export interface PasswordCsvImportResult {
+  imported: number;
+  skipped: number;
+}
+
+export interface PasswordEncryptedExportResult {
+  filenameSuggested: string;
+  content: Buffer;
+}
+
+export interface PasswordChangeMasterResult {
+  ok?: true;
+  error?: string;
+}
+
+export interface PasswordAutofillOption {
+  id: string;
+  username: string;
+  siteName: string;
+}
+
+export interface PasswordAutofillState {
+  available: boolean;
+  locked: boolean;
+  options: PasswordAutofillOption[];
+  siteName: string;
+}
+
+export type PasswordImportFormat = 'csv' | 'mzrpass' | 'unknown';
+
 export interface TorState {
   enabled: boolean;
   starting?: boolean;

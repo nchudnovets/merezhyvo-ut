@@ -29,6 +29,10 @@ import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyle
 import { styles } from './styles/styles';
 import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
+import PasswordsPage from './pages/passwords/PasswordsPage';
+import PasswordUnlockModal, {
+  type PasswordUnlockPayload
+} from './components/modals/PasswordUnlockModal';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
@@ -39,7 +43,7 @@ import type { LayoutId } from './components/keyboard/layouts';
 import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
-import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings } from './types/models';
+import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings, PasswordStatus } from './types/models';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
@@ -343,6 +347,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [msg, setMsg] = useState<string>('');
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
+  const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
+  const [unlockPayload, setUnlockPayload] = useState<PasswordUnlockPayload | null>(null);
+  const [unlockError, setUnlockError] = useState<string | null>(null);
+  const [unlockSubmitting, setUnlockSubmitting] = useState(false);
+  const [pendingSettingsReopen, setPendingSettingsReopen] = useState(false);
+  const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | null>(null);
+  const [passwordStatus, setPasswordStatus] = useState<PasswordStatus | null>(null);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [installedAppsLoading, setInstalledAppsLoading] = useState<boolean>(false);
   const [settingsMsg, setSettingsMsg] = useState<string>('');
@@ -1729,7 +1740,37 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPendingRemoval(null);
     setSettingsMsg('');
     setSettingsBusy(false);
+    setSettingsScrollTarget(null);
+    setPendingSettingsReopen(false);
   }, []);
+
+  const fetchPasswordStatus = useCallback(async (): Promise<PasswordStatus | null> => {
+    const api = window.merezhyvo?.passwords;
+    if (!api) {
+      setPasswordStatus(null);
+      return null;
+    }
+    try {
+      const info = await api.status();
+      setPasswordStatus(info);
+      return info;
+    } catch {
+      setPasswordStatus(null);
+      return null;
+    }
+  }, []);
+
+  const requestPasswordUnlock = useCallback(
+    (fromSettings = false) => {
+      closeSettingsModal();
+      void fetchPasswordStatus();
+      setUnlockPayload(null);
+      setUnlockError(null);
+      setShowUnlockModal(true);
+      setPendingSettingsReopen(fromSettings);
+    },
+    [closeSettingsModal, fetchPasswordStatus]
+  );
 
   const askRemoveApp = useCallback((app: InstalledApp | null | undefined) => {
     if (!app) return;
@@ -2459,6 +2500,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [focusTab]);
 
+  useEffect(() => {
+    const handler = (event: Event) => {
+      const detail = (event as CustomEvent<PasswordUnlockPayload>).detail ?? null;
+      void fetchPasswordStatus();
+      setUnlockPayload(detail);
+      setUnlockError(null);
+      setShowUnlockModal(true);
+    };
+    window.addEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
+    return () => window.removeEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
+  }, [fetchPasswordStatus]);
+
+  useEffect(() => {
+    void fetchPasswordStatus();
+  }, [fetchPasswordStatus]);
+
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
     setShowTabsPanel(true);
@@ -2497,6 +2554,51 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const openBookmarksPage = useCallback(() => openInNewTab('mzr://bookmarks'), [openInNewTab]);
   const openHistoryPage = useCallback(() => openInNewTab('mzr://history'), [openInNewTab]);
+  const openPasswordsFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://passwords');
+  }, [closeSettingsModal, openInNewTab]);
+
+  const closeUnlockModal = useCallback(() => {
+    setShowUnlockModal(false);
+    setUnlockError(null);
+  }, []);
+
+  const handlePasswordUnlock = useCallback(
+    async (master: string, durationMinutes?: number) => {
+      const api = window.merezhyvo?.passwords;
+      if (!api) {
+        setUnlockError('Unable to reach passwords service');
+        return false;
+      }
+      setUnlockSubmitting(true);
+      setUnlockError(null);
+      try {
+        const result = await api.unlock(master, durationMinutes);
+        if (result?.ok) {
+          await fetchPasswordStatus();
+          setShowUnlockModal(false);
+          setUnlockPayload(null);
+        if (pendingSettingsReopen) {
+          setPendingSettingsReopen(false);
+          setSettingsScrollTarget('passwords');
+          setTimeout(() => {
+            openSettingsModal();
+          }, 0);
+        }
+          return true;
+        }
+        setUnlockError(result?.error ?? 'Master password is incorrect');
+        return false;
+      } catch (err) {
+        setUnlockError(String(err));
+        return false;
+      } finally {
+        setUnlockSubmitting(false);
+      }
+    },
+    [fetchPasswordStatus, pendingSettingsReopen, openSettingsModal]
+  );
 
   const handleCloseTab = useCallback((id: string) => {
     if (!id) return;
@@ -2506,12 +2608,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const serviceUrl = (activeTab?.url ?? '').trim().toLowerCase();
   const isBookmarksService = serviceUrl.startsWith('mzr://bookmarks');
   const isHistoryService = serviceUrl.startsWith('mzr://history');
-  const showServiceOverlay = mainViewMode === 'browser' && (isBookmarksService || isHistoryService);
-  const serviceContent = showServiceOverlay
-    ? isBookmarksService
-      ? <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />
-      : <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />
-    : null;
+  const isPasswordsService = serviceUrl.startsWith('mzr://passwords');
+  const showServiceOverlay =
+    mainViewMode === 'browser' && (isBookmarksService || isHistoryService || isPasswordsService);
+  let serviceContent = null;
+  if (showServiceOverlay) {
+    if (isBookmarksService) {
+      serviceContent = <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+    } else if (isHistoryService) {
+      serviceContent = <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+    } else if (isPasswordsService) {
+      serviceContent = <PasswordsPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+    }
+  }
 
   const handleCleanCloseTab = useCallback(async (id: string) => {
     if (!id) return false;
@@ -2664,26 +2773,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         />
       )}
 
-      {showTabsPanel && (
-        <TabsPanel
-          mode={mode}
-          backdropStyle={tabsPanelBackdropStyle}
-          activeTabId={activeId}
-          pinnedTabs={pinnedTabs}
-          regularTabs={regularTabs}
-          onClose={closeTabsPanel}
-          onNewTab={handleNewTab}
-          onActivateTab={handleActivateTab}
-          onTogglePin={handleTogglePin}
-          onCleanClose={handleCleanCloseTab}
-          onCloseTab={handleCloseTab}
-          onOpenBookmarks={openBookmarksPage}
-          onOpenHistory={openHistoryPage}
-          displayTitle={displayTitleForTab}
-          displaySubtitle={displaySubtitleForTab}
-          fallbackInitial={fallbackInitialForTab}
-        />
-      )}
+        {showTabsPanel && (
+          <TabsPanel
+            mode={mode}
+            backdropStyle={tabsPanelBackdropStyle}
+            activeTabId={activeId}
+            pinnedTabs={pinnedTabs}
+            regularTabs={regularTabs}
+            onClose={closeTabsPanel}
+            onNewTab={handleNewTab}
+            onActivateTab={handleActivateTab}
+            onTogglePin={handleTogglePin}
+            onCleanClose={handleCleanCloseTab}
+            onCloseTab={handleCloseTab}
+            onOpenBookmarks={openBookmarksPage}
+            onOpenHistory={openHistoryPage}
+            displayTitle={displayTitleForTab}
+            displaySubtitle={displaySubtitleForTab}
+            fallbackInitial={fallbackInitialForTab}
+          />
+        )}
 
       {showModal && (
         <CreateShortcutModal
@@ -2711,10 +2820,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       )}
 
       {showSettingsModal && (
-        <SettingsModal
-          mode={mode}
-          backdropStyle={modalBackdropStyle}
-          installedApps={installedAppsList}
+          <SettingsModal
+            mode={mode}
+            backdropStyle={modalBackdropStyle}
+            installedApps={installedAppsList}
           loading={installedAppsLoading}
           message={settingsMsg}
           pendingRemoval={pendingRemoval}
@@ -2729,22 +2838,39 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           torContainerMessage={torConfigFeedback}
           torKeepEnabledDraft={torKeepEnabledDraft}
           torInputRef={torContainerInputRef}
-          onTorInputPointerDown={handleTorInputPointerDown}
-          onTorInputFocus={handleTorInputFocus}
-          onTorInputBlur={handleTorInputBlur}
-          onTorContainerChange={handleTorContainerInputChange}
-          onSaveTorContainer={handleSaveTorContainer}
-          onTorKeepChange={handleTorKeepChange}
-          onClose={closeSettingsModal}
-          onRequestRemove={askRemoveApp}
-          onCancelRemove={cancelRemoveApp}
-          onConfirmRemove={confirmRemoveApp}
-          messengerItems={orderedMessengers}
-          messengerOrderSaving={messengerOrderSaving}
-          messengerOrderMessage={messengerOrderMessage}
-          onMessengerMove={handleMessengerMove}
-        />
+            onTorInputPointerDown={handleTorInputPointerDown}
+            onTorInputFocus={handleTorInputFocus}
+            onTorInputBlur={handleTorInputBlur}
+            onTorContainerChange={handleTorContainerInputChange}
+            onSaveTorContainer={handleSaveTorContainer}
+            onTorKeepChange={handleTorKeepChange}
+            onClose={closeSettingsModal}
+            onRequestRemove={askRemoveApp}
+            onCancelRemove={cancelRemoveApp}
+            onConfirmRemove={confirmRemoveApp}
+            onOpenBookmarks={openBookmarksPage}
+            onOpenHistory={openHistoryPage}
+            onOpenPasswords={openPasswordsFromSettings}
+            messengerItems={orderedMessengers}
+            messengerOrderSaving={messengerOrderSaving}
+            messengerOrderMessage={messengerOrderMessage}
+            onMessengerMove={handleMessengerMove}
+            onRequestPasswordUnlock={requestPasswordUnlock}
+            scrollToSection={settingsScrollTarget}
+            onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+          />
       )}
+
+      <PasswordUnlockModal
+        mode={mode}
+        open={showUnlockModal}
+        payload={unlockPayload ?? undefined}
+        onClose={closeUnlockModal}
+        onUnlock={handlePasswordUnlock}
+        error={unlockError}
+        submitting={unlockSubmitting}
+        defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
+      />
 
       {torAlertMessage && (
         <div

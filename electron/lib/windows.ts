@@ -221,15 +221,20 @@ const WEBVIEW_PRELOAD_SRC = `
         } catch {}
       }
     }
-    try { (window as any).Notification = MirrorNotification; } catch {}
+    try {
+      Object.defineProperty(window, 'Notification', {
+        value: MirrorNotification,
+        configurable: true
+      });
+    } catch {}
 
     // TEMP: повністю відключаємо геолокацію в Web API (без IPC, без UI, без логів)
     try {
-      const g = (navigator as any).geolocation;
+      const g = navigator.geolocation;
       if (g) {
-        const denied = (errCb?: (e: any) => void) => {
+        const denied = (errCb) => {
           if (typeof errCb === 'function') {
-            const e: any = new Error('Geolocation disabled');
+            const e = new Error('Geolocation disabled');
             e.code = 1; // PERMISSION_DENIED
             e.PERMISSION_DENIED = 1;
             e.POSITION_UNAVAILABLE = 2;
@@ -237,9 +242,9 @@ const WEBVIEW_PRELOAD_SRC = `
             errCb(e);
           }
         };
-        g.getCurrentPosition = (_ok: any, err?: any) => denied(err);
-        g.watchPosition = (_ok: any, err?: any) => { denied(err); return -1 as any; };
-        g.clearWatch = (_id: number) => {};
+        g.getCurrentPosition = (_ok, err) => denied(err);
+        g.watchPosition = (_ok, err) => { denied(err); return -1; };
+        g.clearWatch = (_id) => {};
       }
     } catch {}
   })();

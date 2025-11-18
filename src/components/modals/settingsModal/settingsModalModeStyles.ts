@@ -89,7 +89,35 @@ export const settingsModalModeStyles: ModeStyleMap = {
     permissionsSiteCardPermissions: {},
     permissionsSiteCardPermissionRow: {},
     permissionsSiteCardPermissionLabel: {},
-    permissionsSiteHeaderActions: {}
+    permissionsSiteHeaderActions: {},
+    settingsRow: {
+      flexDirection: 'column',
+      alignItems: 'flex-start',
+      gap: '24px'
+    },
+    // settingsToggleLabel: {
+    //   fontSize: 'clamp(38px, 5.8vw, 44px)'
+    // },
+    // settingsToggle: {
+    //   width: '35px',
+    //   height: '35px'
+    // },
+    // settingsSelect: {
+    //   fontSize: 'clamp(35px, 5.4vw, 40px)',
+    //   padding: '12px 18px'
+    // },
+    // settingsButton: {
+    //   minHeight: 'clamp(74px, 10vw, 90px)',
+    //   fontSize: 'clamp(33px, 5vw, 40px)',
+    //   padding: '0 clamp(30px, 5vw, 42px)',
+    //   borderRadius: '24px'
+    // },
+    // settingsLinkRow: {
+    //   marginTop: '18px'
+    // },
+    // settingsLinkButton: {
+    //   fontSize: '38px'
+    // }
   },
   mobile: {
     settingsModalTitle: {
@@ -368,6 +396,29 @@ export const settingsModalModeStyles: ModeStyleMap = {
     permissionsSiteEmpty: {
       fontSize: 'clamp(33px, 4.8vw, 42px)',
       lineHeight: 1.4
+    },
+    settingsToggleLabel: {
+      fontSize: 'clamp(38px, 5.8vw, 44px)'
+    },
+    settingsToggle: {
+      width: '35px',
+      height: '35px'
+    },
+    settingsSelect: {
+      fontSize: 'clamp(35px, 5.4vw, 40px)',
+      padding: '12px 18px'
+    },
+    settingsButton: {
+      minHeight: 'clamp(74px, 10vw, 90px)',
+      fontSize: 'clamp(33px, 5vw, 40px)',
+      padding: '0 clamp(30px, 5vw, 42px)',
+      borderRadius: '24px'
+    },
+    settingsLinkRow: {
+      marginTop: '28px'
+    },
+    settingsLinkButton: {
+      fontSize: '38px'
     }
   }
 };

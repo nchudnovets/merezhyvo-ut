@@ -238,3 +238,140 @@ window.addEventListener('message', async (ev: MessageEvent) => {
     } catch {}
   }
 })();
+
+(() => {
+  if (window.top !== window) return;
+  const lastCapture = new Map<string, number>();
+
+  const findUsernameInput = (form: HTMLFormElement): HTMLInputElement | null => {
+    const candidates = Array.from(
+      form.querySelectorAll<HTMLInputElement>(
+        'input[type="text"], input[type="email"], input:not([type])'
+      )
+    );
+    return candidates.find((input) => (input.value ?? '').trim().length > 0) ?? candidates[0] ?? null;
+  };
+
+  const buildFormAction = (form: HTMLFormElement): string => {
+    const actionAttr = form.getAttribute('action');
+    if (!actionAttr) {
+      return window.location.href;
+    }
+    try {
+      return new URL(actionAttr, window.location.href).toString();
+    } catch {
+      return window.location.href;
+    }
+  };
+
+  const handleSubmit = (event: SubmitEvent): void => {
+    const form = event.target;
+    if (!(form instanceof HTMLFormElement)) return;
+    const passwordInput = form.querySelector<HTMLInputElement>('input[type="password"]');
+    if (!passwordInput) return;
+    const password = passwordInput.value;
+    if (!password) return;
+    const origin = window.location.origin;
+    const signonRealm = `${window.location.protocol}//${window.location.host}`;
+    const formAction = buildFormAction(form);
+    const usernameInput = findUsernameInput(form);
+    const username = usernameInput?.value?.trim();
+    const key = `${origin}|${formAction}|${username ?? ''}`;
+    const now = Date.now();
+    const last = lastCapture.get(key);
+    if (last && now - last < 1000) return;
+    lastCapture.set(key, now);
+
+    try {
+      ipcRenderer.send('merezhyvo:pw:capture', {
+        origin,
+        signonRealm,
+        formAction,
+        username,
+        password
+      });
+    } catch {
+      // noop
+    }
+  };
+
+  document.addEventListener('submit', handleSubmit, true);
+})();
+
+(() => {
+  if (window.top !== window) return;
+
+  let lastUsernameInput: HTMLInputElement | null = null;
+  let lastPasswordInput: HTMLInputElement | null = null;
+
+  const signonRealm = `${window.location.protocol}//${window.location.host}`;
+  const origin = window.location.origin;
+
+  const sendFocus = (field: 'username' | 'password'): void => {
+    try {
+      ipcRenderer.sendToHost('mzr:pw:field-focus', { origin, signonRealm, field });
+    } catch {
+      // noop
+    }
+  };
+
+  const sendBlur = (): void => {
+    try {
+      ipcRenderer.sendToHost('mzr:pw:field-blur');
+    } catch {
+      // noop
+    }
+  };
+
+  const fillField = (field: HTMLInputElement, value: string): void => {
+    try {
+      field.focus();
+      field.value = value;
+      field.dispatchEvent(new Event('input', { bubbles: true }));
+      field.dispatchEvent(new Event('change', { bubbles: true }));
+    } catch {
+      // noop
+    }
+  };
+
+  const handleFocusIn = (event: FocusEvent): void => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target || target.tagName !== 'INPUT') return;
+    const type = (target.getAttribute('type') ?? '').toLowerCase();
+    if (type === 'password') {
+      lastPasswordInput = target;
+      sendFocus('password');
+      return;
+    }
+    if (type === 'text' || type === 'email' || type === 'search' || type === 'tel') {
+      lastUsernameInput = target;
+      sendFocus('username');
+    }
+  };
+
+  const handleFocusOut = (event: FocusEvent): void => {
+    const target = event.target as HTMLInputElement | null;
+    if (!target) return;
+    if (target === lastPasswordInput) {
+      lastPasswordInput = null;
+      sendBlur();
+      return;
+    }
+    if (target === lastUsernameInput) {
+      lastUsernameInput = null;
+      sendBlur();
+    }
+  };
+
+  ipcRenderer.on('merezhyvo:pw:fill', (_event, payload: { username?: string; password?: string }) => {
+    if (payload.username && lastUsernameInput) {
+      fillField(lastUsernameInput, payload.username);
+    }
+    if (payload.password && lastPasswordInput) {
+      fillField(lastPasswordInput, payload.password);
+    }
+  });
+
+  document.addEventListener('focusin', handleFocusIn, true);
+  document.addEventListener('focusout', handleFocusOut, true);
+})();

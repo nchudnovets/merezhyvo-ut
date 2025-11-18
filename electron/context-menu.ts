@@ -18,6 +18,12 @@ type ContextMenuState = {
   isEditable: boolean;
   canPaste: boolean;
   linkUrl: string;
+  autofill?: {
+    available: boolean;
+    locked: boolean;
+    options: Array<{ id: string; username: string; siteName: string }>;
+    siteName: string;
+  };
 };
 
 type ElementAttributes = {
@@ -95,6 +101,27 @@ function sep(): HTMLDivElement {
   return el('div', { class: 'sep' });
 }
 
+function fillLabel(text: string): HTMLDivElement {
+  return el('div', { class: 'fill-label' }, text);
+}
+
+function appendAutofillSection(menu: HTMLElement, autofill?: ContextMenuState['autofill']): void {
+  if (!autofill?.available) return;
+  menu.appendChild(sep());
+  menu.appendChild(fillLabel('Fill with password…'));
+  if (autofill.locked) {
+    menu.appendChild(item('Unlock to fill…', 'pw-unlock'));
+  } else if (autofill.options.length === 0) {
+    menu.appendChild(fillLabel('No matching passwords'));
+  } else {
+    autofill.options.forEach((option) => {
+      const label = `${option.username} — ${option.siteName}`;
+      menu.appendChild(item(label, `pw-fill:${option.id}`));
+    });
+  }
+  menu.appendChild(item('Manage passwords…', 'pw-manage'));
+}
+
 function normalizeState(raw: unknown): ContextMenuState {
   const source = (raw ?? {}) as Partial<ContextMenuState>;
   return {
@@ -104,6 +131,8 @@ function normalizeState(raw: unknown): ContextMenuState {
     isEditable: Boolean(source.isEditable),
     canPaste: Boolean(source.canPaste),
     linkUrl: typeof source.linkUrl === 'string' ? source.linkUrl : ''
+    ,
+    autofill: source.autofill
   };
 }
 
@@ -155,6 +184,8 @@ function render(): void {
             );
           }
         }
+
+        appendAutofillSection(menu, normalized.autofill);
 
         menu.appendChild(sep());
         menu.appendChild(item('Inspect element', 'inspect'));

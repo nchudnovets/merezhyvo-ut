@@ -306,6 +306,29 @@ const WebViewHost = forwardRef(function WebViewHost(
 
   // Wire ipc-message listener (mirror notifications to host)
   const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
+    const passwordsApi = window.merezhyvo?.passwords;
+    const wcId = typeof el.getWebContentsId === 'function' ? el.getWebContentsId() : undefined;
+
+    if (e.channel === 'mzr:pw:field-focus') {
+      const payload = e.args?.[0] as { origin?: string; signonRealm?: string; field?: string };
+      if (wcId && payload && payload.origin && payload.signonRealm && (payload.field === 'password' || payload.field === 'username')) {
+        void passwordsApi?.notifyFieldFocus({
+          wcId,
+          origin: payload.origin,
+          signonRealm: payload.signonRealm,
+          field: payload.field as 'username' | 'password'
+        });
+      }
+      return;
+    }
+
+    if (e.channel === 'mzr:pw:field-blur') {
+      if (wcId) {
+        void passwordsApi?.notifyFieldBlur(wcId);
+      }
+      return;
+    }
+
     if (e.channel !== 'mzr:webview:notification') return;
 
     const raw = e.args?.[0] as {

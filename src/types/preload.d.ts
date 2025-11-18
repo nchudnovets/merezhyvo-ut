@@ -5,7 +5,6 @@ import type {
   BookmarkHtmlImportPayload,
   BookmarkHtmlImportPreviewPayload,
   BookmarkHtmlImportPreviewResult,
-  BookmarkHtmlImportResult,
   BookmarkMovePayload,
   BookmarkUpdatePayload,
   BookmarksTree,
@@ -27,8 +26,27 @@ import type {
   TorState,
   TorConfigResult,
   Unsubscribe,
-  KeyboardSettings
+  KeyboardSettings,
+  PasswordEntryMeta,
+  PasswordEntrySecret,
+  PasswordSettings,
+  PasswordUpsertPayload,
+  PasswordCsvPreview,
+  PasswordCsvImportResult,
+  PasswordEncryptedExportResult,
+  PasswordChangeMasterResult,
+  PasswordImportMode,
+  PasswordImportFormat,
+  PasswordAutofillState,
+  PasswordStatus
 } from './models';
+
+export interface PasswordFieldFocusPayload {
+  wcId: number;
+  origin: string;
+  signonRealm: string;
+  field: 'username' | 'password';
+}
 
 type MerezhyvoUnsubscribe = Unsubscribe;
 
@@ -98,6 +116,44 @@ export interface MerezhyvoBookmarksApi {
     apply(payload: BookmarkHtmlImportPayload): Promise<BookmarkHtmlImportResult>;
   };
   exportHtml(payload: BookmarkHtmlExportPayload): Promise<BookmarkHtmlExportResult>;
+}
+
+export interface MerezhyvoPasswordsApi {
+  status(): Promise<PasswordStatus>;
+  unlock(master: string, durationMinutes?: number): Promise<{ ok?: true; error?: string }>;
+  lock(): Promise<{ ok: true }>;
+  changeMasterPassword(current: string, next: string): Promise<PasswordChangeMasterResult>;
+  createMasterPassword(master: string): Promise<PasswordChangeMasterResult>;
+  list(payload?: { query?: string } | string): Promise<PasswordEntryMeta[]>;
+  get(id: string): Promise<PasswordEntrySecret | { error: string }>;
+  add(entry: PasswordUpsertPayload): Promise<{ id: string; updated: boolean } | { error: string }>;
+  update(id: string, entry: PasswordUpsertPayload): Promise<{ id: string; updated: boolean } | { error: string }>;
+  remove(id: string): Promise<{ ok: true } | { error: string }>;
+  notifyFieldFocus(payload: PasswordFieldFocusPayload): Promise<void>;
+  notifyFieldBlur(wcId: number): Promise<void>;
+  blacklist: {
+    add(origin: string): Promise<{ ok: true } | { error: string }>;
+    remove(origin: string): Promise<{ ok: true } | { error: string }>;
+    list(): Promise<string[]>;
+  };
+  settings: {
+    get(): Promise<PasswordSettings>;
+    set(patch: Partial<PasswordSettings>): Promise<PasswordSettings | { error: string }>;
+  };
+  import: {
+    detect(content?: Buffer | string | { content?: Buffer | string }): Promise<PasswordImportFormat>;
+    csv: {
+      preview(text: string): Promise<PasswordCsvPreview>;
+      apply(text: string, mode: PasswordImportMode): Promise<PasswordCsvImportResult>;
+    };
+    mzrpass: {
+      apply(payload: { content: Buffer | string; mode: PasswordImportMode; password?: string }): Promise<{ imported: number }>;
+    };
+  };
+  export: {
+    csv(): Promise<string>;
+    mzrpass(password?: string): Promise<PasswordEncryptedExportResult>;
+  };
 }
 
 export interface FileDialogRequestPayload {
@@ -205,6 +261,7 @@ export interface MerezhyvoAPI {
   history: MerezhyvoHistoryApi;
   bookmarks: MerezhyvoBookmarksApi;
   favicons: MerezhyvoFaviconsApi;
+  passwords: MerezhyvoPasswordsApi;
   paths: {
     webviewPreload(): string;
   };

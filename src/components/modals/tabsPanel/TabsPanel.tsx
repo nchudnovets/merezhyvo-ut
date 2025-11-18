@@ -542,37 +542,39 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             >
               Tabs
             </h2>
-            <div style={{
-              ...styles.headerButtons,
-              ...(modeStyles.headerButtons || {})
-            }}>
-              <button
-                type="button"
+              <div
                 style={{
-                  ...styles.headerButton,
-                  ...(modeStyles.headerButton || {})
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenBookmarks();
+                  ...styles.headerButtons,
+                  ...(modeStyles.headerButtons || {})
                 }}
               >
-                ⭐ Bookmarks
-              </button>
-              <button
-                type="button"
-                style={{
-                  ...styles.headerButton,
-                  ...(modeStyles.headerButton || {})
-                }}
-                onClick={(event) => {
-                  event.stopPropagation();
-                  onOpenHistory();
-                }}
-              >
-                🕘 History
-              </button>
-            </div>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.headerButton,
+                    ...(modeStyles.headerButton || {})
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenBookmarks();
+                  }}
+                >
+                  ⭐ Bookmarks
+                </button>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.headerButton,
+                    ...(modeStyles.headerButton || {})
+                  }}
+                  onClick={(event) => {
+                    event.stopPropagation();
+                    onOpenHistory();
+                  }}
+                >
+                  🕘 History
+                </button>
+              </div>
           </div>
           <button
             type="button"

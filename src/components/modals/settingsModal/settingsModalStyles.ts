@@ -734,4 +734,67 @@ export const settingsModalStyles: StyleRecord = {
     fontWeight: 500,
     lineHeight: 1.4
   }
+  ,
+  passwordSettings: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px'
+  },
+  settingsToggleRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '12px'
+  },
+  settingsToggleLabel: {
+    fontSize: '14px'
+  },
+  settingsToggle: {
+    width: '20px',
+    height: '20px'
+  },
+  settingsRow: {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: '10px'
+  },
+  settingsLinkRow: {
+    display: 'flex',
+    justifyContent: 'flex-start',
+    marginTop: '12px'
+  },
+  settingsSelect: {
+    background: '#0f1729',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    color: '#f8fafc',
+    borderRadius: '10px',
+    padding: '8px 12px',
+    fontSize: '14px'
+  },
+  settingsButton: {
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    borderRadius: '12px',
+    background: 'rgba(15, 23, 42, 0.7)',
+    color: '#f8fafc',
+    padding: '8px 16px',
+    cursor: 'pointer'
+  },
+  settingsLinkButton: {
+    border: 'none',
+    background: 'transparent',
+    color: '#93c5fd',
+    textDecoration: 'underline',
+    cursor: 'pointer',
+    padding: 0
+  },
+  settingsLinkButtonDisabled: {
+    opacity: 0.5,
+    cursor: 'not-allowed'
+  },
+  settingsMessage: {
+    margin: 0,
+    fontSize: '13px',
+    color: '#a5b4fc'
+  }
 } as const;

@@ -1,4 +1,4 @@
-import React, { useEffect, memo } from 'react';
+import React, { useEffect, memo, useRef } from 'react';
 import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent, ReactNode } from 'react';
 import type { InstalledApp, Mode, MessengerDefinition, MessengerId } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
@@ -10,6 +10,7 @@ import KeyboardSettings from './KeyboardSettings';
 import type { SettingsAppInfo } from './settingsModalTypes';
 import TorSettings from './TorSettings';
 import AboutSettings from './AboutSettings';
+import PasswordSettings from './PasswordSettings';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -32,7 +33,7 @@ interface SettingsModalProps {
   torInputRef: RefObject<HTMLInputElement | null>;
   onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
   onTorInputFocus: (event: ReactFocusEvent<HTMLInputElement>) => void;
-  onTorInputBlur: (event: ReactFocusEvent<HTMLInputElement>) => void;
+  onTorInputBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
   onTorContainerChange: (value: string) => void;
   onSaveTorContainer: () => void;
   onTorKeepChange: (value: boolean) => void;
@@ -40,6 +41,12 @@ interface SettingsModalProps {
   onRequestRemove: (app: InstalledApp) => void;
   onCancelRemove: () => void;
   onConfirmRemove: () => void;
+  onOpenBookmarks: () => void;
+  onOpenHistory: () => void;
+  onOpenPasswords: () => void;
+  onRequestPasswordUnlock: (fromSettings?: boolean) => void;
+  scrollToSection?: 'passwords' | null;
+  onScrollSectionHandled?: () => void;
   messengerItems: MessengerDefinition[];
   messengerOrderSaving: boolean;
   messengerOrderMessage: string;
@@ -204,6 +211,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onRequestRemove: _onRequestRemove,
   onCancelRemove: _onCancelRemove,
   onConfirmRemove: _onConfirmRemove,
+  onOpenBookmarks,
+  onOpenHistory,
+  onOpenPasswords,
+  onRequestPasswordUnlock,
+  scrollToSection,
+  onScrollSectionHandled,
   messengerItems,
   messengerOrderSaving,
   messengerOrderMessage,
@@ -211,6 +224,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
+  const passwordSectionRef = useRef<HTMLDivElement | null>(null);
+  const shouldForceExpandPasswords = scrollToSection === 'passwords';
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -251,6 +266,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       } catch {}
     };
   }, []);
+  useEffect(() => {
+    if (scrollToSection === 'passwords' && passwordSectionRef.current) {
+      passwordSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      onScrollSectionHandled?.();
+    }
+  }, [scrollToSection, onScrollSectionHandled]);
 
   const containerStyle =
     mode === 'mobile' ? styles.containerMobile : styles.container;
@@ -314,6 +335,21 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onTorContainerChange={onTorContainerChange}
                 onSaveTorContainer={onSaveTorContainer}
                 onTorKeepChange={onTorKeepChange}
+              />
+            }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title="Passwords"
+            expandedDefault={false}
+            forceExpanded={shouldForceExpandPasswords}
+            sectionRef={passwordSectionRef}
+            body={
+              <PasswordSettings
+                mode={mode}
+                onManagePasswords={onOpenPasswords}
+                onRequestUnlock={onRequestPasswordUnlock}
               />
             }
           />

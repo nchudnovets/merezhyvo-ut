@@ -1,4 +1,4 @@
-import React, { type ReactNode, useState } from 'react';
+import React, { type ReactNode, useEffect, useState } from 'react';
 
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
@@ -10,10 +10,25 @@ type settingsSectionProps = {
   title: string;
   body: ReactNode;
   expandedDefault?: boolean;
+  forceExpanded?: boolean;
+  sectionRef?: React.RefObject<HTMLElement | null>;
 };
 
-export const SettingsSection: React.FC<settingsSectionProps> = ({ mode, title, body, expandedDefault=false }) => {
+export const SettingsSection: React.FC<settingsSectionProps> = ({
+  mode,
+  title,
+  body,
+  expandedDefault=false,
+  forceExpanded,
+  sectionRef
+}) => {
   const [expanded, setExpanded] = useState<boolean>(expandedDefault);
+
+  useEffect(() => {
+    if (forceExpanded) {
+      setExpanded(true);
+    }
+  }, [forceExpanded]);
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -21,7 +36,9 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({ mode, title, b
   
 
   return (
-    <section style={{
+    <section
+      ref={sectionRef}
+      style={{
       ...styles.block,
       ...(modeStyles.settingsBlock || {})
     }}>

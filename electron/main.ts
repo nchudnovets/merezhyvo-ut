@@ -42,6 +42,8 @@ import { registerHistoryIpc } from './lib/history-ipc';
 import { registerBookmarksIpc } from './lib/bookmarks-ipc';
 import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { registerFileDialogIpc } from './lib/file-dialog-ipc';
+import { getAutofillStateForWebContents, registerPasswordsIpc } from './lib/pw/ipc';
+import { getEntrySecret } from './lib/pw/vault';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
@@ -680,6 +682,7 @@ registerHistoryIpc(ipcMain);
 registerBookmarksIpc(ipcMain);
 registerFaviconsIpc(ipcMain);
 registerFileDialogIpc(ipcMain);
+registerPasswordsIpc(ipcMain);
 
 app.whenReady().then(() => {
   // installPermissionHandlers();
@@ -757,7 +760,8 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
     }
 
     const linkUrl = ctx?.linkUrl ?? '';
-    return { canBack, canForward, hasSelection, isEditable, canPaste, linkUrl };
+    const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
+    return { canBack, canForward, hasSelection, isEditable, canPaste, linkUrl, autofill };
   } catch {
     return {
       canBack: false,
@@ -765,7 +769,8 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
       hasSelection: false,
       isEditable: false,
       canPaste: false,
-      linkUrl: ''
+      linkUrl: '',
+      autofill: { available: false, locked: false, options: [], siteName: '' }
     };
   }
 });
@@ -777,6 +782,25 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     const ctx = global.lastCtx;
     const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
     if (!wc || wc.isDestroyed()) return;
+
+    if (id.startsWith('pw-fill:')) {
+      const entryId = id.slice('pw-fill:'.length);
+      try {
+        const secret = getEntrySecret(entryId);
+        wc.send('merezhyvo:pw:fill', {
+          entryId,
+          username: secret.username,
+          password: secret.password
+        });
+      } catch {
+        // ignore
+      }
+      return;
+    }
+    if (id === 'pw-manage' || id === 'pw-unlock') {
+      windows.openInMain('mzr://passwords', { activate: true });
+      return;
+    }
 
     if (id === 'back') return void wc.goBack?.();
     if (id === 'forward') return void wc.goForward?.();
