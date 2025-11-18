@@ -30,6 +30,7 @@ import { styles } from './styles/styles';
 import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
 import PasswordsPage from './pages/passwords/PasswordsPage';
+import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal, {
   type PasswordUnlockPayload
 } from './components/modals/PasswordUnlockModal';
@@ -43,7 +44,17 @@ import type { LayoutId } from './components/keyboard/layouts';
 import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
-import type { Mode, InstalledApp, Tab, MessengerId, MessengerDefinition, MessengerSettings, PasswordStatus } from './types/models';
+import type {
+  Mode,
+  InstalledApp,
+  Tab,
+  MessengerId,
+  MessengerDefinition,
+  MessengerSettings,
+  PasswordStatus,
+  PasswordPromptPayload,
+  PasswordCaptureAction
+} from './types/models';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
@@ -354,6 +365,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [pendingSettingsReopen, setPendingSettingsReopen] = useState(false);
   const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | null>(null);
   const [passwordStatus, setPasswordStatus] = useState<PasswordStatus | null>(null);
+  const [passwordPrompt, setPasswordPrompt] = useState<PasswordPromptPayload | null>(null);
+  const [passwordPromptBusy, setPasswordPromptBusy] = useState(false);
+  const [globalToast, setGlobalToast] = useState<string | null>(null);
+  const globalToastTimerRef = useRef<number | null>(null);
   const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
   const [installedAppsLoading, setInstalledAppsLoading] = useState<boolean>(false);
   const [settingsMsg, setSettingsMsg] = useState<string>('');
@@ -2501,6 +2516,25 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [focusTab]);
 
   useEffect(() => {
+    const handlePrompt = (event: Event) => {
+      const detail = (event as CustomEvent<PasswordPromptPayload>).detail;
+      console.log('[pw] renderer prompt received', detail);
+      setPasswordPrompt(detail);
+    };
+    window.addEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
+    return () => window.removeEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
+  }, []);
+
+  useEffect(() => {
+    return () => {
+      if (globalToastTimerRef.current) {
+        window.clearTimeout(globalToastTimerRef.current);
+        globalToastTimerRef.current = null;
+      }
+    };
+  }, []);
+
+  useEffect(() => {
     const handler = (event: Event) => {
       const detail = (event as CustomEvent<PasswordUnlockPayload>).detail ?? null;
       void fetchPasswordStatus();
@@ -2515,6 +2549,59 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => {
     void fetchPasswordStatus();
   }, [fetchPasswordStatus]);
+
+  const showGlobalToast = useCallback((message: string) => {
+    setGlobalToast(message);
+    if (globalToastTimerRef.current) {
+      window.clearTimeout(globalToastTimerRef.current);
+    }
+    globalToastTimerRef.current = window.setTimeout(() => {
+      setGlobalToast(null);
+      globalToastTimerRef.current = null;
+    }, 3200);
+  }, []);
+
+  const handlePasswordPromptAction = useCallback(
+    async (action: PasswordCaptureAction) => {
+      if (!passwordPrompt) return;
+      const api = window.merezhyvo?.passwords;
+      if (!api) {
+        console.error('[pw] capture action attempted without API');
+        showGlobalToast('Unable to reach passwords service');
+        return;
+      }
+      setPasswordPromptBusy(true);
+      try {
+        const result = await api.captureAction({
+          captureId: passwordPrompt.captureId,
+          action,
+          entryId: passwordPrompt.entryId
+        });
+        if (result?.ok) {
+          if (action === 'update') {
+            showGlobalToast('Password updated');
+          } else if (action === 'never') {
+            showGlobalToast('This site will not ask again');
+          } else {
+            showGlobalToast('Password saved');
+          }
+        } else {
+          showGlobalToast(result?.error ?? 'Unable to save password');
+        }
+      } catch (err) {
+        console.error('[pw] capture action failed', err);
+        showGlobalToast('Unable to save password');
+      } finally {
+        setPasswordPromptBusy(false);
+        setPasswordPrompt(null);
+      }
+    },
+    [passwordPrompt, showGlobalToast]
+  );
+
+  const handlePromptCancel = useCallback(() => {
+    setPasswordPrompt(null);
+  }, []);
 
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
@@ -2872,6 +2959,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
       />
 
+      <PasswordCapturePrompt
+        mode={mode}
+        open={Boolean(passwordPrompt)}
+        payload={passwordPrompt ?? undefined}
+        busy={passwordPromptBusy}
+        onAction={handlePasswordPromptAction}
+        onClose={handlePromptCancel}
+      />
+
       {torAlertMessage && (
         <div
           style={styles.torAlertOverlay}
@@ -2906,6 +3002,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               OK
             </button>
           </div>
+        </div>
+      )}
+
+      {globalToast && (
+        <div
+          style={{
+            position: 'fixed',
+            left: '50%',
+            bottom: mode === 'mobile' ? '110px' : '70px',
+            transform: 'translateX(-50%)',
+            backgroundColor: 'rgba(0, 0, 0, 0.85)',
+            color: '#fff',
+            padding: mode === 'mobile' ? '18px 32px' : '10px 20px',
+            borderRadius: '999px',
+            fontSize: mode === 'mobile' ? '34px' : '16px',
+            zIndex: 2300,
+            maxWidth: '80vw',
+            textAlign: 'center'
+          }}
+        >
+          {globalToast}
         </div>
       )}
 

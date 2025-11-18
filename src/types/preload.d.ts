@@ -38,6 +38,8 @@ import type {
   PasswordImportMode,
   PasswordImportFormat,
   PasswordAutofillState,
+  PasswordCaptureAction,
+  PasswordCaptureActionResult,
   PasswordStatus
 } from './models';
 
@@ -154,6 +156,7 @@ export interface MerezhyvoPasswordsApi {
     csv(): Promise<string>;
     mzrpass(password?: string): Promise<PasswordEncryptedExportResult>;
   };
+  captureAction(payload: { captureId: string; action: PasswordCaptureAction; entryId?: string }): Promise<PasswordCaptureActionResult>;
 }
 
 export interface FileDialogRequestPayload {

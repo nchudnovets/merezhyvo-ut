@@ -290,6 +290,7 @@ window.addEventListener('message', async (ev: MessageEvent) => {
         username,
         password
       });
+      console.log('[pw] capture sent', { origin, signonRealm, formAction, username });
     } catch {
       // noop
     }
@@ -310,6 +311,7 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   const sendFocus = (field: 'username' | 'password'): void => {
     try {
       ipcRenderer.sendToHost('mzr:pw:field-focus', { origin, signonRealm, field });
+      console.log('[pw] field focus', { origin, signonRealm, field });
     } catch {
       // noop
     }
@@ -318,12 +320,14 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   const sendBlur = (): void => {
     try {
       ipcRenderer.sendToHost('mzr:pw:field-blur');
+      console.log('[pw] field blur', { origin, signonRealm });
     } catch {
       // noop
     }
   };
 
   const fillField = (field: HTMLInputElement, value: string): void => {
+    console.log('[pw] filling field', { field: field.name || field.id, value: value ? '***' : '' });
     try {
       field.focus();
       field.value = value;
@@ -352,23 +356,72 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   const handleFocusOut = (event: FocusEvent): void => {
     const target = event.target as HTMLInputElement | null;
     if (!target) return;
-    if (target === lastPasswordInput) {
-      lastPasswordInput = null;
-      sendBlur();
-      return;
-    }
-    if (target === lastUsernameInput) {
-      lastUsernameInput = null;
+    if (target === lastPasswordInput || target === lastUsernameInput) {
       sendBlur();
     }
   };
 
-  ipcRenderer.on('merezhyvo:pw:fill', (_event, payload: { username?: string; password?: string }) => {
-    if (payload.username && lastUsernameInput) {
-      fillField(lastUsernameInput, payload.username);
+  const findPasswordInput = (): HTMLInputElement | null => {
+    if (lastPasswordInput) return lastPasswordInput;
+    if (lastUsernameInput && lastUsernameInput.form) {
+      const candidate = lastUsernameInput.form.querySelector<HTMLInputElement>('input[type="password"]');
+      if (candidate) {
+        lastPasswordInput = candidate;
+        return candidate;
+      }
     }
-    if (payload.password && lastPasswordInput) {
-      fillField(lastPasswordInput, payload.password);
+    const fallback = document.querySelector<HTMLInputElement>('input[type="password"]');
+    if (fallback) {
+      lastPasswordInput = fallback;
+      return fallback;
+    }
+    return null;
+  };
+
+  const findUsernameInput = (): HTMLInputElement | null => {
+    if (lastUsernameInput) return lastUsernameInput;
+    if (lastPasswordInput && lastPasswordInput.form) {
+      const candidate = lastPasswordInput.form.querySelector<HTMLInputElement>(
+        'input[type="text"],input[type="email"],input[type="search"],input:not([type])'
+      );
+      if (candidate) {
+        lastUsernameInput = candidate;
+        return candidate;
+      }
+    }
+    const fallback = document.querySelector<HTMLInputElement>(
+      'input[type="text"],input[type="email"],input[type="search"],input:not([type])'
+    );
+    if (fallback) {
+      lastUsernameInput = fallback;
+      return fallback;
+    }
+    return null;
+  };
+
+  ipcRenderer.on('merezhyvo:pw:fill', (_event, payload: { username?: string; password?: string }) => {
+    console.log('[pw] fill event received', {
+      hasUsername: Boolean(payload.username),
+      hasPassword: Boolean(payload.password),
+      hasUsernameField: Boolean(lastUsernameInput),
+      hasPasswordField: Boolean(lastPasswordInput)
+    });
+    if (payload.username) {
+      const target = findUsernameInput();
+      if (target) {
+        fillField(target, payload.username);
+      } else {
+        console.warn('[pw] no username field available to fill');
+      }
+    } else if (payload.username && !lastUsernameInput) {
+    }
+    if (payload.password) {
+      const target = findPasswordInput();
+      if (target) {
+        fillField(target, payload.password);
+      } else {
+        console.warn('[pw] no password field available to fill');
+      }
     }
   });
 

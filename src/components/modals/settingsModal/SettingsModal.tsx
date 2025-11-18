@@ -1,4 +1,4 @@
-import React, { useEffect, memo, useRef } from 'react';
+import React, { useEffect, memo, useRef, useState } from 'react';
 import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent, ReactNode } from 'react';
 import type { InstalledApp, Mode, MessengerDefinition, MessengerId } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
@@ -225,7 +225,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const passwordSectionRef = useRef<HTMLDivElement | null>(null);
-  const shouldForceExpandPasswords = scrollToSection === 'passwords';
+  const [forceExpandPasswords, setForceExpandPasswords] = useState(false);
+  const shouldForceExpandPasswords = forceExpandPasswords;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -268,10 +269,17 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   }, []);
   useEffect(() => {
     if (scrollToSection === 'passwords' && passwordSectionRef.current) {
+      setForceExpandPasswords(true);
       passwordSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       onScrollSectionHandled?.();
     }
   }, [scrollToSection, onScrollSectionHandled]);
+
+  useEffect(() => {
+    if (!scrollToSection) {
+      setForceExpandPasswords(false);
+    }
+  }, [scrollToSection]);
 
   const containerStyle =
     mode === 'mobile' ? styles.containerMobile : styles.container;

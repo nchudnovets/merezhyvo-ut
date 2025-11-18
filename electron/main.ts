@@ -785,8 +785,10 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
 
     if (id.startsWith('pw-fill:')) {
       const entryId = id.slice('pw-fill:'.length);
+      console.log('[pw] context menu fill requested', { entryId });
       try {
         const secret = getEntrySecret(entryId);
+        console.log('[pw] context menu secret retrieved', { entryId });
         wc.send('merezhyvo:pw:fill', {
           entryId,
           username: secret.username,

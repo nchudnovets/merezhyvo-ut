@@ -203,62 +203,43 @@ function ensureDir(p: string): void {
 
 // temporary silent one
 
-const WEBVIEW_PRELOAD_SRC = `
-  // *** Merezhyvo webview preload (GEO PAUSED) ***
-  (() => {
-    const { ipcRenderer } = require('electron');
-
-    // Mirror Notification to host (залишаємо як було)
-    const NativeNotification = window.Notification;
-    class MirrorNotification extends NativeNotification {
-      constructor(title, options) {
-        super(title, options);
-        try {
-          ipcRenderer.sendToHost('mzr:webview:notification', {
-            title,
-            options: { body: (options && options.body) || '' }
-          });
-        } catch {}
-      }
-    }
-    try {
-      Object.defineProperty(window, 'Notification', {
-        value: MirrorNotification,
-        configurable: true
-      });
-    } catch {}
-
-    // TEMP: повністю відключаємо геолокацію в Web API (без IPC, без UI, без логів)
-    try {
-      const g = navigator.geolocation;
-      if (g) {
-        const denied = (errCb) => {
-          if (typeof errCb === 'function') {
-            const e = new Error('Geolocation disabled');
-            e.code = 1; // PERMISSION_DENIED
-            e.PERMISSION_DENIED = 1;
-            e.POSITION_UNAVAILABLE = 2;
-            e.TIMEOUT = 3;
-            errCb(e);
-          }
-        };
-        g.getCurrentPosition = (_ok, err) => denied(err);
-        g.watchPosition = (_ok, err) => { denied(err); return -1; };
-        g.clearWatch = (_id) => {};
-      }
-    } catch {}
-  })();
-  `;
+const TS_WEBVIEW_PRELOAD = path.join(__dirname, '..', 'electron', 'webview-preload.ts');
 
 function ensureWebviewPreloadOnDisk(): string {
-  const dir = app.getPath('userData'); // ~/.config/merezhyvo
+  const dir = app.getPath('userData');
   const file = path.join(dir, 'webview-preload.js');
+  let source = '';
+  try {
+    source = fs.readFileSync(TS_WEBVIEW_PRELOAD, 'utf8');
+    console.log('[preload] TS source read', TS_WEBVIEW_PRELOAD);
+  } catch (error) {
+    source = '';
+    console.warn('[preload] TS source read failed', TS_WEBVIEW_PRELOAD, error);
+  }
+  console.log('[preload] load TS', TS_WEBVIEW_PRELOAD, 'exists', fs.existsSync(TS_WEBVIEW_PRELOAD));
+  const transpile = (src: string): string => {
+    try {
+      const transpiled = require('typescript').transpileModule(src, {
+        compilerOptions: {
+          module: require('typescript').ModuleKind.CommonJS,
+          target: require('typescript').ScriptTarget.ES2020,
+          removeComments: true
+        }
+      });
+      return transpiled.outputText;
+    } catch {
+      return '';
+    }
+  };
+  const payload = source ? transpile(source) : '';
+  const content = payload || `
+    console.log('[webview] fallback preload loaded');
+  `;
   try {
     ensureDir(dir);
-    fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8');
+    fs.writeFileSync(file, content, 'utf8');
   } catch {
-    // last attempt
-    try { ensureDir(dir); fs.writeFileSync(file, WEBVIEW_PRELOAD_SRC, 'utf8'); } catch {}
+    try { ensureDir(dir); fs.writeFileSync(file, content, 'utf8'); } catch {}
   }
   try {
     const sz = fs.statSync(file).size;

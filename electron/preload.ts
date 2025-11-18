@@ -556,6 +556,8 @@ const exposeApi: MerezhyvoAPI = {
       set: (patch: Partial<PasswordSettings>) =>
         ipcRenderer.invoke('merezhyvo:pw:settings:set', patch) as Promise<PasswordSettings | { error: string }>
     },
+    captureAction: (payload: { captureId: string; action: 'save' | 'update' | 'keep-both' | 'never'; entryId?: string }) =>
+      ipcRenderer.invoke('merezhyvo:pw:capture:action', payload),
     import: {
       detect: (content?: Buffer | string | { content?: Buffer | string }) =>
         ipcRenderer.invoke('merezhyvo:pw:import:detect', content) as Promise<PasswordImportFormat>,

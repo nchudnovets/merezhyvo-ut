@@ -57,6 +57,18 @@ type PendingCapture = {
 
 const captureStore = new Map<string, CapturePayload>();
 let pendingCapture: PendingCapture | null = null;
+type CaptureAction = 'save' | 'update' | 'keep-both' | 'never';
+const captureActionSet: Set<CaptureAction> = new Set(['save', 'update', 'keep-both', 'never']);
+
+const isCaptureAction = (value: string): value is CaptureAction => captureActionSet.has(value as CaptureAction);
+
+const getCapturePayload = (captureId: string): CapturePayload | null => {
+  return captureStore.get(captureId) ?? null;
+};
+
+const clearCapturePayload = (captureId: string): void => {
+  captureStore.delete(captureId);
+};
 
 const getSiteName = (origin: string): string => {
   try {
@@ -93,12 +105,13 @@ const broadcastPrompt = (captureId: string, payload: CapturePayload, siteName: s
     isUpdate,
     entryId
   });
+  console.log('[pw] prompt', { captureId, siteName, isUpdate, entryId });
 };
 
-const broadcastUnlockRequired = (captureId: string, payload: CapturePayload, siteName: string): void => {
-  broadcastToRenderers('merezhyvo:pw:unlock-required', {
-    captureId,
-    origin: payload.origin,
+  const broadcastUnlockRequired = (captureId: string, payload: CapturePayload, siteName: string): void => {
+    broadcastToRenderers('merezhyvo:pw:unlock-required', {
+      captureId,
+      origin: payload.origin,
     username: payload.username ?? '',
     siteName
   });
@@ -158,6 +171,7 @@ type AutofillState = {
 };
 
 const focusFieldMap = new Map<number, FocusFieldDetail>();
+const blurTimers = new Map<number, NodeJS.Timeout>();
 const MAX_AUTOFILL_OPTIONS = 5;
 
 const computeSiteName = (origin: string): string => {
@@ -213,12 +227,26 @@ export const getAutofillStateForWebContents = (wcId?: number): AutofillState => 
   };
 };
 
-const registerFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'timestamp'>): void => {
-  focusFieldMap.set(wcId, { ...payload, timestamp: Date.now() });
+const cancelFocusClear = (wcId: number): void => {
+  const timer = blurTimers.get(wcId);
+  if (timer) {
+    clearTimeout(timer);
+    blurTimers.delete(wcId);
+  }
 };
 
-const clearFieldFocus = (wcId: number): void => {
-  focusFieldMap.delete(wcId);
+const scheduleFocusClear = (wcId: number): void => {
+  cancelFocusClear(wcId);
+  const timer = setTimeout(() => {
+    focusFieldMap.delete(wcId);
+    blurTimers.delete(wcId);
+  }, 600);
+  blurTimers.set(wcId, timer);
+};
+
+const registerFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'timestamp'>): void => {
+  cancelFocusClear(wcId);
+  focusFieldMap.set(wcId, { ...payload, timestamp: Date.now() });
 };
 const toString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
@@ -457,6 +485,67 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     return result;
   });
 
+  ipcMain.handle('merezhyvo:pw:capture:action', async (_event, payload) => {
+    if (!payload || typeof payload !== 'object') {
+      return { error: 'Invalid payload' };
+    }
+    const record = payload as { captureId?: unknown; action?: unknown; entryId?: unknown };
+    const captureId = toString(record.captureId);
+    const actionRaw = typeof record.action === 'string' ? record.action : '';
+    const entryId = toString(record.entryId);
+    if (!captureId || !actionRaw) {
+      return { error: 'Capture id and action are required' };
+    }
+    if (!isCaptureAction(actionRaw)) {
+      return { error: 'Unknown action' };
+    }
+    const action = actionRaw;
+    const capture = getCapturePayload(captureId);
+    if (!capture) {
+      return { error: 'Capture data unavailable' };
+    }
+    console.log('[pw] capture action', { captureId, action, entryId });
+
+    const applyEntry = async (targetId?: string) => {
+      const username = capture.username ?? '';
+      const entryResult = addOrUpdateEntry({
+        id: targetId,
+        origin: capture.origin,
+        signonRealm: capture.signonRealm,
+        formAction: capture.formAction,
+        username,
+        password: capture.password
+      });
+      await save();
+      resetAutoLock();
+      clearCapturePayload(captureId);
+      return { ok: true as const, updated: entryResult.updated };
+    };
+
+    const originOnly = capture.origin;
+
+    if (action === 'never') {
+      blacklist.add(originOnly);
+      await save();
+      resetAutoLock();
+      clearCapturePayload(captureId);
+      return { ok: true };
+    }
+
+    if (action === 'update') {
+      if (!entryId) {
+        return { error: 'Entry id is required to update' };
+      }
+      return applyEntry(entryId);
+    }
+
+    if (action === 'save' || action === 'keep-both') {
+      return applyEntry(undefined);
+    }
+
+    return { error: 'Unknown action' };
+  });
+
   ipcMain.handle('merezhyvo:pw:notify-field-focus', (_event, payload) => {
     if (!payload || typeof payload !== 'object') return;
     const record = payload as { wcId?: unknown; origin?: unknown; signonRealm?: unknown; field?: unknown };
@@ -471,7 +560,7 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
   ipcMain.handle('merezhyvo:pw:notify-field-blur', (_event, wcIdPayload) => {
     const wcId = typeof wcIdPayload === 'number' ? Math.floor(wcIdPayload) : undefined;
     if (!wcId) return;
-    clearFieldFocus(wcId);
+    scheduleFocusClear(wcId);
   });
 
   ipcMain.on('merezhyvo:pw:capture', (_event, rawPayload) => {
@@ -484,6 +573,7 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     const formAction = toString(record.formAction) || origin;
     if (!formAction) return;
     const username = toString(record.username);
+    console.log('[pw] capture received raw payload', { origin, signonRealm, formAction, username });
     processCapturePayload({ origin, signonRealm, formAction, username, password });
   });
 

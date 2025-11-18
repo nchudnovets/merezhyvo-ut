@@ -292,6 +292,25 @@ export interface PasswordAutofillState {
 
 export type PasswordImportFormat = 'csv' | 'mzrpass' | 'unknown';
 
+export interface PasswordPromptPayload {
+  captureId: string;
+  origin: string;
+  signonRealm: string;
+  formAction: string;
+  username: string;
+  siteName: string;
+  isUpdate: boolean;
+  entryId?: string;
+}
+
+export type PasswordCaptureAction = 'save' | 'update' | 'keep-both' | 'never';
+
+export interface PasswordCaptureActionResult {
+  ok?: true;
+  updated?: boolean;
+  error?: string;
+}
+
 export interface TorState {
   enabled: boolean;
   starting?: boolean;
