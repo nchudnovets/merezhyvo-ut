@@ -33,7 +33,6 @@ import type {
   PasswordChangeMasterResult,
   PasswordImportMode,
   PasswordImportFormat,
-  PasswordAutofillState,
   PasswordCaptureAction,
   PasswordCaptureActionResult,
   PasswordStatus

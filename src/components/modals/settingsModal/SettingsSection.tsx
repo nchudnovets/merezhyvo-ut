@@ -25,9 +25,11 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({
   const [expanded, setExpanded] = useState<boolean>(expandedDefault);
 
   useEffect(() => {
-    if (forceExpanded) {
+    if (!forceExpanded) return undefined;
+    const handle = requestAnimationFrame(() => {
       setExpanded(true);
-    }
+    });
+    return () => cancelAnimationFrame(handle);
   }, [forceExpanded]);
 
   const styles = settingsModalStyles;

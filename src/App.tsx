@@ -24,7 +24,6 @@ import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
 import WebViewHost from './components/webview/WebViewHost';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
-import { zoomBarStyles, zoomBarModeStyles } from './components/zoom/zoomBarStyles';
 import { styles } from './styles/styles';
 import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
@@ -291,25 +290,6 @@ const normalizeAddress = (value: string): string => {
     return candidate.href;
   } catch {
     return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-  }
-};
-
-const normalizeShortcutUrl = (value: string): string | null => {
-  if (!value || !value.trim()) return null;
-  const trimmed = value.trim();
-  try {
-    const parsed = new URL(trimmed);
-    const protocol = parsed.protocol.toLowerCase();
-    if (protocol !== 'http:' && protocol !== 'https:') {
-      return null;
-    }
-    const lowerHref = parsed.href.toLowerCase();
-    if (lowerHref === 'https://mail.google.com' || lowerHref.startsWith('https://mail.google.com/')) {
-      return 'https://mail.google.com';
-    }
-    return parsed.href;
-  } catch {
-    return null;
   }
 };
 
@@ -2192,14 +2172,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (offset <= 0 && zoomOffset <= 0) return '100%';
     return `calc(100% - ${offset}px + ${zoomOffset}px - 10px)`;
   }, [kbVisible, keyboardHeight, zoomBarHeight]);
-  const getCurrentViewUrl = useCallback(() => {
-    try {
-      const direct = getActiveWebview()?.getURL?.();
-      if (direct) return direct;
-    } catch {}
-    return activeTabRef.current?.url || activeUrl || null;
-  }, [activeUrl, getActiveWebview]);
-
   const handleZoomSliderPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
     event.stopPropagation();
   }, []);
@@ -2607,9 +2579,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         )}
 
       {showSettingsModal && (
-          <SettingsModal
-            mode={mode}
-            backdropStyle={modalBackdropStyle}
+        <SettingsModal
+          mode={mode}
+          backdropStyle={modalBackdropStyle}
           appInfo={appInfo}
           torEnabled={torEnabled}
           torCurrentIp={torIp}
@@ -2620,24 +2592,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           torContainerMessage={torConfigFeedback}
           torKeepEnabledDraft={torKeepEnabledDraft}
           torInputRef={torContainerInputRef}
-            onTorInputPointerDown={handleTorInputPointerDown}
-            onTorInputFocus={handleTorInputFocus}
-            onTorInputBlur={handleTorInputBlur}
-            onTorContainerChange={handleTorContainerInputChange}
-            onSaveTorContainer={handleSaveTorContainer}
-            onTorKeepChange={handleTorKeepChange}
-            onClose={closeSettingsModal}
-            onOpenBookmarks={openBookmarksPage}
-            onOpenHistory={openHistoryPage}
-            onOpenPasswords={openPasswordsFromSettings}
-            messengerItems={orderedMessengers}
-            messengerOrderSaving={messengerOrderSaving}
-            messengerOrderMessage={messengerOrderMessage}
-            onMessengerMove={handleMessengerMove}
-            onRequestPasswordUnlock={requestPasswordUnlock}
-            scrollToSection={settingsScrollTarget}
-            onScrollSectionHandled={() => setSettingsScrollTarget(null)}
-          />
+          onTorInputPointerDown={handleTorInputPointerDown}
+          onTorInputFocus={handleTorInputFocus}
+          onTorInputBlur={handleTorInputBlur}
+          onTorContainerChange={handleTorContainerInputChange}
+          onSaveTorContainer={handleSaveTorContainer}
+          onTorKeepChange={handleTorKeepChange}
+          onClose={closeSettingsModal}
+          onOpenPasswords={openPasswordsFromSettings}
+          messengerItems={orderedMessengers}
+          messengerOrderSaving={messengerOrderSaving}
+          messengerOrderMessage={messengerOrderMessage}
+          onMessengerMove={handleMessengerMove}
+          onRequestPasswordUnlock={requestPasswordUnlock}
+          scrollToSection={settingsScrollTarget}
+          onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+        />
       )}
 
       <PasswordUnlockModal

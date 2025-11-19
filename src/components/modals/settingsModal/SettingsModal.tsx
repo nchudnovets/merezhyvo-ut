@@ -33,8 +33,6 @@ interface SettingsModalProps {
   onSaveTorContainer: () => void;
   onTorKeepChange: (value: boolean) => void;
   onClose: () => void;
-  onOpenBookmarks: () => void;
-  onOpenHistory: () => void;
   onOpenPasswords: () => void;
   onRequestPasswordUnlock: (fromSettings?: boolean) => void;
   scrollToSection?: 'passwords' | null;
@@ -65,8 +63,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onSaveTorContainer,
   onTorKeepChange,
   onClose,
-  onOpenBookmarks,
-  onOpenHistory,
   onOpenPasswords,
   onRequestPasswordUnlock,
   scrollToSection,

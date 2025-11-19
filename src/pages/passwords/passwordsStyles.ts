@@ -158,7 +158,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   entryActionButtonMobile: {
     padding: '12px 18px',
-    fontSize: '24px',
+    fontSize: '34px',
     borderRadius: '14px',
     minWidth: '150px'
   },

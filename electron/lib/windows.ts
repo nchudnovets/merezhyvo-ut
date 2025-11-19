@@ -22,6 +22,7 @@ import { resolveMode } from '../mode';
 import { addVisit, updateTitle, updateFavicon } from './history';
 import { saveFromBuffer } from './favicons';
 import { promptForPaths } from './file-dialog-ipc';
+import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
@@ -216,10 +217,10 @@ function ensureWebviewPreloadOnDisk(): string {
   }
   const transpile = (src: string): string => {
     try {
-      const transpiled = require('typescript').transpileModule(src, {
+      const transpiled = transpileModule(src, {
         compilerOptions: {
-          module: require('typescript').ModuleKind.CommonJS,
-          target: require('typescript').ScriptTarget.ES2020,
+          module: ModuleKind.CommonJS,
+          target: ScriptTarget.ES2020,
           removeComments: true
         }
       });
@@ -860,7 +861,7 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     }
   });
 
-  let role: WindowRole = opts.role ?? 'main';
+  const role: WindowRole = opts.role ?? 'main';
   typedWin.__mzrRole = role;
 
   const query: Record<string, string> = {

@@ -38,7 +38,9 @@ const getRelativeTime = (timestamp?: number): string => {
   return `${Math.floor(deltaSeconds / 86400)} days ago`;
 };
 
-const groupEntries = (items: PasswordEntryMeta[]) => {
+const groupEntries = (
+  items: PasswordEntryMeta[]
+): Array<{ siteName: string; signonRealm: string; entries: PasswordEntryMeta[] }> => {
   const map = new Map<string, { siteName: string; signonRealm: string; entries: PasswordEntryMeta[] }>();
   items.forEach((entry) => {
     const key = entry.signonRealm;
@@ -50,7 +52,11 @@ const groupEntries = (items: PasswordEntryMeta[]) => {
       map.set(key, { siteName, signonRealm: key, entries: [entry] });
     }
   });
-  return Array.from(map.values());
+  const groups: Array<{ siteName: string; signonRealm: string; entries: PasswordEntryMeta[] }> = [];
+  for (const value of map.values() as IterableIterator<{ siteName: string; signonRealm: string; entries: PasswordEntryMeta[] }>) {
+    groups.push(value);
+  }
+  return groups;
 };
 
 const copyFallback = (value: string): void => {
@@ -69,8 +75,8 @@ const copyFallback = (value: string): void => {
   document.body.removeChild(textarea);
 };
 
-const mergeStyle = (...styles: Array<CSSProperties | undefined>) =>
-  Object.assign({}, ...styles.filter(Boolean));
+const mergeStyle = (...styles: Array<CSSProperties | undefined>): CSSProperties =>
+  Object.assign({}, ...styles.filter(Boolean)) as CSSProperties;
 
 type CsvImportDialogState = {
   open: boolean;
@@ -594,10 +600,6 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     passwordsStyles.searchInput,
     isMobile ? passwordsStyles.searchInputMobile : undefined
   );
-  const entryUsernameStyle = mergeStyle(
-    passwordsStyles.entryUsername,
-    isMobile ? passwordsStyles.entryUsernameMobile : undefined
-  );
   const emptyTitleStyle = mergeStyle(
     passwordsStyles.emptyTitle,
     isMobile ? passwordsStyles.emptyTitleMobile : undefined
@@ -1065,24 +1067,24 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
               Found {importCsvDialog.valid}/{importCsvDialog.total} valid rows
             </p>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-              {['add', 'replace'].map((modeOption) => (
-                <button
-                  key={modeOption}
-                  type="button"
-                  onClick={() => setImportCsvMode(modeOption as PasswordImportMode)}
-                  style={mergeStyle(
-                    secondaryButtonStyle,
-                    {
-                      fontSize: isMobile ? '34px' : '14px',
-                      borderColor:
-                        importCsvDialog.mode === modeOption ? '#2563eb' : 'rgba(148, 163, 184, 0.4)',
-                      backgroundColor: 'rgba(59, 130, 246, 0.15)'
-                    }
-                  )}
-                >
-                  {modeOption === 'add' ? 'Add' : 'Replace all'}
-                </button>
-              ))}
+              {['add', 'replace'].map((modeOption) => {
+                const extraStyle: CSSProperties = {
+                  fontSize: isMobile ? '34px' : '14px',
+                  borderColor:
+                    importCsvDialog.mode === modeOption ? '#2563eb' : 'rgba(148, 163, 184, 0.4)',
+                  backgroundColor: 'rgba(59, 130, 246, 0.15)'
+                };
+                return (
+                  <button
+                    key={modeOption}
+                    type="button"
+                    onClick={() => setImportCsvMode(modeOption as PasswordImportMode)}
+                    style={mergeStyle(secondaryButtonStyle, extraStyle)}
+                  >
+                    {modeOption === 'add' ? 'Add' : 'Replace all'}
+                  </button>
+                );
+              })}
             </div>
             {importCsvDialog.sample && (
               <div style={{ fontSize: isMobile ? '30px' : '14px', marginBottom: '12px' }}>

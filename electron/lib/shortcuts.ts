@@ -9,8 +9,6 @@ import {
   type MessengerSettings
 } from '../../src/shared/messengers';
 
-type Nullable<T> = T | null;
-
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
 export const SETTINGS_SCHEMA = 2;
 

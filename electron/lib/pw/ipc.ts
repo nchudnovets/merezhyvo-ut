@@ -2,7 +2,7 @@
 
 import crypto from 'crypto';
 import psl from 'psl';
-import { BrowserWindow, type IpcMain, webContents } from 'electron';
+import { BrowserWindow, type IpcMain, type IpcMainInvokeEvent } from 'electron';
 import {
   addOrUpdateEntry,
   blacklist,
@@ -246,7 +246,7 @@ export const getAutofillStateForWebContents = (wcId?: number): AutofillState => 
     }
   }
   return {
-    available: filtered.length > 0,
+    available: true,
     locked: false,
     options: filtered,
     siteName
@@ -571,8 +571,11 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
 
   ipcMain.handle('merezhyvo:pw:import:detect', (_event, payload) => {
     const candidate =
-      payload && typeof payload === 'object' && 'content' in payload ? (payload as { content?: unknown }).content ?? payload : payload;
-    return detectPasswordFormat(candidate ?? '');
+      payload && typeof payload === 'object' && 'content' in payload
+        ? (payload as { content?: unknown }).content ?? payload
+        : payload;
+    const candidateString = typeof candidate === 'string' ? candidate : '';
+    return detectPasswordFormat(candidateString);
   });
 
   ipcMain.handle('merezhyvo:pw:import:csv:preview', (_event, payload) => {
@@ -584,15 +587,21 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     const wrapped = wrapWithReset(() => {
       const text = typeof payload === 'string' ? payload : (payload as { text?: string }).text ?? '';
       const mode = (payload as { mode?: string }).mode === 'replace' ? 'replace' : 'add';
-      return importCsvFile(text, { mode });
+      const result = importCsvFile(text, { mode });
+      void save();
+      return result;
     });
     return wrapped;
   });
 
-  ipcMain.handle('merezhyvo:pw:import:mzrpass:apply', (_event, payload) => {
+  ipcMain.handle('merezhyvo:pw:import:mzrpass:apply', (_event: IpcMainInvokeEvent, payload: unknown) => {
     return wrapWithReset(() => {
-      const record = (payload as { content?: Buffer | string; mode?: string; password?: string }) ?? {};
-      const content = record.content ?? '';
+      const recordCandidate = typeof payload === 'object' && payload !== null ? payload : {};
+      const record = recordCandidate as { content?: Buffer | string; mode?: string; password?: string };
+      const content: Buffer | string =
+        typeof record.content === 'string' || Buffer.isBuffer(record.content)
+          ? record.content
+          : '';
       const mode = record.mode === 'replace' ? 'replace' : 'add';
       const password = typeof record.password === 'string' ? record.password : undefined;
       return importMzrpass(content, { mode, password });

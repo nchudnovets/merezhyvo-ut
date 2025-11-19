@@ -415,7 +415,7 @@ export const importEncryptedJSON = async (
   let parsed: MzrpassFile;
   try {
     parsed = JSON.parse(buffer.toString('utf8')) as MzrpassFile;
-  } catch (err) {
+  } catch {
     throw new Error("Couldn't import this file. It doesn't look like a passwords mzrpass.");
   }
 

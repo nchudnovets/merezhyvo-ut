@@ -1,7 +1,6 @@
 'use strict';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { CSSProperties } from 'react';
 import type { Mode, PasswordSettings, PasswordStatus, PasswordChangeMasterResult } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';

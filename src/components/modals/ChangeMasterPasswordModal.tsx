@@ -103,7 +103,8 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
   const isCreate = variant === 'create';
 
   useEffect(() => {
-    if (open) {
+    if (!open) return undefined;
+    const handle = requestAnimationFrame(() => {
       setCurrent('');
       setNext('');
       setConfirm('');
@@ -111,7 +112,8 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
       setShowNext(false);
       setShowConfirm(false);
       setValidationError(null);
-    }
+    });
+    return () => cancelAnimationFrame(handle);
   }, [open]);
 
   if (!open) return null;

@@ -99,9 +99,11 @@ const PasswordUnlockModal: React.FC<Props> = ({
   const isMobile = mode === 'mobile';
 
   useEffect(() => {
-    if (open) {
+    if (!open) return undefined;
+    const handle = requestAnimationFrame(() => {
       setDuration(defaultDuration);
-    }
+    });
+    return () => cancelAnimationFrame(handle);
   }, [open, defaultDuration]);
 
   const handleUnlock = async () => {
