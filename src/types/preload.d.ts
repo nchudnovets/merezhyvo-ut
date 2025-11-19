@@ -13,14 +13,10 @@ import type {
   FileDialogSavePayload,
   HistoryQueryOptions,
   HistoryQueryResult,
-  InstalledApp,
   MessengerSettings,
   OpenUrlPayload,
   SessionState,
   SettingsState,
-  ShortcutIcon,
-  ShortcutRequest,
-  ShortcutResult,
   TopSite,
   TopSitesOptions,
   TorState,
@@ -54,12 +50,6 @@ type MerezhyvoUnsubscribe = Unsubscribe;
 
 export type MerezhyvoOpenUrlPayload = OpenUrlPayload;
 
-export type MerezhyvoShortcutIcon = ShortcutIcon;
-
-export type MerezhyvoShortcutRequest = ShortcutRequest;
-
-export type MerezhyvoShortcutResult = ShortcutResult;
-
 export type MerezhyvoTorState = TorState;
 
 export type MerezhyvoSessionState = SessionState;
@@ -75,12 +65,6 @@ export interface MerezhyvoAppInfo {
   chromium?: string;
   electron?: string;
   node?: string;
-}
-
-export interface MerezhyvoInstalledAppsResult {
-  ok: boolean;
-  error?: string;
-  installedApps: InstalledApp[];
 }
 
 export interface MerezhyvoTabCleanPayload {
@@ -190,7 +174,6 @@ export interface MerezhyvoAPI {
   onOpenUrl(
     handler: (payload: MerezhyvoOpenUrlPayload) => void
   ): MerezhyvoUnsubscribe;
-  createShortcut(payload: MerezhyvoShortcutRequest): Promise<MerezhyvoShortcutResult>;
   tor: {
     toggle(options?: MerezhyvoTorToggleOptions): Promise<MerezhyvoTorState>;
     getState(): Promise<MerezhyvoTorState>;
@@ -203,12 +186,6 @@ export interface MerezhyvoAPI {
   };
   settings: {
     load(): Promise<MerezhyvoSettingsState>;
-    installedApps: {
-      list(): Promise<MerezhyvoInstalledAppsResult>;
-      remove(
-        idOrPayload: string | { id: string } | { desktopFilePath: string }
-      ): Promise<{ ok: boolean; error?: string }>;
-    };
     tor: {
       update(payload: { containerId?: string; keepEnabled?: boolean }): Promise<TorConfigResult>;
       setKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult>;

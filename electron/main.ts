@@ -29,9 +29,7 @@ import * as links from './lib/links';
 import {
   createDefaultSettingsState,
   getSessionFilePath,
-  readSettingsState,
-  removeInstalledApp,
-  registerShortcutHandler
+  readSettingsState
 } from './lib/shortcuts';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
@@ -99,7 +97,6 @@ type LaunchConfig = {
   devtools: boolean;
   modeOverride: ContextMenuMode | null;
   forceDark: boolean;
-  single: boolean;
   startProvided: boolean;
 };
 
@@ -606,7 +603,6 @@ const parseLaunchConfig = (): LaunchConfig => {
   let modeOverride = parseMode(process.env.MZV_MODE ?? '');
   const envForceDark = (process.env.MZV_FORCE_DARK ?? '').toLowerCase();
   let forceDark = ['1', 'true', 'yes'].includes(envForceDark);
-  let singleWindow = false;
 
   for (const rawArg of args) {
     if (!rawArg) continue;
@@ -630,11 +626,6 @@ const parseLaunchConfig = (): LaunchConfig => {
       devtools = true;
       continue;
     }
-    if (rawArg === '--single') {
-      singleWindow = true;
-      continue;
-    }
-
     const modeMatch = rawArg.match(/^--mode=(desktop|mobile)$/i);
     if (modeMatch) {
       const [, modeValue] = modeMatch;
@@ -652,7 +643,7 @@ const parseLaunchConfig = (): LaunchConfig => {
     }
   }
 
-  return { url, fullscreen, devtools, modeOverride, forceDark, single: singleWindow, startProvided };
+  return { url, fullscreen, devtools, modeOverride, forceDark, startProvided };
 };
 
 const launchConfig = parseLaunchConfig();
@@ -661,7 +652,6 @@ windows.setLaunchConfig({
   fullscreen: launchConfig.fullscreen,
   devtools: launchConfig.devtools,
   modeOverride: launchConfig.modeOverride ?? undefined,
-  single: launchConfig.single,
   startProvided: launchConfig.startProvided
 });
 
@@ -672,9 +662,6 @@ if (launchConfig.forceDark) {
 app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
 app.commandLine.appendSwitch('use-gl', 'egl');
 app.commandLine.appendSwitch('enable-pinch');
-app.commandLine.appendSwitch('autoplay-policy', 'document-user-activation-required');
-
-registerShortcutHandler(ipcMain);
 tor.registerTorHandlers(ipcMain);
 registerKeyboardSettingsIPC();
 registerMessengerSettingsIPC();
@@ -978,38 +965,6 @@ ipcMain.handle('merezhyvo:settings:load', async () => {
   } catch (err) {
     console.error('[merezhyvo] settings load failed', err);
     return createDefaultSettingsState();
-  }
-});
-
-ipcMain.handle('merezhyvo:settings:installedApps:list', async () => {
-  try {
-    const settings = await readSettingsState();
-    return { ok: true, installedApps: settings.installedApps };
-  } catch (err) {
-    console.error('[merezhyvo] installed apps list failed', err);
-    return { ok: false, error: String(err), installedApps: [] };
-  }
-});
-
-ipcMain.handle('merezhyvo:settings:installedApps:remove', async (_event, payload: unknown) => {
-  const id =
-    typeof payload === 'string'
-      ? payload
-      : typeof payload === 'object' && payload && typeof (payload as { id?: unknown }).id === 'string'
-      ? ((payload as { id?: string }).id ?? null)
-      : null;
-  const desktopFilePath =
-    typeof payload === 'object' && payload && typeof (payload as { desktopFilePath?: unknown }).desktopFilePath === 'string'
-      ? ((payload as { desktopFilePath?: string }).desktopFilePath ?? null)
-      : null;
-  if (!id && !desktopFilePath) {
-    return { ok: false, error: 'App identifier is required.' };
-  }
-  try {
-    return await removeInstalledApp({ id, desktopFilePath });
-  } catch (err) {
-    console.error('[merezhyvo] installed app remove failed', err);
-    return { ok: false, error: String(err) };
   }
 });
 

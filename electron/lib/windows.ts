@@ -253,11 +253,10 @@ type LaunchConfig = {
   fullscreen?: boolean;
   devtools?: boolean;
   modeOverride?: Mode;
-  single?: boolean;
   startProvided?: boolean;
 };
 
-type WindowRole = 'main' | 'single' | string;
+type WindowRole = 'main' | string;
 type MerezhyvoWindow = BrowserWindow & { __mzrRole?: WindowRole };
 type AppWithDesktopName = App & { setDesktopName?: (name: string) => void };
 type SessionWithOverride = Session & { __mzrUAOverrideInstalled?: boolean };
@@ -399,12 +398,12 @@ export function getMainWindow(): MerezhyvoWindow | null {
 
 function findMainWindow(): MerezhyvoWindow | null {
   const cached = getMainWindow();
-  if (cached && cached.__mzrRole !== 'single') {
+  if (cached) {
     return cached;
   }
   for (const candidate of BrowserWindow.getAllWindows()) {
     const typed = candidate as MerezhyvoWindow;
-    if (!typed.isDestroyed?.() && typed.__mzrRole !== 'single') return typed;
+    if (!typed.isDestroyed?.()) return typed;
   }
   return null;
 }
@@ -509,20 +508,6 @@ export function queuePendingUrl(url: string): void {
 
 export async function handleWindowOpenFromContents(contents: WebContents, url: string): Promise<void> {
   const embedder = (contents as WebContentsWithHost).hostWebContents ?? contents;
-  let isSingle = false;
-  try {
-    const currentUrl = embedder.getURL();
-    const parsed = new URL(currentUrl);
-    isSingle = parsed.searchParams.get('single') === '1';
-  } catch {
-    // noop
-  }
-
-  if (isSingle) {
-    await openInMain(url, { activate: true });
-    return;
-  }
-
   try {
     const win = BrowserWindow.fromWebContents(embedder) as MerezhyvoWindow | null;
     if (win && !win.isDestroyed?.()) {
@@ -876,9 +861,6 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   });
 
   let role: WindowRole = opts.role ?? 'main';
-  if (!opts.role && config.single) {
-    role = 'single';
-  }
   typedWin.__mzrRole = role;
 
   const query: Record<string, string> = {
@@ -886,9 +868,6 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     mode: initialMode,
     startProvided: startProvided ? '1' : '0'
   };
-  if (role === 'single') {
-    query.single = '1';
-  }
   typedWin.loadFile(distIndex, { query });
 
   typedWin.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});

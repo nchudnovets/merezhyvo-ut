@@ -1,10 +1,7 @@
 import type {
-  InstalledApp,
   Mode,
   OpenUrlPayload,
   SettingsState,
-  ShortcutRequest,
-  ShortcutResult,
   TorState,
   TorConfigResult,
   Unsubscribe,
@@ -12,16 +9,6 @@ import type {
   KeyboardSettings
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
-
-type InstalledAppsResponse = {
-  ok: boolean;
-  error?: string;
-  installedApps: InstalledApp[];
-};
-
-type RemoveInstalledAppResponse =
-  | { ok: false; error?: string }
-  | { ok: true; removed?: InstalledApp; installedApps?: InstalledApp[] };
 
 type SaveTorConfigResponse = TorConfigResult;
 
@@ -61,15 +48,6 @@ export const ipc = {
     }
   },
 
-  async createShortcut(payload: ShortcutRequest): Promise<ShortcutResult> {
-    try {
-      const res = await getApi()?.createShortcut?.(payload);
-      return res ?? { ok: false, error: 'Shortcut creation failed.' };
-    } catch (err) {
-      return { ok: false, error: String(err) };
-    }
-  },
-
   settings: {
     async loadState(): Promise<SettingsState | null> {
       try {
@@ -78,31 +56,6 @@ export const ipc = {
       } catch {
         return null;
       }
-    },
-    async loadInstalledApps(): Promise<InstalledAppsResponse> {
-      try {
-        const res = await getApi()?.settings?.installedApps?.list?.();
-        if (res && typeof res === 'object') {
-          return res as InstalledAppsResponse;
-        }
-      } catch (err) {
-        return { ok: false, error: String(err), installedApps: [] };
-      }
-      return { ok: false, error: 'Unknown error', installedApps: [] };
-    },
-
-    async removeInstalledApp(
-      idOrPayload: string | { id: string } | { desktopFilePath: string }
-    ): Promise<RemoveInstalledAppResponse> {
-      try {
-        const res = await getApi()?.settings?.installedApps?.remove?.(idOrPayload);
-        if (res && typeof res === 'object') {
-          return res as RemoveInstalledAppResponse;
-        }
-      } catch (err) {
-        return { ok: false, error: String(err) };
-      }
-      return { ok: false, error: 'Unknown error' };
     },
     async saveTorConfig(payload: { containerId: string; keepEnabled: boolean }): Promise<SaveTorConfigResponse> {
       try {

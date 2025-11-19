@@ -26,8 +26,6 @@ interface ToolbarProps {
   onInputPointerDown: (event: PointerEvent<HTMLInputElement>) => void;
   onInputFocus: (event: FocusEvent<HTMLInputElement>) => void;
   onInputBlur: (event: FocusEvent<HTMLInputElement>) => void;
-  onShortcutPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
-  onOpenShortcutModal: () => void;
   onOpenTabsPanel: () => void;
   onToggleTor: () => void;
   onOpenSettings: () => void;
@@ -52,8 +50,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onInputPointerDown,
   onInputFocus,
   onInputBlur,
-  onShortcutPointerDown,
-  onOpenShortcutModal,
   onOpenTabsPanel,
   onToggleTor,
   onOpenSettings,
@@ -98,8 +94,6 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onPointerDown={onInputPointerDown}
       onFocus={onInputFocus}
       onBlur={onInputBlur}
-      onShortcutPointerDown={onShortcutPointerDown}
-      onOpenShortcutModal={onOpenShortcutModal}
       onOpenTabsPanel={onOpenTabsPanel}
     />
 

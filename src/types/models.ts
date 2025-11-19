@@ -155,17 +155,6 @@ export interface BookmarkHtmlExportResult {
   htmlContent: string;
 }
 
-export interface InstalledApp {
-  id: string;
-  title: string;
-  url: string;
-  desktopFilePath?: string;
-  iconPath?: string;
-  single?: boolean;
-  createdAt?: number;
-  updatedAt?: number;
-}
-
 export interface TorConfig {
   containerId: string;
   keepEnabled: boolean;
@@ -178,30 +167,9 @@ export interface KeyboardSettings {
 
 export interface SettingsState {
   schema: number;
-  installedApps: InstalledApp[];
   tor: TorConfig;
   keyboard: KeyboardSettings;
   messenger: MessengerSettings;
-}
-
-export interface ShortcutIcon {
-  name: string;
-  data: ArrayBuffer | Uint8Array | string;
-}
-
-export interface ShortcutRequest {
-  title: string;
-  url: string;
-  single?: boolean;
-  icon?: ShortcutIcon | null;
-}
-
-export interface ShortcutResult {
-  ok: boolean;
-  error?: string | null;
-  desktopFilePath?: string;
-  iconPath?: string;
-  installedApp?: InstalledApp;
 }
 
 export interface PasswordEntryMeta {

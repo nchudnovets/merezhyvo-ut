@@ -7,13 +7,10 @@ import type {
   MerezhyvoAPI,
   MerezhyvoAppInfo,
   MerezhyvoOpenUrlPayload,
-  MerezhyvoShortcutRequest,
-  MerezhyvoShortcutResult,
   MerezhyvoTorToggleOptions,
   MerezhyvoTorState,
   MerezhyvoSessionState,
   MerezhyvoSettingsState,
-  MerezhyvoInstalledAppsResult,
   MerezhyvoTabCleanResult,
   PasswordFieldFocusPayload
 } from '../src/types/preload';
@@ -80,41 +77,7 @@ const runtimeVersions = {
   node: process.versions.node || ''
 };
 
-type ShortcutIconInput = MerezhyvoShortcutRequest['icon'];
-
-type CreateShortcutIconPayload = {
-  name: string;
-  dataBase64: string;
-};
-
-type CreateShortcutPayload = {
-  title: string;
-  url: string;
-  single: boolean;
-  icon: CreateShortcutIconPayload | null;
-};
-
 const noopUnsubscribe: Unsubscribe = () => {};
-
-const encodeIconPayload = (icon: ShortcutIconInput): CreateShortcutIconPayload | null => {
-  if (!icon) return null;
-  const rawName = typeof icon.name === 'string' ? icon.name : '';
-  const name = rawName.trim().length ? rawName.trim() : 'icon.png';
-  const dataValue = (icon as { data?: unknown }).data;
-  if (typeof dataValue === 'string') {
-    return { name, dataBase64: Buffer.from(dataValue).toString('base64') };
-  }
-  if (dataValue instanceof ArrayBuffer) {
-    return { name, dataBase64: Buffer.from(new Uint8Array(dataValue)).toString('base64') };
-  }
-  if (dataValue instanceof Uint8Array) {
-    return { name, dataBase64: Buffer.from(dataValue).toString('base64') };
-  }
-  if (typeof Buffer !== 'undefined' && Buffer.isBuffer(dataValue)) {
-    return { name, dataBase64: (dataValue as Buffer).toString('base64') };
-  }
-  return null;
-};
 
 const exposeApi: MerezhyvoAPI = {
   appInfo: {
@@ -183,20 +146,6 @@ const exposeApi: MerezhyvoAPI = {
         // noop
       }
     };
-  },
-
-  createShortcut: async (input: MerezhyvoShortcutRequest): Promise<MerezhyvoShortcutResult> => {
-    const payload: CreateShortcutPayload = {
-      title: String(input?.title ?? '').trim(),
-      url: String(input?.url ?? '').trim(),
-      single: Boolean(input?.single ?? true),
-      icon: encodeIconPayload(input?.icon ?? null)
-    };
-    try {
-      return (await ipcRenderer.invoke('merezhyvo:createShortcut', payload)) as MerezhyvoShortcutResult;
-    } catch (err) {
-      return { ok: false, error: String(err) };
-    }
   },
 
   tor: {
@@ -288,34 +237,10 @@ const exposeApi: MerezhyvoAPI = {
         console.error('[merezhyvo] settings.load failed', err);
         return {
           schema: 2,
-          installedApps: [],
           tor: { containerId: '', keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null)
         };
-      }
-    },
-    installedApps: {
-      list: async () => {
-        try {
-          return (await ipcRenderer.invoke(
-            'merezhyvo:settings:installedApps:list'
-          )) as MerezhyvoInstalledAppsResult;
-        } catch (err) {
-          console.error('[merezhyvo] settings.installedApps.list failed', err);
-          return { ok: false, error: String(err), installedApps: [] };
-        }
-      },
-      remove: async (payload: Parameters<MerezhyvoAPI['settings']['installedApps']['remove']>[0]) => {
-        try {
-          return (await ipcRenderer.invoke(
-            'merezhyvo:settings:installedApps:remove',
-            payload ?? null
-          )) as { ok: boolean; error?: string };
-        } catch (err) {
-          console.error('[merezhyvo] settings.installedApps.remove failed', err);
-          return { ok: false, error: String(err) };
-        }
       }
     },
     tor: {

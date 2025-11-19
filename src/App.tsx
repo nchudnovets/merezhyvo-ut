@@ -19,7 +19,6 @@ import Toolbar from './components/toolbar/Toolbar';
 import { MessengerToolbar } from './components/messenger/MessengerToolbar';
 import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
-import CreateShortcutModal from './components/modals/shortcutModal/CreateShortcut';
 import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
 import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
@@ -46,7 +45,6 @@ import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
 import type {
   Mode,
-  InstalledApp,
   Tab,
   MessengerId,
   MessengerDefinition,
@@ -70,7 +68,6 @@ const ZOOM_STEP = 0.1;
 type StartParams = {
   url: string;
   hasStartParam: boolean;
-  single: boolean;
 };
 
 type AppInfo = {
@@ -82,11 +79,7 @@ type AppInfo = {
   node: string;
 };
 
-type ActiveInputTarget = 'url' | 'modalTitle' | 'modalUrl' | 'torContainer' | null;
-
-type LoadInstalledAppsOptions = {
-  quiet?: boolean;
-};
+type ActiveInputTarget = 'url' | 'torContainer' | null;
 
 type NavigationState = {
   back?: boolean;
@@ -131,11 +124,6 @@ type MainBrowserAppProps = {
   initialUrl: string;
   mode: Mode;
   hasStartParam: boolean;
-};
-
-type SingleWindowAppProps = {
-  initialUrl: string;
-  mode: Mode;
 };
 
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
@@ -263,7 +251,6 @@ const parseStartUrl = (): StartParams => {
     const params = new URLSearchParams(window.location.search);
     const raw = params.get('start');
     const providedParam = params.get('startProvided');
-    const singleParam = params.get('single');
 
     let url = DEFAULT_URL;
     let hasStartParam = false;
@@ -284,13 +271,9 @@ const parseStartUrl = (): StartParams => {
       }
     }
 
-    const single = typeof singleParam === 'string'
-      ? singleParam === '' || singleParam === '1' || singleParam.toLowerCase() === 'true'
-      : false;
-
-    return { url, hasStartParam, single };
+    return { url, hasStartParam };
   } catch {
-    return { url: DEFAULT_URL, hasStartParam: false, single: false };
+    return { url: DEFAULT_URL, hasStartParam: false };
   }
 };
 
@@ -335,8 +318,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewRef = useRef<WebviewTag | null>(null);
   const [activeViewRevision, setActiveViewRevision] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const modalTitleInputRef = useRef<HTMLInputElement | null>(null);
-  const modalUrlInputRef = useRef<HTMLInputElement | null>(null);
   const torContainerInputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
   const webviewReadyRef = useRef<boolean>(false);
@@ -351,11 +332,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [status, setStatus] = useState<StatusState>('loading');
   const [webviewReady, setWebviewReady] = useState<boolean>(false);
 
-  const [showModal, setShowModal] = useState<boolean>(false);
-  const [title, setTitle] = useState<string>('');
-  const [shortcutUrl, setShortcutUrl] = useState<string>('');
-  const [busy, setBusy] = useState<boolean>(false);
-  const [msg, setMsg] = useState<string>('');
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
@@ -369,13 +345,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [passwordPromptBusy, setPasswordPromptBusy] = useState(false);
   const [globalToast, setGlobalToast] = useState<string | null>(null);
   const globalToastTimerRef = useRef<number | null>(null);
-  const [installedApps, setInstalledApps] = useState<InstalledApp[]>([]);
-  const [installedAppsLoading, setInstalledAppsLoading] = useState<boolean>(false);
-  const [settingsMsg, setSettingsMsg] = useState<string>('');
-  const [pendingRemoval, setPendingRemoval] = useState<InstalledApp | null>(null);
-  const [settingsBusy, setSettingsBusy] = useState<boolean>(false);
-  const [shortcutCompleted, setShortcutCompleted] = useState<boolean>(false);
-  const [shortcutSuccessMsg, setShortcutSuccessMsg] = useState<string>('');
   const [torEnabled, setTorEnabled] = useState<boolean>(false);
   const [torContainerId, setTorContainerId] = useState<string>('');
   const [torContainerDraft, setTorContainerDraft] = useState<string>('');
@@ -492,36 +461,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
   }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
 
-  const loadInstalledApps = useCallback(async ({ quiet = false }: LoadInstalledAppsOptions = {}) => {
-    if (!quiet) {
-      setSettingsMsg('');
-      setPendingRemoval(null);
-    }
-    setInstalledAppsLoading(true);
-    try {
-      const result = await ipc.settings.loadInstalledApps();
-      if (result?.ok && Array.isArray(result.installedApps)) {
-        setInstalledApps(result.installedApps);
-      } else if (!quiet) {
-        setSettingsMsg(result?.error || 'Failed to load installed apps.');
-      }
-      return result;
-    } catch (err) {
-      if (!quiet) {
-        setSettingsMsg(String(err));
-      }
-      return null;
-    } finally {
-      setInstalledAppsLoading(false);
-    }
-  }, []);
-
-  const installedAppsList = useMemo<InstalledApp[]>(() => {
-    const list = Array.isArray(installedApps) ? [...installedApps] : [];
-    list.sort((a, b) => (a.title || '').localeCompare(b.title || '', undefined, { sensitivity: 'base' }));
-    return list;
-  }, [installedApps]);
-
   const appInfo = useMemo<AppInfo>(() => {
     if (typeof window === 'undefined') return FALLBACK_APP_INFO;
     const info = window.merezhyvo?.appInfo as Partial<AppInfo> | undefined;
@@ -613,10 +552,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setIsHtmlFullscreen(false);
     }
   }, [activeId]);
-  useEffect(() => {
-    loadInstalledApps({ quiet: true });
-  }, [loadInstalledApps]);
-
   const showTorAlert = useCallback((message: string) => {
     setTorAlertMessage(message);
   }, []);
@@ -1729,32 +1664,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     void ipc.ua.setMode('auto');
   }, [closeTabAction]);
-  const closeShortcutModal = useCallback(() => {
-    setShowModal(false);
-    setBusy(false);
-    setMsg('');
-    setTitle('');
-    setShortcutUrl('');
-    setShortcutCompleted(false);
-    setShortcutSuccessMsg('');
-    activeInputRef.current = null;
-    blurActiveInWebview();
-  }, [blurActiveInWebview]);
-
   const openSettingsModal = useCallback(() => {
     activeInputRef.current = null;
     setShowSettingsModal(true);
-    setSettingsMsg('');
-    setPendingRemoval(null);
-    setSettingsBusy(false);
     blurActiveInWebview();
   }, [blurActiveInWebview]);
 
   const closeSettingsModal = useCallback(() => {
     setShowSettingsModal(false);
-    setPendingRemoval(null);
-    setSettingsMsg('');
-    setSettingsBusy(false);
     setSettingsScrollTarget(null);
     setPendingSettingsReopen(false);
   }, []);
@@ -1787,67 +1704,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [closeSettingsModal, fetchPasswordStatus]
   );
 
-  const askRemoveApp = useCallback((app: InstalledApp | null | undefined) => {
-    if (!app) return;
-    setPendingRemoval(app);
-    setSettingsMsg('');
-  }, [setPendingRemoval, setSettingsMsg]);
-
-  const cancelRemoveApp = useCallback(() => {
-    setPendingRemoval(null);
-  }, [setPendingRemoval]);
-
-  const confirmRemoveApp = useCallback(async () => {
-    if (!pendingRemoval) return;
-    setSettingsBusy(true);
-    setSettingsMsg('');
-    try {
-      const res = await ipc.settings.removeInstalledApp({
-        id: pendingRemoval.id,
-        desktopFilePath: pendingRemoval.desktopFilePath
-      });
-      if (res && res.ok) {
-        const nextInstalledApps = res.installedApps;
-        if (Array.isArray(nextInstalledApps)) {
-          setInstalledApps(nextInstalledApps);
-        } else {
-          setInstalledApps((apps) => apps.filter((app) => app.id !== pendingRemoval.id));
-        }
-        setPendingRemoval(null);
-        void loadInstalledApps({ quiet: true });
-      } else {
-        setSettingsMsg(res?.error || 'Failed to remove shortcut.');
-      }
-    } catch (err) {
-      setSettingsMsg(String(err));
-    } finally {
-      setSettingsBusy(false);
-    }
-  }, [loadInstalledApps, pendingRemoval, setInstalledApps, setPendingRemoval, setSettingsBusy, setSettingsMsg]);
-
-  useEffect(() => {
-    if (!showModal) {
-      return undefined;
-    }
-    const frame = requestAnimationFrame(() => {
-      if (modalTitleInputRef.current) {
-        modalTitleInputRef.current.focus();
-        modalTitleInputRef.current.select();
-      }
-    });
-    const handleKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') {
-        event.preventDefault();
-        closeShortcutModal();
-      }
-    };
-    window.addEventListener('keydown', handleKeyDown);
-    return () => {
-      window.removeEventListener('keydown', handleKeyDown);
-      cancelAnimationFrame(frame);
-    };
-  }, [showModal, closeShortcutModal]);
-
   useEffect(() => {
     const teardown = setupHostRtlDirection();
     return () => teardown();
@@ -1857,7 +1713,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!showSettingsModal) {
       return undefined;
     }
-    loadInstalledApps();
     setTorContainerDraft(torContainerId);
     setTorKeepEnabledDraft(torKeepEnabled);
     setTorConfigFeedback('');
@@ -1872,7 +1727,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, loadInstalledApps, closeSettingsModal, torContainerId, torKeepEnabled, refreshTorIp]);
+  }, [showSettingsModal, closeSettingsModal, torContainerId, torKeepEnabled, refreshTorIp]);
 
   const handleTorContainerInputChange = useCallback((value: string) => {
     setTorContainerDraft(value);
@@ -2020,34 +1875,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       } catch {}
     });
   }, [inputValue]);
-
-  useEffect(() => {
-    const node = modalTitleInputRef.current;
-    if (!node) return;
-    requestAnimationFrame(() => {
-      try {
-        const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
-        const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
-        if (start === end) {
-          node.scrollLeft = node.scrollWidth;
-        }
-      } catch {}
-    });
-  }, [title]);
-
-  useEffect(() => {
-    const node = modalUrlInputRef.current;
-    if (!node) return;
-    requestAnimationFrame(() => {
-      try {
-        const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
-        const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
-        if (start === end) {
-          node.scrollLeft = node.scrollWidth;
-        }
-      } catch {}
-    });
-  }, [shortcutUrl]);
 
   useEffect(() => {
     if (mode !== 'mobile') return;
@@ -2264,30 +2091,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
 
-  const handleModalInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'modalTitle';
-  }, []);
-
-  const handleModalInputFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'modalTitle';
-  }, []);
-
-  const handleModalInputBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    if (activeInputRef.current === 'modalTitle') activeInputRef.current = null;
-  }, []);
-
-  const handleModalUrlPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'modalUrl';
-  }, []);
-
-  const handleModalUrlFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'modalUrl';
-  }, []);
-
-  const handleModalUrlBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    if (activeInputRef.current === 'modalUrl') activeInputRef.current = null;
-  }, []);
-
   const handleTorInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'torContainer';
   }, []);
@@ -2396,88 +2199,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } catch {}
     return activeTabRef.current?.url || activeUrl || null;
   }, [activeUrl, getActiveWebview]);
-
-  const openShortcutModal = () => {
-    let appTitle = '';
-    const viewUrl = getCurrentViewUrl();
-    if (viewUrl) {
-      try {
-        const hostname = new URL(viewUrl).hostname.replace(/^www\./, '');
-        const firstPart = hostname.split('.')[0] || '';
-        if (!firstPart) {
-          appTitle = viewUrl;
-        } else {
-          const chars = Array.from(firstPart);
-          const capFirst = chars[0]?.toUpperCase() ?? '';
-          appTitle = 'm' + capFirst + chars.slice(1).join('');
-        }
-      } catch {
-        appTitle = '';
-      }
-    }
-    setTitle(appTitle);
-    setShortcutUrl(viewUrl || '');
-    setMsg('');
-    setBusy(false);
-    setShortcutCompleted(false);
-    setShortcutSuccessMsg('');
-    setShowModal(true);
-  };
-
-  const createShortcut = useCallback(async () => {
-    const trimmedTitle = title.trim();
-    if (!trimmedTitle) { setMsg('Please enter a name.'); return; }
-    const normalizedUrl = normalizeShortcutUrl(shortcutUrl || getCurrentViewUrl() || '');
-    if (!normalizedUrl) {
-      setMsg('Please enter a valid URL (http/https).');
-      return;
-    }
-    setShortcutUrl(normalizedUrl);
-    setMsg('');
-    setBusy(true);
-    try {
-      const res = await ipc.createShortcut({
-        title: trimmedTitle,
-        url: normalizedUrl,
-        single: true
-      });
-      if (res?.ok) {
-        const installedApp = res.installedApp;
-        if (installedApp) {
-          setInstalledApps((apps) => {
-            const next = [...apps];
-            const index = next.findIndex((app) => app.id === installedApp.id);
-            if (index === -1) {
-              return [...next, installedApp];
-            }
-            next[index] = installedApp;
-            return next;
-          });
-        } else {
-          void loadInstalledApps({ quiet: true });
-        }
-        setShortcutCompleted(true);
-        setShortcutSuccessMsg('Shortcut saved successfully. You can now open your new web application from the app launcher.');
-        activeInputRef.current = null;
-        const activeIdCurrent = activeIdRef.current;
-        if (activeIdCurrent) {
-          closeTabAction(activeIdCurrent);
-        }
-        return;
-      } else {
-        setMsg(res?.error || 'Unknown error.');
-      }
-    } catch (err) {
-      setMsg(String(err));
-    } finally {
-      setBusy(false);
-    }
-  }, [activeIdRef, closeTabAction, getCurrentViewUrl, loadInstalledApps, setBusy, setInstalledApps, setMsg, setShortcutSuccessMsg, setShortcutCompleted, setShortcutUrl, shortcutUrl, title]);
-
-  const handleShortcutPointerDown = useCallback((event: ReactPointerEvent<HTMLButtonElement>) => {
-    event.preventDefault();
-    event.stopPropagation();
-  }, []);
 
   const handleZoomSliderPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
     event.stopPropagation();
@@ -2814,8 +2535,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onInputPointerDown={handleInputPointerDown}
           onInputFocus={handleInputFocus}
           onInputBlur={handleInputBlur}
-          onShortcutPointerDown={handleShortcutPointerDown}
-          onOpenShortcutModal={openShortcutModal}
           onOpenTabsPanel={openTabsPanel}
           onToggleTor={handleToggleTor}
           onOpenSettings={openSettingsModal}
@@ -2887,40 +2606,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           />
         )}
 
-      {showModal && (
-        <CreateShortcutModal
-          mode={mode}
-          modalBackdropStyle={modalBackdropStyle}
-          shortcutCompleted={shortcutCompleted}
-          shortcutSuccessMsg={shortcutSuccessMsg}
-          busy={busy}
-          msg={msg}
-          title={title}
-          shortcutUrl={shortcutUrl}
-          modalTitleInputRef={modalTitleInputRef}
-          modalUrlInputRef={modalUrlInputRef}
-          onClose={closeShortcutModal}
-          onCreateShortcut={createShortcut}
-          onTitleChange={(value) => setTitle(value)}
-          onShortcutUrlChange={(value) => setShortcutUrl(value)}
-          onTitlePointerDown={handleModalInputPointerDown}
-          onTitleFocus={handleModalInputFocus}
-          onTitleBlur={handleModalInputBlur}
-          onUrlPointerDown={handleModalUrlPointerDown}
-          onUrlFocus={handleModalUrlFocus}
-          onUrlBlur={handleModalUrlBlur}
-        />
-      )}
-
       {showSettingsModal && (
           <SettingsModal
             mode={mode}
             backdropStyle={modalBackdropStyle}
-            installedApps={installedAppsList}
-          loading={installedAppsLoading}
-          message={settingsMsg}
-          pendingRemoval={pendingRemoval}
-          busy={settingsBusy}
           appInfo={appInfo}
           torEnabled={torEnabled}
           torCurrentIp={torIp}
@@ -2938,9 +2627,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onSaveTorContainer={handleSaveTorContainer}
             onTorKeepChange={handleTorKeepChange}
             onClose={closeSettingsModal}
-            onRequestRemove={askRemoveApp}
-            onCancelRemove={cancelRemoveApp}
-            onConfirmRemove={confirmRemoveApp}
             onOpenBookmarks={openBookmarksPage}
             onOpenHistory={openHistoryPage}
             onOpenPasswords={openPasswordsFromSettings}
@@ -3060,13 +2746,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 };
 
 const App: React.FC = () => {
-  const { url: parsedStartUrl, hasStartParam, single: isSingleWindow } = useMemo(() => parseStartUrl(), []);
+  const { url: parsedStartUrl, hasStartParam } = useMemo(() => parseStartUrl(), []);
   const initialUrl = useMemo(() => normalizeAddress(parsedStartUrl), [parsedStartUrl]);
   const mode = useMerezhyvoMode();
-
-  if (isSingleWindow) {
-    return <SingleWindowApp initialUrl={initialUrl} mode={mode} />;
-  }
 
   return (
     <MainBrowserApp
@@ -3078,287 +2760,3 @@ const App: React.FC = () => {
 };
 
 export default App;
-
-const singleStyles: Record<string, CSSProperties> = {
-  container: {
-    display: 'flex',
-    flexDirection: 'column',
-    position: 'relative',
-    width: '100vw',
-    height: '100vh',
-    backgroundColor: '#000',
-    overflow: 'hidden'
-  },
-  webviewWrapper: {
-    position: 'relative',
-    flex: 1,
-    width: '100%',
-    height: '100%',
-    minHeight: 0,
-    overflow: 'hidden'
-  },
-  webview: {
-    position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
-    border: 'none',
-    backgroundColor: '#000'
-  },
-  webviewFullscreen: {
-    position: 'absolute',
-    inset: 0,
-    width: '100%',
-    height: '100%',
-    border: 'none',
-    backgroundColor: '#000'
-  },
-  statusBadge: {
-    position: 'absolute',
-    top: 16,
-    right: 16,
-    padding: '6px 12px',
-    borderRadius: '999px',
-    backgroundColor: 'rgba(15, 23, 42, 0.8)',
-    color: '#f8fafc',
-    fontSize: '12px',
-    letterSpacing: '0.08em',
-    textTransform: 'uppercase'
-  },
-  statusBadgeError: {
-    backgroundColor: 'rgba(239, 68, 68, 0.9)'
-  }
-};
-
-const SingleWindowApp: React.FC<SingleWindowAppProps> = ({ initialUrl, mode }) => {
-  const webviewHandleRef = useRef<WebViewHandle | null>(null);
-  const listenersCleanupRef = useRef<() => void>(() => {});
-  const [status, setStatus] = useState<StatusState>('loading');
-  const [isFullscreen, setIsFullscreen] = useState<boolean>(false);
-  const powerBlockerIdRef = useRef<number | null>(null);
-  const initialZoom = mode === 'mobile' ? 2 : 1;
-  const zoomRef = useRef<number>(initialZoom);
-  const [zoomLevel, setZoomLevel] = useState<number>(initialZoom);
-
-  const startPowerBlocker = useCallback(async (): Promise<number | null> => {
-    if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
-    try {
-      const id = await ipc.power.start();
-      if (typeof id === 'number') {
-        powerBlockerIdRef.current = id;
-        return id;
-      }
-    } catch (err) {
-      console.error('[Merezhyvo] power blocker start failed (single)', err);
-    }
-    return null;
-  }, []);
-
-  const stopPowerBlocker = useCallback(async (): Promise<void> => {
-    const id = powerBlockerIdRef.current;
-    if (id == null) return;
-    try {
-      await ipc.power.stop(id);
-    } catch (err) {
-      console.error('[Merezhyvo] power blocker stop failed (single)', err);
-    }
-    powerBlockerIdRef.current = null;
-  }, []);
-
-  const setZoomClamped = useCallback((value: number | string) => {
-    const numeric = Number(value);
-    if (!Number.isFinite(numeric)) return;
-    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
-    const rounded = Math.round(clamped * 100) / 100;
-    zoomRef.current = rounded;
-    setZoomLevel(rounded);
-  }, []);
-
-  useEffect(() => {
-    const base = mode === 'mobile' ? 2.3 : 1;
-    if (Math.abs(zoomRef.current - base) < 1e-3) return;
-    const frame = requestAnimationFrame(() => {
-      setZoomClamped(base);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [mode, setZoomClamped]);
-
-  const attachExtraListeners = useCallback((view: WebviewTag | null) => {
-    if (!view) return () => {};
-    const handleMediaStarted = () => { void startPowerBlocker(); };
-    const handleMediaPaused = () => { void stopPowerBlocker(); };
-    const handleEnterFullscreen = () => setIsFullscreen(true);
-    const handleLeaveFullscreen = () => setIsFullscreen(false);
-    const handleZoomChanged = (event: any) => {
-      const raw = typeof event?.newZoomFactor === 'number' ? event.newZoomFactor : view.getZoomFactor?.();
-      if (typeof raw !== 'number' || Number.isNaN(raw)) return;
-      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
-      zoomRef.current = normalized;
-      setZoomLevel(normalized);
-    };
-
-    const injectBaseCss = () => {
-      try {
-        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
-        if (maybe && typeof maybe.catch === 'function') {
-          maybe.catch(() => {});
-        }
-      } catch {}
-    };
-
-    const installInputScroll = () => {
-      const script = `
-        (function(){
-          try {
-            if (window.__mzrSingleInputScrollInstalled) return;
-            window.__mzrSingleInputScrollInstalled = true;
-            const ensureFieldScroll = (el) => {
-              if (!el) return;
-              const tag = (el.tagName || '').toLowerCase();
-              if (tag !== 'input' && tag !== 'textarea') return;
-              requestAnimationFrame(() => {
-                try {
-                  if (typeof el.selectionStart !== 'number' || typeof el.selectionEnd !== 'number') return;
-                  if (el.selectionStart === el.selectionEnd) {
-                    el.scrollLeft = el.scrollWidth;
-                  }
-                } catch {}
-              });
-            };
-            document.addEventListener('input', (event) => ensureFieldScroll(event.target), true);
-            document.addEventListener('keyup', (event) => {
-              const key = event?.key;
-              if (key === 'ArrowRight' || key === 'ArrowLeft' || key === 'End') {
-                ensureFieldScroll(event.target);
-              }
-            }, true);
-          } catch {}
-        })();
-      `;
-      try { view.executeJavaScript(script, false).catch?.(() => {}); } catch {}
-    };
-
-    injectBaseCss();
-    installInputScroll();
-
-    view.addEventListener('media-started-playing', handleMediaStarted);
-    view.addEventListener('media-paused', handleMediaPaused);
-    view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
-    view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
-    view.addEventListener('zoom-changed', handleZoomChanged);
-    view.addEventListener('dom-ready', injectBaseCss);
-    view.addEventListener('did-navigate', injectBaseCss);
-    view.addEventListener('did-navigate-in-page', injectBaseCss);
-
-    return () => {
-      view.removeEventListener('media-started-playing', handleMediaStarted);
-      view.removeEventListener('media-paused', handleMediaPaused);
-      view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
-      view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
-      view.removeEventListener('zoom-changed', handleZoomChanged);
-      view.removeEventListener('dom-ready', injectBaseCss);
-      view.removeEventListener('did-navigate', injectBaseCss);
-      view.removeEventListener('did-navigate-in-page', injectBaseCss);
-    };
-  }, [startPowerBlocker, stopPowerBlocker]);
-
-  const handleDomReady = useCallback(() => {
-    const handle = webviewHandleRef.current;
-    const view = handle && typeof handle.getWebView === 'function' ? handle.getWebView() : null;
-    if (!view) return;
-    try {
-      listenersCleanupRef.current?.();
-    } catch {}
-    listenersCleanupRef.current = attachExtraListeners(view);
-    setStatus('ready');
-    try { handle?.focus(); } catch {}
-  }, [attachExtraListeners]);
-
-  useEffect(() => () => {
-    try { listenersCleanupRef.current?.(); } catch {}
-    listenersCleanupRef.current = () => {};
-    void stopPowerBlocker();
-  }, [stopPowerBlocker]);
-
-  const webviewStyle = isFullscreen ? singleStyles.webviewFullscreen : singleStyles.webview;
-  const showErrorBadge = status === 'error';
-  const statusStyle = { ...singleStyles.statusBadge, ...(showErrorBadge ? singleStyles.statusBadgeError : null) };
-  const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
-  const handleZoomSliderChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
-    const { valueAsNumber, value } = event.target;
-    const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
-    setZoomClamped(candidate);
-  }, [setZoomClamped]);
-  const handleZoomSliderPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
-    event.stopPropagation();
-  }, []);
-
-  const initialTarget = initialUrl && initialUrl.trim() ? initialUrl.trim() : DEFAULT_URL;
-
-  return (
-    <>
-      <div style={singleStyles.container} className={`single-app single-app--${mode}`}>
-        <div style={singleStyles.webviewWrapper}>
-        <WebViewHost
-          ref={(instance) => {
-            webviewHandleRef.current = instance;
-          }}
-          initialUrl={initialTarget}
-          mode={mode}
-          zoom={zoomLevel}
-          onCanGo={() => {}}
-          onStatus={setStatus}
-          onUrlChange={() => {}}
-          onDomReady={handleDomReady}
-          style={webviewStyle}
-        />
-        {status === 'loading' && (
-          <div
-            style={{
-              ...styles.webviewLoadingOverlay,
-              ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
-            }}
-            aria-live="polite"
-            aria-label="Loading"
-          >
-            <div
-              aria-hidden="true"
-              style={{
-                ...styles.webviewLoadingSpinner,
-                ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
-              }}
-            />
-          </div>
-        )}
-      </div>
-      {showErrorBadge && (
-        <div style={statusStyle}>
-          Load failed
-        </div>
-      )}
-      {!isFullscreen && (
-        <div className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
-          <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
-          <div style={zoomBarStyles.zoomSliderContainer}>
-            <input
-              type="range"
-              min={ZOOM_MIN}
-              max={ZOOM_MAX}
-              step={ZOOM_STEP}
-              value={zoomLevel}
-              onPointerDown={handleZoomSliderPointerDown}
-              onInput={handleZoomSliderChange}
-              onChange={handleZoomSliderChange}
-              aria-label="Zoom level"
-              className="zoom-slider"
-              style={{ ...zoomBarStyles.zoomSlider, ...(zoomBarModeStyles[mode].zoomSlider || {}) }}
-            />
-          </div>
-          <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
-        </div>
-      )}
-      </div>
-      <FileDialogHost mode={mode} />
-    </>
-  );
-};

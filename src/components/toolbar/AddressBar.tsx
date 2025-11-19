@@ -14,8 +14,6 @@ interface AddressBarProps {
   onPointerDown: (event: PointerEvent<HTMLInputElement>) => void;
   onFocus: (event: FocusEvent<HTMLInputElement>) => void;
   onBlur: (event: FocusEvent<HTMLInputElement>) => void;
-  onShortcutPointerDown: (event: PointerEvent<HTMLButtonElement>) => void;
-  onOpenShortcutModal: () => void;
   onOpenTabsPanel: () => void;
 }
 
@@ -30,8 +28,6 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onPointerDown,
   onFocus,
   onBlur,
-  onShortcutPointerDown,
-  onOpenShortcutModal,
   onOpenTabsPanel
 }) => (
   <form onSubmit={onSubmit} style={toolbarStyles.form}>
@@ -51,38 +47,6 @@ const AddressBar: React.FC<AddressBarProps> = ({
         placeholder="Enter a URL or search"
         style={{ ...toolbarStyles.input, ...(toolbarModeStyles[mode].searchInput ?? {}) }}
       />
-      <button
-        type="button"
-        className="btn btn--makeapp"
-        style={{ ...toolbarStyles.makeAppBtn, ...(toolbarModeStyles[mode].makeAppBtn ?? {}) }}
-        onPointerDown={onShortcutPointerDown}
-        onClick={onOpenShortcutModal}
-        title="Create app shortcut from this site"
-        aria-label="Create app shortcut from this site"
-      >
-        <svg
-          viewBox="0 0 16 16"
-          xmlns="http://www.w3.org/2000/svg"
-          style={toolbarModeStyles[mode].makeAppBtnIcn}
-        >
-          <path
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.5"
-            d="M8 2v6m0 0-2.5-2.5M8 8l2.5-2.5"
-          />
-          <path
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.5"
-            d="M4 9.5h8V13a1 1 0 0 1-1 1H5a1 1 0 0 1-1-1V9.5"
-          />
-        </svg>
-      </button>
     </div>
     <button
       type="button"
