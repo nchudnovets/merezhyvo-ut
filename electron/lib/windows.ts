@@ -211,12 +211,9 @@ function ensureWebviewPreloadOnDisk(): string {
   let source = '';
   try {
     source = fs.readFileSync(TS_WEBVIEW_PRELOAD, 'utf8');
-    console.log('[preload] TS source read', TS_WEBVIEW_PRELOAD);
-  } catch (error) {
+  } catch {
     source = '';
-    console.warn('[preload] TS source read failed', TS_WEBVIEW_PRELOAD, error);
   }
-  console.log('[preload] load TS', TS_WEBVIEW_PRELOAD, 'exists', fs.existsSync(TS_WEBVIEW_PRELOAD));
   const transpile = (src: string): string => {
     try {
       const transpiled = require('typescript').transpileModule(src, {

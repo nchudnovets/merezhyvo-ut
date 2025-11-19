@@ -311,7 +311,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   const sendFocus = (field: 'username' | 'password'): void => {
     try {
       ipcRenderer.sendToHost('mzr:pw:field-focus', { origin, signonRealm, field });
-      console.log('[pw] field focus', { origin, signonRealm, field });
     } catch {
       // noop
     }
@@ -320,14 +319,12 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   const sendBlur = (): void => {
     try {
       ipcRenderer.sendToHost('mzr:pw:field-blur');
-      console.log('[pw] field blur', { origin, signonRealm });
     } catch {
       // noop
     }
   };
 
   const fillField = (field: HTMLInputElement, value: string): void => {
-    console.log('[pw] filling field', { field: field.name || field.id, value: value ? '***' : '' });
     try {
       field.focus();
       field.value = value;
@@ -400,27 +397,16 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   };
 
   ipcRenderer.on('merezhyvo:pw:fill', (_event, payload: { username?: string; password?: string }) => {
-    console.log('[pw] fill event received', {
-      hasUsername: Boolean(payload.username),
-      hasPassword: Boolean(payload.password),
-      hasUsernameField: Boolean(lastUsernameInput),
-      hasPasswordField: Boolean(lastPasswordInput)
-    });
     if (payload.username) {
       const target = findUsernameInput();
       if (target) {
         fillField(target, payload.username);
-      } else {
-        console.warn('[pw] no username field available to fill');
       }
-    } else if (payload.username && !lastUsernameInput) {
     }
     if (payload.password) {
       const target = findPasswordInput();
       if (target) {
         fillField(target, payload.password);
-      } else {
-        console.warn('[pw] no password field available to fill');
       }
     }
   });

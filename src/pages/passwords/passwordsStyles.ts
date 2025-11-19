@@ -8,10 +8,12 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
+    maxWidth: '750px',
     height: '100%',
     backgroundColor: '#05070f',
     color: '#f8fafc',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    margin: '0 auto'
   },
   header: {
     display: 'flex',
@@ -138,6 +140,10 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     gap: '10px',
     flexWrap: 'wrap'
   },
+  entryActionButtonDanger: {
+    borderColor: 'rgba(248, 113, 113, 0.5)',
+    color: '#fecaca'
+  },
   entryActionButton: {
     border: '1px solid rgba(148, 163, 184, 0.35)',
     borderRadius: '10px',
@@ -172,6 +178,52 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   notesMobile: {
     fontSize: '34px'
+  },
+  deleteConfirmation: {
+    marginTop: '12px',
+    padding: '14px',
+    border: '1px solid rgba(248, 113, 113, 0.4)',
+    backgroundColor: 'rgba(248, 113, 113, 0.08)',
+    borderRadius: '14px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    flexWrap: 'wrap',
+    gap: '12px'
+  },
+  deleteConfirmationMobile: {
+    flexDirection: 'column',
+    alignItems: 'stretch'
+  },
+  deleteConfirmationText: {
+    fontSize: '14px',
+    color: '#fecaca'
+  },
+  deleteConfirmationTextMobile: {
+    fontSize: '34px'
+  },
+  deleteConfirmationActions: {
+    display: 'flex',
+    gap: '10px',
+    flexWrap: 'wrap'
+  },
+  deleteConfirmButton: {
+    borderColor: 'rgba(248, 113, 113, 0.8)',
+    backgroundColor: '#b91c1c',
+    color: '#fff'
+  },
+  deleteCancelButton: {
+    borderColor: 'rgba(255, 255, 255, 0.5)',
+    backgroundColor: 'transparent',
+    color: '#fff'
+  },
+  deleteConfirmButtonMobile: {
+    fontSize: '34px',
+    padding: '16px 20px'
+  },
+  deleteCancelButtonMobile: {
+    fontSize: '34px',
+    padding: '16px 20px'
   },
   emptyState: {
     marginTop: '60px',

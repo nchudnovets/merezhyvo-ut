@@ -42,7 +42,7 @@ import { registerHistoryIpc } from './lib/history-ipc';
 import { registerBookmarksIpc } from './lib/bookmarks-ipc';
 import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { registerFileDialogIpc } from './lib/file-dialog-ipc';
-import { getAutofillStateForWebContents, registerPasswordsIpc } from './lib/pw/ipc';
+import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 // import { installPermissionHandlers } from './lib/permissions';
@@ -783,24 +783,33 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
     if (!wc || wc.isDestroyed()) return;
 
-    if (id.startsWith('pw-fill:')) {
-      const entryId = id.slice('pw-fill:'.length);
-      console.log('[pw] context menu fill requested', { entryId });
-      try {
-        const secret = getEntrySecret(entryId);
-        console.log('[pw] context menu secret retrieved', { entryId });
-        wc.send('merezhyvo:pw:fill', {
-          entryId,
-          username: secret.username,
-          password: secret.password
-        });
-      } catch {
-        // ignore
+      if (id.startsWith('pw-fill:')) {
+        const entryId = id.slice('pw-fill:'.length);
+        try {
+          const secret = getEntrySecret(entryId);
+          wc.send('merezhyvo:pw:fill', {
+            entryId,
+            username: secret.username,
+            password: secret.password
+          });
+        } catch {
+          // ignore
+        }
+        return;
       }
-      return;
-    }
-    if (id === 'pw-manage' || id === 'pw-unlock') {
-      windows.openInMain('mzr://passwords', { activate: true });
+    if (id === 'pw-unlock') {
+      const ctx = global.lastCtx;
+      const pageUrl = ctx?.params?.pageURL ?? '';
+      const siteName = (() => {
+        try {
+          const parsed = pageUrl ? new URL(pageUrl) : null;
+          return parsed?.hostname ?? '';
+        } catch {
+          return '';
+        }
+      })();
+      const origin = pageUrl || ctx?.linkUrl || '';
+      requestUnlockDialog({ siteName: siteName || undefined, origin: origin || undefined });
       return;
     }
 

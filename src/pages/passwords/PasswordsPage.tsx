@@ -88,21 +88,6 @@ type ExportCsvDialogState = {
   acknowledged: boolean;
 };
 
-type ImportEncryptedDialogState = {
-  open: boolean;
-  loading: boolean;
-  mode: PasswordImportMode;
-  password: string;
-  content: string;
-  error: string | null;
-};
-
-type ExportEncryptedDialogState = {
-  open: boolean;
-  loading: boolean;
-  password: string;
-};
-
 const formatTimestampFilename = (suffix: string) => {
   const now = new Date();
   const pad = (value: number) => String(value).padStart(2, '0');
@@ -122,6 +107,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
   const [currentEntry, setCurrentEntry] = useState<PasswordEntryMeta | null>(null);
   const [showPassword, setShowPassword] = useState(false);
   const [bannerMessage, setBannerMessage] = useState<string | null>(null);
+  const [deleteRequestId, setDeleteRequestId] = useState<string | null>(null);
   const [importCsvDialog, setImportCsvDialog] = useState<CsvImportDialogState>({
     open: false,
     loading: false,
@@ -135,19 +121,6 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     open: false,
     loading: false,
     acknowledged: false
-  });
-  const [importEncryptedDialog, setImportEncryptedDialog] = useState<ImportEncryptedDialogState>({
-    open: false,
-    loading: false,
-    mode: 'add',
-    password: '',
-    content: '',
-    error: null
-  });
-  const [exportEncryptedDialog, setExportEncryptedDialog] = useState<ExportEncryptedDialogState>({
-    open: false,
-    loading: false,
-    password: ''
   });
   const [formValues, setFormValues] = useState({
     origin: '',
@@ -342,107 +315,6 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     } catch {
       showBanner('Couldn’t export CSV');
       setExportCsvDialog((prev) => ({ ...prev, loading: false }));
-    }
-  };
-
-  const handleExportEncryptedOpen = () => {
-    clearBanner();
-    setExportEncryptedDialog({ open: true, loading: false, password: '' });
-  };
-
-  const handleExportEncryptedCancel = () => {
-    setExportEncryptedDialog({ open: false, loading: false, password: '' });
-  };
-
-  const handleExportEncryptedConfirm = async () => {
-    if (!exportEncryptedDialog.open) return;
-    setExportEncryptedDialog((prev) => ({ ...prev, loading: true }));
-    try {
-      const result = await window.merezhyvo?.passwords?.export.mzrpass(
-        exportEncryptedDialog.password || undefined
-      );
-      if (!result) throw new Error('Unable to export encrypted file');
-      const folder = await pickFolder('Export passwords (Encrypted)');
-      if (!folder) {
-        setExportEncryptedDialog((prev) => ({ ...prev, loading: false }));
-        return;
-      }
-      const content =
-        typeof result.content === 'string'
-          ? result.content
-          : Buffer.isBuffer(result.content)
-            ? result.content.toString('utf8')
-            : String(result.content);
-      await saveFileToFolder(folder, result.filenameSuggested, content);
-      clearBanner();
-      showToast(`Exported to ${result.filenameSuggested}`);
-      handleExportEncryptedCancel();
-    } catch {
-      showBanner('Couldn’t export passwords securely');
-      setExportEncryptedDialog((prev) => ({ ...prev, loading: false }));
-    }
-  };
-
-  const handleImportEncryptedFile = async () => {
-    clearBanner();
-    const choice = await requestFileDialog({
-      kind: 'file',
-      title: 'Import passwords (Encrypted)',
-      allowMultiple: false,
-      filters: ['mzrpass']
-    });
-    const path = choice?.paths?.[0];
-    if (!path) return;
-    try {
-      const content = await window.merezhyvo?.fileDialog?.readFile?.({ path });
-      if (typeof content !== 'string') throw new Error('Unable to read file');
-      setImportEncryptedDialog({
-        open: true,
-        loading: false,
-        mode: 'add',
-        password: '',
-        content,
-        error: null
-      });
-    } catch {
-      showBanner('Couldn’t import this file. It does not look like a passwords backup.');
-    }
-  };
-
-  const handleImportEncryptedMode = (mode: PasswordImportMode) => {
-    setImportEncryptedDialog((prev) => ({ ...prev, mode }));
-  };
-
-  const handleImportEncryptedCancel = () => {
-    setImportEncryptedDialog({
-      open: false,
-      loading: false,
-      mode: 'add',
-      password: '',
-      content: '',
-      error: null
-    });
-  };
-
-  const handleApplyImportEncrypted = async () => {
-    if (!importEncryptedDialog.content) return;
-    setImportEncryptedDialog((prev) => ({ ...prev, loading: true, error: null }));
-    try {
-      await window.merezhyvo?.passwords?.import.mzrpass.apply({
-        content: importEncryptedDialog.content,
-        mode: importEncryptedDialog.mode,
-        password: importEncryptedDialog.password || undefined
-      });
-      showToast('Import completed');
-      closeModal();
-      handleImportEncryptedCancel();
-      void refreshEntries();
-    } catch (err) {
-      const message =
-        err instanceof Error
-          ? err.message
-          : 'Couldn’t import this file. It does not look like a passwords backup.';
-      setImportEncryptedDialog((prev) => ({ ...prev, loading: false, error: message }));
     }
   };
 
@@ -644,9 +516,26 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     setOverflowOpen(false);
   };
 
-  const handleSettings = () => {
-    showToast('Settings coming soon');
-    setOverflowOpen(false);
+  const handleDeleteRequest = (entryId: string) => {
+    setDeleteRequestId((prev) => (prev === entryId ? null : entryId));
+  };
+
+  const handleCancelDelete = () => {
+    setDeleteRequestId(null);
+  };
+
+  const handleConfirmDelete = async (entryId: string) => {
+    const api = window.merezhyvo?.passwords;
+    if (!api) return;
+    try {
+      await api.remove(entryId);
+      showToast('Password deleted');
+      void refreshEntries();
+    } catch {
+      showToast('Couldn’t delete password');
+    } finally {
+      setDeleteRequestId(null);
+    }
   };
 
   const handleOverflowToggle = () => {
@@ -729,6 +618,20 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     passwordsStyles.entryActionButton,
     isMobile ? passwordsStyles.entryActionButtonMobile : undefined
   );
+  const deleteEntryButtonStyle = mergeStyle(
+    entryActionButtonStyle,
+    passwordsStyles.entryActionButtonDanger
+  );
+  const deleteConfirmButtonStyle = mergeStyle(
+    entryActionButtonStyle,
+    passwordsStyles.deleteConfirmButton,
+    isMobile ? passwordsStyles.deleteConfirmButtonMobile : undefined
+  );
+  const deleteCancelButtonStyle = mergeStyle(
+    entryActionButtonStyle,
+    passwordsStyles.deleteCancelButton,
+    isMobile ? passwordsStyles.deleteCancelButtonMobile : undefined
+  );
   const modalLabelStyle = mergeStyle(
     passwordsStyles.modalLabel,
     isMobile ? passwordsStyles.modalLabelMobile : undefined
@@ -793,18 +696,6 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 )}
                 onClick={() => {
                   setOverflowOpen(false);
-                  void handleImportEncryptedFile();
-                }}
-              >
-                Import (Encrypted)…
-              </div>
-              <div
-                style={mergeStyle(
-                  passwordsStyles.overflowItem,
-                  isMobile ? passwordsStyles.overflowItemMobile : undefined
-                )}
-                onClick={() => {
-                  setOverflowOpen(false);
                   handleExportCsvOpen();
                 }}
               >
@@ -815,30 +706,9 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   passwordsStyles.overflowItem,
                   isMobile ? passwordsStyles.overflowItemMobile : undefined
                 )}
-                onClick={() => {
-                  setOverflowOpen(false);
-                  handleExportEncryptedOpen();
-                }}
-              >
-                Export (Encrypted)…
-              </div>
-              <div
-                style={mergeStyle(
-                  passwordsStyles.overflowItem,
-                  isMobile ? passwordsStyles.overflowItemMobile : undefined
-                )}
                 onClick={handleLockNow}
               >
                 Lock now
-              </div>
-              <div
-                style={mergeStyle(
-                  passwordsStyles.overflowItem,
-                  isMobile ? passwordsStyles.overflowItemMobile : undefined
-                )}
-                onClick={handleSettings}
-              >
-                Settings…
               </div>
             </div>
           )}
@@ -980,7 +850,47 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                           >
                             Edit
                           </button>
+                          <button
+                            type="button"
+                            style={deleteEntryButtonStyle}
+                            onClick={() => handleDeleteRequest(entry.id)}
+                          >
+                            Delete
+                          </button>
                         </div>
+                        {deleteRequestId === entry.id && (
+                          <div
+                            style={mergeStyle(
+                              passwordsStyles.deleteConfirmation,
+                              isMobile ? passwordsStyles.deleteConfirmationMobile : undefined
+                            )}
+                          >
+                            <span
+                              style={mergeStyle(
+                                passwordsStyles.deleteConfirmationText,
+                                isMobile ? passwordsStyles.deleteConfirmationTextMobile : undefined
+                              )}
+                            >
+                              Are you sure you want to delete this password?
+                            </span>
+                            <div style={passwordsStyles.deleteConfirmationActions}>
+                              <button
+                                type="button"
+                                style={deleteCancelButtonStyle}
+                                onClick={handleCancelDelete}
+                              >
+                                Cancel
+                              </button>
+                              <button
+                                type="button"
+                                style={deleteConfirmButtonStyle}
+                                onClick={() => handleConfirmDelete(entry.id)}
+                              >
+                                Delete
+                              </button>
+                            </div>
+                          </div>
+                        )}
                         {(entry.notes || (entry.tags && entry.tags.length)) && (
                           <div
                             style={mergeStyle(
@@ -1156,8 +1066,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                       fontSize: isMobile ? '34px' : '14px',
                       borderColor:
                         importCsvDialog.mode === modeOption ? '#2563eb' : 'rgba(148, 163, 184, 0.4)',
-                      backgroundColor:
-                        importCsvDialog.mode === modeOption ? 'rgba(59, 130, 246, 0.15)' : undefined
+                      backgroundColor: 'rgba(59, 130, 246, 0.15)'
                     }
                   )}
                 >
@@ -1256,163 +1165,6 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 disabled={!exportCsvDialog.acknowledged || exportCsvDialog.loading}
               >
                 {exportCsvDialog.loading ? 'Exporting…' : 'Export'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {exportEncryptedDialog.open && (
-        <div style={passwordsStyles.modalOverlay} onClick={handleExportEncryptedCancel}>
-          <div
-            style={{
-              ...modalStyle,
-              ...(isMobile ? { width: '90vw' } : {})
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div style={passwordsStyles.modalHeader}>
-              <h2
-                style={mergeStyle(
-                  passwordsStyles.modalTitle,
-                  isMobile ? { fontSize: '38px' } : undefined
-                )}
-              >
-                Export (Encrypted)
-              </h2>
-              <button
-                type="button"
-                aria-label="Close modal"
-                style={passwordsStyles.modalClose}
-                onClick={handleExportEncryptedCancel}
-              >
-                ✕
-              </button>
-            </div>
-            <label style={modalLabelStyle}>Set export password</label>
-            <input
-              type="password"
-              value={exportEncryptedDialog.password}
-              onChange={(event) =>
-                setExportEncryptedDialog((prev) => ({ ...prev, password: event.target.value }))
-              }
-              style={mergeStyle(
-                passwordsStyles.modalInput,
-                isMobile ? { fontSize: '38px', padding: '16px 18px' } : undefined
-              )}
-              placeholder="Optional password"
-            />
-            <p style={{ fontSize: isMobile ? '38px' : '14px' }}>
-              Leave blank to reuse the current master password.
-            </p>
-            <div style={modalActionsStyle}>
-              <button
-                type="button"
-                style={secondaryButtonStyle}
-                onClick={handleExportEncryptedCancel}
-                disabled={exportEncryptedDialog.loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                onClick={handleExportEncryptedConfirm}
-                disabled={exportEncryptedDialog.loading}
-              >
-                {exportEncryptedDialog.loading ? 'Exporting…' : 'Export'}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-      {importEncryptedDialog.open && (
-        <div style={passwordsStyles.modalOverlay} onClick={handleImportEncryptedCancel}>
-          <div
-            style={{
-              ...modalStyle,
-              ...(isMobile ? { width: '90vw' } : {})
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <div style={passwordsStyles.modalHeader}>
-              <h2
-                style={mergeStyle(
-                  passwordsStyles.modalTitle,
-                  isMobile ? { fontSize: '38px' } : undefined
-                )}
-              >
-                Import passwords (Encrypted)
-              </h2>
-              <button
-                type="button"
-                aria-label="Close modal"
-                style={passwordsStyles.modalClose}
-                onClick={handleImportEncryptedCancel}
-              >
-                ✕
-              </button>
-            </div>
-            <p style={{ fontSize: isMobile ? '38px' : '14px' }}>
-              Enter the password for the encrypted backup.
-            </p>
-            <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
-              {['add', 'replace'].map((modeOption) => (
-                <button
-                  key={modeOption}
-                  type="button"
-                  onClick={() => handleImportEncryptedMode(modeOption as PasswordImportMode)}
-                  style={mergeStyle(
-                    secondaryButtonStyle,
-                    {
-                      fontSize: isMobile ? '34px' : '14px',
-                      borderColor:
-                        importEncryptedDialog.mode === modeOption
-                          ? '#2563eb'
-                          : 'rgba(148, 163, 184, 0.4)',
-                      backgroundColor:
-                        importEncryptedDialog.mode === modeOption
-                          ? 'rgba(59, 130, 246, 0.15)'
-                          : undefined
-                    }
-                  )}
-                >
-                  {modeOption === 'add' ? 'Add' : 'Replace all'}
-                </button>
-              ))}
-            </div>
-            <label style={modalLabelStyle}>Password</label>
-            <input
-              type="password"
-              value={importEncryptedDialog.password}
-              onChange={(event) =>
-                setImportEncryptedDialog((prev) => ({ ...prev, password: event.target.value }))
-              }
-              style={mergeStyle(
-                passwordsStyles.modalInput,
-                isMobile ? { fontSize: '38px', padding: '16px 18px' } : undefined
-              )}
-            />
-            {importEncryptedDialog.error && (
-              <div style={{ color: '#f87171', fontSize: isMobile ? '38px' : '14px' }}>
-                {importEncryptedDialog.error}
-              </div>
-            )}
-            <div style={modalActionsStyle}>
-              <button
-                type="button"
-                style={secondaryButtonStyle}
-                onClick={handleImportEncryptedCancel}
-                disabled={importEncryptedDialog.loading}
-              >
-                Cancel
-              </button>
-              <button
-                type="button"
-                style={primaryButtonStyle}
-                onClick={handleApplyImportEncrypted}
-                disabled={importEncryptedDialog.loading}
-              >
-                {importEncryptedDialog.loading ? 'Importing…' : 'Import'}
               </button>
             </div>
           </div>

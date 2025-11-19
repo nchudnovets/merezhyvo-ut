@@ -50,13 +50,8 @@ type CapturePayload = {
   password: string;
 };
 
-type PendingCapture = {
-  captureId: string;
-  payload: CapturePayload;
-};
-
 const captureStore = new Map<string, CapturePayload>();
-let pendingCapture: PendingCapture | null = null;
+const pendingActions = new Map<string, { action: CaptureAction; entryId?: string }>();
 type CaptureAction = 'save' | 'update' | 'keep-both' | 'never';
 const captureActionSet: Set<CaptureAction> = new Set(['save', 'update', 'keep-both', 'never']);
 
@@ -68,6 +63,45 @@ const getCapturePayload = (captureId: string): CapturePayload | null => {
 
 const clearCapturePayload = (captureId: string): void => {
   captureStore.delete(captureId);
+};
+
+const applyCaptureAction = async (captureId: string, record: { action: CaptureAction; entryId?: string }) => {
+  const payload = getCapturePayload(captureId);
+  if (!payload) {
+    return { error: 'Capture data unavailable' };
+  }
+  if (record.action === 'never') {
+    blacklist.add(payload.origin);
+    await save();
+    resetAutoLock();
+    clearCapturePayload(captureId);
+    pendingActions.delete(captureId);
+    return { ok: true };
+  }
+  const entryResult = addOrUpdateEntry({
+    id: record.action === 'update' ? record.entryId : undefined,
+    origin: payload.origin,
+    signonRealm: payload.signonRealm,
+    formAction: payload.formAction,
+    username: payload.username ?? '',
+    password: payload.password
+  });
+  await save();
+  resetAutoLock();
+  clearCapturePayload(captureId);
+  pendingActions.delete(captureId);
+  return { ok: true, updated: entryResult.updated };
+};
+
+const processPendingActions = async (): Promise<void> => {
+  if (!isVaultUnlocked()) return;
+  for (const [captureId, record] of Array.from(pendingActions.entries())) {
+    try {
+      await applyCaptureAction(captureId, record);
+    } catch {
+      // ignore errors
+    }
+  }
 };
 
 const getSiteName = (origin: string): string => {
@@ -108,14 +142,13 @@ const broadcastPrompt = (captureId: string, payload: CapturePayload, siteName: s
   console.log('[pw] prompt', { captureId, siteName, isUpdate, entryId });
 };
 
-  const broadcastUnlockRequired = (captureId: string, payload: CapturePayload, siteName: string): void => {
-    broadcastToRenderers('merezhyvo:pw:unlock-required', {
-      captureId,
-      origin: payload.origin,
-    username: payload.username ?? '',
-    siteName
-  });
+const requestUnlockDialog = (payload: { siteName?: string; origin?: string; username?: string }) => {
+  broadcastToRenderers('merezhyvo:pw:unlock-required', payload);
 };
+
+export { requestUnlockDialog };
+
+// remove broadcast unlock required per new UX
 
 const processCapturePayload = (payload: CapturePayload, captureId?: string): void => {
   const settings = getCachedSettings();
@@ -133,22 +166,15 @@ const processCapturePayload = (payload: CapturePayload, captureId?: string): voi
   const id = registerCapture(payload, captureId);
   const siteName = getSiteName(payload.origin);
 
+  let existingId: string | undefined;
   if (isVaultUnlocked()) {
     const entries = getEntriesMeta();
     const existing = entries.find(
       (entry) => entry.signonRealm === payload.signonRealm && entry.username === payload.username
     );
-    broadcastPrompt(id, payload, siteName, Boolean(existing), existing?.id);
-  } else {
-    pendingCapture = { captureId: id, payload };
-    broadcastUnlockRequired(id, payload, siteName);
+    existingId = existing?.id;
   }
-};
-
-const processPendingCapture = (): void => {
-  if (!pendingCapture) return;
-  processCapturePayload(pendingCapture.payload, pendingCapture.captureId);
-  pendingCapture = null;
+  broadcastPrompt(id, payload, siteName, Boolean(existingId), existingId);
 };
 type FocusFieldDetail = {
   origin: string;
@@ -340,6 +366,7 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     }
     try {
       await loadVault(masterValue);
+      await processPendingActions();
     } catch (err) {
       return { error: String(err) };
     }
@@ -349,7 +376,6 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
         : null;
     autoLockDurationMs = minutes ? minutes * 60000 : null;
     resetAutoLock();
-    processPendingCapture();
     return { ok: true };
   });
 
@@ -489,10 +515,10 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     if (!payload || typeof payload !== 'object') {
       return { error: 'Invalid payload' };
     }
-    const record = payload as { captureId?: unknown; action?: unknown; entryId?: unknown };
-    const captureId = toString(record.captureId);
-    const actionRaw = typeof record.action === 'string' ? record.action : '';
-    const entryId = toString(record.entryId);
+    const actionRecord = payload as { captureId?: unknown; action?: unknown; entryId?: unknown };
+    const captureId = toString(actionRecord.captureId);
+    const actionRaw = typeof actionRecord.action === 'string' ? actionRecord.action : '';
+    const entryId = toString(actionRecord.entryId);
     if (!captureId || !actionRaw) {
       return { error: 'Capture id and action are required' };
     }
@@ -504,46 +530,12 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     if (!capture) {
       return { error: 'Capture data unavailable' };
     }
-    console.log('[pw] capture action', { captureId, action, entryId });
-
-    const applyEntry = async (targetId?: string) => {
-      const username = capture.username ?? '';
-      const entryResult = addOrUpdateEntry({
-        id: targetId,
-        origin: capture.origin,
-        signonRealm: capture.signonRealm,
-        formAction: capture.formAction,
-        username,
-        password: capture.password
-      });
-      await save();
-      resetAutoLock();
-      clearCapturePayload(captureId);
-      return { ok: true as const, updated: entryResult.updated };
-    };
-
-    const originOnly = capture.origin;
-
-    if (action === 'never') {
-      blacklist.add(originOnly);
-      await save();
-      resetAutoLock();
-      clearCapturePayload(captureId);
-      return { ok: true };
+    const queuedEntry = { action, entryId };
+    if (!isVaultUnlocked()) {
+      pendingActions.set(captureId, queuedEntry);
+      return { ok: true, queued: true };
     }
-
-    if (action === 'update') {
-      if (!entryId) {
-        return { error: 'Entry id is required to update' };
-      }
-      return applyEntry(entryId);
-    }
-
-    if (action === 'save' || action === 'keep-both') {
-      return applyEntry(undefined);
-    }
-
-    return { error: 'Unknown action' };
+    return applyCaptureAction(captureId, queuedEntry);
   });
 
   ipcMain.handle('merezhyvo:pw:notify-field-focus', (_event, payload) => {

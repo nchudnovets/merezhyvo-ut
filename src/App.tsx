@@ -2518,20 +2518,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => {
     const handlePrompt = (event: Event) => {
       const detail = (event as CustomEvent<PasswordPromptPayload>).detail;
-      console.log('[pw] renderer prompt received', detail);
       setPasswordPrompt(detail);
     };
     window.addEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
     return () => window.removeEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
-  }, []);
-
-  useEffect(() => {
-    return () => {
-      if (globalToastTimerRef.current) {
-        window.clearTimeout(globalToastTimerRef.current);
-        globalToastTimerRef.current = null;
-      }
-    };
   }, []);
 
   useEffect(() => {
@@ -2545,6 +2535,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     window.addEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
     return () => window.removeEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
   }, [fetchPasswordStatus]);
+
+  useEffect(() => {
+    return () => {
+      if (globalToastTimerRef.current) {
+        window.clearTimeout(globalToastTimerRef.current);
+        globalToastTimerRef.current = null;
+      }
+    };
+  }, []);
 
   useEffect(() => {
     void fetchPasswordStatus();
@@ -2566,7 +2565,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (!passwordPrompt) return;
       const api = window.merezhyvo?.passwords;
       if (!api) {
-        console.error('[pw] capture action attempted without API');
         showGlobalToast('Unable to reach passwords service');
         return;
       }
@@ -2585,6 +2583,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           } else {
             showGlobalToast('Password saved');
           }
+          setPasswordPrompt(null);
         } else {
           showGlobalToast(result?.error ?? 'Unable to save password');
         }
@@ -2593,7 +2592,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         showGlobalToast('Unable to save password');
       } finally {
         setPasswordPromptBusy(false);
-        setPasswordPrompt(null);
       }
     },
     [passwordPrompt, showGlobalToast]
@@ -2662,19 +2660,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setUnlockError(null);
       try {
         const result = await api.unlock(master, durationMinutes);
-        if (result?.ok) {
-          await fetchPasswordStatus();
-          setShowUnlockModal(false);
-          setUnlockPayload(null);
-        if (pendingSettingsReopen) {
-          setPendingSettingsReopen(false);
-          setSettingsScrollTarget('passwords');
-          setTimeout(() => {
-            openSettingsModal();
-          }, 0);
-        }
-          return true;
-        }
+    if (result?.ok) {
+      await fetchPasswordStatus();
+      setShowUnlockModal(false);
+      setUnlockPayload(null);
+      if (pendingSettingsReopen) {
+        setPendingSettingsReopen(false);
+        setSettingsScrollTarget('passwords');
+        setTimeout(() => {
+          openSettingsModal();
+        }, 0);
+      }
+      window.dispatchEvent(new CustomEvent('merezhyvo:pw:unlocked'));
+      return true;
+    }
         setUnlockError(result?.error ?? 'Master password is incorrect');
         return false;
       } catch (err) {

@@ -119,7 +119,6 @@ function appendAutofillSection(menu: HTMLElement, autofill?: ContextMenuState['a
       menu.appendChild(item(label, `pw-fill:${option.id}`));
     });
   }
-  menu.appendChild(item('Manage passwords…', 'pw-manage'));
 }
 
 function normalizeState(raw: unknown): ContextMenuState {
