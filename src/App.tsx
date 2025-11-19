@@ -2731,6 +2731,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           url,
           webContentsId: typeof webContentsId === 'number' ? webContentsId : undefined
         });
+        try {
+          const parsed = new URL(url);
+          const origin = `${parsed.protocol}//${parsed.host}`;
+          await window.merezhyvo?.history?.remove?.({ origin });
+        } catch {
+          // ignore parse/remove errors
+        }
         closeTabAction(id);
         return Boolean(result?.ok);
       }
