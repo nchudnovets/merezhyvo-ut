@@ -15,6 +15,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     overflow: 'hidden',
     margin: '0 auto'
   },
+  pageMobile: {
+    maxWidth: '100%',
+  },
   header: {
     display: 'flex',
     alignItems: 'center',

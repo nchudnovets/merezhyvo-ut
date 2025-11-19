@@ -578,6 +578,10 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     entries: group.entries.sort((a, b) => b.lastUsedAt - a.lastUsedAt)
   }));
 
+  const pageStyle = mergeStyle(
+    passwordsStyles.page,
+    isMobile ? passwordsStyles.pageMobile : undefined
+  );
   const actionButtonStyle = mergeStyle(
     passwordsStyles.actionButton,
     isMobile ? passwordsStyles.actionButtonMobile : undefined
@@ -650,7 +654,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
   );
 
   return (
-    <div style={passwordsStyles.page}>
+    <div style={pageStyle}>
       <div style={passwordsStyles.header}>
         <h1
           style={mergeStyle(
@@ -752,8 +756,14 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
           mappedGroups.map((group) => (
             <div key={group.signonRealm} style={passwordsStyles.group}>
               <div style={passwordsStyles.groupHeader}>
-                <span style={passwordsStyles.groupTitle}>{group.siteName}</span>
-                <span style={passwordsStyles.groupMeta}>{group.entries.length} accounts</span>
+                <span style={mergeStyle(
+                  passwordsStyles.groupTitle,
+                  { fontSize: isMobile ? '38px' : '18px' }
+                )}>{group.siteName}</span>
+                <span style={mergeStyle(
+                  passwordsStyles.groupMeta,
+                  { fontSize: isMobile ? '38px' : '18px' }
+                )}>{group.entries.length} accounts</span>
               </div>
               {group.entries.map((entry) => {
                 const isExpanded = expandedEntryId === entry.id;
@@ -763,7 +773,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                     <div
                       style={mergeStyle(
                         passwordsStyles.entryHeader,
-                        { fontSize: isMobile ? '38px' : '18px' }
+                        { fontSize: isMobile ? '42px' : '21px' }
                       )}
                       onClick={() => toggleEntry(entry.id)}
                     >
@@ -775,7 +785,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                       >
                         {entry.signonRealm || entry.origin}
                       </span>
-                      <span style={{ fontSize: isMobile ? '38px' : '24px', marginLeft: '12px' }}>
+                      <span style={{ fontSize: isMobile ? '42px' : '24px', marginLeft: '12px' }}>
                         {isExpanded ? '⌃' : '⌄'}
                       </span>
                     </div>
