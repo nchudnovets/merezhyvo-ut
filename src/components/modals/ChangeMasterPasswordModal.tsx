@@ -43,7 +43,7 @@ const labelStyle: CSSProperties = {
 };
 
 const inputBaseStyle: CSSProperties = {
-  width: '100%',
+  width: '95%',
   borderRadius: '14px',
   border: '1px solid rgba(148, 163, 184, 0.4)',
   background: '#0b1220',

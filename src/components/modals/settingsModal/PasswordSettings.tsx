@@ -246,7 +246,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           ))}
         </select>
       </div>
-      {!isPasswordsLocked && (
+      {(!hasMaster || !isPasswordsLocked) && (
         <div style={rowStyle}>
           <button
             type="button"
