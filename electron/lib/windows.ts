@@ -56,6 +56,53 @@ type FileDialogDetails = {
 
 const autoCloseSkipIds = new Set<number>();
 
+const DEFAULT_DOWNLOAD_BASENAME = 'download';
+
+const ensureUniqueFilenameSync = (dir: string, base: string): string => {
+  const normalized = downloads.sanitizeFilename(base || DEFAULT_DOWNLOAD_BASENAME);
+  const ext = path.extname(normalized);
+  const name = path.basename(normalized, ext) || DEFAULT_DOWNLOAD_BASENAME;
+  let candidate = normalized;
+  let idx = 1;
+  while (fs.existsSync(path.join(dir, candidate))) {
+    idx += 1;
+    candidate = `${name} (${idx})${ext}`;
+  }
+  return candidate;
+};
+
+const deriveDownloadFilename = (item: DownloadItem, url: string): string => {
+  try {
+    const suggested = item.getFilename?.();
+    if (suggested) {
+      return downloads.sanitizeFilename(suggested);
+    }
+  } catch {
+    // noop
+  }
+  if (url) {
+    try {
+      const parsed = new URL(url);
+      if (parsed.pathname) {
+        const candidate = path.basename(parsed.pathname);
+        if (candidate) {
+          return downloads.sanitizeFilename(candidate);
+        }
+      }
+    } catch {
+      // noop
+    }
+  }
+  return downloads.sanitizeFilename(DEFAULT_DOWNLOAD_BASENAME);
+};
+
+const normalizeDownloadBytes = (value?: number): number | undefined => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return undefined;
+  }
+  return value;
+};
+
 export function skipAutoCloseForDownload(webContentsId: number): void {
   if (!Number.isFinite(webContentsId)) return;
   autoCloseSkipIds.add(webContentsId);
@@ -682,14 +729,77 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       // noop
     }
   };
+
+  const closeDownloadContentsIfNeeded = (
+    downloadContents: WebContents | null,
+    downloadUrl: string
+  ): void => {
+    if (!downloadContents) return;
+    if (autoCloseSkipIds.has(downloadContents.id)) {
+      autoCloseSkipIds.delete(downloadContents.id);
+      return;
+    }
+    typedWin.webContents.send('mzr-close-tab', {
+      webContentsId: downloadContents.id,
+      url: downloadUrl
+    });
+  };
+
+  const handleNativeItemDownload = (item: DownloadItem, downloadUrl: string): void => {
+    try {
+      const targetDir = downloads.getDefaultDir();
+      if (!targetDir) return;
+      ensureDir(targetDir);
+      const suggested = deriveDownloadFilename(item, downloadUrl);
+      const filename = ensureUniqueFilenameSync(targetDir, suggested);
+      const finalPath = path.join(targetDir, filename);
+      item.setSavePath(finalPath);
+      const manualHandle = downloads.beginManualDownload({
+        url: downloadUrl,
+        filename,
+        total: normalizeDownloadBytes(item.getTotalBytes())
+      });
+      const updateProgress = () => {
+        manualHandle.updateProgress(
+          item.getReceivedBytes(),
+          normalizeDownloadBytes(item.getTotalBytes())
+        );
+      };
+      updateProgress();
+      const cleanup = () => {
+        try {
+          item.off('updated', updateProgress);
+        } catch {
+          // noop
+        }
+      };
+      item.on('updated', updateProgress);
+      item.once('done', (_event, state) => {
+        cleanup();
+        const success = state === 'completed';
+        const errorMessage = success
+          ? undefined
+          : state === 'cancelled'
+          ? 'download cancelled'
+          : state === 'interrupted'
+          ? 'download interrupted'
+          : `download ${state}`;
+        manualHandle.finalize(success, errorMessage);
+      });
+    } catch (err) {
+      console.error('[downloads] native download handling failed', err);
+    }
+  };
   const handleWillDownload = (event: Event, item: DownloadItem, downloadContents: WebContents | null) => {
     const url = typeof item.getURL === 'function' ? item.getURL() || '' : '';
     const isHttpDownload = /^https?:\/\//.test(url);
+    closeBlankDownloadTab(downloadContents, url);
     if (!isHttpDownload) {
+      handleNativeItemDownload(item, url);
+      closeDownloadContentsIfNeeded(downloadContents, url);
       return;
     }
     event.preventDefault();
-    closeBlankDownloadTab(downloadContents, url);
     const refGetter = (item as { getReferrerURL?: () => unknown }).getReferrerURL;
     let referer =
       typeof refGetter === 'function' ? (refGetter() as string | undefined) : undefined;
@@ -702,18 +812,7 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       }
     }
     downloads.enqueue(url, referer, downloadContents?.session ?? session.defaultSession);
-    const shouldSkipClose =
-      downloadContents && autoCloseSkipIds.has(downloadContents.id);
-    if (shouldSkipClose) {
-      autoCloseSkipIds.delete(downloadContents.id);
-      return;
-    }
-    if (downloadContents) {
-      typedWin.webContents.send('mzr-close-tab', {
-        webContentsId: downloadContents.id,
-        url
-      });
-    }
+    closeDownloadContentsIfNeeded(downloadContents, url);
   };
   typedWin.webContents.session.on('will-download', handleWillDownload);
   try {

@@ -22,6 +22,14 @@ type DownloadEntry = {
   error?: string;
   request?: ClientRequest;
   stream?: fs.WriteStream;
+  streamErrorHandler?: (error: Error) => void;
+  cleanup?: () => void;
+};
+
+export type ManualDownloadHandle = {
+  id: string;
+  updateProgress: (received: number, total?: number) => void;
+  finalize: (success: boolean, error?: string) => void;
 };
 
 const DOWNLOAD_SETTINGS = {
@@ -35,9 +43,12 @@ const activeIds = new Set<string>();
 const stateListeners: Array<(entry: DownloadEntry) => void> = [];
 const progressListeners: Array<(entry: DownloadEntry) => void> = [];
 
+const createEntryId = (): string =>
+  `dl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
 const normalizeConcurrent = (value: number): number => Math.min(3, Math.max(1, Math.round(value)));
 
-const sanitizeFilename = (raw: string): string => {
+export const sanitizeFilename = (raw: string): string => {
   const name = raw.replace(/\s+/g, ' ').trim() || 'download';
   const illegal = /[\\/?%*:|"<>]/g;
   return name.replace(illegal, '_').replace(/\.+$/, '') || 'download';
@@ -120,17 +131,32 @@ const finalizeEntry = (entry: DownloadEntry, success: boolean, errorMessage?: st
   if (!success && errorMessage) {
     entry.error = errorMessage;
   }
-  if (entry.stream) {
-    entry.stream.destroy();
-    entry.stream = undefined;
+  entry.cleanup?.();
+  entry.cleanup = undefined;
+  const stream = entry.stream;
+  const streamErrorHandler = entry.streamErrorHandler;
+  entry.stream = undefined;
+  entry.streamErrorHandler = undefined;
+  if (stream) {
+    if (!success && !stream.destroyed) {
+      try {
+        stream.destroy();
+      } catch {
+        // ignore destroy errors
+      }
+    }
+    if (streamErrorHandler) {
+      try {
+        stream.off('error', streamErrorHandler);
+      } catch {
+        // noop
+      }
+    }
   }
   if (entry.request) {
     entry.request.abort();
     entry.request = undefined;
   }
-  console.log(
-    `[downloads] finalize ${entry.id} state=${entry.state} filename=${entry.filename} error=${entry.error ?? '<none>'}`
-  );
   emitState(entry);
   tryStartNext();
 };
@@ -150,14 +176,12 @@ const issueRequest = (entry: DownloadEntry, dir: string): void => {
   }
 
   request.on('error', (err) => {
-    console.error(`[downloads] request error ${entry.id}`, err);
     const message = typeof err === 'object' ? String((err as Error).message ?? err) : String(err);
     const shouldRetry =
       entry.referer && !entry.retriedWithoutReferer && message.includes('ERR_BLOCKED_BY_CLIENT');
     if (shouldRetry) {
       entry.referer = undefined;
       entry.retriedWithoutReferer = true;
-      console.log(`[downloads] retrying ${entry.id} without referer`);
       entry.request = undefined;
       issueRequest(entry, dir);
       return;
@@ -166,7 +190,6 @@ const issueRequest = (entry: DownloadEntry, dir: string): void => {
   });
 
   request.on('response', (response: IncomingMessage) => {
-    console.log(`[downloads] response ${entry.id} status=${response.statusCode}`);
     handleResponse(entry, response, dir).catch((err) => {
       finalizeEntry(entry, false, String(err));
     });
@@ -181,7 +204,6 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
   entry.startedAt = Date.now();
   emitState(entry);
   activeIds.add(entry.id);
-  console.log(`[downloads] start ${entry.id} ${entry.url}`);
 
   const dir = DOWNLOAD_SETTINGS.defaultDir;
   try {
@@ -219,13 +241,14 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
     // ignore
   };
   stream.on('error', onStreamError);
+  entry.streamErrorHandler = onStreamError;
 
   const cleanup = () => {
-    stream.off('error', onStreamError);
     response.off('data', onData);
     response.off('end', onEnd);
     response.off('error', onErr);
   };
+  entry.cleanup = cleanup;
 
   const onData = (chunk: Buffer) => {
     entry.received += chunk.length;
@@ -254,7 +277,13 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
 
   const onErr = async (err: unknown) => {
     cleanup();
-    stream.destroy();
+    if (!stream.destroyed) {
+      try {
+        stream.destroy();
+      } catch {
+        // ignore destroy errors
+      }
+    }
     console.error(`[downloads] response error ${entry.id}`, err);
     finalizeEntry(entry, false, String(err));
   };
@@ -265,7 +294,7 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
 };
 
 export const enqueue = (url: string, referer?: string, sessionToUse?: Session): string => {
-  const id = `dl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+  const id = createEntryId();
   const filename = sanitizeFilename(path.basename(url) || 'download');
   const entry: DownloadEntry = {
     id,
@@ -307,7 +336,53 @@ export const setDefaultDir = (value: string): void => {
   DOWNLOAD_SETTINGS.defaultDir = value;
 };
 
+export const getDefaultDir = (): string => DOWNLOAD_SETTINGS.defaultDir;
+
 export const setConcurrent = (value: number): void => {
   DOWNLOAD_SETTINGS.concurrent = normalizeConcurrent(value);
   tryStartNext();
+};
+
+const normalizeBytes = (value?: number): number => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) {
+    return 0;
+  }
+  return value;
+};
+
+export const beginManualDownload = (meta: {
+  url: string;
+  filename: string;
+  total?: number;
+}): ManualDownloadHandle => {
+  const id = createEntryId();
+  const entry: DownloadEntry = {
+    id,
+    url: meta.url,
+    filename: sanitizeFilename(meta.filename || 'download'),
+    state: 'downloading',
+    received: 0,
+    total: normalizeBytes(meta.total),
+    startedAt: Date.now()
+  };
+  entries.set(id, entry);
+  activeIds.add(id);
+  emitState(entry);
+
+  const updateProgress = (received: number, total?: number) => {
+    if (entry.state !== 'downloading') return;
+    if (typeof received === 'number' && Number.isFinite(received) && received >= 0) {
+      entry.received = received;
+    }
+    if (typeof total === 'number' && Number.isFinite(total) && total >= 0) {
+      entry.total = total;
+    }
+    emitProgress(entry);
+  };
+
+  const finalize = (success: boolean, error?: string) => {
+    finalizeEntry(entry, success, error);
+  };
+
+  return { id, updateProgress, finalize };
 };
