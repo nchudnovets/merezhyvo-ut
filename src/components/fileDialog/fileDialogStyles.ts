@@ -32,7 +32,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
     position: 'fixed',
     inset: 0,
     background: 'rgba(3, 7, 18, 0.75)',
-    zIndex: 80,
+    zIndex: 4000,
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',

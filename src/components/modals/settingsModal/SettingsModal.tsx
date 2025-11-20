@@ -11,6 +11,7 @@ import type { SettingsAppInfo } from './settingsModalTypes';
 import TorSettings from './TorSettings';
 import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
+import DownloadSettingsSection from './DownloadSettingsSection';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -41,6 +42,12 @@ interface SettingsModalProps {
   messengerOrderSaving: boolean;
   messengerOrderMessage: string;
   onMessengerMove: (id: MessengerId, direction: 'up' | 'down') => void;
+  downloadsDefaultDir: string;
+  downloadsConcurrent: 1 | 2 | 3;
+  downloadsSaving: boolean;
+  onDownloadsChooseFolder: () => void;
+  onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
+  onDownloadsSave: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -71,6 +78,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   messengerOrderSaving,
   messengerOrderMessage,
   onMessengerMove
+  ,
+  downloadsDefaultDir,
+  downloadsConcurrent,
+  downloadsSaving,
+  onDownloadsChooseFolder,
+  onDownloadsConcurrentChange,
+  onDownloadsSave
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -193,6 +207,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onTorContainerChange={onTorContainerChange}
                 onSaveTorContainer={onSaveTorContainer}
                 onTorKeepChange={onTorKeepChange}
+              />
+            }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title="Downloads"
+            body={
+              <DownloadSettingsSection
+                mode={mode}
+                defaultDir={downloadsDefaultDir}
+                concurrent={downloadsConcurrent}
+                saving={downloadsSaving}
+                onChooseFolder={onDownloadsChooseFolder}
+                onConcurrentChange={onDownloadsConcurrentChange}
+                onSave={onDownloadsSave}
               />
             }
           />

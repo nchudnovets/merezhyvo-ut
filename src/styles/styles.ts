@@ -53,6 +53,19 @@ export const styles = {
     alignItems: 'center',
     flex: 1
   },
+  downloadIndicator: {
+    position: 'absolute',
+    right: '8px',
+    top: '50%',
+    transform: 'translateY(-50%)',
+    border: 'none',
+    background: 'transparent',
+    padding: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer'
+  },
   input: {
     flex: 1,
     width: '100%',
@@ -61,44 +74,8 @@ export const styles = {
     border: '1px solid rgba(148, 163, 184, 0.35)',
     backgroundColor: '#0f1729',
     color: '#f8fafc',
-    padding: '0 56px 0 14px',
+    padding: '0 26px 0 14px',
     outline: 'none'
-  },
-  makeAppBtn: {
-    position: 'absolute',
-    top: '50%',
-    right: '12px',
-    transform: 'translateY(-50%)',
-    width: '36px',
-    height: '26px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    pointerEvents: 'auto',
-    background: 'transparent',
-    border: '1px solid rgba(37, 99, 235, 0.7)',
-    borderRadius: '12px',
-    color: '#93c5fd',
-    cursor: 'pointer',
-    transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease',
-    boxShadow: '0 0 0 rgba(37, 99, 235, 0.1)'
-  },
-  statusIndicator: {
-    minWidth: '24px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'flex-end'
-  },
-  statusSvg: { display: 'block' },
-  statusIconReady: { color: '#22c55e' },
-  statusIconError: { color: '#ef4444' },
-  spinner: {
-    width: '16px',
-    height: '16px',
-    borderRadius: '50%',
-    border: '2px solid rgba(148, 163, 184, 0.45)',
-    borderTopColor: '#2563eb',
-    animation: 'app-spin 0.75s linear infinite'
   },
   tabsButton: {
     position: 'relative',
@@ -179,6 +156,19 @@ export const styles = {
     border: 'none',
     backgroundColor: '#05070f',
     touchAction: 'pan-x pan-y pinch-zoom'
+  },
+  downloadToast: {
+    position: 'fixed',
+    top: '18px',
+    right: '18px',
+    background: 'rgba(16, 185, 129, 0.9)',
+    border: '1px solid rgba(34, 197, 94, 0.8)',
+    borderRadius: '12px',
+    padding: '12px 18px',
+    color: '#ffffff',
+    zIndex: 80,
+    maxWidth: '80vw',
+    boxSizing: 'border-box'
   },
   webviewMount: {
     position: 'relative',

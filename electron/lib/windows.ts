@@ -5,13 +5,11 @@ import fs from 'fs';
 import {
   app,
   BrowserWindow,
-  net,
   screen,
   session,
   type App,
   type DownloadItem,
   type Event,
-  type IncomingMessage,
   type Input,
   type Session,
   type WebContents,
@@ -26,6 +24,7 @@ import {
   promptForPaths,
   unlinkGuestWebContents
 } from './file-dialog-ipc';
+import * as downloads from './downloads';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
@@ -50,11 +49,17 @@ const DESKTOP_ONLY_HOSTS = new Set<string>([
 const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10));
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 const fsp = fs.promises;
-const DOWNLOAD_DIALOG_OPTIONS: FileDialogOptions = { kind: 'folder', title: 'Choose download folder', allowMultiple: false };
 type FileDialogDetails = {
   properties?: string[];
   title?: string;
 };
+
+const autoCloseSkipIds = new Set<number>();
+
+export function skipAutoCloseForDownload(webContentsId: number): void {
+  if (!Number.isFinite(webContentsId)) return;
+  autoCloseSkipIds.add(webContentsId);
+}
 
 type WebContentsWithFileDialogHandler = WebContents & {
   setFileDialogHandler?: (
@@ -449,6 +454,30 @@ function findMainWindow(): MerezhyvoWindow | null {
   return null;
 }
 
+downloads.onState((entry) => {
+  const hostContents = findMainWindow()?.webContents;
+  if (!hostContents) return;
+  const status =
+    entry.state === 'downloading'
+      ? 'started'
+      : entry.state === 'completed'
+      ? 'completed'
+      : 'failed';
+  const file = entry.filename || '';
+  hostContents.send('merezhyvo:download-status', { status, file });
+  hostContents.send('merezhyvo:downloads:state', { id: entry.id, state: entry.state });
+});
+
+downloads.onProgress((entry) => {
+  const hostContents = findMainWindow()?.webContents;
+  if (!hostContents) return;
+  hostContents.send('merezhyvo:downloads:progress', {
+    id: entry.id,
+    received: entry.received,
+    total: entry.total
+  });
+});
+
 export function focusMainWindow(winInput?: MerezhyvoWindow | null): void {
   const win = winInput ?? getMainWindow();
   if (!win || win.isDestroyed?.()) return;
@@ -633,23 +662,26 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     webPreferences
   });
   const typedWin = win as MerezhyvoWindow;
-  const downloadToFile = (url: string, savePath: string, sessionToUse: Session) =>
-    new Promise<void>((resolve, reject) => {
-      const request = net.request({ url, session: sessionToUse });
-      request.on('response', (response: IncomingMessage) => {
-        const fileStream = fs.createWriteStream(savePath);
-        response.on('data', (chunk: Buffer) => fileStream.write(chunk));
-        response.on('end', () => { fileStream.end(); resolve(); });
-        response.on('error', (error: Error) => {
-          fileStream.destroy();
-          fs.unlink(savePath, () => {});
-          reject(error);
-        });
-      });
-      request.on('error', (error: Error) => reject(error));
-      request.end();
-    });
 
+const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string): void => {
+    if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return;
+    const host = (contents as WebContentsWithHost).hostWebContents;
+    if (host) return;
+    if (contents.id === typedWin.webContents.id) return;
+    try {
+      const canGoBack = typeof contents.canGoBack === 'function' ? contents.canGoBack() : false;
+      const currentUrl = typeof contents.getURL === 'function' ? contents.getURL() || '' : '';
+      if (canGoBack) return;
+      if (!currentUrl || currentUrl === downloadUrl) {
+        const owner = BrowserWindow.fromWebContents(contents);
+        if (owner && !owner.isDestroyed()) {
+          owner.close();
+        }
+      }
+    } catch {
+      // noop
+    }
+  };
   const handleWillDownload = (event: Event, item: DownloadItem, downloadContents: WebContents | null) => {
     const url = typeof item.getURL === 'function' ? item.getURL() || '' : '';
     const isHttpDownload = /^https?:\/\//.test(url);
@@ -657,35 +689,31 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
       return;
     }
     event.preventDefault();
-    item.cancel();
-    const notifyStatus = (status: 'started' | 'completed' | 'failed', file?: string) => {
+    closeBlankDownloadTab(downloadContents, url);
+    const refGetter = (item as { getReferrerURL?: () => unknown }).getReferrerURL;
+    let referer =
+      typeof refGetter === 'function' ? (refGetter() as string | undefined) : undefined;
+    if (!referer) {
       try {
-        console.log('[download] status', status, file);
-        const hostContents = findMainWindow()?.webContents ?? downloadContents ?? typedWin.webContents;
-        hostContents?.send('merezhyvo:download-status', { status, file });
-      } catch {}
-    };
-    (async () => {
-      const hostContents = findMainWindow()?.webContents ?? downloadContents ?? typedWin.webContents;
-      try {
-        console.log('[download] prompt folder for', url);
-        const folders = await promptForPaths(hostContents, DOWNLOAD_DIALOG_OPTIONS);
-        console.log('[download] selected folders', folders);
-        if (!folders?.[0]) {
-          notifyStatus('failed', item.getFilename());
-          return;
-        }
-        const fileName = item.getFilename() || `download-${Date.now()}`;
-        const savePath = path.join(folders[0], fileName);
-        notifyStatus('started', fileName);
-        await downloadToFile(url, savePath, downloadContents?.session ?? session.defaultSession);
-        notifyStatus('completed', fileName);
-      } catch (error) {
-        console.error('[download] manual download failed', error);
-        notifyStatus('failed', item.getFilename());
-        try { item.cancel(); } catch {}
+        const fallback = downloadContents?.getURL();
+        if (fallback) referer = fallback;
+      } catch {
+        // noop
       }
-    })();
+    }
+    downloads.enqueue(url, referer, downloadContents?.session ?? session.defaultSession);
+    const shouldSkipClose =
+      downloadContents && autoCloseSkipIds.has(downloadContents.id);
+    if (shouldSkipClose) {
+      autoCloseSkipIds.delete(downloadContents.id);
+      return;
+    }
+    if (downloadContents) {
+      typedWin.webContents.send('mzr-close-tab', {
+        webContentsId: downloadContents.id,
+        url
+      });
+    }
   };
   typedWin.webContents.session.on('will-download', handleWillDownload);
   try {

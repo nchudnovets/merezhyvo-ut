@@ -11,6 +11,7 @@ export const toolbarStyles = {
   navButtonDisabled: baseStyles.navButtonDisabled,
   form: baseStyles.form,
   addressField: baseStyles.addressField,
+  downloadIndicator: baseStyles.downloadIndicator,
   input: baseStyles.input,
   makeAppBtn: baseStyles.makeAppBtn,
   tabsButton: baseStyles.tabsButton,

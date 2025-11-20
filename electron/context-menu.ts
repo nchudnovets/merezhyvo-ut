@@ -18,6 +18,9 @@ type ContextMenuState = {
   isEditable: boolean;
   canPaste: boolean;
   linkUrl: string;
+  mediaType?: string;
+  mediaSrc?: string;
+  pageUrl?: string;
   autofill?: {
     available: boolean;
     locked: boolean;
@@ -129,8 +132,10 @@ function normalizeState(raw: unknown): ContextMenuState {
     hasSelection: Boolean(source.hasSelection),
     isEditable: Boolean(source.isEditable),
     canPaste: Boolean(source.canPaste),
-    linkUrl: typeof source.linkUrl === 'string' ? source.linkUrl : ''
-    ,
+    linkUrl: typeof source.linkUrl === 'string' ? source.linkUrl : '',
+    mediaType: typeof source.mediaType === 'string' ? source.mediaType : undefined,
+    mediaSrc: typeof source.mediaSrc === 'string' ? source.mediaSrc : undefined,
+    pageUrl: typeof source.pageUrl === 'string' ? source.pageUrl : undefined,
     autofill: source.autofill
   };
 }
@@ -154,9 +159,25 @@ function render(): void {
       const normalized = normalizeState(state);
       try {
         if (normalized.linkUrl) {
+          menu.appendChild(item('Download link', 'download-link'));
           menu.appendChild(item('Open link in new tab', 'open-link'));
           menu.appendChild(item('Copy link address', 'copy-link'));
           menu.appendChild(sep());
+        }
+
+        if (normalized.mediaType === 'image' && normalized.mediaSrc) {
+          menu.appendChild(item('Download image', 'download-image'));
+        }
+        if ( 
+          (normalized.mediaType === 'video' || normalized.mediaType === 'audio') &&
+          normalized.mediaSrc
+        ) {
+          menu.appendChild(
+            item(
+              normalized.mediaType === 'video' ? 'Download video' : 'Download audio',
+              normalized.mediaType === 'video' ? 'download-video' : 'download-audio'
+            )
+          );
         }
 
         menu.appendChild(

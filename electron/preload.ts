@@ -445,6 +445,12 @@ const exposeApi: MerezhyvoAPI = {
     respond: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:selection', payload ?? {}),
     saveFile: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:write', payload ?? {})
   },
+  downloads: {
+    settings: {
+      get: () => ipcRenderer.invoke('merezhyvo:downloads:settings:get'),
+      set: (payload) => ipcRenderer.invoke('merezhyvo:downloads:settings:set', payload ?? {})
+    }
+  },
   favicons: {
     getPath: (faviconId: string) =>
       ipcRenderer.invoke('merezhyvo:favicons:get-path', faviconId ?? '') as Promise<string | null>
@@ -561,6 +567,33 @@ ipcRenderer.on('merezhyvo:pw:unlock-required', (_event, payload: unknown) => {
     // noop
   }
 });
+
+ipcRenderer.on('merezhyvo:downloads:state', (_event, payload: { id: string; state: 'queued' | 'downloading' | 'completed' | 'failed' }) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:downloads:state', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
+
+ipcRenderer.on('merezhyvo:downloads:progress', (_event, payload: { id: string; received: number; total: number }) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:downloads:progress', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
+
+ipcRenderer.on(
+  'mzr-close-tab',
+  (_event, payload: { webContentsId?: number; url?: string } | null | undefined) => {
+    try {
+      window.dispatchEvent(new CustomEvent('mzr-close-tab', { detail: payload ?? {} }));
+    } catch {
+      // noop
+    }
+  }
+);
 
 contextBridge.exposeInMainWorld('merezhyvo', exposeApi);
 

@@ -571,7 +571,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     border: '1px solid rgba(52, 211, 153, 0.6)',
     borderRadius: '12px',
     padding: '12px 18px',
-    color: '#0f1729',
+    color: '#fff',
     zIndex: 40
   }
 };

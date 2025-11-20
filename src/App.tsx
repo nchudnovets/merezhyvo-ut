@@ -56,6 +56,7 @@ import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/me
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
 import FileDialogHost from './components/fileDialog/FileDialog';
+import { requestFileDialog } from './services/fileDialog/fileDialogService';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -208,19 +209,6 @@ const WEBVIEW_BASE_CSS = `
   }
 `;
 
-const downloadToastStyle: CSSProperties = {
-  position: 'fixed',
-  top: '18px',
-  right: '18px',
-  background: 'rgba(16, 185, 129, 0.25)',
-  border: '1px solid rgba(52, 211, 153, 0.6)',
-  borderRadius: '12px',
-  padding: '12px 18px',
-  color: '#0f1729',
-  zIndex: 80,
-  maxWidth: '80vw',
-  boxSizing: 'border-box'
-};
 
 const FALLBACK_APP_INFO: AppInfo = {
   name: 'Merezhyvo',
@@ -340,6 +328,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
+  const [downloadsDefaultDir, setDownloadsDefaultDir] = useState<string>('');
+  const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
+  const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
   const [messengerSettingsState, setMessengerSettingsState] = useState<MessengerSettings>(() => sanitizeMessengerSettings(null));
   const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
@@ -349,7 +340,23 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const lastMessengerIdRef = useRef<MessengerId | null>(null);
   const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
-  const downloadToastTimer = useRef<number | null>(null);
+  const downloadToastTimerRef = useRef<number | null>(null);
+  const activeDownloadsRef = useRef<Set<string>>(new Set());
+  const downloadIndicatorTimerRef = useRef<number | null>(null);
+  const [downloadIndicatorState, setDownloadIndicatorState] = useState<
+    'hidden' | 'active' | 'completed' | 'error'
+  >('hidden');
+  const clearDownloadIndicatorTimer = useCallback(() => {
+    if (downloadIndicatorTimerRef.current) {
+      window.clearTimeout(downloadIndicatorTimerRef.current);
+      downloadIndicatorTimerRef.current = null;
+    }
+  }, []);
+  const handleDownloadIndicatorClick = useCallback(() => {
+    if (downloadIndicatorState === 'active') return;
+    clearDownloadIndicatorTimer();
+    setDownloadIndicatorState('hidden');
+  }, [clearDownloadIndicatorTimer, downloadIndicatorState]);
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
 
@@ -558,6 +565,48 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       torAutoStartGuardRef.current = false;
     }
   }, []);
+  const handleChooseDownloadFolder = useCallback(async () => {
+    try {
+      const result = await requestFileDialog({
+        kind: 'folder',
+        title: 'Select download folder',
+        allowMultiple: false
+      });
+      const pathChoice = result?.paths?.[0];
+        if (pathChoice) {
+          setDownloadsDefaultDir(pathChoice);
+        }
+    } catch {
+      // noop
+    }
+  }, []);
+
+    const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
+      const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
+      setDownloadsConcurrent(clamped);
+    }, []);
+
+  const handleSaveDownloadSettings = useCallback(async () => {
+    if (downloadsSaving) return;
+    const trimmed = downloadsDefaultDir.trim();
+    if (!trimmed) {
+      setGlobalToast('Please choose a download folder.');
+      return;
+    }
+    setDownloadsSaving(true);
+    try {
+      await window.merezhyvo?.downloads?.settings.set?.({
+        defaultDir: trimmed,
+        concurrent: downloadsConcurrent
+      });
+      setGlobalToast('Download settings saved.');
+    } catch (err) {
+      console.error('[merezhyvo] downloads settings save failed', err);
+      setGlobalToast('Failed to save download settings.');
+    } finally {
+      setDownloadsSaving(false);
+    }
+  }, [downloadsConcurrent, downloadsDefaultDir, downloadsSaving, setGlobalToast]);
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -570,11 +619,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setTorContainerDraft(containerId);
         setTorKeepEnabled(keepEnabled);
         setTorKeepEnabledDraft(keepEnabled);
+        const downloads = state.downloads ?? { defaultDir: '', concurrent: 2 };
+        setDownloadsDefaultDir(downloads.defaultDir ?? '');
+        setDownloadsConcurrent(
+          downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
+        );
       } catch {
         if (!cancelled) {
           setTorContainerId('');
           setTorKeepEnabled(false);
           setTorKeepEnabledDraft(false);
+          setDownloadsDefaultDir('');
+          setDownloadsConcurrent(2);
         }
       }
     };
@@ -2100,32 +2156,79 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const detail = event.detail;
       const rawName = detail.file?.split(/[\\/]/).pop() ?? detail.file;
       const fileName = rawName || 'Download';
-      let text = 'Download';
+      let text = fileName;
       if (detail.status === 'started') {
-        text = `${fileName} started`;
+        text = `Download started — ${fileName}`;
       } else if (detail.status === 'completed') {
-        text = `${fileName} complete`;
+        text = `Download complete — ${fileName}`;
       } else {
-        text = `${fileName} canceled`;
+        text = `Download failed — ${fileName}`;
       }
-      if (downloadToastTimer.current) {
-        window.clearTimeout(downloadToastTimer.current);
+      if (downloadToastTimerRef.current) {
+        window.clearTimeout(downloadToastTimerRef.current);
       }
       setDownloadToast(text);
-      downloadToastTimer.current = window.setTimeout(() => {
+      downloadToastTimerRef.current = window.setTimeout(() => {
         setDownloadToast(null);
-        downloadToastTimer.current = null;
+        downloadToastTimerRef.current = null;
       }, 3200);
     };
     window.addEventListener('merezhyvo:download-status', handler as EventListener);
     return () => {
       window.removeEventListener('merezhyvo:download-status', handler as EventListener);
-      if (downloadToastTimer.current) {
-        window.clearTimeout(downloadToastTimer.current);
-        downloadToastTimer.current = null;
+      if (downloadToastTimerRef.current) {
+        window.clearTimeout(downloadToastTimerRef.current);
+        downloadToastTimerRef.current = null;
       }
     };
   }, []);
+
+  useEffect(() => {
+    const activeSet = activeDownloadsRef.current;
+    const handler = (event: CustomEvent<{ id?: string; state?: 'queued' | 'downloading' | 'completed' | 'failed' }>) => {
+      const detail = event.detail ?? {};
+      const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
+      const state = detail.state;
+      if (!targetId || !state) return;
+      if (state === 'downloading') {
+        activeSet.add(targetId);
+        clearDownloadIndicatorTimer();
+        setDownloadIndicatorState('active');
+        return;
+      }
+      if (state === 'completed' || state === 'failed') {
+        activeSet.delete(targetId);
+        if (activeSet.size > 0) return;
+        clearDownloadIndicatorTimer();
+        if (state === 'completed') {
+          setDownloadIndicatorState('completed');
+          downloadIndicatorTimerRef.current = window.setTimeout(() => {
+            setDownloadIndicatorState('hidden');
+            downloadIndicatorTimerRef.current = null;
+          }, 10000);
+        } else {
+          setDownloadIndicatorState('error');
+        }
+      }
+    };
+
+    const handleProgress = () => {
+      if (activeSet.size > 0) {
+        clearDownloadIndicatorTimer();
+        setDownloadIndicatorState('active');
+      }
+    };
+
+    window.addEventListener('merezhyvo:downloads:state', handler as EventListener);
+    window.addEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
+    return () => {
+      window.removeEventListener('merezhyvo:downloads:state', handler as EventListener);
+      window.removeEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
+      clearDownloadIndicatorTimer();
+      activeSet.clear();
+      setDownloadIndicatorState('hidden');
+    };
+  }, [clearDownloadIndicatorTimer]);
 
   useEffect(() => {
     if (isHtmlFullscreen) {
@@ -2215,6 +2318,44 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.removeEventListener('mzr-focus-tab' as unknown as keyof WindowEventMap, onFocus as EventListener);
     };
   }, [focusTab]);
+
+  useEffect(() => {
+    const handleClose = (event: Event) => {
+      const detail = (event as CustomEvent<{ webContentsId?: number; url?: string }>).detail ?? {};
+      const targetId =
+        typeof detail.webContentsId === 'number' && Number.isFinite(detail.webContentsId)
+          ? detail.webContentsId
+          : null;
+      const currentTabs = tabsRef.current;
+      if (targetId !== null) {
+        for (const tab of currentTabs) {
+          const entry = tabViewsRef.current.get(tab.id);
+          const view = entry?.view ?? null;
+          if (!view || typeof view.getWebContentsId !== 'function') continue;
+          try {
+            const wcId = view.getWebContentsId();
+            if (wcId === targetId) {
+              closeTabAction(tab.id);
+              return;
+            }
+          } catch {
+            // ignore
+          }
+        }
+      }
+      const targetUrl = typeof detail.url === 'string' ? detail.url.trim() : '';
+      if (targetUrl) {
+        const candidate = currentTabs.find((tab) => tab.url === targetUrl && !tab.pinned);
+        if (candidate) {
+          closeTabAction(candidate.id);
+        }
+      }
+    };
+    window.addEventListener('mzr-close-tab' as unknown as keyof WindowEventMap, handleClose as EventListener);
+    return () => {
+      window.removeEventListener('mzr-close-tab' as unknown as keyof WindowEventMap, handleClose as EventListener);
+    };
+  }, [closeTabAction]);
 
   useEffect(() => {
     const handlePrompt = (event: Event) => {
@@ -2495,10 +2636,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
       {!isHtmlFullscreen && mainViewMode === 'browser' && (
-        <Toolbar
-          mode={mode}
-          canGoBack={canGoBack}
-          canGoForward={canGoForward}
+      <Toolbar
+        mode={mode}
+        canGoBack={canGoBack}
+        canGoForward={canGoForward}
           webviewReady={webviewReady}
           tabCount={tabCount}
           tabsReady={tabsReady}
@@ -2508,18 +2649,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           statusLabel={statusLabelMap[status] || status}
           torEnabled={torEnabled}
           onBack={handleBack}
-          onForward={handleForward}
-          onReload={handleReload}
-          onSubmit={handleSubmit}
-          onInputChange={(value) => setInputValue(value)}
-          onInputPointerDown={handleInputPointerDown}
-          onInputFocus={handleInputFocus}
-          onInputBlur={handleInputBlur}
-          onOpenTabsPanel={openTabsPanel}
-          onToggleTor={handleToggleTor}
-          onOpenSettings={openSettingsModal}
-          onEnterMessengerMode={handleEnterMessengerMode}
-        />
+        onForward={handleForward}
+        onReload={handleReload}
+        onSubmit={handleSubmit}
+        onInputChange={(value) => setInputValue(value)}
+        onInputPointerDown={handleInputPointerDown}
+        onInputFocus={handleInputFocus}
+        onInputBlur={handleInputBlur}
+        onOpenTabsPanel={openTabsPanel}
+        onToggleTor={handleToggleTor}
+        onOpenSettings={openSettingsModal}
+        onEnterMessengerMode={handleEnterMessengerMode}
+        downloadIndicatorState={downloadIndicatorState}
+        onDownloadIndicatorClick={handleDownloadIndicatorClick}
+      />
       )}
 
       {!isHtmlFullscreen && mainViewMode === 'messenger' && (
@@ -2615,6 +2758,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onRequestPasswordUnlock={requestPasswordUnlock}
           scrollToSection={settingsScrollTarget}
           onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+          downloadsDefaultDir={downloadsDefaultDir}
+          downloadsConcurrent={downloadsConcurrent}
+          downloadsSaving={downloadsSaving}
+          onDownloadsChooseFolder={handleChooseDownloadFolder}
+          onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
+          onDownloadsSave={handleSaveDownloadSettings}
         />
       )}
 
@@ -2713,7 +2862,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       />
       <FileDialogHost mode={mode} />
       {downloadToast && (
-        <div style={downloadToastStyle}>
+        <div style={styles.downloadToast}>
           {downloadToast}
         </div>
       )}

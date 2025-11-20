@@ -35,7 +35,8 @@ import type {
   PasswordImportFormat,
   PasswordCaptureAction,
   PasswordCaptureActionResult,
-  PasswordStatus
+  PasswordStatus,
+  DownloadsSettings
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -197,6 +198,12 @@ export interface MerezhyvoAPI {
     messenger: {
       get(): Promise<MessengerSettings>;
       update(order: MessengerSettings['order']): Promise<MessengerSettings>;
+    };
+  };
+  downloads: {
+    settings: {
+      get(): Promise<DownloadsSettings>;
+      set(payload: Partial<DownloadsSettings>): Promise<DownloadsSettings>;
     };
   };
   power: {

@@ -1,5 +1,12 @@
 import React from 'react';
-import type { RefObject, ChangeEvent, PointerEvent, FocusEvent, FormEvent } from 'react';
+import type {
+  CSSProperties,
+  RefObject,
+  ChangeEvent,
+  PointerEvent,
+  FocusEvent,
+  FormEvent
+} from 'react';
 import type { Mode } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
@@ -15,6 +22,8 @@ interface AddressBarProps {
   onFocus: (event: FocusEvent<HTMLInputElement>) => void;
   onBlur: (event: FocusEvent<HTMLInputElement>) => void;
   onOpenTabsPanel: () => void;
+  downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  onDownloadIndicatorClick: () => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -28,58 +37,108 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onPointerDown,
   onFocus,
   onBlur,
-  onOpenTabsPanel
-}) => (
-  <form onSubmit={onSubmit} style={toolbarStyles.form}>
-    <div style={toolbarStyles.addressField}>
-      <input
-        ref={inputRef}
-        type="text"
-        value={value}
-        onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-        onPointerDown={onPointerDown}
-        onFocus={onFocus}
-        onBlur={onBlur}
-        inputMode="url"
-        autoCapitalize="none"
-        autoCorrect="off"
-        spellCheck="false"
-        placeholder="Enter a URL or search"
-        style={{ ...toolbarStyles.input, ...(toolbarModeStyles[mode].searchInput ?? {}) }}
-      />
-    </div>
-    <button
-      type="button"
-      title="Open tabs"
-      aria-label={`Open tabs (${tabCount})`}
-      aria-haspopup="dialog"
-      onClick={onOpenTabsPanel}
-      disabled={!tabsReady}
-      style={{
-        ...toolbarStyles.tabsButton,
-        ...(toolbarModeStyles[mode].tabsButton || {}),
-        ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
-      }}
-    >
-      <span style={toolbarStyles.visuallyHidden}>Open tabs ({tabCount})</span>
-      <span
-        aria-hidden="true"
+  onOpenTabsPanel,
+  downloadIndicatorState,
+  onDownloadIndicatorClick
+}) => {
+  const showIndicator = downloadIndicatorState !== 'hidden';
+  const indicatorSize = mode === 'mobile' ? 55 : 16;
+  const inputStyle: CSSProperties = {
+    ...toolbarStyles.input,
+    ...(toolbarModeStyles[mode].searchInput ?? {}),
+    ...(showIndicator ? { paddingRight: indicatorSize + 26 } : {})
+  };
+  const indicatorLabel =
+    downloadIndicatorState === 'completed'
+      ? 'Downloads complete'
+      : downloadIndicatorState === 'error'
+      ? 'Downloads failed'
+      : 'Downloads in progress';
+  const arrowColor =
+    downloadIndicatorState === 'completed'
+      ? '#22c55e'
+      : downloadIndicatorState === 'error'
+      ? '#f97316'
+      : '#ffffff';
+  const arrowStyle: CSSProperties = {
+    width: 0,
+    height: 0,
+    borderLeft: '6px solid transparent',
+    borderRight: '6px solid transparent',
+    borderTop: `7px solid ${arrowColor}`,
+    display: 'block',
+    ...(downloadIndicatorState === 'active'
+      ? { animation: 'download-arrow 0.9s ease-in-out infinite' }
+      : {})
+  };
+  const buttonStyle: CSSProperties = {
+    ...toolbarStyles.downloadIndicator,
+    width: indicatorSize,
+    height: indicatorSize
+  };
+
+  return (
+    <form onSubmit={onSubmit} style={toolbarStyles.form}>
+      <div style={toolbarStyles.addressField}>
+        <input
+          ref={inputRef}
+          type="text"
+          value={value}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
+          onPointerDown={onPointerDown}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck="false"
+          placeholder="Enter a URL or search"
+          style={inputStyle}
+        />
+        {showIndicator && (
+          <button
+            type="button"
+            aria-label={indicatorLabel}
+            onClick={onDownloadIndicatorClick}
+            style={buttonStyle}
+          >
+            <span style={arrowStyle} />
+          </button>
+        )}
+      </div>
+      <button
+        type="button"
+        title="Open tabs"
+        aria-label={`Open tabs (${tabCount})`}
+        aria-haspopup="dialog"
+        onClick={onOpenTabsPanel}
+        disabled={!tabsReady}
         style={{
-          ...toolbarStyles.tabsButtonSquare,
-          ...(toolbarModeStyles[mode].tabsButtonSquare || {})
+          ...toolbarStyles.tabsButton,
+          ...(toolbarModeStyles[mode].tabsButton || {}),
+          ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
         }}
       >
+        <span style={toolbarStyles.visuallyHidden}>Open tabs ({tabCount})</span>
         <span
+          aria-hidden="true"
           style={{
-            ...toolbarStyles.tabsButtonCount,
-            ...(toolbarModeStyles[mode].tabsButtonCount || {})
+            ...toolbarStyles.tabsButtonSquare,
+            ...(toolbarModeStyles[mode].tabsButtonSquare || {})
           }}
         >
-          {tabCount}
+          <span
+            style={{
+              ...toolbarStyles.tabsButtonCount,
+              ...(toolbarModeStyles[mode].tabsButtonCount || {})
+            }}
+          >
+            {tabCount}
+          </span>
         </span>
-      </span>
-    </button>
-  </form>
-);
+      </button>
+    </form>
+  );
+};
 
 export default AddressBar;

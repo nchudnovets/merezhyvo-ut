@@ -30,6 +30,8 @@ interface ToolbarProps {
   onToggleTor: () => void;
   onOpenSettings: () => void;
   onEnterMessengerMode: () => void;
+  downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  onDownloadIndicatorClick: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -53,7 +55,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenTabsPanel,
   onToggleTor,
   onOpenSettings,
-  onEnterMessengerMode
+  onEnterMessengerMode,
+  downloadIndicatorState,
+  onDownloadIndicatorClick
 }) => {
   const modeStyles = toolbarModeStyles[mode];
 
@@ -95,6 +99,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onFocus={onInputFocus}
       onBlur={onInputBlur}
       onOpenTabsPanel={onOpenTabsPanel}
+      downloadIndicatorState={downloadIndicatorState}
+      onDownloadIndicatorClick={onDownloadIndicatorClick}
     />
 
     <button

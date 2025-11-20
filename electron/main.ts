@@ -29,8 +29,11 @@ import * as links from './lib/links';
 import {
   createDefaultSettingsState,
   getSessionFilePath,
-  readSettingsState
+  readSettingsState,
+  writeSettingsState,
+  sanitizeDownloadsSettings
 } from './lib/shortcuts';
+import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
 import type { TorConfig } from './lib/shortcuts';
@@ -72,6 +75,18 @@ try {
 const fsp = fs.promises;
 
 const { DEFAULT_URL } = windows;
+
+void (async () => {
+  try {
+    const state = await readSettingsState();
+    if (state?.downloads) {
+      downloads.setDefaultDir(state.downloads.defaultDir);
+      downloads.setConcurrent(state.downloads.concurrent);
+    }
+  } catch {
+    // noop
+  }
+})();
 
 const SESSION_SCHEMA = 1;
 
@@ -749,8 +764,22 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
     }
 
     const linkUrl = ctx?.linkUrl ?? '';
+    const mediaType = typeof params?.mediaType === 'string' ? params.mediaType : '';
+    const mediaSrc = typeof params?.srcURL === 'string' ? params.srcURL : '';
+    const pageUrl = typeof params?.pageURL === 'string' ? params.pageURL : '';
     const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
-    return { canBack, canForward, hasSelection, isEditable, canPaste, linkUrl, autofill };
+    return {
+      canBack,
+      canForward,
+      hasSelection,
+      isEditable,
+      canPaste,
+      linkUrl,
+      mediaType,
+      mediaSrc,
+      pageUrl,
+      autofill
+    };
   } catch {
     return {
       canBack: false,
@@ -759,6 +788,9 @@ ipcMain.handle('mzr:ctxmenu:get-state', async () => {
       isEditable: false,
       canPaste: false,
       linkUrl: '',
+      mediaType: '',
+      mediaSrc: '',
+      pageUrl: '',
       autofill: { available: false, locked: false, options: [], siteName: '' }
     };
   }
@@ -772,7 +804,18 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
     if (!wc || wc.isDestroyed()) return;
 
-      if (id.startsWith('pw-fill:')) {
+    const startDownloadFromCtx = (targetUrl?: string) => {
+      const url = targetUrl?.trim();
+      if (!url) return;
+      try {
+        windows.skipAutoCloseForDownload(wc.id);
+        wc.downloadURL(url);
+      } catch {
+        // noop
+      }
+    };
+
+    if (id.startsWith('pw-fill:')) {
         const entryId = id.slice('pw-fill:'.length);
         try {
           const secret = getEntrySecret(entryId);
@@ -826,6 +869,22 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     if (id === 'copy-link') {
       const url = ctx?.linkUrl;
       if (url) clipboard.writeText(url);
+      return;
+    }
+    if (id === 'download-link') {
+      startDownloadFromCtx(ctx?.linkUrl);
+      return;
+    }
+    if (id === 'download-image') {
+      startDownloadFromCtx(ctx?.params?.srcURL);
+      return;
+    }
+    if (id === 'download-video') {
+      startDownloadFromCtx(ctx?.params?.srcURL);
+      return;
+    }
+    if (id === 'download-audio') {
+      startDownloadFromCtx(ctx?.params?.srcURL);
       return;
     }
     if (id === 'paste') {
@@ -969,6 +1028,34 @@ ipcMain.handle('merezhyvo:settings:load', async () => {
     return createDefaultSettingsState();
   }
 });
+
+ipcMain.handle('merezhyvo:downloads:settings:get', async () => {
+  try {
+    const state = await readSettingsState();
+    return state.downloads;
+  } catch (err) {
+    console.error('[merezhyvo] downloads settings load failed', err);
+    return sanitizeDownloadsSettings({});
+  }
+});
+
+  ipcMain.handle('merezhyvo:downloads:settings:set', async (_event, payload: unknown) => {
+    try {
+      const sanitized = sanitizeDownloadsSettings(payload);
+      try {
+        await fs.promises.mkdir(sanitized.defaultDir, { recursive: true });
+      } catch {
+        // ignore directory creation failures
+      }
+      const nextState = await writeSettingsState({ downloads: sanitized });
+      downloads.setDefaultDir(nextState.downloads.defaultDir);
+      downloads.setConcurrent(nextState.downloads.concurrent);
+      return nextState.downloads;
+    } catch (err) {
+      console.error('[merezhyvo] downloads settings save failed', err);
+      return sanitizeDownloadsSettings(payload);
+    }
+  });
 
 ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown) => {
   const containerId =

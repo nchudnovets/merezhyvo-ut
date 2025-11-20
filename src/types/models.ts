@@ -166,11 +166,17 @@ export interface KeyboardSettings {
   defaultLayout: string;
 }
 
+export interface DownloadsSettings {
+  defaultDir: string;
+  concurrent: 1 | 2 | 3;
+}
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
   keyboard: KeyboardSettings;
   messenger: MessengerSettings;
+  downloads: DownloadsSettings;
 }
 
 export interface PasswordEntryMeta {

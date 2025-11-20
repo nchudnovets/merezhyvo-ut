@@ -22,11 +22,17 @@ export type TorConfig = {
   keepEnabled: boolean;
 };
 
+export type DownloadsSettings = {
+  defaultDir: string;
+  concurrent: 1 | 2 | 3;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
   tor: TorConfig;
   messenger: MessengerSettings;
+  downloads: DownloadsSettings;
   permissions?: unknown;
 };
 
@@ -100,6 +106,11 @@ const DEFAULT_TOR_CONFIG: TorConfig = {
   keepEnabled: false
 };
 
+const DEFAULT_DOWNLOADS_SETTINGS: DownloadsSettings = {
+  defaultDir: app.getPath('downloads'),
+  concurrent: 2
+};
+
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
   order: [...DEFAULT_MESSENGER_ORDER]
 };
@@ -109,7 +120,19 @@ export const createDefaultSettingsState = (): SettingsState => ({
   keyboard: { ...DEFAULT_KEYBOARD_SETTINGS },
   tor: { ...DEFAULT_TOR_CONFIG },
   messenger: { ...DEFAULT_MESSENGER_SETTINGS }
+  ,
+  downloads: { ...DEFAULT_DOWNLOADS_SETTINGS }
 });
+
+export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<DownloadsSettings> : {};
+  const defaultDir = typeof source.defaultDir === 'string' && source.defaultDir.trim().length
+    ? source.defaultDir.trim()
+    : DEFAULT_DOWNLOADS_SETTINGS.defaultDir;
+  const concurrentRaw = typeof source.concurrent === 'number' ? source.concurrent : DEFAULT_DOWNLOADS_SETTINGS.concurrent;
+  const concurrent = Math.min(3, Math.max(1, Math.round(concurrentRaw)));
+  return { defaultDir, concurrent: concurrent as 1 | 2 | 3 };
+};
 
 export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const source = (typeof payload === 'object' && payload !== null)
@@ -123,12 +146,14 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     typeof source.permissions === 'object' && source.permissions !== null
       ? source.permissions
       : undefined;
+  const downloads = sanitizeDownloadsSettings(source.downloads);
 
   return {
     schema: SETTINGS_SCHEMA,
     keyboard,
     tor,
     messenger,
+    downloads,
     ...(permissions ? { permissions } : {})
   };
 };
