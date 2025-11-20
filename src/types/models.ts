@@ -25,6 +25,7 @@ export interface Tab {
   discarded: boolean;
   isYouTube: boolean;
   isPlaying: boolean;
+  keepAlive?: boolean;
   lastUsedAt: number;
   kind: TabKind;
 }

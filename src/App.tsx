@@ -525,6 +525,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+  const isYouTubeTab = useCallback((tabId: string) => {
+    return tabsRef.current.some((tab) => tab.id === tabId && tab.isYouTube);
+  }, []);
   useEffect(() => { previousActiveTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => {
     if (fullscreenTabRef.current && fullscreenTabRef.current !== activeId) {
@@ -856,7 +859,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     playingTabsRef.current.delete(tabId);
     updatePowerBlocker();
     if (!keepMeta) {
-      updateMetaAction(tabId, { isPlaying: false, discarded: true });
+      updateMetaAction(tabId, { isPlaying: false, discarded: true, keepAlive: false });
     }
     if (backgroundTabRef.current === tabId) {
       backgroundTabRef.current = null;
@@ -940,14 +943,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const handleMediaStarted = () => {
       playingTabsRef.current.add(tabId);
       updatePowerBlocker();
-      updateMetaAction(tabId, { isPlaying: true, discarded: false });
+      updateMetaAction(tabId, {
+        isPlaying: true,
+        discarded: false,
+        keepAlive: isYouTubeTab(tabId)
+      });
     };
 
     const handleMediaPaused = () => {
       playingTabsRef.current.delete(tabId);
       updatePowerBlocker();
-      updateMetaAction(tabId, { isPlaying: false });
-      if (backgroundTabRef.current === tabId) {
+      const shouldKeepAlive = isYouTubeTab(tabId) || backgroundTabRef.current === tabId;
+      updateMetaAction(tabId, { isPlaying: false, keepAlive: shouldKeepAlive });
+      if (backgroundTabRef.current === tabId && !shouldKeepAlive) {
         destroyTabView(tabId, { keepMeta: true });
       }
     };
@@ -998,7 +1006,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       view.removeEventListener('did-navigate', injectBaseCss);
       view.removeEventListener('did-navigate-in-page', injectBaseCss);
     };
-  }, [destroyTabView, updateMetaAction, updatePowerBlocker]);
+  }, [destroyTabView, updateMetaAction, updatePowerBlocker, isYouTubeTab]);
 
   const handleHostCanGo = useCallback((tabId: string, state?: NavigationState | null) => {
     if (activeIdRef.current !== tabId) return;
@@ -1345,7 +1353,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (tab.isYouTube && tab.isPlaying) {
       if (backgroundTabRef.current && backgroundTabRef.current !== tab.id) {
         const previousId = backgroundTabRef.current;
-        updateMetaAction(previousId, { isPlaying: false });
+        updateMetaAction(previousId, { isPlaying: false, keepAlive: false });
         destroyTabView(previousId, { keepMeta: true });
       }
       backgroundTabRef.current = tab.id;

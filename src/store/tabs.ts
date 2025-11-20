@@ -46,7 +46,17 @@ type NewTabOptions = {
 type UpdateMetaPatch = Partial<
   Pick<
     Tab,
-    'title' | 'favicon' | 'url' | 'muted' | 'pinned' | 'discarded' | 'isYouTube' | 'isPlaying' | 'isLoading' | 'lastUsedAt'
+    | 'title'
+    | 'favicon'
+    | 'url'
+    | 'muted'
+    | 'pinned'
+    | 'discarded'
+    | 'isYouTube'
+    | 'isPlaying'
+    | 'keepAlive'
+    | 'isLoading'
+    | 'lastUsedAt'
   >
 >;
 
@@ -110,7 +120,8 @@ function createTab(url: string = DEFAULT_URL, overrides: TabOverrides = {}): Tab
       typeof overrides.lastUsedAt === 'number' && Number.isFinite(overrides.lastUsedAt)
         ? overrides.lastUsedAt
         : now,
-    kind: overrides.kind === 'messenger' ? 'messenger' : 'browser'
+    kind: overrides.kind === 'messenger' ? 'messenger' : 'browser',
+    keepAlive: overrides.keepAlive ?? false
   };
   return next;
 }
@@ -184,20 +195,21 @@ function serializeState(current: TabsState) {
   return {
     schema: SESSION_SCHEMA,
     activeId,
-    tabs: persistentTabs.map((tab) => ({
-      id: tab.id,
-      url: tab.url,
-      title: tab.title || '',
-      favicon: tab.favicon || '',
-      isLoading: Boolean(tab.isLoading),
-      pinned: Boolean(tab.pinned),
-      muted: Boolean(tab.muted),
-      discarded: Boolean(tab.discarded),
-      isYouTube: Boolean(tab.isYouTube),
-      isPlaying: Boolean(tab.isPlaying),
-      lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now(),
-      kind: tab.kind === 'messenger' ? 'messenger' : 'browser'
-    }))
+      tabs: persistentTabs.map((tab) => ({
+        id: tab.id,
+        url: tab.url,
+        title: tab.title || '',
+        favicon: tab.favicon || '',
+        isLoading: Boolean(tab.isLoading),
+        pinned: Boolean(tab.pinned),
+        muted: Boolean(tab.muted),
+        discarded: Boolean(tab.discarded),
+        isYouTube: Boolean(tab.isYouTube),
+        isPlaying: Boolean(tab.isPlaying),
+        keepAlive: Boolean(tab.keepAlive),
+        lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now(),
+        kind: tab.kind === 'messenger' ? 'messenger' : 'browser'
+      }))
   };
 }
 
@@ -221,19 +233,20 @@ function sanitizeSession(data: unknown): TabsState {
       && (raw as { kind?: string }).kind === 'messenger'
       ? 'messenger'
       : 'browser';
-    const tab = createTab(typeof raw.url === 'string' ? raw.url : DEFAULT_URL, {
-      id: typeof raw.id === 'string' ? raw.id : undefined,
-      title: typeof raw.title === 'string' ? raw.title : '',
-      favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
-      isLoading: Boolean(raw.isLoading),
-      pinned: Boolean(raw.pinned),
-      muted: Boolean(raw.muted),
-      discarded: Boolean(raw.discarded),
-      isYouTube:
-        typeof raw.isYouTube === 'boolean'
-          ? raw.isYouTube
-          : isYouTubeLike(raw.url),
-      isPlaying: Boolean(raw.isPlaying),
+      const tab = createTab(typeof raw.url === 'string' ? raw.url : DEFAULT_URL, {
+        id: typeof raw.id === 'string' ? raw.id : undefined,
+        title: typeof raw.title === 'string' ? raw.title : '',
+        favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
+        isLoading: Boolean(raw.isLoading),
+        pinned: Boolean(raw.pinned),
+        muted: Boolean(raw.muted),
+        discarded: Boolean(raw.discarded),
+        isYouTube:
+          typeof raw.isYouTube === 'boolean'
+            ? raw.isYouTube
+            : isYouTubeLike(raw.url),
+        isPlaying: Boolean(raw.isPlaying),
+      keepAlive: Boolean(raw.keepAlive),
       lastUsedAt:
         typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
           ? raw.lastUsedAt
@@ -281,6 +294,11 @@ function sanitizeSession(data: unknown): TabsState {
 }
 
 function setActiveOnTabs(tabs: Tab[], activeId: string, timestamp = Date.now()): Tab[] {
+  const keepAliveId = tabs.find((tab) => {
+    if (tab.id === activeId) return false;
+    if (tab.keepAlive) return true;
+    return Boolean(tab.isYouTube && tab.isPlaying);
+  })?.id;
   let changed = false;
   const next = tabs.map((tab) => {
     if (tab.id === activeId) {
@@ -294,11 +312,21 @@ function setActiveOnTabs(tabs: Tab[], activeId: string, timestamp = Date.now()):
         lastUsedAt: lastUsed
       };
     }
+    if (tab.id === keepAliveId) {
+      if (tab.discarded) {
+        changed = true;
+        return { ...tab, discarded: false };
+      }
+      return tab;
+    }
     if (tab.discarded) return tab;
     changed = true;
-    return { ...tab, discarded: true, isPlaying: false };
+    return { ...tab, discarded: true, isPlaying: false, keepAlive: false };
   });
-  return changed ? next : tabs;
+  if (changed) {
+    return next;
+  }
+  return tabs;
 }
 
 function discardAllTabs(tabs: Tab[]): Tab[] {
@@ -484,6 +512,10 @@ function updateMeta(id: string, patch: UpdateMetaPatch = {}): void {
     }
     if (typeof patch.isLoading === 'boolean' && patch.isLoading !== original.isLoading) {
       next.isLoading = patch.isLoading;
+      altered = true;
+    }
+    if (typeof patch.keepAlive === 'boolean' && patch.keepAlive !== original.keepAlive) {
+      next.keepAlive = patch.keepAlive;
       altered = true;
     }
     if (
