@@ -101,7 +101,7 @@ const cloneForExport = (node: BookmarkNode): BookmarkNode => ({
 });
 
 
-const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewTab }) => {
+const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const styles = bookmarksStyles;
   const modeStyles = bookmarksModeStyles[mode] || {};
   const [tree, setTree] = useState<BookmarksTree | null>(null);
@@ -862,8 +862,6 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, openInNewT
         }
         return [
           { label: 'Open', action: () => openInTab(node.url ?? '') },
-          { label: 'Open in new tab', action: () => openInNewTab(node.url ?? '') },
-          { label: 'Open in background', action: () => openInNewTab(node.url ?? '') },
           { label: 'Edit…', action: () => openEditBookmarkDialog(node) },
           { label: 'Move…', action: () => openFolderPicker('move', async (targetId) => { await handleBookmarkMove(node, targetId); }) },
           { label: 'Copy URL', action: () => handleCopyUrl(node.url ?? '') },
