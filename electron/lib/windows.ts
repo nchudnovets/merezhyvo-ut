@@ -21,7 +21,11 @@ import type { FileDialogOptions } from '../../src/types/models';
 import { resolveMode } from '../mode';
 import { addVisit, updateTitle, updateFavicon } from './history';
 import { saveFromBuffer } from './favicons';
-import { promptForPaths } from './file-dialog-ipc';
+import {
+  linkGuestWebContentsToHost,
+  promptForPaths,
+  unlinkGuestWebContents
+} from './file-dialog-ipc';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
@@ -47,6 +51,18 @@ const SAFE_BOTTOM = Math.max(0, parseInt(process.env.MZV_SAFE_BOTTOM || '0', 10)
 const SAFE_RIGHT = Math.max(0, parseInt(process.env.MZV_SAFE_RIGHT || '0', 10));
 const fsp = fs.promises;
 const DOWNLOAD_DIALOG_OPTIONS: FileDialogOptions = { kind: 'folder', title: 'Choose download folder', allowMultiple: false };
+type FileDialogDetails = {
+  properties?: string[];
+  title?: string;
+};
+
+type WebContentsWithFileDialogHandler = WebContents & {
+  setFileDialogHandler?: (
+    handler: (details: FileDialogDetails) => Promise<{ canceled: boolean; filePaths: string[] }>
+  ) => void;
+};
+const fileDialogHandlerRegistry = new WeakSet<WebContents>();
+const selectFileInterceptorRegistry = new WeakSet<WebContents>();
 
 function geoIpcLog(_msg: string): void {
   try {
@@ -245,6 +261,30 @@ function ensureWebviewPreloadOnDisk(): string {
   } catch {}
   return file;
 }
+
+export const installFileDialogHandler = (contents: WebContentsWithFileDialogHandler | null): void => {
+  if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return;
+  if (fileDialogHandlerRegistry.has(contents)) return;
+  const setter = contents.setFileDialogHandler;
+  if (typeof setter !== 'function') return;
+  fileDialogHandlerRegistry.add(contents);
+  setter(async (details: FileDialogDetails) => {
+    const dialogDetails = details as FileDialogDetails;
+    const properties = Array.isArray(dialogDetails.properties) ? dialogDetails.properties : [];
+    const allowDirectory = properties.includes('openDirectory');
+    const allowMultiple = properties.includes('multiSelections');
+    const options: FileDialogOptions = {
+      kind: allowDirectory ? 'folder' : 'file',
+      allowMultiple,
+      title: details.title
+    };
+    const paths = await promptForPaths(contents, options);
+    if (!paths || !paths.length) {
+      return { canceled: true, filePaths: [] };
+    }
+    return { canceled: false, filePaths: paths };
+  });
+};
 
 
 export type Mode = 'mobile' | 'desktop';
@@ -679,6 +719,12 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     } catch {
       // noop
     }
+    linkGuestWebContentsToHost(contents, typedWin.webContents);
+    contents.once('destroyed', () => {
+      unlinkGuestWebContents(contents);
+    });
+    installFileDialogHandler(contents);
+    setupSelectFileInterceptor(contents);
     if (typeof contents.setMaxListeners === 'function') {
       contents.setMaxListeners(0);
     }
@@ -872,6 +918,8 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   typedWin.loadFile(distIndex, { query });
 
   typedWin.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+  setupSelectFileInterceptor(typedWin.webContents);
+  installFileDialogHandler(typedWin.webContents);
   const resetHostZoom = () => {
     if (typedWin.isDestroyed()) return;
     const current = typedWin.webContents.getZoomFactor();
@@ -912,6 +960,7 @@ export function applyBrowserWindowPolicies(win: MerezhyvoWindow | null): void {
   if (!win) return;
 
   win.webContents.setVisualZoomLevelLimits(1, 3).catch(() => {});
+  setupSelectFileInterceptor(win.webContents);
   win.webContents.on('zoom-changed', () => {
     if (win.isDestroyed()) return;
     const current = win.webContents.getZoomFactor();
@@ -927,3 +976,35 @@ export function applyBrowserWindowPolicies(win: MerezhyvoWindow | null): void {
     // noop
   }
 }
+export const setupSelectFileInterceptor = (contents: WebContents | null): void => {
+  if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return;
+  if (selectFileInterceptorRegistry.has(contents)) return;
+  selectFileInterceptorRegistry.add(contents);
+  const handler = async (event: Event, ...args: unknown[]) => {
+    try {
+      event.preventDefault?.();
+    } catch {}
+    const propertiesArg = args.find(
+      (value) => typeof value === 'object' && value !== null && 'properties' in value
+    ) as { properties?: string[] } | undefined;
+    const properties = Array.isArray(propertiesArg?.properties) ? propertiesArg?.properties : [];
+    const allowDirectory = properties.includes('openDirectory');
+    const allowMultiple = properties.includes('multiSelections');
+    const options: FileDialogOptions = {
+      kind: allowDirectory ? 'folder' : 'file',
+      allowMultiple,
+      title: ''
+    };
+    const paths = await promptForPaths(contents, options);
+    const callback = args.find((value) => typeof value === 'function') as
+      | ((paths: string[]) => void)
+      | undefined;
+    if (typeof callback !== 'function') return;
+    if (!paths || !paths.length) {
+      callback([]);
+      return;
+    }
+    callback(paths);
+  };
+  contents.on('select-file', handler);
+};

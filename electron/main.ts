@@ -708,6 +708,8 @@ app.on('window-all-closed', () => {
 });
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
+  windows.installFileDialogHandler(contents);
+  windows.setupSelectFileInterceptor(contents);
   if (typeof contents.getType === 'function' && contents.getType() === 'webview') {
     links.attachLinkPolicy(contents);
   }

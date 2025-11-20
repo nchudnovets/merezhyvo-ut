@@ -334,6 +334,18 @@ export interface FileDialogResult {
   paths: string[];
 }
 
+export interface FileDialogFileDescriptor {
+  path: string;
+  name: string;
+  type?: string;
+  data?: string | null;
+}
+
+export interface FileDialogResponsePayload {
+  requestId: string;
+  files: FileDialogFileDescriptor[];
+}
+
 export interface FileDialogSavePayload {
   path: string;
   data: string;

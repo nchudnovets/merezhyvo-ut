@@ -411,6 +411,182 @@ window.addEventListener('message', async (ev: MessageEvent) => {
     }
   });
 
-  document.addEventListener('focusin', handleFocusIn, true);
-  document.addEventListener('focusout', handleFocusOut, true);
+document.addEventListener('focusin', handleFocusIn, true);
+document.addEventListener('focusout', handleFocusOut, true);
+})();
+
+(() => {
+  type FileDialogResponse = {
+    requestId: string;
+    files?: Array<{ name?: string; type?: string; data?: string | null; path?: string }>;
+  };
+
+  const pendingInputs = new Map<string, HTMLInputElement>();
+  const activeInputs = new WeakSet<HTMLInputElement>();
+  const MIME_TYPES: Record<string, string> = {
+    '.aac': 'audio/aac',
+    '.avi': 'video/x-msvideo',
+    '.bz': 'application/x-bzip',
+    '.bz2': 'application/x-bzip2',
+    '.csv': 'text/csv',
+    '.doc': 'application/msword',
+    '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+    '.dmg': 'application/x-apple-diskimage',
+    '.gif': 'image/gif',
+    '.gz': 'application/gzip',
+    '.heic': 'image/heic',
+    '.heif': 'image/heif',
+    '.hif': 'image/heif',
+    '.heix': 'image/heif',
+    '.html': 'text/html',
+    '.htm': 'text/html',
+    '.jpg': 'image/jpeg',
+    '.jpeg': 'image/jpeg',
+    '.json': 'application/json',
+    '.mkv': 'video/x-matroska',
+    '.mov': 'video/quicktime',
+    '.mp3': 'audio/mpeg',
+    '.mp4': 'video/mp4',
+    '.pdf': 'application/pdf',
+    '.png': 'image/png',
+    '.svg': 'image/svg+xml',
+    '.tar': 'application/x-tar',
+    '.txt': 'text/plain',
+    '.wav': 'audio/wav',
+    '.webm': 'video/webm',
+    '.webp': 'image/webp',
+    '.zip': 'application/zip'
+  };
+
+  const createRequestId = (): string =>
+    `mzr_fd_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
+
+  const guessMimeType = (value: string): string => {
+    const dot = value.lastIndexOf('.');
+    if (dot === -1) return 'application/octet-stream';
+    const ext = value.slice(dot).toLowerCase();
+    return MIME_TYPES[ext] ?? 'application/octet-stream';
+  };
+
+  const openDialogForInput = (input: HTMLInputElement): boolean => {
+    if (input.disabled || input.readOnly) return false;
+    if (activeInputs.has(input)) return false;
+    const requestId = createRequestId();
+    pendingInputs.set(requestId, input);
+    activeInputs.add(input);
+    try {
+      ipcRenderer.sendToHost('mzr:file-dialog:open', {
+        requestId,
+        accept: input.accept,
+        multiple: Boolean(input.multiple)
+      });
+      return true;
+    } catch {
+      pendingInputs.delete(requestId);
+      activeInputs.delete(input);
+      // noop
+      return false;
+    }
+  };
+
+  const findFileInput = (event: Event): HTMLInputElement | null => {
+    const pathFromEvent =
+      typeof event.composedPath === 'function' ? event.composedPath() : (event as any).path ?? [];
+    for (const entry of Array.isArray(pathFromEvent) ? pathFromEvent : []) {
+      if (entry instanceof HTMLInputElement && entry.type === 'file') {
+        return entry;
+      }
+      if (entry instanceof HTMLLabelElement) {
+        const associated = entry.htmlFor ? document.getElementById(entry.htmlFor) : null;
+        if (associated instanceof HTMLInputElement && associated.type === 'file') {
+          return associated;
+        }
+      }
+    }
+
+    const target = event.target;
+    if (target instanceof HTMLLabelElement && target.htmlFor) {
+      const associated = document.getElementById(target.htmlFor);
+      if (associated instanceof HTMLInputElement && associated.type === 'file') {
+        return associated;
+      }
+    }
+    if (target instanceof Element) {
+      const closest = target.closest('input[type=file]');
+      if (closest instanceof HTMLInputElement) {
+        return closest;
+      }
+    }
+    return null;
+  };
+
+  const base64ToArray = (base64: string): Uint8Array => {
+    const binary = atob(base64);
+    const array = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i += 1) {
+      array[i] = binary.charCodeAt(i);
+    }
+    return array;
+  };
+
+  const clampSelection = <T>(items: T[], multiple: boolean): T[] => {
+    if (multiple) return items;
+    return items.length ? [items[0]] : [];
+  };
+
+  const handleResponse = (_event: Electron.IpcRendererEvent, payload: FileDialogResponse): void => {
+    const input = pendingInputs.get(payload.requestId);
+    if (!input) return;
+    const descriptors = clampSelection(payload.files ?? [], input.multiple);
+    if (!descriptors.length) {
+      pendingInputs.delete(payload.requestId);
+      activeInputs.delete(input);
+      return;
+    }
+    pendingInputs.delete(payload.requestId);
+    activeInputs.delete(input);
+    const files: File[] = [];
+    for (const descriptor of descriptors) {
+      if (!descriptor.data) {
+        continue;
+      }
+      const buffer = base64ToArray(descriptor.data);
+      const name = descriptor.name ?? descriptor.path ?? 'file';
+      const type = descriptor.type ?? guessMimeType(name);
+      files.push(new File([buffer], name, { type }));
+    }
+    if (!files.length) return;
+    const dataTransfer = new DataTransfer();
+    files.forEach((file) => dataTransfer.items.add(file));
+    try {
+      input.files = dataTransfer.files;
+    } catch {
+      // Assigning to files may fail; ignore
+    }
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  const handleClick = (event: MouseEvent): void => {
+    const input = findFileInput(event);
+    if (!input) return;
+    if (openDialogForInput(input)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  const handleKeyDown = (event: KeyboardEvent): void => {
+    if (event.key !== 'Enter' && event.key !== ' ') return;
+    const input = findFileInput(event);
+    if (!input) return;
+    if (openDialogForInput(input)) {
+      event.preventDefault();
+      event.stopPropagation();
+    }
+  };
+
+  document.addEventListener('click', handleClick, true);
+  document.addEventListener('keydown', handleKeyDown, true);
+  ipcRenderer.on('mzr:file-dialog:response', handleResponse);
 })();

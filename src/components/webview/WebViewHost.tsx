@@ -8,6 +8,9 @@ import React, {
   useRef
 } from 'react';
 import type { WebviewTag, WebContents } from 'electron';
+import type { FileDialogOptions } from '../../types/models';
+import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
+import type { FileDialogResponsePayload } from '../../types/models';
 import { isCtxtExcludedSite } from '../../helpers/websiteCtxtExclusions';
 
 export type StatusState = 'loading' | 'ready' | 'error';
@@ -59,6 +62,65 @@ type ListenerCapable = {
 };
 
 const noopState = { back: false, forward: false };
+
+const parseAcceptFilters = (accept?: string): string[] | undefined => {
+  if (!accept) return undefined;
+  const normalized = accept
+    .split(',')
+    .map((entry) => (entry ?? '').trim().toLowerCase())
+    .map((entry) => entry.replace(/^\*/, ''))
+    .map((entry) => entry.replace(/^\./, ''))
+    .filter((entry) => entry.length > 0 && !entry.includes('/'));
+  return normalized.length ? Array.from(new Set(normalized)) : undefined;
+};
+
+const MIME_TYPES: Record<string, string> = {
+  '.aac': 'audio/aac',
+  '.avi': 'video/x-msvideo',
+  '.bz': 'application/x-bzip',
+  '.bz2': 'application/x-bzip2',
+  '.csv': 'text/csv',
+  '.doc': 'application/msword',
+  '.docx': 'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+  '.dmg': 'application/x-apple-diskimage',
+  '.gif': 'image/gif',
+  '.gz': 'application/gzip',
+  '.heic': 'image/heic',
+  '.heif': 'image/heif',
+  '.hif': 'image/heif',
+  '.heix': 'image/heif',
+  '.html': 'text/html',
+  '.htm': 'text/html',
+  '.jpg': 'image/jpeg',
+  '.jpeg': 'image/jpeg',
+  '.json': 'application/json',
+  '.mkv': 'video/x-matroska',
+  '.mov': 'video/quicktime',
+  '.mp3': 'audio/mpeg',
+  '.mp4': 'video/mp4',
+  '.pdf': 'application/pdf',
+  '.png': 'image/png',
+  '.svg': 'image/svg+xml',
+  '.tar': 'application/x-tar',
+  '.txt': 'text/plain',
+  '.wav': 'audio/wav',
+  '.webm': 'video/webm',
+  '.webp': 'image/webp',
+  '.zip': 'application/zip'
+};
+
+const guessMimeType = (fileName: string): string => {
+  const match = /\.[^.]+$/.exec(fileName);
+  if (!match) return '';
+  const ext = match[0].toLowerCase();
+  return MIME_TYPES[ext] ?? '';
+};
+
+const extractNameFromPath = (filePath: string): string => {
+  const normalized = filePath.replace(/\\\\/g, '/');
+  const segments = normalized.split('/');
+  return segments[segments.length - 1] || filePath;
+};
 
 const WebViewHost = forwardRef(function WebViewHost(
   {
@@ -117,6 +179,51 @@ const WebViewHost = forwardRef(function WebViewHost(
       }
     } catch {}
   }, []);
+
+  const handleWebviewFileDialogRequest = useCallback(
+    async (detail: { requestId: string; accept?: string; multiple?: boolean }) => {
+      const node = webviewRef.current;
+      if (!node) return;
+      const options: FileDialogOptions = {
+        kind: 'file',
+        allowMultiple: Boolean(detail.multiple),
+        filters: parseAcceptFilters(detail.accept)
+      };
+      try {
+        const result = await requestFileDialog(options);
+        const fileEntries = result?.paths ?? [];
+        const files: FileDialogResponsePayload['files'] = [];
+        for (const entryPath of fileEntries) {
+          const name = extractNameFromPath(entryPath);
+          const type = guessMimeType(name);
+          let data: string | null = null;
+          try {
+            const binary = await window.merezhyvo?.fileDialog?.readBinary?.({ path: entryPath });
+            data = binary?.data ?? null;
+        } catch {
+        // noop
+          }
+          files.push({ path: entryPath, name, type, data });
+        }
+        try {
+          node.send('mzr:file-dialog:response', {
+            requestId: detail.requestId,
+            files
+          });
+        } catch {
+          // noop
+        }
+      } catch {
+      // noop
+        try {
+          node.send('mzr:file-dialog:response', { requestId: detail.requestId, paths: null });
+        } catch {
+          // noop
+        }
+      }
+    },
+    []
+  );
 
   useEffect(() => {
     zoomRef.current = zoom;
@@ -301,71 +408,80 @@ const WebViewHost = forwardRef(function WebViewHost(
   }, [emitNavigationState]);
 
   useEffect(() => {
-  const el = webviewRef.current;
-  if (!el) return;
+    const el = webviewRef.current;
+    if (!el) return;
 
-  // Wire ipc-message listener (mirror notifications to host)
-  const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
-    const passwordsApi = window.merezhyvo?.passwords;
-    const wcId = typeof el.getWebContentsId === 'function' ? el.getWebContentsId() : undefined;
-
-    if (e.channel === 'mzr:pw:field-focus') {
-      const payload = e.args?.[0] as { origin?: string; signonRealm?: string; field?: string };
-      if (wcId && payload && payload.origin && payload.signonRealm && (payload.field === 'password' || payload.field === 'username')) {
-        void passwordsApi?.notifyFieldFocus({
-          wcId,
-          origin: payload.origin,
-          signonRealm: payload.signonRealm,
-          field: payload.field as 'username' | 'password'
-        });
+    const handleIpcMessage = (e: Electron.IpcMessageEvent) => {
+      if (e.channel === 'mzr:file-dialog:open') {
+        const payload = e.args?.[0] as { requestId?: string; accept?: string; multiple?: boolean } | undefined;
+        if (payload?.requestId) {
+          void handleWebviewFileDialogRequest({
+            requestId: payload.requestId,
+            accept: typeof payload.accept === 'string' ? payload.accept : undefined,
+            multiple: Boolean(payload.multiple)
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    if (e.channel === 'mzr:pw:field-blur') {
-      if (wcId) {
-        void passwordsApi?.notifyFieldBlur(wcId);
+      const passwordsApi = window.merezhyvo?.passwords;
+      const wcId = typeof el.getWebContentsId === 'function' ? el.getWebContentsId() : undefined;
+
+      if (e.channel === 'mzr:pw:field-focus') {
+        const payload = e.args?.[0] as { origin?: string; signonRealm?: string; field?: string };
+        if (wcId && payload && payload.origin && payload.signonRealm && (payload.field === 'password' || payload.field === 'username')) {
+          void passwordsApi?.notifyFieldFocus({
+            wcId,
+            origin: payload.origin,
+            signonRealm: payload.signonRealm,
+            field: payload.field as 'username' | 'password'
+          });
+        }
+        return;
       }
-      return;
-    }
 
-    if (e.channel !== 'mzr:webview:notification') return;
+      if (e.channel === 'mzr:pw:field-blur') {
+        if (wcId) {
+          void passwordsApi?.notifyFieldBlur(wcId);
+        }
+        return;
+      }
 
-    const raw = e.args?.[0] as {
-      title: string;
-      options: { body: string; icon: string; data: unknown; tag: string };
+      if (e.channel !== 'mzr:webview:notification') return;
+
+      const raw = e.args?.[0] as {
+        title: string;
+        options: { body: string; icon: string; data: unknown; tag: string };
+      };
+
+      let currentUrl: string | undefined;
+      try {
+        const got = el.getURL?.();
+        currentUrl = typeof got === 'string' ? got : el.src || undefined;
+      } catch {
+        currentUrl = el.src || undefined;
+      }
+
+      const detail = {
+        title: raw.title,
+        options: {
+          body: raw.options?.body ?? '',
+          icon: raw.options?.icon ?? '',
+          data: raw.options?.data ?? null,
+          tag: raw.options?.tag ?? ''
+        },
+        source: { url: currentUrl } as { url?: string }
+      };
+
+      window.dispatchEvent(new CustomEvent('mzr-notification', { detail }));
     };
 
-    // Determine current URL of this webview for toast → focus mapping
-    let currentUrl: string | undefined;
-    try {
-      const got = el.getURL?.();
-      currentUrl = typeof got === 'string' ? got : el.src || undefined;
-    } catch {
-      currentUrl = el.src || undefined;
-    }
+    el.addEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
 
-    const detail = {
-      title: raw.title,
-      options: {
-        body: raw.options?.body ?? '',
-        icon: raw.options?.icon ?? '',
-        data: raw.options?.data ?? null,
-        tag: raw.options?.tag ?? ''
-      },
-      source: { url: currentUrl } as { url?: string }
+    return () => {
+      el.removeEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
     };
-
-    window.dispatchEvent(new CustomEvent('mzr-notification', { detail }));
-  };
-
-  // Electron.WebviewTag supports this event name
-  el.addEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
-
-  return () => {
-    el.removeEventListener('ipc-message', handleIpcMessage as unknown as EventListener);
-  };
-}, []);
+  }, [handleWebviewFileDialogRequest]);
 
 
   useImperativeHandle(ref, (): WebViewHandle => ({

@@ -97,6 +97,24 @@ export const readFileContent = async (filePath: string): Promise<string> => {
   return data;
 };
 
+export const readFileAsBase64 = async (filePath: string): Promise<string> => {
+  if (!filePath) {
+    throw new Error('Path is required');
+  }
+  const resolved = path.resolve(filePath);
+  let stat: fs.Stats;
+  try {
+    stat = await fsp.stat(resolved);
+  } catch {
+    throw new Error('Unable to access file');
+  }
+  if (!stat.isFile()) {
+    throw new Error('Path is not a file');
+  }
+  const data = await fsp.readFile(resolved);
+  return data.toString('base64');
+};
+
 export const writeFileContent = async (
   filePath: string,
   data: string,

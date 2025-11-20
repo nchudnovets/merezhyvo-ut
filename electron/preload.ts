@@ -418,10 +418,11 @@ const exposeApi: MerezhyvoAPI = {
     exportHtml: (payload) =>
       ipcRenderer.invoke('merezhyvo:bookmarks:export-html', payload ?? {})
   },
-  fileDialog: {
-    list: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:list', payload ?? {}),
-    readFile: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:read', payload ?? {}),
-    onRequest: (handler) => {
+    fileDialog: {
+      list: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:list', payload ?? {}),
+      readFile: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:read', payload ?? {}),
+      readBinary: (payload) => ipcRenderer.invoke('merezhyvo:file-dialog:read-binary', payload ?? {}),
+      onRequest: (handler) => {
       if (typeof handler !== 'function') return noopUnsubscribe;
       const channel = 'merezhyvo:file-dialog:open';
       const listener = (_event: IpcRendererEvent, detail: { requestId?: string; options?: FileDialogOptions }) => {

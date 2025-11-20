@@ -155,6 +155,7 @@ export interface FileDialogResponsePayload {
 export interface MerezhyvoFileDialogApi {
   list(payload?: { path?: string; filters?: string[] }): Promise<FileDialogListing>;
   readFile(payload: { path: string }): Promise<string>;
+  readBinary(payload: { path: string }): Promise<{ data: string }>;
   onRequest(handler: (payload: FileDialogRequestPayload) => void): () => void;
   respond(payload: FileDialogResponsePayload): Promise<{ ok: boolean }>;
   saveFile(payload: FileDialogSavePayload): Promise<{ ok: boolean }>;
