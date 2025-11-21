@@ -332,6 +332,51 @@ export const settingsModalStyles: StyleRecord = {
     cursor: 'pointer',
     fontSize: '13px'
   },
+  scaleContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    padding: '16px 18px',
+    borderRadius: '16px',
+    border: '1px solid rgba(148, 163, 184, 0.2)',
+    backgroundColor: 'rgba(17, 24, 39, 0.65)'
+  },
+  scaleRow: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center'
+  },
+  scaleLabel: {
+    fontSize: '18px',
+    fontWeight: 600,
+    color: '#f8fafc'
+  },
+  scaleValue: {
+    fontSize: '18px',
+    fontWeight: 600,
+    color: '#a5b4fc'
+  },
+  scaleRange: {
+    width: '100%'
+  },
+  scaleHelper: {
+    margin: 0,
+    fontSize: '14px',
+    color: '#cbd5f5'
+  },
+  scaleButtons: {
+    display: 'flex',
+    gap: '12px'
+  },
+  scaleButton: {
+    border: '1px solid rgba(148, 163, 184, 0.45)',
+    background: 'rgba(15, 23, 42, 0.75)',
+    color: '#f8fafc',
+    borderRadius: '12px',
+    padding: '8px 16px',
+    fontSize: '14px',
+    cursor: 'pointer'
+  },
   torInfoRow: {
     display: 'flex',
     alignItems: 'center',

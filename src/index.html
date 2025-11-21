@@ -63,6 +63,28 @@
       100% { -webkit-transform: rotate(360deg); }
     }
 
+    :root {
+      --ui-scale: 1;
+    }
+
+    #chromeScaleComp {
+      transform-origin: top left;
+      transform: scale(var(--ui-scale));
+      width: calc(100% / var(--ui-scale));
+      height: calc(100% / var(--ui-scale));
+    }
+
+    #chromeRoot {
+      -webkit-font-smoothing: antialiased;
+    }
+
+    #contentRoot {
+      position: relative;
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+    }
+
     @keyframes download-arrow {
       0% { transform: translateY(-35%); }
       50% { transform: translateY(15%); }

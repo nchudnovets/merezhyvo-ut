@@ -12,6 +12,10 @@ export interface MessengerSettings {
   order: MessengerId[];
 }
 
+export interface UISettings {
+  scale: number;
+}
+
 export type TabKind = 'browser' | 'messenger';
 
 export interface Tab {
@@ -177,6 +181,7 @@ export interface SettingsState {
   keyboard: KeyboardSettings;
   messenger: MessengerSettings;
   downloads: DownloadsSettings;
+  ui: UISettings;
 }
 
 export interface PasswordEntryMeta {

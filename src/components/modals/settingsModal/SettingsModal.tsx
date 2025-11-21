@@ -12,6 +12,7 @@ import TorSettings from './TorSettings';
 import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
 import DownloadSettingsSection from './DownloadSettingsSection';
+import UiScaleSetting from './UiScaleSetting';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -49,6 +50,9 @@ interface SettingsModalProps {
   onDownloadsChooseFolder: () => void;
   onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
   onDownloadsSave: () => void;
+  uiScale: number;
+  onUiScaleChange: (value: number) => void;
+  onUiScaleReset: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -86,7 +90,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   downloadsSaving,
   onDownloadsChooseFolder,
   onDownloadsConcurrentChange,
-  onDownloadsSave
+  onDownloadsSave,
+  uiScale,
+  onUiScaleChange,
+  onUiScaleReset
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -225,6 +232,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChooseFolder={onDownloadsChooseFolder}
                 onConcurrentChange={onDownloadsConcurrentChange}
                 onSave={onDownloadsSave}
+              />
+            }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title="Appearance"
+            body={
+              <UiScaleSetting
+                mode={mode}
+                value={uiScale}
+                onChange={onUiScaleChange}
+                onReset={onUiScaleReset}
               />
             }
           />

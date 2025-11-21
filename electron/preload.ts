@@ -77,6 +77,20 @@ const runtimeVersions = {
   node: process.versions.node || ''
 };
 
+const applyUiScale = () => {
+  const root =
+    document.documentElement ?? document?.getElementsByTagName?.('html')?.[0] ?? null;
+  if (!root) return;
+  try {
+    const scale =
+      (ipcRenderer.sendSync('merezhyvo:ui:getScaleSync') as number | undefined) ?? 1;
+    root.style.setProperty('--ui-scale', String(scale));
+  } catch {
+    root.style.setProperty('--ui-scale', '1');
+  }
+};
+applyUiScale();
+
 const noopUnsubscribe: Unsubscribe = () => {};
 
 const exposeApi: MerezhyvoAPI = {
@@ -449,6 +463,29 @@ const exposeApi: MerezhyvoAPI = {
     settings: {
       get: () => ipcRenderer.invoke('merezhyvo:downloads:settings:get'),
       set: (payload) => ipcRenderer.invoke('merezhyvo:downloads:settings:set', payload ?? {})
+    }
+  },
+  ui: {
+    get: async () => {
+      try {
+        const result = await ipcRenderer.invoke('merezhyvo:ui:getScale');
+        if (typeof result === 'object' && result && typeof result.scale === 'number') {
+          return { scale: result.scale };
+        }
+      } catch {
+        // noop
+      }
+      return { scale: 1 };
+    },
+    set: async (payload) => {
+      try {
+        const normalized = (await ipcRenderer.invoke('merezhyvo:ui:setScale', payload ?? {})) as
+          | { ok: true; scale: number }
+          | { ok: false; error: string };
+        return normalized;
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
     }
   },
   favicons: {

@@ -24,6 +24,14 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsAboutVersion: {},
     settingsAboutDescription: {},
     settingsAboutButton: {},
+    scaleContainer: {},
+    scaleRow: {},
+    scaleLabel: {},
+    scaleValue: {},
+    scaleRange: {},
+    scaleHelper: {},
+    scaleButtons: {},
+    scaleButton: {},
     settingsTorInfoValue: {},
     settingsTorInputLabel: {},
     settingsTorInput: {},
@@ -202,6 +210,33 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsAboutButton: {
       fontSize: 'clamp(32px, 4.5vw, 38px)',
       padding: 'clamp(18px, 3.5vw, 26px) clamp(32px, 5vw, 40px)'
+    },
+    scaleContainer: {
+      padding: 'clamp(32px, 4.5vw, 40px)',
+      borderRadius: '26px',
+      gap: 'clamp(18px, 3vw, 26px)'
+    },
+    scaleRow: {
+      gap: 'clamp(16px, 2.5vw, 22px)'
+    },
+    scaleLabel: {
+      fontSize: '38px'
+    },
+    scaleValue: {
+      fontSize: '38px'
+    },
+    scaleRange: {
+      margin: '0 clamp(6px, 1vw, 10px)'
+    },
+    scaleHelper: {
+      fontSize: '18px'
+    },
+    scaleButtons: {
+      gap: 'clamp(16px, 3vw, 24px)'
+    },
+    scaleButton: {
+      fontSize: '38px',
+      padding: 'clamp(18px, 3.5vw, 26px) clamp(30px, 4.5vw, 40px)'
     },
     settingsTorInfoValue: {
       fontSize: 'clamp(36px, 5vw, 45px)'

@@ -31,7 +31,8 @@ import {
   getSessionFilePath,
   readSettingsState,
   writeSettingsState,
-  sanitizeDownloadsSettings
+  sanitizeDownloadsSettings,
+  sanitizeUiSettings
 } from './lib/shortcuts';
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
@@ -1056,6 +1057,39 @@ ipcMain.handle('merezhyvo:downloads:settings:get', async () => {
       return sanitizeDownloadsSettings(payload);
     }
   });
+
+ipcMain.handle('merezhyvo:ui:getScale', async () => {
+  try {
+    const state = await readSettingsState();
+    return { scale: state.ui?.scale ?? 1 };
+  } catch {
+    return { scale: 1 };
+  }
+});
+
+ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
+  try {
+    const sanitized = sanitizeUiSettings(payload);
+    const nextState = await writeSettingsState({ ui: sanitized });
+    return { ok: true, scale: nextState.ui?.scale ?? sanitized.scale };
+  } catch (err) {
+    console.error('[merezhyvo] ui scale update failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.on('merezhyvo:ui:getScaleSync', (event) => {
+  try {
+    const state = readSettingsState();
+    if (state && typeof state.ui?.scale === 'number') {
+      event.returnValue = state.ui.scale;
+      return;
+    }
+  } catch {
+    /* ignore */
+  }
+  event.returnValue = 1;
+});
 
 ipcMain.handle('merezhyvo:settings:tor:update', async (_event, payload: unknown) => {
   const containerId =

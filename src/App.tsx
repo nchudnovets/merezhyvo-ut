@@ -360,6 +360,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [clearDownloadIndicatorTimer, downloadIndicatorState]);
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
+  const [uiScale, setUiScale] = useState<number>(1);
 
   const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
@@ -608,6 +609,50 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setDownloadsSaving(false);
     }
   }, [downloadsConcurrent, downloadsDefaultDir, downloadsSaving, setGlobalToast]);
+
+  const applyUiScale = useCallback(async (raw: number) => {
+    const rounded = Math.round(raw * 10) / 10;
+    const clamped = Number(Math.max(0.5, Math.min(1.6, rounded)).toFixed(1));
+    setUiScale(clamped);
+    try {
+      await window.merezhyvo?.ui?.set?.({ scale: clamped });
+    } catch {
+      // ignore
+    }
+  }, []);
+
+  useEffect(() => {
+    const root = document.documentElement;
+    try {
+      root.style.setProperty('--ui-scale', String(uiScale));
+    } catch {
+      // noop
+    }
+  }, [uiScale]);
+
+  const handleUiScaleReset = useCallback(() => {
+    void applyUiScale(1);
+  }, [applyUiScale]);
+
+  useEffect(() => {
+    const handleShortcut = (event: KeyboardEvent) => {
+      if (!event.ctrlKey || !event.shiftKey) return;
+      if (event.key === '=' || event.key === '+') {
+        event.preventDefault();
+        void applyUiScale(uiScale + 0.1);
+      } else if (event.key === '-') {
+        event.preventDefault();
+        void applyUiScale(uiScale - 0.1);
+      } else if (event.key === '0') {
+        event.preventDefault();
+        handleUiScaleReset();
+      }
+    };
+    window.addEventListener('keydown', handleShortcut);
+    return () => {
+      window.removeEventListener('keydown', handleShortcut);
+    };
+  }, [applyUiScale, handleUiScaleReset, uiScale]);
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -625,6 +670,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setDownloadsConcurrent(
           downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
         );
+        setUiScale(state.ui?.scale ?? 1);
       } catch {
         if (!cancelled) {
           setTorContainerId('');
@@ -632,6 +678,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setTorKeepEnabledDraft(false);
           setDownloadsDefaultDir('');
           setDownloadsConcurrent(2);
+          setUiScale(1);
         }
       }
     };
@@ -1774,7 +1821,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [showSettingsModal, closeSettingsModal, torContainerId, torKeepEnabled, refreshTorIp]);
 
-  const handleTorContainerInputChange = useCallback((value: string) => {
+  const handleTorInputChange = useCallback((value: string) => {
     setTorContainerDraft(value);
     setTorConfigFeedback('');
     if (!value.trim()) {
@@ -2638,201 +2685,181 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
-      {!isHtmlFullscreen && mainViewMode === 'browser' && (
-      <Toolbar
-        mode={mode}
-        canGoBack={canGoBack}
-        canGoForward={canGoForward}
-          webviewReady={webviewReady}
-          tabCount={tabCount}
-          tabsReady={tabsReady}
-          inputRef={inputRef}
-          inputValue={inputValue}
-          status={status}
-          statusLabel={statusLabelMap[status] || status}
-          torEnabled={torEnabled}
-          onBack={handleBack}
-        onForward={handleForward}
-        onReload={handleReload}
-        onSubmit={handleSubmit}
-        onInputChange={(value) => setInputValue(value)}
-        onInputPointerDown={handleInputPointerDown}
-        onInputFocus={handleInputFocus}
-        onInputBlur={handleInputBlur}
-        onOpenTabsPanel={openTabsPanel}
-        onToggleTor={handleToggleTor}
-        onOpenSettings={openSettingsModal}
-        onEnterMessengerMode={handleEnterMessengerMode}
-        downloadIndicatorState={downloadIndicatorState}
-        onDownloadIndicatorClick={handleDownloadIndicatorClick}
-      />
-      )}
+      <div id="chromeScaleComp">
+        <div id="chromeRoot">
+          {!isHtmlFullscreen && mainViewMode === 'browser' && (
+            <Toolbar
+              mode={mode}
+              canGoBack={canGoBack}
+              canGoForward={canGoForward}
+              webviewReady={webviewReady}
+              tabCount={tabCount}
+              tabsReady={tabsReady}
+              inputRef={inputRef}
+              inputValue={inputValue}
+              status={status}
+              statusLabel={statusLabelMap[status] || status}
+              torEnabled={torEnabled}
+              onBack={handleBack}
+              onForward={handleForward}
+              onReload={handleReload}
+              onSubmit={handleSubmit}
+              onInputChange={(value) => setInputValue(value)}
+              onInputPointerDown={handleInputPointerDown}
+              onInputFocus={handleInputFocus}
+              onInputBlur={handleInputBlur}
+              onOpenTabsPanel={openTabsPanel}
+              onToggleTor={handleToggleTor}
+              onOpenSettings={openSettingsModal}
+              onEnterMessengerMode={handleEnterMessengerMode}
+              downloadIndicatorState={downloadIndicatorState}
+              onDownloadIndicatorClick={handleDownloadIndicatorClick}
+            />
+          )}
 
-      {!isHtmlFullscreen && mainViewMode === 'messenger' && (
-        <MessengerToolbar
-          mode={mode}
-          messengers={orderedMessengers}
-          activeMessengerId={activeMessengerId}
-          onSelectMessenger={handleMessengerSelect}
-          onExit={exitMessengerMode}
-        />
-      )}
+          {!isHtmlFullscreen && mainViewMode === 'messenger' && (
+            <MessengerToolbar
+              mode={mode}
+              messengers={orderedMessengers}
+              activeMessengerId={activeMessengerId}
+              onSelectMessenger={handleMessengerSelect}
+              onExit={exitMessengerMode}
+            />
+          )}
 
-      <div style={WEBVIEW_WRAPPER_STYLE}>
-        <WebViewPane
-          webviewHostRef={webviewHostRef}
-          backgroundHostRef={backgroundHostRef}
-          webviewStyle={styles.webviewMount}
-          webviewHostStyle={{
-            ...styles.webviewHost,
-            height: webviewHostHeight
-          }}
-          backgroundStyle={styles.backgroundShelf}
-          overlay={tabLoadingOverlay}
-        />
-        {serviceContent && (
-          <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
-            {serviceContent}
-          </div>
-        )}
-      </div>
+          {!isHtmlFullscreen && (
+            <ZoomBar
+              ref={zoomBarRef}
+              mode={mode}
+              zoomLevel={zoomLevel}
+              zoomDisplay={zoomDisplay}
+              min={ZOOM_MIN}
+              max={ZOOM_MAX}
+              step={ZOOM_STEP}
+              onPointerDown={handleZoomSliderPointerDown}
+              onChange={handleZoomSliderChange}
+            />
+          )}
 
-      {!isHtmlFullscreen && (
-        <ZoomBar
-          ref={zoomBarRef}
-          mode={mode}
-          zoomLevel={zoomLevel}
-          zoomDisplay={zoomDisplay}
-          min={ZOOM_MIN}
-          max={ZOOM_MAX}
-          step={ZOOM_STEP}
-          onPointerDown={handleZoomSliderPointerDown}
-          onChange={handleZoomSliderChange}
-        />
-      )}
+          {showTabsPanel && (
+            <TabsPanel
+              mode={mode}
+              backdropStyle={tabsPanelBackdropStyle}
+              activeTabId={activeId}
+              pinnedTabs={pinnedTabs}
+              regularTabs={regularTabs}
+              onClose={closeTabsPanel}
+              onNewTab={handleNewTab}
+              onActivateTab={handleActivateTab}
+              onTogglePin={handleTogglePin}
+              onCleanClose={handleCleanCloseTab}
+              onCloseTab={handleCloseTab}
+              onOpenBookmarks={openBookmarksPage}
+              onOpenHistory={openHistoryPage}
+              displayTitle={displayTitleForTab}
+              displaySubtitle={displaySubtitleForTab}
+              fallbackInitial={fallbackInitialForTab}
+            />
+          )}
 
-        {showTabsPanel && (
-          <TabsPanel
+          {showSettingsModal && (
+            <SettingsModal
+              mode={mode}
+              backdropStyle={modalBackdropStyle}
+              appInfo={appInfo}
+              torEnabled={torEnabled}
+              torCurrentIp={torIp}
+              torIpLoading={torIpLoading}
+              torContainerValue={torContainerDraft}
+              torSavedContainerId={torContainerId}
+              torContainerSaving={torConfigSaving}
+              torContainerMessage={torConfigFeedback}
+              torKeepEnabledDraft={torKeepEnabledDraft}
+              torInputRef={torContainerInputRef}
+              onTorInputPointerDown={handleTorInputPointerDown}
+              onTorInputFocus={handleTorInputFocus}
+              onTorInputBlur={handleTorInputBlur}
+              onTorContainerChange={handleTorInputChange}
+              onSaveTorContainer={handleSaveTorContainer}
+              onTorKeepChange={handleTorKeepChange}
+              onClose={closeSettingsModal}
+              onOpenPasswords={openPasswordsFromSettings}
+              messengerItems={orderedMessengers}
+              messengerOrderSaving={messengerOrderSaving}
+              messengerOrderMessage={messengerOrderMessage}
+              onMessengerMove={handleMessengerMove}
+              onRequestPasswordUnlock={requestPasswordUnlock}
+              scrollToSection={settingsScrollTarget}
+              onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+              onOpenLicenses={openLicensesFromSettings}
+              downloadsDefaultDir={downloadsDefaultDir}
+              downloadsConcurrent={downloadsConcurrent}
+              downloadsSaving={downloadsSaving}
+              onDownloadsChooseFolder={handleChooseDownloadFolder}
+              onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
+              onDownloadsSave={handleSaveDownloadSettings}
+              uiScale={uiScale}
+              onUiScaleChange={applyUiScale}
+              onUiScaleReset={handleUiScaleReset}
+            />
+          )}
+
+          <PasswordUnlockModal
             mode={mode}
-            backdropStyle={tabsPanelBackdropStyle}
-            activeTabId={activeId}
-            pinnedTabs={pinnedTabs}
-            regularTabs={regularTabs}
-            onClose={closeTabsPanel}
-            onNewTab={handleNewTab}
-            onActivateTab={handleActivateTab}
-            onTogglePin={handleTogglePin}
-            onCleanClose={handleCleanCloseTab}
-            onCloseTab={handleCloseTab}
-            onOpenBookmarks={openBookmarksPage}
-            onOpenHistory={openHistoryPage}
-            displayTitle={displayTitleForTab}
-            displaySubtitle={displaySubtitleForTab}
-            fallbackInitial={fallbackInitialForTab}
+            open={showUnlockModal}
+            payload={unlockPayload ?? undefined}
+            onClose={closeUnlockModal}
+            onUnlock={handlePasswordUnlock}
+            error={unlockError}
+            submitting={unlockSubmitting}
+            defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
           />
-        )}
 
-      {showSettingsModal && (
-        <SettingsModal
-          mode={mode}
-          backdropStyle={modalBackdropStyle}
-          appInfo={appInfo}
-          torEnabled={torEnabled}
-          torCurrentIp={torIp}
-          torIpLoading={torIpLoading}
-          torContainerValue={torContainerDraft}
-          torSavedContainerId={torContainerId}
-          torContainerSaving={torConfigSaving}
-          torContainerMessage={torConfigFeedback}
-          torKeepEnabledDraft={torKeepEnabledDraft}
-          torInputRef={torContainerInputRef}
-          onTorInputPointerDown={handleTorInputPointerDown}
-          onTorInputFocus={handleTorInputFocus}
-          onTorInputBlur={handleTorInputBlur}
-          onTorContainerChange={handleTorContainerInputChange}
-          onSaveTorContainer={handleSaveTorContainer}
-          onTorKeepChange={handleTorKeepChange}
-          onClose={closeSettingsModal}
-          onOpenPasswords={openPasswordsFromSettings}
-          messengerItems={orderedMessengers}
-          messengerOrderSaving={messengerOrderSaving}
-          messengerOrderMessage={messengerOrderMessage}
-          onMessengerMove={handleMessengerMove}
-          onRequestPasswordUnlock={requestPasswordUnlock}
-          scrollToSection={settingsScrollTarget}
-          onScrollSectionHandled={() => setSettingsScrollTarget(null)}
-          onOpenLicenses={openLicensesFromSettings}
-          downloadsDefaultDir={downloadsDefaultDir}
-          downloadsConcurrent={downloadsConcurrent}
-          downloadsSaving={downloadsSaving}
-          onDownloadsChooseFolder={handleChooseDownloadFolder}
-          onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
-          onDownloadsSave={handleSaveDownloadSettings}
-        />
-      )}
+          <PasswordCapturePrompt
+            mode={mode}
+            open={Boolean(passwordPrompt)}
+            payload={passwordPrompt ?? undefined}
+            busy={passwordPromptBusy}
+            onAction={handlePasswordPromptAction}
+            onClose={handlePromptCancel}
+          />
 
-      <PasswordUnlockModal
-        mode={mode}
-        open={showUnlockModal}
-        payload={unlockPayload ?? undefined}
-        onClose={closeUnlockModal}
-        onUnlock={handlePasswordUnlock}
-        error={unlockError}
-        submitting={unlockSubmitting}
-        defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
-      />
-
-      <PasswordCapturePrompt
-        mode={mode}
-        open={Boolean(passwordPrompt)}
-        payload={passwordPrompt ?? undefined}
-        busy={passwordPromptBusy}
-        onAction={handlePasswordPromptAction}
-        onClose={handlePromptCancel}
-      />
-
-      {torAlertMessage && (
-        <div
-          style={styles.torAlertOverlay}
-          role="alertdialog"
-          aria-modal="true"
-          aria-live="assertive"
-          onClick={dismissTorAlert}
-        >
-          <div
-            style={{
-              ...styles.torAlertCard,
-              ...(mode === 'mobile' ? styles.torAlertCardMobile : styles.torAlertCardDesktop)
-            }}
-            onClick={(event) => event.stopPropagation()}
-          >
-            <p
-              style={{
-                ...styles.torAlertText,
-                ...(mode === 'mobile' ? styles.torAlertTextMobile : styles.torAlertTextDesktop)
-              }}
-            >
-              {torAlertMessage}
-            </p>
-            <button
-              type="button"
-              style={{
-                ...styles.torAlertButton,
-                ...(mode === 'mobile' ? styles.torAlertButtonMobile : styles.torAlertButtonDesktop)
-              }}
+          {torAlertMessage && (
+            <div
+              style={styles.torAlertOverlay}
+              role="alertdialog"
+              aria-modal="true"
+              aria-live="assertive"
               onClick={dismissTorAlert}
             >
-              OK
-            </button>
-          </div>
-        </div>
-      )}
-
-      {downloadToast && (
-        <div style={styles.downloadToast}>
-          {downloadToast}
-        </div>
-      )}
+              <div
+                style={{
+                  ...styles.torAlertCard,
+                  ...(mode === 'mobile' ? styles.torAlertCardMobile : styles.torAlertCardDesktop)
+                }}
+                onClick={(event) => event.stopPropagation()}
+              >
+                <p
+                  style={{
+                    ...styles.torAlertText,
+                    ...(mode === 'mobile' ? styles.torAlertTextMobile : styles.torAlertTextDesktop)
+                  }}
+                >
+                  {torAlertMessage}
+                </p>
+                <button
+                  type="button"
+                  style={{
+                    ...styles.torAlertButton,
+                    ...(mode === 'mobile' ? styles.torAlertButtonMobile : styles.torAlertButtonDesktop)
+                  }}
+                  onClick={dismissTorAlert}
+                >
+                  OK
+                </button>
+              </div>
+            </div>
+          )}
 
       {globalToast && (
         <div
@@ -2843,7 +2870,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             transform: 'translateX(-50%)',
             backgroundColor: 'rgba(0, 0, 0, 0.85)',
             color: '#fff',
-            padding: mode === 'mobile' ? '18px 32px' : '10px 20px',
+            padding: mode === 'mobile' ? '34px 32px' : '10px 20px',
             borderRadius: '999px',
             fontSize: mode === 'mobile' ? '34px' : '16px',
             zIndex: 2300,
@@ -2854,25 +2881,49 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           {globalToast}
         </div>
       )}
+      {downloadToast && (
+        <div style={styles.downloadToast}>{downloadToast}</div>
+      )}
 
-      <KeyboardPane
-        visible={kbVisible}
-        layoutId={kbLayout}
-        enabledLayouts={enabledKbLayouts}
-        context="text"
-        injectText={injectText}
-        injectBackspace={injectBackspace}
-        injectEnter={injectEnter}
-        injectArrow={injectArrow}
-        onSetLayout={setKbLayout}
-        onEnterShouldClose={onEnterShouldClose}
-        onClose={closeKeyboard}
-        onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
-        onHeightChange={handleKeyboardHeightChange}
-      />
-      <FileDialogHost mode={mode} />
-      {/* <PermissionPrompt /> */}
-      {/* <ToastCenter /> */}
+          <KeyboardPane
+            visible={kbVisible}
+            layoutId={kbLayout}
+            enabledLayouts={enabledKbLayouts}
+            context="text"
+            injectText={injectText}
+            injectBackspace={injectBackspace}
+            injectEnter={injectEnter}
+            injectArrow={injectArrow}
+            onSetLayout={setKbLayout}
+            onEnterShouldClose={onEnterShouldClose}
+            onClose={closeKeyboard}
+            onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
+            onHeightChange={handleKeyboardHeightChange}
+          />
+          <FileDialogHost mode={mode} />
+        </div>
+      </div>
+
+      <div id="contentRoot">
+        <div style={WEBVIEW_WRAPPER_STYLE}>
+          <WebViewPane
+            webviewHostRef={webviewHostRef}
+            backgroundHostRef={backgroundHostRef}
+            webviewStyle={styles.webviewMount}
+            webviewHostStyle={{
+              ...styles.webviewHost,
+              height: webviewHostHeight
+            }}
+            backgroundStyle={styles.backgroundShelf}
+            overlay={tabLoadingOverlay}
+          />
+          {serviceContent && (
+            <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
+              {serviceContent}
+            </div>
+          )}
+        </div>
+      </div>
     </div>
   );
 };

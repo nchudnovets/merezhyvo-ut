@@ -200,6 +200,10 @@ export interface MerezhyvoAPI {
       update(order: MessengerSettings['order']): Promise<MessengerSettings>;
     };
   };
+  ui: {
+    get(): Promise<{ scale: number }>;
+    set(payload: { scale: number }): Promise<{ ok: true; scale: number } | { ok: false; error: string }>;
+  };
   downloads: {
     settings: {
       get(): Promise<DownloadsSettings>;

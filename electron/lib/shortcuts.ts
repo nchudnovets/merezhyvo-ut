@@ -27,12 +27,17 @@ export type DownloadsSettings = {
   concurrent: 1 | 2 | 3;
 };
 
+export type UISettings = {
+  scale: number;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
   tor: TorConfig;
   messenger: MessengerSettings;
   downloads: DownloadsSettings;
+  ui: UISettings;
   permissions?: unknown;
 };
 
@@ -111,6 +116,10 @@ const DEFAULT_DOWNLOADS_SETTINGS: DownloadsSettings = {
   concurrent: 2
 };
 
+const DEFAULT_UI_SETTINGS: UISettings = {
+  scale: 1.0
+};
+
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
   order: [...DEFAULT_MESSENGER_ORDER]
 };
@@ -122,7 +131,20 @@ export const createDefaultSettingsState = (): SettingsState => ({
   messenger: { ...DEFAULT_MESSENGER_SETTINGS }
   ,
   downloads: { ...DEFAULT_DOWNLOADS_SETTINGS }
+  ,
+  ui: { ...DEFAULT_UI_SETTINGS }
 });
+
+const coerceScale = (value: number): number => {
+  const rounded = Math.round(value * 10) / 10;
+  return Number(Math.max(0.5, Math.min(1.6, rounded)).toFixed(1));
+};
+
+export const sanitizeUiSettings = (raw: unknown): UISettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<UISettings> : {};
+  const scaleRaw = typeof source.scale === 'number' ? source.scale : DEFAULT_UI_SETTINGS.scale;
+  return { scale: coerceScale(scaleRaw) };
+};
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<DownloadsSettings> : {};
@@ -147,6 +169,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
       ? source.permissions
       : undefined;
   const downloads = sanitizeDownloadsSettings(source.downloads);
+  const ui = sanitizeUiSettings(source.ui);
 
   return {
     schema: SETTINGS_SCHEMA,
@@ -154,6 +177,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     tor,
     messenger,
     downloads,
+    ui,
     ...(permissions ? { permissions } : {})
   };
 };
