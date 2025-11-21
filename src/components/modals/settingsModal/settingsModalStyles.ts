@@ -21,9 +21,9 @@ export const settingsModalStyles: StyleRecord = {
   },
   containerMobile: {
     width: '100%',
-    height: '100vh',
-    minHeight: '100vh',
-    borderRadius: 0,
+    // height: '100vh',
+    // minHeight: '100vh',
+    borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.98)',
     boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
