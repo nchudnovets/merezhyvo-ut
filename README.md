@@ -34,19 +34,6 @@
         
     *   Works in the main window and inside the `<webview>` without stealing focus.
     *   Import/export now understands the Netscape bookmark HTML format (Chrome/Firefox compatible), with scoped preview counts, add/replace modes, canonical headers, icons persisted via `favicons`, and the same IPC surface exposed to renderer pages.
-- **Permissions & privacy (new)**
-  - Built-in permission broker for **geolocation, camera, microphone, notifications**.
-  - Per-site rules (**Allow / Deny**) + **Global defaults** (**Prompt / Allow / Deny**).
-  - UI: runtime **Permission Prompt** + **Settings → Permissions** panel (search/reset).
-- **System notifications (new)**
-  - Site `Notification` calls are **delivered via Lomiri system notifications** by default.
-  - In-app toasts exist for debugging but are disabled by default.
-- **Geolocation without Google API key (new)**
-  - A system backend uses **QtPositioning** via a tiny QML helper (`qmlscene -platform offscreen`).
-  - Falls back to GeoClue2 when available.
-  - Works on-device without any Google Geolocation API/Billing.
-- **Stable config path (new)**: all state lives under `~/.config/merezhyvo`.
-
         
 
 ## Project layout
@@ -145,69 +132,6 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
 
 - - -
 
-## Permissions & Prompts
-
-*   **Permission Prompt** appears on first use (per origin) for: **geolocation, camera, microphone, notifications**.
-    
-*   Decisions can be persisted per-site (Allow/Deny) or handled by **Global defaults** (Prompt/Allow/Deny per type).
-    
-*   Manage saved rules in **Settings → Permissions**:
-    
-    *   Search by origin, clear one or all.
-        
-    *   Adjust Global defaults.
-        
-*   Chromium‐side `session.setPermissionRequestHandler` is wired to the same broker, so native permission requests and our “soft requests” share one UI and storage.
-    
-
-- - -
-
-## Notifications
-
-*   Site calls to `new Notification(title, options)` are intercepted in the WebView and **forwarded to system notifications**.
-    
-*   If system notifications are not available, an internal toast center can be enabled for development (off by default).
-    
-
-- - -
-
-## Geolocation (no Google API key)
-
-*   We override `navigator.geolocation` in the **page’s main world** (CSP-safe), and dispatch requests to the main process.
-    
-*   Main process tries:
-    
-    1.  **QtPositioning** via `qmlscene -platform offscreen` and `electron/ut/location_once.qml`.
-        
-    2.  **GeoClue2** via D-Bus (`org.freedesktop.GeoClue2`) if present.
-        
-*   This avoids the Chromium Google WebService provider and works on UT without any Google keys.
-    
-### Requirements on device
-
-*   `qmlscene`, Qt offscreen platform plugin, and `QtPositioning` QML module (present on stock UT images).
-    
-*   AppArmor policy groups include: `location`, `networking` (plus `camera`, `microphone`, `audio` for other features).
-
-### Debugging
-
-*   Logs are written to `~/.config/merezhyvo/geo.log`.
-    
-*   Typical useful commands on device:
-    
-    bash
-    
-    Копіювати код
-    
-    `tail -f ~/.config/merezhyvo/geo.log journalctl -kf | grep -i 'apparmor\|denied' journalctl -f  | grep -Ei 'qmlscene|QtPositioning|geoclue|lomiri' which qmlscene && qmlscene -version`
-
-
-## Bookmarks & History
-
-*   Service tabs `mzr://bookmarks` and `mzr://history` are reached only through the Tabs panel header buttons (⭐ / 🕘) so they never persist as regular tabs.
-*   **Bookmarks** live under the single `MyBookmarks` root (`profiles/<profile>/bookmarks.json`). The UI gives search (title/URL/tags), tag chips, breadcrumbs, folder picker, context menus (open/edit/move/delete), selection mode, import/export, and a star control on each tab card. Backend writes are atomic and URLs are normalized.
-*   **History** is append-only NDJSON (`profiles/<profile>/history.ndjson`), driven by webview navigation/title/favicon events, grouped by time buckets, searchable, and supports item/domain removal plus “clear all”, with favicons stored under `profiles/<profile>/favicons/<sha1>.<ext>` and provided via the preload API.
-
 
 ## Scripts
 
@@ -245,9 +169,5 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
 *   **OSK does not appear or doesn’t type**  
     Ensure at least one language layout is enabled in Settings; defaults to `en`. The OSK listens to focus changes in inputs (`<input>`, `<textarea>`, `contenteditable`) both in the main window and inside `<webview>`.
     
-
-## License
-
-MIT © Naz.R
 
 - - -

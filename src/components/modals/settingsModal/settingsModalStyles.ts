@@ -321,6 +321,17 @@ export const settingsModalStyles: StyleRecord = {
     color: '#e2e8f0',
     lineHeight: 1.4
   },
+  aboutButton: {
+    marginTop: '8px',
+    alignSelf: 'flex-start',
+    border: '1px solid rgba(59, 130, 246, 0.6)',
+    background: 'rgba(37, 99, 235, 0.15)',
+    color: '#bfdbfe',
+    borderRadius: '12px',
+    padding: '8px 16px',
+    cursor: 'pointer',
+    fontSize: '13px'
+  },
   torInfoRow: {
     display: 'flex',
     alignItems: 'center',

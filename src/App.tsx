@@ -27,6 +27,7 @@ import type { WebViewHandle, StatusState } from './components/webview/WebViewHos
 import { styles } from './styles/styles';
 import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
+import LicensesPage from './pages/licenses/LicensesPage';
 import PasswordsPage from './pages/passwords/PasswordsPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal, {
@@ -2478,6 +2479,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openInNewTab('mzr://passwords');
   }, [closeSettingsModal, openInNewTab]);
+  const openLicensesPage = useCallback(() => openInNewTab('mzr://licenses'), [openInNewTab]);
+  const openLicensesFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openLicensesPage();
+  }, [closeSettingsModal, openLicensesPage]);
 
   const closeUnlockModal = useCallback(() => {
     setShowUnlockModal(false);
@@ -2530,8 +2536,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isBookmarksService = serviceUrl.startsWith('mzr://bookmarks');
   const isHistoryService = serviceUrl.startsWith('mzr://history');
   const isPasswordsService = serviceUrl.startsWith('mzr://passwords');
+  const isLicensesService = serviceUrl.startsWith('mzr://licenses');
   const showServiceOverlay =
-    mainViewMode === 'browser' && (isBookmarksService || isHistoryService || isPasswordsService);
+    mainViewMode === 'browser' &&
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -2540,6 +2548,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       serviceContent = <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
     } else if (isPasswordsService) {
       serviceContent = <PasswordsPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+    } else if (isLicensesService) {
+      serviceContent = <LicensesPage mode={mode} />;
     }
   }
 
@@ -2751,6 +2761,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onRequestPasswordUnlock={requestPasswordUnlock}
           scrollToSection={settingsScrollTarget}
           onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+          onOpenLicenses={openLicensesFromSettings}
           downloadsDefaultDir={downloadsDefaultDir}
           downloadsConcurrent={downloadsConcurrent}
           downloadsSaving={downloadsSaving}

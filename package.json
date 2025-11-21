@@ -12,7 +12,7 @@
   "scripts": {
     "clean": "rimraf dist dist-electron app-bin app build",
     "build:renderer": "esbuild src/index.js --bundle --outfile=dist/renderer.js --format=iife --platform=browser --target=es2020 --loader:.js=jsx",
-    "build:static": "mkdirp dist && cp src/index.html dist/index.html",
+    "build:static": "mkdirp dist && cp src/index.html dist/index.html && rm -rf dist/resources && cp -R resources dist",
     "build:electron": "esbuild electron/main.ts electron/preload.ts electron/mode.ts --bundle --external:x11 --outdir=dist-electron --platform=node --target=node18 --format=cjs --log-level=info --external:electron && esbuild electron/context-menu.ts --bundle --outfile=dist-electron/context-menu.js --platform=node --target=node18 --format=cjs --log-level=info --external:electron",
     "build": "npm run clean && npm run build:static && npm run build:renderer && npm run build:electron",
     "typecheck": "tsc -p tsconfig.json --noEmit",
@@ -31,16 +31,19 @@
     "package": "npm run package:electron && npm run stage",
     "click:build": "clickable clean || true && clickable build --arch arm64 --accept-review-errors",
     "click:make": "npm run package && npm run click:build",
-    "click:install": "adb push build/*.click /home/phablet/Downloads/ && adb shell 'click install --allow-untrusted /home/phablet/Downloads/*.click'"
+    "click:install": "adb push build/*.click /home/phablet/Downloads/ && adb shell 'click install --allow-untrusted /home/phablet/Downloads/*.click'",
+    "licenses:json": "license-checker --production --json --relativeLicensePath > licenses.json",
+    "licenses:generate": "node scripts/generate-notices.js",
+    "prepack": "npm run licenses:json && npm run licenses:generate"
   },
   "dependencies": {
     "dbus-next": "^0.10.2",
+    "psl": "^1.9.0",
     "react": "^19.2.0",
     "react-dom": "^19.2.0",
     "react-simple-keyboard": "^3.8.132",
     "simple-keyboard": "^3.8.88",
-    "simple-keyboard-layouts": "^3.4.139",
-    "psl": "^1.9.0"
+    "simple-keyboard-layouts": "^3.4.139"
   },
   "devDependencies": {
     "@types/electron": "^1.6.12",
@@ -56,6 +59,7 @@
     "eslint-plugin-electron": "^7.0.0",
     "eslint-plugin-react": "^7.37.5",
     "eslint-plugin-react-hooks": "^7.0.1",
+    "license-checker": "^25.0.1",
     "mkdirp": "^3.0.1",
     "prettier": "^3.6.2",
     "rimraf": "^6.0.1",

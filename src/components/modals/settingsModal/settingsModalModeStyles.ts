@@ -23,6 +23,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsAboutName: {},
     settingsAboutVersion: {},
     settingsAboutDescription: {},
+    settingsAboutButton: {},
     settingsTorInfoValue: {},
     settingsTorInputLabel: {},
     settingsTorInput: {},
@@ -197,6 +198,10 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsAboutDescription: {
       fontSize: 'clamp(33px, 4.8vw, 42px)'
+    },
+    settingsAboutButton: {
+      fontSize: 'clamp(32px, 4.5vw, 38px)',
+      padding: 'clamp(18px, 3.5vw, 26px) clamp(32px, 5vw, 40px)'
     },
     settingsTorInfoValue: {
       fontSize: 'clamp(36px, 5vw, 45px)'

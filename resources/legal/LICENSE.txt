@@ -1,0 +1,41 @@
+Merezhyvo — Free to use
+You can use the app for free (personal and commercial). The software remains the property of the author.
+Full terms below.
+
+----------------------------------
+
+Merezhyvo Proprietary License v1.0
+Copyright (c) 2025 Nazar Chudnovets. All rights reserved.
+
+1. Grant of License
+You are granted a non-exclusive, non-transferable, non-sublicensable license to download, install and use the Merezhyvo application (“Software”) free of charge, for personal and commercial purposes.
+
+2. Restrictions
+Except to the extent permitted by applicable law, you may not:
+(a) copy, modify, adapt, translate or create derivative works of the Software or any part of it;
+(b) distribute, sell, rent, lease, lend, sublicense, publish or otherwise make the Software available to any third party;
+(c) reverse engineer, decompile or disassemble the Software or attempt to derive its source code;
+(d) remove or alter any proprietary notices or marks.
+
+3. Ownership
+The Software is licensed, not sold. All rights, title and interest in and to the Software remain with the licensor.
+
+4. Source Code
+If any source code of the Software is made available, such publication does not grant any license or rights other than the right to view it. Any copying, modification, reuse or distribution of the source code is prohibited without prior written permission from the licensor.
+
+5. Third-Party Components
+The Software may include third-party components that are separately licensed. Such components are licensed to you under their respective licenses as stated in the “THIRD-PARTY-NOTICES.txt” file or in the application’s Licenses screen. In case of conflict, third-party licenses prevail for their components.
+
+6. Disclaimer of Warranties
+THE SOFTWARE IS PROVIDED “AS IS” WITHOUT WARRANTIES OF ANY KIND, EXPRESS OR IMPLIED, INCLUDING WITHOUT LIMITATION WARRANTIES OF MERCHANTABILITY, FITNESS FOR A PARTICULAR PURPOSE, AND NON-INFRINGEMENT.
+
+7. Limitation of Liability
+TO THE MAXIMUM EXTENT PERMITTED BY LAW, THE LICENSOR SHALL NOT BE LIABLE FOR ANY INDIRECT, INCIDENTAL, SPECIAL, CONSEQUENTIAL OR PUNITIVE DAMAGES, OR ANY LOSS OF DATA, PROFITS OR REVENUE, ARISING FROM OR RELATED TO THE USE OF THE SOFTWARE.
+
+8. Termination
+This license terminates automatically if you breach its terms. Upon termination you must cease all use and destroy all copies of the Software.
+
+9. Governing Law
+This license shall be governed by and construed in accordance with the laws applicable in your jurisdiction, without regard to conflict-of-law principles.
+
+Contact: nchudnovets (at) gmail.com

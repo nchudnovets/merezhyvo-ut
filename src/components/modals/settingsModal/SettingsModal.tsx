@@ -35,6 +35,7 @@ interface SettingsModalProps {
   onTorKeepChange: (value: boolean) => void;
   onClose: () => void;
   onOpenPasswords: () => void;
+  onOpenLicenses: () => void;
   onRequestPasswordUnlock: (fromSettings?: boolean) => void;
   scrollToSection?: 'passwords' | null;
   onScrollSectionHandled?: () => void;
@@ -71,6 +72,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onTorKeepChange,
   onClose,
   onOpenPasswords,
+  onOpenLicenses,
   onRequestPasswordUnlock,
   scrollToSection,
   onScrollSectionHandled,
@@ -264,7 +266,13 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             mode={mode}
             title="About"
             expandedDefault
-            body={<AboutSettings mode={mode} appInfo={appInfo} />}
+            body={
+              <AboutSettings
+                mode={mode}
+                appInfo={appInfo}
+                onOpenLicenses={onOpenLicenses}
+              />
+            }
           />
         </div>
 

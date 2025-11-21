@@ -8,9 +8,10 @@ import type { SettingsAppInfo } from './settingsModalTypes';
 type AboutSettingsProps = {
   mode: Mode;
   appInfo: SettingsAppInfo;
+  onOpenLicenses: () => void;
 };
 
-const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo }) => {
+const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo, onOpenLicenses }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const aboutNameRaw = (appInfo?.name || 'Merezhyvo').trim();
@@ -20,7 +21,6 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo }) => {
   const aboutVersion = appInfo?.version || '0.0.0';
   const chromiumVersion = appInfo?.chromium || 'Unknown';
   const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
-
   return (
     <div
       style={{
@@ -52,8 +52,34 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo }) => {
       >
         {aboutDescription}
       </p>
-    </div>
-  );
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        Merezhyvo is free to use.
+      </p>
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        All rights reserved by the author.
+      </p>
+      <button
+        type="button"
+        style={{
+          ...styles.aboutButton,
+          ...(modeStyles.settingsAboutButton || {})
+        }}
+        onClick={onOpenLicenses}
+      >
+        Licenses
+      </button>
+   </div>
+ );
 };
 
 export default AboutSettings;
