@@ -66,6 +66,19 @@ export const styles = {
     justifyContent: 'center',
     cursor: 'pointer'
   },
+  downloadToast: {
+    position: 'fixed',
+    top: '18px',
+    right: '18px',
+    background: 'rgba(16, 185, 129, 0.9)',
+    border: '1px solid rgba(34, 197, 94, 0.8)',
+    borderRadius: '12px',
+    padding: '12px 18px',
+    color: '#ffffff',
+    zIndex: 80,
+    maxWidth: '80vw',
+    boxSizing: 'border-box'
+  },
   input: {
     flex: 1,
     width: '100%',
@@ -156,19 +169,6 @@ export const styles = {
     border: 'none',
     backgroundColor: '#05070f',
     touchAction: 'pan-x pan-y pinch-zoom'
-  },
-  downloadToast: {
-    position: 'fixed',
-    top: '18px',
-    right: '18px',
-    background: 'rgba(16, 185, 129, 0.9)',
-    border: '1px solid rgba(34, 197, 94, 0.8)',
-    borderRadius: '12px',
-    padding: '12px 18px',
-    color: '#ffffff',
-    zIndex: 80,
-    maxWidth: '80vw',
-    boxSizing: 'border-box'
   },
   webviewMount: {
     position: 'relative',

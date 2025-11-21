@@ -333,14 +333,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
   const [messengerSettingsState, setMessengerSettingsState] = useState<MessengerSettings>(() => sanitizeMessengerSettings(null));
+  const [downloadToast, setDownloadToast] = useState<string | null>(null);
+  const downloadToastTimerRef = useRef<number | null>(null);
   const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
   const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
   const prevBrowserTabIdRef = useRef<string | null>(null);
   const pendingMessengerTabIdRef = useRef<string | null>(null);
   const lastMessengerIdRef = useRef<MessengerId | null>(null);
   const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
-  const [downloadToast, setDownloadToast] = useState<string | null>(null);
-  const downloadToastTimerRef = useRef<number | null>(null);
   const activeDownloadsRef = useRef<Set<string>>(new Set());
   const downloadIndicatorTimerRef = useRef<number | null>(null);
   const [downloadIndicatorState, setDownloadIndicatorState] = useState<
@@ -2153,17 +2153,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useEffect(() => {
     const handler = (event: CustomEvent<{ status: 'started' | 'completed' | 'failed'; file?: string }>) => {
-      const detail = event.detail;
-      const rawName = detail.file?.split(/[\\/]/).pop() ?? detail.file;
+      if (event.detail.status !== 'failed') return;
+      const rawName = event.detail.file?.split(/[\\/]/).pop() ?? event.detail.file;
       const fileName = rawName || 'Download';
-      let text = fileName;
-      if (detail.status === 'started') {
-        text = `Download started — ${fileName}`;
-      } else if (detail.status === 'completed') {
-        text = `Download complete — ${fileName}`;
-      } else {
-        text = `Download failed — ${fileName}`;
-      }
+      const text = `Download failed — ${fileName}`;
       if (downloadToastTimerRef.current) {
         window.clearTimeout(downloadToastTimerRef.current);
       }
@@ -2824,6 +2817,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         </div>
       )}
 
+      {downloadToast && (
+        <div style={styles.downloadToast}>
+          {downloadToast}
+        </div>
+      )}
+
       {globalToast && (
         <div
           style={{
@@ -2861,11 +2860,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         onHeightChange={handleKeyboardHeightChange}
       />
       <FileDialogHost mode={mode} />
-      {downloadToast && (
-        <div style={styles.downloadToast}>
-          {downloadToast}
-        </div>
-      )}
       {/* <PermissionPrompt /> */}
       {/* <ToastCenter /> */}
     </div>
