@@ -46,7 +46,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
-    ...(showIndicator ? { paddingRight: indicatorSize + 26 } : {})
+    ...(showIndicator ? { paddingRight: indicatorSize + (mode === 'mobile' ? 30 : 15) } : {})
   };
   const indicatorLabel =
     downloadIndicatorState === 'completed'
@@ -63,9 +63,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const arrowStyle: CSSProperties = {
     width: 0,
     height: 0,
-    borderLeft: '6px solid transparent',
-    borderRight: '6px solid transparent',
-    borderTop: `7px solid ${arrowColor}`,
+    borderLeft: `${indicatorSize/2}px solid transparent`,
+    borderRight: `${indicatorSize/2}px solid transparent`,
+    borderTop: `${indicatorSize/2+(mode === 'mobile' ? 10 : 1)}px solid ${arrowColor}`,
     display: 'block',
     ...(downloadIndicatorState === 'active'
       ? { animation: 'download-arrow 0.9s ease-in-out infinite' }
@@ -74,7 +74,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const buttonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
     width: indicatorSize,
-    height: indicatorSize
+    height: indicatorSize,
+    right: mode === 'mobile' ? '20px' : '10px'
   };
 
   return (
