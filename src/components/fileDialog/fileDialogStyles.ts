@@ -40,6 +40,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   dialog: {
     width: 'min(640px, 100%)',
+    height: '95%',
     maxHeight: 'min(90vh, 760px)',
     background: '#0f1729',
     border: '1px solid rgba(148, 163, 184, 0.4)',

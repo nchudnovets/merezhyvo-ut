@@ -229,10 +229,10 @@ const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
   zIndex: 5
 };
 
-const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
-  position: 'relative',
-  flex: 1
-};
+// const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
+//   position: 'relative',
+//   flex: 1
+// };
 
 const parseStartUrl = (): StartParams => {
   try {
@@ -2304,7 +2304,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.clearInterval(id);
       setZoomBarHeight(0);
     };
-  }, [isHtmlFullscreen]);
+  }, [isHtmlFullscreen, uiScale]);
 
   const containerStyle = useMemo(() => {
     return styles.container;
@@ -2683,6 +2683,53 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     )
     : null;
 
+  const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const [toolbarHeight, setToolbarHeight] = useState(0);
+  useEffect(() => {
+    const node = toolbarRef.current;
+    if (!node) {
+      setToolbarHeight(0);
+      return;
+    }
+    const update = () => {
+      try {
+        const rect = node.getBoundingClientRect();
+        setToolbarHeight(rect.height || 0);
+      } catch {
+        setToolbarHeight(0);
+      }
+    };
+    update();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => update());
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+        setToolbarHeight(0);
+      };
+    }
+    const id = window.setInterval(update, 200);
+    return () => {
+      window.clearInterval(id);
+      setToolbarHeight(0);
+    };
+  }, [mode, uiScale]);
+
+  const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
+  const contentTop = toolbarHeight;
+  const contentBottom = zoomBarHeight + keyboardOffset;
+  const contentStyle = useMemo<React.CSSProperties>(
+    () => ({
+      position: 'absolute',
+      top: `${contentTop}px`,
+      bottom: `${contentBottom}px`,
+      left: 0,
+      right: 0,
+      overflow: 'hidden'
+    }),
+    [contentTop, contentBottom]
+  );
+
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
       <div id="chromeScaleComp">
@@ -2714,6 +2761,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onEnterMessengerMode={handleEnterMessengerMode}
               downloadIndicatorState={downloadIndicatorState}
               onDownloadIndicatorClick={handleDownloadIndicatorClick}
+              toolbarRef={toolbarRef}
             />
           )}
 
@@ -2904,14 +2952,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         </div>
       </div>
 
-      <div id="contentRoot">
-        <div style={WEBVIEW_WRAPPER_STYLE}>
+      <div id="contentRoot" style={contentStyle}>
+        {/* <div style={WEBVIEW_WRAPPER_STYLE}> */}
           <WebViewPane
             webviewHostRef={webviewHostRef}
             backgroundHostRef={backgroundHostRef}
             webviewStyle={styles.webviewMount}
             webviewHostStyle={{
-              ...styles.webviewHost,
+              // ...styles.webviewHost,
               height: webviewHostHeight
             }}
             backgroundStyle={styles.backgroundShelf}
@@ -2922,7 +2970,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               {serviceContent}
             </div>
           )}
-        </div>
+        {/* </div> */}
       </div>
     </div>
   );

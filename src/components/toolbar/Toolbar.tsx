@@ -32,6 +32,7 @@ interface ToolbarProps {
   onEnterMessengerMode: () => void;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
+  toolbarRef?: RefObject<HTMLDivElement>;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -57,12 +58,13 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenSettings,
   onEnterMessengerMode,
   downloadIndicatorState,
-  onDownloadIndicatorClick
+  onDownloadIndicatorClick,
+  toolbarRef
 }) => {
   const modeStyles = toolbarModeStyles[mode];
 
   return (
-  <div style={toolbarStyles.toolbar} className="toolbar">
+    <div ref={toolbarRef} style={toolbarStyles.toolbar} className="toolbar">
     <button
       type="button"
       aria-label="Open messenger mode"

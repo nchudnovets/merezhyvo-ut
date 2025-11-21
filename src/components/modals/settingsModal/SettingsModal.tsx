@@ -168,7 +168,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       }}
     >
       <div
-        style={containerStyle}
+        style={{...containerStyle, ...{height: '95%', maxHeight: '100%'}}}
         role="dialog"
         aria-modal="true"
         aria-labelledby="settings-modal-title"

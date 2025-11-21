@@ -230,7 +230,10 @@ export const styles = {
     padding: '6px 50px',
     backgroundColor: '#121826',
     borderTop: '1px solid rgba(148, 163, 184, 0.18)',
-    position: 'relative',
+    position: 'absolute',
+    bottom:0,
+    left: 0,
+    right: 0,
     zIndex: 5,
     flexShrink: 0
   },
