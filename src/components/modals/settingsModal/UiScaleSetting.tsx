@@ -6,11 +6,13 @@ import { settingsModalModeStyles } from './settingsModalModeStyles';
 
 const MIN_SCALE = 0.5;
 const MAX_SCALE = 1.6;
-const STEP = 0.1;
+const STEP = 0.05;
 
 const clampScale = (value: number): number => {
-  const rounded = Math.round(value * 10) / 10;
-  return Number(Math.max(MIN_SCALE, Math.min(MAX_SCALE, rounded)).toFixed(1));
+  const steps = Math.round(value / STEP);
+  const rounded = steps * STEP;
+  const clamped = Math.max(MIN_SCALE, Math.min(MAX_SCALE, rounded));
+  return Number(clamped.toFixed(2));
 };
 
 type UiScaleSettingProps = {
@@ -41,7 +43,7 @@ const UiScaleSetting: React.FC<UiScaleSettingProps> = ({ mode, value, onChange, 
     <div style={mergeStyle('scaleContainer')}>
       <div style={mergeStyle('scaleRow')}>
         <span style={mergeStyle('scaleLabel')}>UI scale</span>
-        <span style={mergeStyle('scaleValue')}>{value.toFixed(1)}</span>
+        <span style={mergeStyle('scaleValue')}>{value.toFixed(2)}</span>
       </div>
       <input
         type="range"

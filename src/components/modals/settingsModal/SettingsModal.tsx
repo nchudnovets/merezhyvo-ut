@@ -222,22 +222,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title="Downloads"
-            body={
-              <DownloadSettingsSection
-                mode={mode}
-                defaultDir={downloadsDefaultDir}
-                concurrent={downloadsConcurrent}
-                saving={downloadsSaving}
-                onChooseFolder={onDownloadsChooseFolder}
-                onConcurrentChange={onDownloadsConcurrentChange}
-                onSave={onDownloadsSave}
-              />
-            }
-          />
-
-          <SettingsSection
-            mode={mode}
             title="Appearance"
             body={
               <UiScaleSetting
@@ -247,6 +231,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onReset={onUiScaleReset}
               />
             }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title='Keyboard Layouts'
+            body={KeyboardSettings({mode}) as ReactNode}
           />
 
           <SettingsSection
@@ -266,6 +256,22 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
+            title="Downloads"
+            body={
+              <DownloadSettingsSection
+                mode={mode}
+                defaultDir={downloadsDefaultDir}
+                concurrent={downloadsConcurrent}
+                saving={downloadsSaving}
+                onChooseFolder={onDownloadsChooseFolder}
+                onConcurrentChange={onDownloadsConcurrentChange}
+                onSave={onDownloadsSave}
+              />
+            }
+          />
+
+          <SettingsSection
+            mode={mode}
             title='Messenger toolbar'
             body={MessengerSettings({
               mode,
@@ -274,12 +280,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               message: messengerOrderMessage,
               onMove: onMessengerMove
             }) as ReactNode}
-          />
-
-          <SettingsSection
-            mode={mode}
-            title='Keyboard Layouts'
-            body={KeyboardSettings({mode}) as ReactNode}
           />
 
           <SettingsSection

@@ -610,9 +610,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [downloadsConcurrent, downloadsDefaultDir, downloadsSaving, setGlobalToast]);
 
+  const UI_SCALE_STEP = 0.05;
   const applyUiScale = useCallback(async (raw: number) => {
-    const rounded = Math.round(raw * 10) / 10;
-    const clamped = Number(Math.max(0.5, Math.min(1.6, rounded)).toFixed(1));
+    const rounded = Math.round(raw / UI_SCALE_STEP) * UI_SCALE_STEP;
+    const clamped = Number(Math.max(0.5, Math.min(1.6, rounded)).toFixed(2));
     setUiScale(clamped);
     try {
       await window.merezhyvo?.ui?.set?.({ scale: clamped });
@@ -639,10 +640,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (!event.ctrlKey || !event.shiftKey) return;
       if (event.key === '=' || event.key === '+') {
         event.preventDefault();
-        void applyUiScale(uiScale + 0.1);
+        void applyUiScale(uiScale + UI_SCALE_STEP);
       } else if (event.key === '-') {
         event.preventDefault();
-        void applyUiScale(uiScale - 0.1);
+        void applyUiScale(uiScale - UI_SCALE_STEP);
       } else if (event.key === '0') {
         event.preventDefault();
         handleUiScaleReset();
@@ -2717,7 +2718,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
   const contentTop = toolbarHeight;
-  const contentBottom = zoomBarHeight + keyboardOffset;
+  const contentBottom = kbVisible ? keyboardOffset : zoomBarHeight;
   const contentStyle = useMemo<React.CSSProperties>(
     () => ({
       position: 'absolute',
