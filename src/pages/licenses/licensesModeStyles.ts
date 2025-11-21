@@ -34,7 +34,7 @@ export const licensesModeStyles: Record<Mode, Partial<Record<string, CSSProperti
     },
     viewer: {
       fontSize: '32px',
-      maxHeight: '340px'
+      maxHeight: '60vh'
     },
     banner: {
       fontSize: '35px'
