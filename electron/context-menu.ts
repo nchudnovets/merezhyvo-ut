@@ -208,7 +208,7 @@ function render(): void {
         appendAutofillSection(menu, normalized.autofill);
 
         menu.appendChild(sep());
-        menu.appendChild(item('Inspect element', 'inspect'));
+        menu.appendChild(item('Open devtools', 'inspect'));
 
         const raf =
           typeof window.requestAnimationFrame === 'function'

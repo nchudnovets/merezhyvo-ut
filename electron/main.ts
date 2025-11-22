@@ -511,6 +511,7 @@ const openCtxWindowFor = async (
   const htmlPath = path.resolve(__dirname, '..', 'electron', 'context-menu.html');
   const baseWidth = ctxMenuMode === 'mobile' ? 360 : 260;
   const baseHeight = ctxMenuMode === 'mobile' ? 320 : 220;
+  
   const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, baseWidth, baseHeight);
 
   const popupOptions: BrowserWindowOptions = {
@@ -579,10 +580,12 @@ const openCtxWindowFor = async (
     } catch {
       // noop
     }
+
     setTimeout(() => {
       if (!ctxWin || ctxWin.isDestroyed()) return;
       try {
-        const bounds = ctxWin.getBounds();
+        let bounds = ctxWin.getBounds();
+
         if (bounds.height <= 14) {
           const fallbackHeight = ctxMenuMode === 'mobile' ? baseHeight : 220;
           const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : bounds.width;
@@ -591,6 +594,39 @@ const openCtxWindowFor = async (
             false
           );
           if (!ctxWin.isVisible()) ctxWin.show();
+          bounds = ctxWin.getBounds();
+        }
+
+        const ownerBounds =
+          ownerWin && !ownerWin.isDestroyed() ? ownerWin.getBounds() : null;
+        if (!ownerBounds) return;
+
+        const margin = 8;
+        let { x, y, width, height } = bounds;
+
+        const ownerRight = ownerBounds.x + ownerBounds.width;
+        if (x + width + margin > ownerRight) {
+          x = ownerRight - width - margin;
+        }
+        if (x < ownerBounds.x + margin) {
+          x = ownerBounds.x + margin;
+        }
+
+        const ownerBottom = ownerBounds.y + ownerBounds.height;
+        if (y + height + margin > ownerBottom) {
+          const aboveY = cursor.y - height - margin;
+          if (aboveY >= ownerBounds.y + margin) {
+            y = aboveY;
+          } else {
+            y = ownerBottom - height - margin;
+          }
+        }
+        if (y < ownerBounds.y + margin) {
+          y = ownerBounds.y + margin;
+        }
+
+        if (x !== bounds.x || y !== bounds.y) {
+          ctxWin.setPosition(Math.round(x), Math.round(y));
         }
       } catch {
         // noop
