@@ -729,6 +729,7 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   if (typeof contents.getType === 'function' && contents.getType() === 'webview') {
     links.attachLinkPolicy(contents);
   }
+  
   contents.on('context-menu', (event, params) => {
     const url = contents.getURL();
     if (isCtxtExcludedSite(url)) {

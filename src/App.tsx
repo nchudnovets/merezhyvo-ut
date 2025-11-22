@@ -1186,7 +1186,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     void run();
   }, [activeViewRevision, ensureSelectionCssInjected, getActiveWebview]);
 
-  const zoomRef = useRef(mode === 'mobile' ? 1.8 : 1.0);
+  const zoomRef = useRef(mode === 'mobile' ? 2.3 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
   const setZoomClamped = useCallback((val: number | string) => {
@@ -2049,6 +2049,179 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             var t = ev.target;
             if (isEditable(t)) { markLast(t); notify(true); }
           }, true);
+
+           // === Merezhyvo: custom <select> overlay for mobile ===
+          (function(){
+            try {
+              if (window.__mzrSelectBridgeInstalled) return;
+              window.__mzrSelectBridgeInstalled = true;
+
+              var overlayId = '__mzr_select_overlay';
+
+              function resolveSelectFromEvent(ev){
+                try {
+                  var t = ev && ev.target;
+                  if (!t) return null;
+                  var el = t;
+                  while (el && el.nodeType === 1) {
+                    var tag = (el.tagName || '').toLowerCase();
+                    if (tag === 'select') return el;
+                    el = el.parentElement;
+                  }
+                } catch(_) {}
+                return null;
+              }
+
+              function closeSelectOverlay(doc){
+                try {
+                  doc = doc || document;
+                  var existing = doc.getElementById(overlayId);
+                  if (existing && existing.parentNode) {
+                    existing.parentNode.removeChild(existing);
+                  }
+                } catch(_) {}
+              }
+
+              function openSelectOverlay(el){
+                if (!el || el.disabled) return;
+
+                var doc = el.ownerDocument || document;
+                var body = doc.body || doc.documentElement;
+                var cs = win.getComputedStyle ? win.getComputedStyle(el) : null;
+                var fg = cs ? cs.color : '#f9fafb';
+                var bg = cs ? cs.backgroundColor : '#111827';
+
+                closeSelectOverlay(doc);
+
+                var currentValue = el.value;
+
+                var overlay = doc.createElement('div');
+                overlay.id = overlayId;
+                overlay.setAttribute('data-mzr', 'select-overlay');
+
+                overlay.style.position = 'fixed';
+                overlay.style.left = '0';
+                overlay.style.top = '0';
+                overlay.style.right = '0';
+                overlay.style.bottom = '0';
+                overlay.style.zIndex = '999999';
+                overlay.style.background = 'rgba(0,0,0,0.35)';
+                overlay.style.display = 'flex';
+                overlay.style.alignItems = 'flex-end';
+                overlay.style.justifyContent = 'center';
+
+                var panel = doc.createElement('div');
+                panel.style.maxHeight = '60vh';
+                panel.style.width = '100%';
+                panel.style.maxWidth = '480px';
+                panel.style.margin = '0 8px 12px 8px';
+                panel.style.borderRadius = '12px';
+                panel.style.background = bg || '#111827';
+                panel.style.color = fg || '#f9fafb';
+                panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.45)';
+                panel.style.overflowY = 'auto';
+                panel.style.fontFamily =
+                  'system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
+
+                var list = doc.createElement('div');
+                list.style.padding = '4px 0';
+                panel.appendChild(list);
+
+                var opts = el.options || [];
+                for (var i = 0; i < opts.length; i++) {
+                  var opt = opts[i];
+                  if (!opt) continue;
+                  if (opt.disabled) continue;
+
+                  var item = doc.createElement('button');
+                  item.type = 'button';
+                  item.textContent =
+                    opt.textContent || opt.label || opt.value || '';
+                  item.setAttribute('data-value', opt.value);
+
+                  item.style.display = 'block';
+                  item.style.width = '100%';
+                  item.style.textAlign = 'left';
+                  item.style.padding = '10px 14px';
+                  item.style.border = '0';
+                  item.style.outline = 'none';
+                  item.style.background =
+                    (opt.value === currentValue)
+                      ? 'rgba(37,99,235,0.22)'
+                      : 'transparent';
+                  item.style.color = fg ||
+                    (opt.value === currentValue)
+                      ? '#bfdbfe'
+                      : '#e5e7eb';
+                  item.style.fontSize = '14px';
+                  item.style.cursor = 'pointer';
+
+                  item.addEventListener('click', (function(val){
+                    return function(ev){
+                      ev.preventDefault();
+                      ev.stopPropagation();
+                      try {
+                        if (typeof el.focus === 'function') el.focus();
+                      } catch(_) {}
+                      try {
+                        if (val !== el.value) {
+                          el.value = val;
+                          var inputEv = new Event('input', {
+                            bubbles: true,
+                            cancelable: false
+                          });
+                          var changeEv = new Event('change', {
+                            bubbles: true,
+                            cancelable: false
+                          });
+                          el.dispatchEvent(inputEv);
+                          el.dispatchEvent(changeEv);
+                          try {
+                            if (typeof el.reportValidity === 'function') {
+                              el.reportValidity();
+                            }
+                          } catch(_) {}
+                        }
+                      } catch(_) {}
+                      closeSelectOverlay(doc);
+                    };
+                  })(opt.value));
+
+                  list.appendChild(item);
+                }
+
+                // Клік по фону — закриває оверлей
+                overlay.addEventListener('click', function(ev){
+                  if (ev.target === overlay) {
+                    ev.preventDefault();
+                    ev.stopPropagation();
+                    closeSelectOverlay(doc);
+                  }
+                });
+
+                overlay.appendChild(panel);
+                body.appendChild(overlay);
+
+              }
+
+              // Головний обробник — відкриває оверлей на click по <select>
+              document.addEventListener('click', function(ev){
+                var el = resolveSelectFromEvent(ev);
+                if (!el) return;
+                if (el.disabled) return;
+
+                // тільки лівий "клік"
+                try {
+                  if (ev.button != null && ev.button !== 0) return;
+                } catch(_) {}
+
+                ev.preventDefault();
+                ev.stopPropagation();
+
+                openSelectOverlay(el);
+              }, true);
+            } catch(e){}
+          })();
         } catch(e){}
       })();
     `;
