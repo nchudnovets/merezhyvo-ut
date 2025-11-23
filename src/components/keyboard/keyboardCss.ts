@@ -45,7 +45,7 @@ export function ensureOskCssInjected() {
 
   .mzr-osk .hg-button {
     font-family: Roboto, Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif !important;
-    font-size: 60px !important; 
+    font-size: 65px !important; 
     line-height: 1.05 !important;
     padding: 6px 6px !important;
     margin: 4px 3px !important;

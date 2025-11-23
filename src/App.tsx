@@ -2056,6 +2056,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               if (window.__mzrSelectBridgeInstalled) return;
               window.__mzrSelectBridgeInstalled = true;
 
+              var win = window;
               var overlayId = '__mzr_select_overlay';
 
               function resolveSelectFromEvent(ev){
@@ -2089,7 +2090,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
                 var body = doc.body || doc.documentElement;
                 var cs = win.getComputedStyle ? win.getComputedStyle(el) : null;
                 var fg = cs ? cs.color : '#f9fafb';
-                var bg = cs ? cs.backgroundColor : '#111827';
+                var bg = cs && cs.color ? cs.backgroundColor : '#111827';
 
                 closeSelectOverlay(doc);
 
@@ -2116,8 +2117,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
                 panel.style.maxWidth = '480px';
                 panel.style.margin = '0 8px 12px 8px';
                 panel.style.borderRadius = '12px';
-                panel.style.background = bg || '#111827';
-                panel.style.color = fg || '#f9fafb';
+                panel.style.background = bg;
+                panel.style.color = fg;
                 panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.45)';
                 panel.style.overflowY = 'auto';
                 panel.style.fontFamily =
@@ -2149,10 +2150,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
                     (opt.value === currentValue)
                       ? 'rgba(37,99,235,0.22)'
                       : 'transparent';
-                  item.style.color = fg ||
-                    (opt.value === currentValue)
-                      ? '#bfdbfe'
-                      : '#e5e7eb';
+                  item.style.color = fg;
                   item.style.fontSize = '14px';
                   item.style.cursor = 'pointer';
 

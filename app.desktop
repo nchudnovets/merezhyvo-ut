@@ -1,7 +1,7 @@
 [Desktop Entry]
 Name=Merezhyvo
 Comment=Minimal Chromium-based browser for Ubuntu Touch
-Exec=env XCURSOR_SIZE=14 OZONE_PLATFORM=wayland ./app/merezhyvo
+Exec=env XCURSOR_SIZE=14 OZONE_PLATFORM=wayland ELECTRON_DISABLE_SANDBOX=1 ./app/merezhyvo --no-sandbox --disable-setuid-sandbox --disable-gpu-sandbox
 Icon=merezhyvo_256.png
 Terminal=false
 Type=Application

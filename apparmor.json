@@ -1,11 +1,14 @@
 {
-  "template": "unconfined",
   "policy_version": "@APPARMOR_POLICY@",
   "policy_groups": [
     "networking",
+    "webview",
+    "location",
+    "audio",
+    "video",
     "camera",
     "microphone",
-    "audio",
-    "video"
+    "content_exchange",
+    "content_exchange_source"
   ]
 }

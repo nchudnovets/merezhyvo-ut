@@ -16,6 +16,7 @@
     ".gitignore",
     "package-lock.json",
     "README.md",
+    "about.md",
     ".vscode",
     ".idea"
   ]

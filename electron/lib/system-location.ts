@@ -7,15 +7,6 @@ import https from 'https';
 
 type Fix = { latitude: number; longitude: number; accuracy?: number };
 
-function geoLog(msg: string): void {
-  try {
-    const file = path.join(process.env.HOME || '', '.config', 'merezhyvo', 'geo.log');
-    fs.appendFileSync(file, `[${new Date().toISOString()}] ${msg}\n`, 'utf8');
-  } catch {
-    // ignore
-  }
-}
-
 /* -------------------------------
  * Low-level DBus helpers
  * ------------------------------- */
@@ -133,10 +124,8 @@ async function getManagedObjects(bus: MessageBus, service: string, objPath: stri
       out.push({ path: p, ifaces });
     }
 
-    geoLog(`ObjectManager: ${service}${objPath} -> ${out.length} objects`);
     return out;
   } catch (e) {
-    geoLog(`ObjectManager: failed at ${service}${objPath}: ${String(e)}`);
     return null;
   }
 }
@@ -162,7 +151,6 @@ async function propsGet(
     const val = vGet(reply.body?.[0]);
     return vGet(val);
   } catch (e) {
-    geoLog(`Properties.Get ${service}${objPath} ${iface}.${prop} failed: ${String(e)}`);
     return null;
   }
 }
@@ -182,7 +170,6 @@ async function introspect(bus: MessageBus, service: string, objPath: string): Pr
     const xml = String(reply.body?.[0] ?? '');
     return xml || null;
   } catch (e) {
-    geoLog(`Introspect: failed at ${service}${objPath}: ${String(e)}`);
     return null;
   }
 }
@@ -208,7 +195,6 @@ async function listSystemBusNames(bus: MessageBus): Promise<string[]> {
     const names = reply.body?.[0] as unknown;
     if (Array.isArray(names)) return names.map((x) => String(x));
   } catch (e) {
-    geoLog(`ListNames failed: ${String(e)}`);
   }
   return [];
 }
@@ -314,12 +300,10 @@ async function tryCallLikelyMethod(
         const fix: Fix = { latitude: latNum, longitude: lonNum };
         const accNum = nums[2];
         if (typeof accNum === 'number' && Number.isFinite(accNum)) fix.accuracy = accNum;
-        geoLog(`DBus(Method): ${service}${objPath} ${iface}.${method.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
         return fix;
       }
     }
   } catch (e) {
-    geoLog(`DBus(Method) call ${service}${objPath} ${iface}.${method.name} failed: ${String(e)}`);
   }
   return null;
 }
@@ -334,7 +318,6 @@ async function tryViaGenericDbusScan(timeoutMs: number): Promise<Fix | null> {
   );
 
   if (candNames.length === 0) {
-    geoLog('DBus(Generic): no candidate service names on system bus');
     return null;
   }
 
@@ -375,7 +358,6 @@ async function tryViaGenericDbusScan(timeoutMs: number): Promise<Fix | null> {
         }
         const fix = extractFixFromProps(bucket);
         if (fix) {
-          geoLog(`DBus(Generic): fix via Properties ${svc}${p} iface=${itf.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
           return fix;
         }
       }
@@ -425,7 +407,6 @@ async function tryLomiriOverObjectManager(timeoutMs: number): Promise<Fix | null
           if (!/(Location|Position|Geo|Manager|Service)/i.test(ifaceName)) continue;
           const fix = extractFixFromProps(props);
           if (fix) {
-            geoLog(`DBus(OM): fix from ${svc}${o.path} iface=${ifaceName} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
             return fix;
           }
         }
@@ -449,7 +430,6 @@ async function tryLomiriOverObjectManager(timeoutMs: number): Promise<Fix | null
           }
           const fix = extractFixFromProps(bucket);
           if (fix) {
-            geoLog(`DBus(OM): fix via Properties.Get ${svc}${o.path} iface=${ifaceName} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
             return fix;
           }
         }
@@ -497,7 +477,6 @@ async function tryLomiriViaIntrospect(timeoutMs: number): Promise<Fix | null> {
         }
         const fix = extractFixFromProps(bucket);
         if (fix) {
-          geoLog(`DBus(Introspect): fix from ${svc}${p} iface=${iface.name} -> ${fix.latitude},${fix.longitude}±${fix.accuracy ?? 'n/a'}`);
           return fix;
         }
 
@@ -575,12 +554,7 @@ function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
       if (appId) {
         cmd = 'aa-exec-click';
         cmdArgs = ['-p', appId, '--', 'qmlscene', ...args];
-        geoLog(`QtLocation: spawning via aa-exec-click -p ${appId} -- qmlscene ${args.join(' ')}`);
-      } else {
-        geoLog(`QtLocation: aa-exec-click present but appId unknown; fallback to direct qmlscene`);
       }
-    } else {
-      geoLog(`QtLocation: spawning qmlscene ${args.join(' ')}`);
     }
 
     const child = spawn(cmd, cmdArgs, {
@@ -597,11 +571,10 @@ function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
     let last: Fix | null = null;
     const onChunk = (buf: Buffer) => {
       const s = buf.toString();
-    const m = s.match(/__MZR_FIX__\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)/);
-    if (m && m[1] && m[2] && m[3]) {
-      last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
-    }
-      geoLog(`QtLocation: qmlscene log: ${s.trim()}`);
+      const m = s.match(/__MZR_FIX__\s*([0-9.-]+)\s*,\s*([0-9.-]+)\s*,\s*([0-9.-]+)/);
+      if (m && m[1] && m[2] && m[3]) {
+        last = { latitude: +m[1], longitude: +m[2], accuracy: +m[3] };
+      }
     };
 
     child.stderr.on('data', onChunk);
@@ -612,7 +585,6 @@ function tryQmlOnce(timeoutMs: number): Promise<Fix | null> {
         resolve(last);
         return;
       }
-      geoLog('QtLocation: qmlscene exit without fix');
       resolve(null);
     });
 
@@ -640,7 +612,6 @@ function tryIpFallback(timeoutMs: number): Promise<Fix | null> {
             const lon = Number(lonStr);
             if (Number.isFinite(lat) && Number.isFinite(lon)) {
               const fix: Fix = { latitude: lat, longitude: lon, accuracy: 50000 };
-              geoLog(`NetworkIP: fix ${lat},${lon}±${fix.accuracy}`);
               resolve(fix);
               return;
             }
@@ -648,7 +619,6 @@ function tryIpFallback(timeoutMs: number): Promise<Fix | null> {
         } catch {
           // ignore
         }
-        geoLog('NetworkIP: failed null');
         resolve(null);
       });
     });
@@ -665,7 +635,6 @@ function tryIpFallback(timeoutMs: number): Promise<Fix | null> {
  * --------------------------- */
 
 export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> {
-  geoLog(`getSystemPosition(timeoutMs=${timeoutMs})`);
 
   const qmlTimeout = Math.min(Math.max(timeoutMs, 20000), 60000); // 20–60s window
   const skipDbus = process.env.MZR_SKIP_DBUS === '1';
@@ -676,7 +645,7 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
       const generic = await tryViaGenericDbusScan(3000);
       if (generic) return generic;
     } catch (e) {
-      geoLog(`DBus(Generic): error ${String(e)}`);
+      // noop
     }
 
     // 2) Targeted legacy probes (kept for completeness)
@@ -684,17 +653,15 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
       const om = await tryLomiriOverObjectManager(2000);
       if (om) return om;
     } catch (e) {
-      geoLog(`DBus(OM): error ${String(e)}`);
+      // noop
     }
 
     try {
       const viaIntrospect = await tryLomiriViaIntrospect(3000);
       if (viaIntrospect) return viaIntrospect;
     } catch (e) {
-      geoLog(`DBus(Introspect): error ${String(e)}`);
+      // noop
     }
-  } else {
-    geoLog('DBus probe skipped by MZR_SKIP_DBUS=1');
   }
 
   // 3) QML one-shot (reserve) — may still be blocked by X check on some builds
@@ -702,7 +669,7 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
     const q = await tryQmlOnce(qmlTimeout);
     if (q) return q;
   } catch (e) {
-    geoLog(`QtLocation: error ${String(e)}`);
+    // no op
   }
 
   // 4) Last resort

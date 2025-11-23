@@ -1,5 +1,7 @@
 'use strict';
 
+import './lib/bootstrap-user-data';
+
 import fs from 'fs';
 import path from 'path';
 import {
@@ -60,18 +62,6 @@ try {
 } catch {
   // noop
 }
-
-// ---- Force stable userData dir: ~/.config/merezhyvo ----
-(function ensureStableUserData() {
-  try {
-    const home = app.getPath('home'); // safe before 'ready'
-    const target = path.join(home, '.config', 'merezhyvo');
-    app.setPath('userData', target);
-    try { app.setAppLogsPath(target); } catch {}
-  } catch {
-    // If anything goes wrong, Electron falls back to its default path
-  }
-})();
 
 const fsp = fs.promises;
 
@@ -707,11 +697,21 @@ windows.setLaunchConfig({
   startProvided: launchConfig.startProvided
 });
 
-const featureFlags = ['VaapiVideoDecoder'];
+const featureFlags: string[] = [];
 if (launchConfig.forceDark) {
   featureFlags.push('WebContentsForceDark');
 }
-app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
+if (featureFlags.length > 0) {
+  app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
+}
+
+app.commandLine.appendSwitch('disable-gpu');
+app.commandLine.appendSwitch('disable-gpu-compositing');
+app.commandLine.appendSwitch('disable-gpu-sandbox');
+
+app.commandLine.appendSwitch('no-sandbox');
+app.commandLine.appendSwitch('disable-setuid-sandbox');
+
 app.commandLine.appendSwitch('use-gl', 'egl');
 app.commandLine.appendSwitch('enable-pinch');
 tor.registerTorHandlers(ipcMain);

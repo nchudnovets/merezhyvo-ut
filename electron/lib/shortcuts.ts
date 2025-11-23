@@ -74,13 +74,13 @@ export const sanitizeTorConfig = (raw: unknown): TorConfig => {
 
 const fsp = fs.promises;
 
-export const slugify = (value: unknown): string =>
-  (value ?? '')
-    .toString()
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, '-')
-    .replace(/^-+|-+$/g, '')
-    .slice(0, 60) || 'merezhyvo';
+// export const slugify = (value: unknown): string =>
+//   (value ?? '')
+//     .toString()
+//     .toLowerCase()
+//     .replace(/[^a-z0-9]+/g, '-')
+//     .replace(/^-+|-+$/g, '')
+//     .slice(0, 60) || 'merezhyvo';
 
 export const ensureDir = (dir: string): void => {
   try {
