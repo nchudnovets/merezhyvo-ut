@@ -34,7 +34,7 @@ export const modeStyles: Record<Mode, ModeStyleMap> = {
     searchInput: {
       fontSize: '36px',
       height: 'clamp(72px, 10vw, 96px)',
-      paddingRight: 'clamp(120px, 16vw, 144px)'
+      paddingRight: '30px'
     },
     makeAppBtn: {
       width: 'clamp(60px, 9vw, 84px)',
