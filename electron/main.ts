@@ -760,6 +760,10 @@ app.on('window-all-closed', () => {
   if (process.platform !== 'darwin') app.quit();
 });
 
+app.on('before-quit', () => {
+  void tor.stopTorAndProxy();
+});
+
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   windows.installFileDialogHandler(contents);
   windows.setupSelectFileInterceptor(contents);
