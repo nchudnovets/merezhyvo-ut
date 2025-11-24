@@ -113,6 +113,7 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
     
 *   **Language switch**: cycles enabled layouts; active language label shown on **Space**.
     
+*   **Downloads & file access**: HTTP downloads skip the OS dialog and rout straight into `~/.local/share/merezhyvo.naz.r/mDownloads` (queue + animated toolbar indicator included). The custom picker for imports/exports/`<input type="file">` is pinned to `~/.local/share/merezhyvo.naz.r/mDocuments`, displays the restriction message, and lets you copy the symlink command directly from Settings or the picker.
 
 ### Where OSK settings live
 
