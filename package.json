@@ -1,6 +1,6 @@
 {
   "name": "merezhyvo",
-  "version": "0.2.21",
+  "version": "0.3",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "author": "Naz.R",
   "license": "MIT",
