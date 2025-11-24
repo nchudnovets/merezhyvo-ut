@@ -24,6 +24,7 @@ import {
   promptForPaths,
   unlinkGuestWebContents
 } from './file-dialog-ipc';
+import { DOCUMENTS_FOLDER } from './internal-paths';
 import * as downloads from './downloads';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // temporary commented out
@@ -328,7 +329,8 @@ export const installFileDialogHandler = (contents: WebContentsWithFileDialogHand
     const options: FileDialogOptions = {
       kind: allowDirectory ? 'folder' : 'file',
       allowMultiple,
-      title: details.title
+      title: details.title,
+      initialPath: DOCUMENTS_FOLDER
     };
     const paths = await promptForPaths(contents, options);
     if (!paths || !paths.length) {
@@ -1120,7 +1122,8 @@ export const setupSelectFileInterceptor = (contents: WebContents | null): void =
     const options: FileDialogOptions = {
       kind: allowDirectory ? 'folder' : 'file',
       allowMultiple,
-      title: ''
+      title: '',
+      initialPath: DOCUMENTS_FOLDER
     };
     const paths = await promptForPaths(contents, options);
     const callback = args.find((value) => typeof value === 'function') as

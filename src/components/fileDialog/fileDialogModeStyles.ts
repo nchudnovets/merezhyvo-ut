@@ -52,5 +52,32 @@ export const fileDialogModeStyles: Record<Mode, Partial<Record<FileDialogStyleKe
       width: '32px',
       height: '32px'
     })
+    ,
+    ...override('notice', {
+      padding: '20px',
+      gap: '10px'
+    }),
+    ...override('noticeText', {
+      fontSize: '38px',
+      overflowX: 'auto'
+    }),
+    ...override('noticeCommand', {
+      fontSize: '36px',
+      padding: '10px 14px'
+    }),
+    ...override('noticeCheckboxLabel', {
+      fontSize: '35px'
+    }),
+    ...override('noticeCheckboxInput', {
+      width: '40px',
+      height: '40px'
+    }),
+    ...override('noticeCommandRow', {
+      gap: '16px'
+    }),
+    ...override('noticeCopyButton', {
+      fontSize: '38px',
+      padding: '12px 18px'
+    })
   }
 };

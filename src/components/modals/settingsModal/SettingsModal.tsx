@@ -47,9 +47,10 @@ interface SettingsModalProps {
   downloadsDefaultDir: string;
   downloadsConcurrent: 1 | 2 | 3;
   downloadsSaving: boolean;
-  onDownloadsChooseFolder: () => void;
   onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
   onDownloadsSave: () => void;
+  onCopyDownloadsCommand: () => void;
+  downloadsCommand: string;
   uiScale: number;
   onUiScaleChange: (value: number) => void;
   onUiScaleReset: () => void;
@@ -88,9 +89,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   downloadsDefaultDir,
   downloadsConcurrent,
   downloadsSaving,
-  onDownloadsChooseFolder,
   onDownloadsConcurrentChange,
   onDownloadsSave,
+  onCopyDownloadsCommand,
+  downloadsCommand,
   uiScale,
   onUiScaleChange,
   onUiScaleReset
@@ -257,17 +259,18 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <SettingsSection
             mode={mode}
             title="Downloads"
-            body={
-              <DownloadSettingsSection
-                mode={mode}
-                defaultDir={downloadsDefaultDir}
-                concurrent={downloadsConcurrent}
-                saving={downloadsSaving}
-                onChooseFolder={onDownloadsChooseFolder}
-                onConcurrentChange={onDownloadsConcurrentChange}
-                onSave={onDownloadsSave}
-              />
-            }
+              body={
+                <DownloadSettingsSection
+                  mode={mode}
+                  defaultDir={downloadsDefaultDir}
+                  concurrent={downloadsConcurrent}
+                  saving={downloadsSaving}
+                  onConcurrentChange={onDownloadsConcurrentChange}
+                  onSave={onDownloadsSave}
+                  onCopyCommand={onCopyDownloadsCommand}
+                  command={downloadsCommand}
+                />
+              }
           />
 
           <SettingsSection

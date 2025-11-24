@@ -201,8 +201,13 @@ export interface MerezhyvoAPI {
     };
   };
   ui: {
-    get(): Promise<{ scale: number }>;
-    set(payload: { scale: number }): Promise<{ ok: true; scale: number } | { ok: false; error: string }>;
+    get(): Promise<{ scale: number; hideFileDialogNote: boolean }>;
+    set(
+      payload: Partial<{ scale: number; hideFileDialogNote: boolean }>
+    ): Promise<
+      | { ok: true; scale: number; hideFileDialogNote: boolean }
+      | { ok: false; error: string }
+    >;
   };
   downloads: {
     settings: {
@@ -255,6 +260,8 @@ export interface MerezhyvoAPI {
   passwords: MerezhyvoPasswordsApi;
   paths: {
     webviewPreload(): string;
+    downloadsSymlinkCommand: string;
+    documentsSymlinkCommand: string;
   };
   debug?: {
     logGeo(msg: string): void;

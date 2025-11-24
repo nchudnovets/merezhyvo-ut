@@ -29,7 +29,7 @@ const baseBreadcrumb = (path: string): string[] => {
   return result;
 };
 
-const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
+const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ mode, onCopyCommand }) => {
   const styles = fileDialogStyles;
   const modeStyles = fileDialogModeStyles[mode] || {};
   const [request, setRequest] = useState<FileDialogRequestDetail | null>(null);
@@ -39,6 +39,7 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [showHidden, setShowHidden] = useState(false);
+  const [hideDialogNotice, setHideDialogNotice] = useState(false);
 
   const requestRef = useRef<FileDialogRequestDetail | null>(null);
 
@@ -62,6 +63,25 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
       dispatchExternalFileDialog(createExternalRequest(payload.options as FileDialogOptions, payload.requestId));
     });
     return undo;
+  }, []);
+
+  useEffect(() => {
+    let cancelled = false;
+    const loadUiState = async () => {
+      try {
+        const uiState = await window.merezhyvo?.ui?.get?.();
+        if (cancelled) return;
+        if (uiState && typeof uiState.hideFileDialogNote === 'boolean') {
+          setHideDialogNotice(uiState.hideFileDialogNote);
+        }
+      } catch {
+        // noop
+      }
+    };
+    void loadUiState();
+    return () => {
+      cancelled = true;
+    };
   }, []);
 
   const loadDirectory = useCallback(
@@ -155,6 +175,7 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
     !request || (isFileMode ? selected.length === 0 : !currentPath)
   );
   if (!request) return null;
+  const documentsCommand = window.merezhyvo?.paths?.documentsSymlinkCommand ?? '';
 
   return (
     <div style={styles.overlay}>
@@ -171,9 +192,53 @@ const FileDialogHost: React.FC<{ mode: Mode }> = ({ mode }) => {
               Filters: {request.options.filters.join(', ')}
             </p>
           )}
-            <div style={{ ...styles.hiddenToggleRow, ...(modeStyles.hiddenToggleRow ?? {}) }}>
-              <label style={{ ...styles.hiddenToggleLabel, ...(modeStyles.hiddenToggleLabel ?? {}) }}>
+          {!hideDialogNotice && (
+            <div style={{ ...styles.notice, ...(modeStyles.notice ?? {}) }}>
+              <p style={{ ...styles.noticeText, ...(modeStyles.noticeText ?? {}) }}>
+                In this version of the browser, access to the file system is limited. You can choose files only from
+                the internal Merezhyvo folder: ~/.local/share/merezhyvo.naz.r/mDocuments. For easier access we recommend
+                creating a symlink from your standard Documents folder:
+              </p>
+              <div style={{ ...styles.noticeCommandRow, ...(modeStyles.noticeCommandRow ?? {}) }}>
+                <p style={{ ...styles.noticeCommand, ...(modeStyles.noticeCommand ?? {}) }}>
+                  {documentsCommand}
+                </p>
+                <button
+                  type="button"
+                  style={{ ...styles.noticeCopyButton, ...(modeStyles.noticeCopyButton ?? {}) }}
+                  onClick={() => {
+                    if (typeof onCopyCommand === 'function') {
+                      onCopyCommand();
+                    }
+                  }}
+                  disabled={!documentsCommand}
+                >
+                  Copy command
+                </button>
+              </div>
+              <label
+                style={{ ...styles.noticeCheckboxLabel, ...(modeStyles.noticeCheckboxLabel ?? {}) }}
+              >
                 <input
+                  type="checkbox"
+                  onChange={async (event) => {
+                    const next = event.target.checked;
+                    setHideDialogNotice(next);
+                    try {
+                      await window.merezhyvo?.ui?.set?.({ hideFileDialogNote: next });
+                    } catch {
+                      // noop
+                    }
+                  }}
+                  style={{ ...styles.noticeCheckboxInput, ...(modeStyles.noticeCheckboxInput ?? {}) }}
+                />
+                Don&rsquo;t show this again
+              </label>
+            </div>
+          )}
+          <div style={{ ...styles.hiddenToggleRow, ...(modeStyles.hiddenToggleRow ?? {}) }}>
+            <label style={{ ...styles.hiddenToggleLabel, ...(modeStyles.hiddenToggleLabel ?? {}) }}>
+              <input
                   type="checkbox"
                   checked={showHidden}
                   onChange={(event) => setShowHidden(event.target.checked)}

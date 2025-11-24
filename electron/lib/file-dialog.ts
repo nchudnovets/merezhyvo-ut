@@ -1,8 +1,8 @@
 'use strict';
 
 import fs from 'fs';
-import os from 'os';
 import path from 'path';
+import { DOCUMENTS_FOLDER } from './internal-paths';
 
 const fsp = fs.promises;
 
@@ -18,15 +18,39 @@ export type FileDialogListing = {
   entries: FileDialogEntry[];
 };
 
+const DOCUMENTS_PATH = path.resolve(DOCUMENTS_FOLDER);
+
+const isPathWithinDocuments = (target: string): boolean => {
+  const normalized = path.resolve(target);
+  return (
+    normalized === DOCUMENTS_PATH ||
+    normalized.startsWith(`${DOCUMENTS_PATH}${path.sep}`)
+  );
+};
+
+const ensureDocumentsScope = (target: string): string => {
+  const normalized = path.resolve(target);
+  if (isPathWithinDocuments(normalized)) {
+    return normalized;
+  }
+  throw new Error('Access to the requested path is not allowed');
+};
+
 const resolveTargetPath = (provided?: string): string => {
+  let candidate = DOCUMENTS_PATH;
   if (provided) {
     try {
-      return path.resolve(provided);
+      candidate = ensureDocumentsScope(provided);
     } catch {
-      // fallback to home
+      candidate = DOCUMENTS_PATH;
     }
   }
-  return os.homedir();
+  try {
+    fs.mkdirSync(DOCUMENTS_PATH, { recursive: true });
+  } catch {
+    // noop
+  }
+  return candidate;
 };
 
 const normalizeFilters = (filters?: string[] | null): string[] | undefined => {
@@ -59,11 +83,16 @@ export const listDirectory = async (
   }
   const normalizedFilters = normalizeFilters(filters);
   const entries = dirents
-    .map((dirent) => ({
-      name: dirent.name,
-      path: path.join(resolved, dirent.name),
-      isDirectory: dirent.isDirectory()
-    }))
+    .map((dirent) => {
+      const entryPath = path.join(resolved, dirent.name);
+      if (!isPathWithinDocuments(entryPath)) return null;
+      return {
+        name: dirent.name,
+        path: entryPath,
+        isDirectory: dirent.isDirectory()
+      };
+    })
+    .filter((entry): entry is FileDialogEntry => Boolean(entry))
     .filter((entry) => {
       if (entry.isDirectory || !normalizedFilters) return true;
       const lower = entry.name.toLowerCase();
@@ -83,7 +112,7 @@ export const readFileContent = async (filePath: string): Promise<string> => {
   if (!filePath) {
     throw new Error('Path is required');
   }
-  const resolved = path.resolve(filePath);
+  const resolved = ensureDocumentsScope(filePath);
   let stat: fs.Stats;
   try {
     stat = await fsp.stat(resolved);
@@ -101,7 +130,7 @@ export const readFileAsBase64 = async (filePath: string): Promise<string> => {
   if (!filePath) {
     throw new Error('Path is required');
   }
-  const resolved = path.resolve(filePath);
+  const resolved = ensureDocumentsScope(filePath);
   let stat: fs.Stats;
   try {
     stat = await fsp.stat(resolved);
@@ -123,7 +152,7 @@ export const writeFileContent = async (
   if (!filePath) {
     throw new Error('Path is required');
   }
-  const resolved = path.resolve(filePath);
+  const resolved = ensureDocumentsScope(filePath);
   const dir = path.dirname(resolved);
   try {
     fs.mkdirSync(dir, { recursive: true });

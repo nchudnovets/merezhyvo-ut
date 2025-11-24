@@ -29,6 +29,7 @@ export type DownloadsSettings = {
 
 export type UISettings = {
   scale: number;
+  hideFileDialogNote: boolean;
 };
 
 export type SettingsState = {
@@ -111,13 +112,16 @@ const DEFAULT_TOR_CONFIG: TorConfig = {
   keepEnabled: false
 };
 
+import { DOWNLOADS_FOLDER } from './internal-paths';
+
 const DEFAULT_DOWNLOADS_SETTINGS: DownloadsSettings = {
-  defaultDir: app.getPath('downloads'),
+  defaultDir: DOWNLOADS_FOLDER,
   concurrent: 2
 };
 
 const DEFAULT_UI_SETTINGS: UISettings = {
-  scale: 1.0
+  scale: 1.0,
+  hideFileDialogNote: false
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
@@ -143,7 +147,8 @@ const coerceScale = (value: number): number => {
 export const sanitizeUiSettings = (raw: unknown): UISettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<UISettings> : {};
   const scaleRaw = typeof source.scale === 'number' ? source.scale : DEFAULT_UI_SETTINGS.scale;
-  return { scale: coerceScale(scaleRaw) };
+  const hide = typeof source.hideFileDialogNote === 'boolean' ? source.hideFileDialogNote : DEFAULT_UI_SETTINGS.hideFileDialogNote;
+  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide };
 };
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {

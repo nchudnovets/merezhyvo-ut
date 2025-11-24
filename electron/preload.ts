@@ -33,6 +33,7 @@ import type {
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
+import { DOWNLOADS_SYMLINK_COMMAND, DOCUMENTS_SYMLINK_COMMAND } from './lib/internal-paths';
 import path from 'path';
 
 type KeyboardSettings = {
@@ -470,17 +471,20 @@ const exposeApi: MerezhyvoAPI = {
       try {
         const result = await ipcRenderer.invoke('merezhyvo:ui:getScale');
         if (typeof result === 'object' && result && typeof result.scale === 'number') {
-          return { scale: result.scale };
+          return {
+            scale: result.scale,
+            hideFileDialogNote: Boolean(result.hideFileDialogNote)
+          };
         }
       } catch {
         // noop
       }
-      return { scale: 1 };
+      return { scale: 1, hideFileDialogNote: false };
     },
     set: async (payload) => {
       try {
         const normalized = (await ipcRenderer.invoke('merezhyvo:ui:setScale', payload ?? {})) as
-          | { ok: true; scale: number }
+          | { ok: true; scale: number; hideFileDialogNote: boolean }
           | { ok: false; error: string };
         return normalized;
       } catch (err) {
@@ -571,6 +575,9 @@ const exposeApi: MerezhyvoAPI = {
       // try { void ipcRenderer.invoke('mzr:geo:log', `paths.webviewPreload: not found (dirname=${__dirname})`); } catch {}
       return '';
     }
+    ,
+    downloadsSymlinkCommand: DOWNLOADS_SYMLINK_COMMAND,
+    documentsSymlinkCommand: DOCUMENTS_SYMLINK_COMMAND
   },
 
   // Simple debug hook to write into geo.log from the renderer

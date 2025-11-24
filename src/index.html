@@ -51,7 +51,11 @@
       border: 1px solid rgba(15, 23, 42, 0.6);
     }
     .service-scroll::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
-    .service-scroll { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
+    .service-scroll {
+      scrollbar-color: rgba(59,130,246,0.85) #111827;
+      scrollbar-width: thin;
+      overflow: auto;
+    }
 
     @keyframes app-spin {
       0%   { transform: rotate(0deg); }

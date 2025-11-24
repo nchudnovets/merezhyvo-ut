@@ -57,7 +57,6 @@ import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/me
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
 import FileDialogHost from './components/fileDialog/FileDialog';
-import { requestFileDialog } from './services/fileDialog/fileDialogService';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -314,6 +313,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [passwordPromptBusy, setPasswordPromptBusy] = useState(false);
   const [globalToast, setGlobalToast] = useState<string | null>(null);
   const globalToastTimerRef = useRef<number | null>(null);
+  const showGlobalToast = useCallback((message: string) => {
+    setGlobalToast(message);
+    if (globalToastTimerRef.current) {
+      window.clearTimeout(globalToastTimerRef.current);
+    }
+    globalToastTimerRef.current = window.setTimeout(() => {
+      setGlobalToast(null);
+      globalToastTimerRef.current = null;
+    }, 3200);
+  }, []);
   const [torEnabled, setTorEnabled] = useState<boolean>(false);
   const [torContainerId, setTorContainerId] = useState<string>('');
   const [torContainerDraft, setTorContainerDraft] = useState<string>('');
@@ -567,38 +576,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       torAutoStartGuardRef.current = false;
     }
   }, []);
-  const handleChooseDownloadFolder = useCallback(async () => {
-    try {
-      const result = await requestFileDialog({
-        kind: 'folder',
-        title: 'Select download folder',
-        allowMultiple: false
-      });
-      const pathChoice = result?.paths?.[0];
-        if (pathChoice) {
-          setDownloadsDefaultDir(pathChoice);
-        }
-    } catch {
-      // noop
-    }
+  const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
+    const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
+    setDownloadsConcurrent(clamped);
   }, []);
-
-    const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
-      const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
-      setDownloadsConcurrent(clamped);
-    }, []);
 
   const handleSaveDownloadSettings = useCallback(async () => {
     if (downloadsSaving) return;
-    const trimmed = downloadsDefaultDir.trim();
-    if (!trimmed) {
-      setGlobalToast('Please choose a download folder.');
-      return;
-    }
     setDownloadsSaving(true);
     try {
       await window.merezhyvo?.downloads?.settings.set?.({
-        defaultDir: trimmed,
         concurrent: downloadsConcurrent
       });
       setGlobalToast('Download settings saved.');
@@ -608,7 +595,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } finally {
       setDownloadsSaving(false);
     }
-  }, [downloadsConcurrent, downloadsDefaultDir, downloadsSaving, setGlobalToast]);
+  }, [downloadsConcurrent, downloadsSaving, setGlobalToast]);
 
   const UI_SCALE_STEP = 0.05;
   const applyUiScale = useCallback(async (raw: number) => {
@@ -634,6 +621,61 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const handleUiScaleReset = useCallback(() => {
     void applyUiScale(1);
   }, [applyUiScale]);
+
+  const fallbackCopy = (text: string): boolean => {
+    try {
+      const textarea = document.createElement('textarea');
+      textarea.value = text;
+      textarea.style.position = 'fixed';
+      textarea.style.opacity = '0';
+      textarea.style.left = '0';
+      textarea.style.top = '0';
+      document.body.appendChild(textarea);
+      textarea.focus();
+      textarea.select();
+      const success = document.execCommand('copy');
+      document.body.removeChild(textarea);
+      return success;
+    } catch {
+      return false;
+    }
+  };
+
+  const copyCommand = useCallback(
+    async (command: string) => {
+      try {
+        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+          await navigator.clipboard.writeText(command);
+        } else if (!fallbackCopy(command)) {
+          throw new Error('copy failed');
+        }
+        showGlobalToast('Copied');
+      } catch {
+        showGlobalToast('Couldn\'t copy command');
+      }
+    },
+    [showGlobalToast]
+  );
+
+  const downloadsCommand = window.merezhyvo?.paths?.downloadsSymlinkCommand ?? '';
+
+  const handleCopyDownloadsCommand = useCallback(() => {
+    const command = window.merezhyvo?.paths?.downloadsSymlinkCommand;
+    if (!command) {
+      setGlobalToast('Couldn\'t copy command');
+      return;
+    }
+    void copyCommand(command);
+  }, [copyCommand, setGlobalToast]);
+
+  const handleCopyDocumentsCommand = useCallback(() => {
+    const command = window.merezhyvo?.paths?.documentsSymlinkCommand;
+    if (!command) {
+      setGlobalToast('Couldn\'t copy command');
+      return;
+    }
+    void copyCommand(command);
+  }, [copyCommand, setGlobalToast]);
 
   useEffect(() => {
     const handleShortcut = (event: KeyboardEvent) => {
@@ -2604,17 +2646,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     void fetchPasswordStatus();
   }, [fetchPasswordStatus]);
 
-  const showGlobalToast = useCallback((message: string) => {
-    setGlobalToast(message);
-    if (globalToastTimerRef.current) {
-      window.clearTimeout(globalToastTimerRef.current);
-    }
-    globalToastTimerRef.current = window.setTimeout(() => {
-      setGlobalToast(null);
-      globalToastTimerRef.current = null;
-    }, 3200);
-  }, []);
-
   const handlePasswordPromptAction = useCallback(
     async (action: PasswordCaptureAction) => {
       if (!passwordPrompt) return;
@@ -3003,26 +3034,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onSaveTorContainer={handleSaveTorContainer}
               onTorKeepChange={handleTorKeepChange}
               onClose={closeSettingsModal}
-              onOpenPasswords={openPasswordsFromSettings}
-              messengerItems={orderedMessengers}
-              messengerOrderSaving={messengerOrderSaving}
-              messengerOrderMessage={messengerOrderMessage}
-              onMessengerMove={handleMessengerMove}
-              onRequestPasswordUnlock={requestPasswordUnlock}
-              scrollToSection={settingsScrollTarget}
-              onScrollSectionHandled={() => setSettingsScrollTarget(null)}
-              onOpenLicenses={openLicensesFromSettings}
+          onOpenPasswords={openPasswordsFromSettings}
+          messengerItems={orderedMessengers}
+          messengerOrderSaving={messengerOrderSaving}
+          messengerOrderMessage={messengerOrderMessage}
+          onMessengerMove={handleMessengerMove}
+          onRequestPasswordUnlock={requestPasswordUnlock}
+          scrollToSection={settingsScrollTarget}
+          onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+          onOpenLicenses={openLicensesFromSettings}
               downloadsDefaultDir={downloadsDefaultDir}
               downloadsConcurrent={downloadsConcurrent}
               downloadsSaving={downloadsSaving}
-              onDownloadsChooseFolder={handleChooseDownloadFolder}
               onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
               onDownloadsSave={handleSaveDownloadSettings}
+              downloadsCommand={downloadsCommand}
+              onCopyDownloadsCommand={handleCopyDownloadsCommand}
               uiScale={uiScale}
-              onUiScaleChange={applyUiScale}
-              onUiScaleReset={handleUiScaleReset}
-            />
-          )}
+          onUiScaleChange={applyUiScale}
+          onUiScaleReset={handleUiScaleReset}
+        />
+      )}
 
           <PasswordUnlockModal
             mode={mode}
@@ -3093,7 +3125,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             padding: mode === 'mobile' ? '34px 32px' : '10px 20px',
             borderRadius: '999px',
             fontSize: mode === 'mobile' ? '34px' : '16px',
-            zIndex: 2300,
+            zIndex: 5000,
             maxWidth: '80vw',
             textAlign: 'center'
           }}
@@ -3120,7 +3152,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
             onHeightChange={handleKeyboardHeightChange}
           />
-          <FileDialogHost mode={mode} />
+      <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />
         </div>
       </div>
 

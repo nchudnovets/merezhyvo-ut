@@ -7,9 +7,10 @@ export type DownloadSettingsSectionProps = {
   defaultDir: string;
   concurrent: 1 | 2 | 3;
   saving: boolean;
-  onChooseFolder: () => void;
   onConcurrentChange: (value: 1 | 2 | 3) => void;
   onSave: () => void;
+  onCopyCommand: () => void;
+  command: string;
 };
 
 const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
@@ -17,9 +18,10 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   defaultDir,
   concurrent,
   saving,
-  onChooseFolder,
   onConcurrentChange,
-  onSave
+  onSave,
+  onCopyCommand,
+  command
 }) => {
   const labelFontSize = mode === 'mobile' ? '41px' : '16px';
   const valueFontSize = mode === 'mobile' ? '39px' : '14px';
@@ -54,7 +56,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     border: '1px solid rgba(59, 130, 246, 0.6)',
     background: 'rgba(59, 130, 246, 0.2)',
     color: '#fff',
-    cursor: 'pointer',
+    cursor: 'not-allowed',
     fontSize: labelFontSize
   };
   const radioButton = (value: 1 | 2 | 3): CSSProperties => ({
@@ -71,19 +73,72 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   const saveButtonStyle: CSSProperties = {
     ...buttonStyle,
     alignSelf: 'flex-start',
-    opacity: (!defaultDir || saving) ? 0.6 : 1,
-    cursor: (!defaultDir || saving) ? 'not-allowed' : 'pointer'
+    opacity: saving ? 0.6 : 1,
+    cursor: saving ? 'not-allowed' : 'pointer'
+  };
+
+  const noteFontSize = mode === 'mobile' ? '38px' : '15px';
+  const noteStyle: CSSProperties = {
+    fontSize: noteFontSize,
+    lineHeight: 1.4,
+    color: '#cbd5f5',
+    marginBottom: '12px',
+    fontWeight: 300
+  };
+  const noticeBlockStyle: CSSProperties = {
+    fontSize: noteFontSize,
+    color: '#f8fafc',
+    fontFamily: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace',
+    background: 'rgba(255, 255, 255, 0.04)',
+    padding: '10px 12px',
+    borderRadius: '8px',
+    whiteSpace: 'pre-wrap',
+    lineHeight: 1.5
+  };
+  const commandWrapperStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    marginTop: '6px'
+  };
+  const commandTextStyle: CSSProperties = {
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
+  };
+  const commandButtonStyle: CSSProperties = {
+    ...buttonStyle,
+    borderRadius: '8px',
+    padding: '8px 14px',
+    cursor: 'pointer',
+    fontSize: mode === 'mobile' ? '36px' : '14px',
+    alignSelf: 'flex-start'
   };
 
   return (
     <div style={sectionStyle}>
+      <div style={noteStyle}>
+        In this version of the browser, access to the file system is limited. All downloads are automatically
+        saved to the folder <strong>~/.local/share/merezhyvo.naz.r/mDownloads</strong>.
+      </div>
+      <div style={noticeBlockStyle}>
+        <div>
+          For easier access we recommend creating a symlink from your standard Downloads folder:
+        </div>
+        <div style={commandWrapperStyle}>
+          <span style={{ ...commandTextStyle, fontSize: noteFontSize }}>{command}</span>
+          <button type="button" style={commandButtonStyle} onClick={onCopyCommand}>
+            Copy command
+          </button>
+        </div>
+      </div>
       <div>
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
           Default download folder
         </div>
         <div style={rowStyle}>
           <span style={pathStyle} title={defaultDir || ''}>{defaultDir || 'Not set'}</span>
-          <button type="button" style={buttonStyle} onClick={onChooseFolder}>
+          <button type="button" style={buttonStyle} disabled>
             Choose…
           </button>
         </div>

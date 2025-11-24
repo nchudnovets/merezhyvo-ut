@@ -25,7 +25,14 @@ export type FileDialogStyleKeys =
   | 'loading'
   | 'fileInfo'
   | 'filterHint'
-  | 'placeholder';
+  | 'placeholder'
+  | 'notice'
+  | 'noticeText'
+  | 'noticeCommand'
+  | 'noticeCheckboxLabel'
+  | 'noticeCheckboxInput'
+  | 'noticeCommandRow'
+  | 'noticeCopyButton';
 
 export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   overlay: {
@@ -150,6 +157,59 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   placeholder: {
     color: '#94a3b8'
+  }
+  ,
+  notice: {
+    background: 'rgba(15, 23, 42, 0.9)',
+    border: '1px solid rgba(148, 163, 184, 0.4)',
+    borderRadius: '14px',
+    padding: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '6px',
+    color: '#f8fafc'
+  },
+  noticeText: {
+    fontSize: '14px',
+    lineHeight: 1.6,
+    color: '#cbd5f5',
+    margin: 0,
+    whiteSpace: 'pre-wrap'
+  },
+  noticeCommand: {
+    fontSize: '14px',
+    fontFamily: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace',
+    background: 'rgba(255, 255, 255, 0.04)',
+    borderRadius: '8px',
+    padding: '6px 10px',
+    margin: 0
+  },
+  noticeCheckboxLabel: {
+    fontSize: '14px',
+    color: '#94a3b8',
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    cursor: 'pointer'
+  },
+  noticeCheckboxInput: {
+    width: '16px',
+    height: '16px'
+  }
+  ,
+  noticeCommandRow: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  noticeCopyButton: {
+    padding: '8px 16px',
+    borderRadius: '8px',
+    border: '1px solid rgba(59, 130, 246, 0.6)',
+    background: 'rgba(59, 130, 246, 0.2)',
+    color: '#f8fafc',
+    cursor: 'pointer',
+    fontSize: '14px'
   }
   ,
   hiddenToggleRow: {

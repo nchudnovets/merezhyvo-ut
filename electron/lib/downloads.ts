@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
-import { app, net, session } from 'electron';
+import { net, session } from 'electron';
 import type { ClientRequest, IncomingMessage, Session } from 'electron';
+import { DOWNLOADS_FOLDER } from './internal-paths';
 
 type DownloadState = 'queued' | 'downloading' | 'completed' | 'failed';
 
@@ -33,7 +34,7 @@ export type ManualDownloadHandle = {
 };
 
 const DOWNLOAD_SETTINGS = {
-  defaultDir: app.getPath('downloads'),
+  defaultDir: DOWNLOADS_FOLDER,
   concurrent: 2
 };
 

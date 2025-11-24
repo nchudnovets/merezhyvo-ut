@@ -39,7 +39,7 @@ import {
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
-import type { TorConfig } from './lib/shortcuts';
+import type { TorConfig, UISettings } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
 import { registerHistoryIpc } from './lib/history-ipc';
@@ -592,7 +592,8 @@ const openCtxWindowFor = async (
         if (!ownerBounds) return;
 
         const margin = 8;
-        let { x, y, width, height } = bounds;
+        let { x, y } = bounds;
+        const { width, height } = bounds;
 
         const ownerRight = ownerBounds.x + ownerBounds.width;
         if (x + width + margin > ownerRight) {
@@ -1098,17 +1099,30 @@ ipcMain.handle('merezhyvo:downloads:settings:get', async () => {
 ipcMain.handle('merezhyvo:ui:getScale', async () => {
   try {
     const state = await readSettingsState();
-    return { scale: state.ui?.scale ?? 1 };
+    return {
+      scale: state.ui?.scale ?? 1,
+      hideFileDialogNote: state.ui?.hideFileDialogNote ?? false
+    };
   } catch {
-    return { scale: 1 };
+    return { scale: 1, hideFileDialogNote: false };
   }
 });
 
 ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
   try {
-    const sanitized = sanitizeUiSettings(payload);
-    const nextState = await writeSettingsState({ ui: sanitized });
-    return { ok: true, scale: nextState.ui?.scale ?? sanitized.scale };
+    const currentState = await readSettingsState();
+    const existingUi = currentState?.ui ?? {};
+    const patch =
+      typeof payload === 'object' && payload && !Array.isArray(payload)
+        ? (payload as Partial<UISettings>)
+        : {};
+    const mergedUi = sanitizeUiSettings({ ...existingUi, ...patch });
+    const nextState = await writeSettingsState({ ui: mergedUi });
+    return {
+      ok: true,
+      scale: nextState.ui?.scale ?? mergedUi.scale,
+      hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote
+    };
   } catch (err) {
     console.error('[merezhyvo] ui scale update failed', err);
     return { ok: false, error: String(err) };
