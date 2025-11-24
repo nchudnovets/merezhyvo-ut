@@ -129,8 +129,7 @@ type MainBrowserAppProps = {
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
 
 const WEBVIEW_BASE_CSS = `
-  :root, html { color-scheme: dark; }
-  :root, html { background-color: #ffffff; }
+  :root, html { color-scheme: dark; color:#0f111a; background:#e5e7eb; }
   @media (prefers-color-scheme: light) {
   }
   ::-webkit-scrollbar { width: 8px; height: 8px; }

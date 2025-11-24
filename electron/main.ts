@@ -224,6 +224,11 @@ const createDefaultSessionState = (): SessionState => {
   };
 };
 
+const redirectMailToGmail = (url: string): string =>
+  url.startsWith('https://mail.google.com/')
+    ? 'https://gmail.com'
+    : url;
+
 const sanitizeSessionPayload = (payload: unknown): SessionState => {
   const now = Date.now();
   const source = payload as SessionPayloadLike | null | undefined;
@@ -238,8 +243,9 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
     if (!raw || typeof raw !== 'object') continue;
     const id =
       typeof raw.id === 'string' && raw.id.trim().length ? raw.id.trim() : makeSessionTabId();
-    const url =
+    const rawUrl =
       typeof raw.url === 'string' && raw.url.trim().length ? raw.url.trim() : DEFAULT_URL;
+    const url = redirectMailToGmail(rawUrl);
     const title = typeof raw.title === 'string' ? raw.title : '';
     const favicon = typeof raw.favicon === 'string' ? raw.favicon : '';
     const pinned = Boolean(raw.pinned);
