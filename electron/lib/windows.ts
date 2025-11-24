@@ -513,7 +513,7 @@ downloads.onState((entry) => {
       ? 'completed'
       : 'failed';
   const file = entry.filename || '';
-  hostContents.send('merezhyvo:download-status', { status, file });
+  hostContents.send('merezhyvo:download-status', { id: entry.id, status, file });
   hostContents.send('merezhyvo:downloads:state', { id: entry.id, state: entry.state });
 });
 

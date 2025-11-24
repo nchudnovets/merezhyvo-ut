@@ -345,6 +345,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [messengerSettingsState, setMessengerSettingsState] = useState<MessengerSettings>(() => sanitizeMessengerSettings(null));
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const downloadToastTimerRef = useRef<number | null>(null);
+  const downloadFileMapRef = useRef<Map<string, string>>(new Map());
+  const completedDownloadsRef = useRef<Set<string>>(new Set());
   const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
   const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
   const prevBrowserTabIdRef = useRef<string | null>(null);
@@ -2414,23 +2416,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
   useEffect(() => {
-    const handler = (event: CustomEvent<{ status: 'started' | 'completed' | 'failed'; file?: string }>) => {
-      if (event.detail.status !== 'failed') return;
-      const rawName = event.detail.file?.split(/[\\/]/).pop() ?? event.detail.file;
-      const fileName = rawName || 'Download';
-      const text = `Download failed — ${fileName}`;
-      if (downloadToastTimerRef.current) {
-        window.clearTimeout(downloadToastTimerRef.current);
+    const fileMap = downloadFileMapRef.current;
+    const handler = (event: CustomEvent<{ id?: string; status: 'started' | 'completed' | 'failed'; file?: string }>) => {
+      const detail = event.detail ?? {};
+      const downloadId = typeof detail.id === 'string' && detail.id ? detail.id : null;
+      if (downloadId && typeof detail.file === 'string' && detail.file) {
+        fileMap.set(downloadId, detail.file);
       }
-      setDownloadToast(text);
-      downloadToastTimerRef.current = window.setTimeout(() => {
-        setDownloadToast(null);
-        downloadToastTimerRef.current = null;
-      }, 3200);
     };
     window.addEventListener('merezhyvo:download-status', handler as EventListener);
     return () => {
       window.removeEventListener('merezhyvo:download-status', handler as EventListener);
+      fileMap.clear();
       if (downloadToastTimerRef.current) {
         window.clearTimeout(downloadToastTimerRef.current);
         downloadToastTimerRef.current = null;
@@ -2445,6 +2442,30 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
       const state = detail.state;
       if (!targetId || !state) return;
+      const completedSet = completedDownloadsRef.current;
+      const showFailureToast = () => {
+        const stored = downloadFileMapRef.current.get(targetId) ?? '';
+        const rawName = stored.split(/[\\/]/).pop() ?? stored;
+        const fileName = rawName || 'Download';
+        const text = `Download failed — ${fileName}`;
+        if (downloadToastTimerRef.current) {
+          window.clearTimeout(downloadToastTimerRef.current);
+        }
+        setDownloadToast(text);
+        downloadToastTimerRef.current = window.setTimeout(() => {
+          setDownloadToast(null);
+          downloadToastTimerRef.current = null;
+        }, 3200);
+        downloadFileMapRef.current.delete(targetId);
+      };
+      if (state === 'downloading') {
+        completedSet.delete(targetId);
+      } else if (state === 'completed') {
+        completedSet.add(targetId);
+        downloadFileMapRef.current.delete(targetId);
+      } else if (state === 'failed') {
+        completedSet.delete(targetId);
+      }
       if (state === 'downloading') {
         activeSet.add(targetId);
         clearDownloadIndicatorTimer();
@@ -2462,6 +2483,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             downloadIndicatorTimerRef.current = null;
           }, 10000);
         } else {
+          showFailureToast();
           setDownloadIndicatorState('error');
         }
       }
