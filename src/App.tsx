@@ -79,7 +79,7 @@ type AppInfo = {
   node: string;
 };
 
-type ActiveInputTarget = 'url' | 'torContainer' | null;
+type ActiveInputTarget = 'url' | null;
 
 type NavigationState = {
   back?: boolean;
@@ -286,7 +286,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewRef = useRef<WebviewTag | null>(null);
   const [activeViewRevision, setActiveViewRevision] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
-  const torContainerInputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
   const webviewReadyRef = useRef<boolean>(false);
 
@@ -324,8 +323,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }, 3200);
   }, []);
   const [torEnabled, setTorEnabled] = useState<boolean>(false);
-  const [torContainerId, setTorContainerId] = useState<string>('');
-  const [torContainerDraft, setTorContainerDraft] = useState<string>('');
   const [torKeepEnabled, setTorKeepEnabled] = useState<boolean>(false);
   const [torKeepEnabledDraft, setTorKeepEnabledDraft] = useState<boolean>(false);
   const [torConfigSaving, setTorConfigSaving] = useState<boolean>(false);
@@ -493,8 +490,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const lastLoadedRef = useRef<LastLoadedInfo>({ id: null, url: null });
   const torIpRequestRef = useRef<number>(0);
   const torAutoStartGuardRef = useRef<boolean>(false);
-  const torKeepUpdateIdRef = useRef<number>(0);
-  const torAutoStartKeyRef = useRef<string>('');
 
   const isServiceTab = (tab: Tab): boolean => (tab.url ?? '').trim().toLowerCase().startsWith('mzr://');
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned && !isServiceTab(tab)), [tabs]);
@@ -563,21 +558,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setTorAlertMessage('');
   }, []);
 
-  const autoStartTorIfNeeded = useCallback(async (keep: boolean, containerIdValue: string) => {
-    const trimmed = containerIdValue.trim();
-    if (!keep || !trimmed) return;
-    if (torAutoStartGuardRef.current) return;
-    torAutoStartGuardRef.current = true;
-    try {
-      const currentState = await torService.getState();
-      if (!currentState?.enabled) {
-        await torService.toggle({ containerId: trimmed });
-      }
-    } catch (err) {
-      console.error('[Merezhyvo] tor auto-start failed', err);
-      torAutoStartGuardRef.current = false;
-    }
-  }, []);
   const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
     const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
     setDownloadsConcurrent(clamped);
@@ -704,10 +684,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       try {
         const state = await ipc.settings.loadState();
         if (!state || cancelled) return;
-        const containerId = state.tor?.containerId ? state.tor.containerId : '';
-        const keepEnabled = !!state.tor?.keepEnabled;
-        setTorContainerId(containerId);
-        setTorContainerDraft(containerId);
+        const keepEnabled = Boolean(state.tor?.keepEnabled);
         setTorKeepEnabled(keepEnabled);
         setTorKeepEnabledDraft(keepEnabled);
         const downloads = state.downloads ?? { defaultDir: '', concurrent: 2 };
@@ -718,7 +695,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setUiScale(state.ui?.scale ?? 1);
       } catch {
         if (!cancelled) {
-          setTorContainerId('');
           setTorKeepEnabled(false);
           setTorKeepEnabledDraft(false);
           setDownloadsDefaultDir('');
@@ -1850,7 +1826,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!showSettingsModal) {
       return undefined;
     }
-    setTorContainerDraft(torContainerId);
     setTorKeepEnabledDraft(torKeepEnabled);
     setTorConfigFeedback('');
     refreshTorIp();
@@ -1864,100 +1839,53 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, closeSettingsModal, torContainerId, torKeepEnabled, refreshTorIp]);
-
-  const handleTorInputChange = useCallback((value: string) => {
-    setTorContainerDraft(value);
-    setTorConfigFeedback('');
-    if (!value.trim()) {
-      setTorKeepEnabledDraft(false);
-    }
-  }, []);
+  }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp]);
 
   const handleTorKeepChange = useCallback(
     (next: boolean) => {
-      const trimmedDraft = torContainerDraft.trim();
-      if (!trimmedDraft) {
-        setTorKeepEnabledDraft(false);
-        setTorConfigFeedback('Set the Libertine container identifier first.');
-        return;
-      }
-
-      const requestId = ++torKeepUpdateIdRef.current;
+      if (torConfigSaving) return;
       const previousKeep = torKeepEnabled;
       setTorKeepEnabledDraft(next);
+      setTorConfigSaving(true);
       setTorConfigFeedback('');
 
       void (async () => {
-        const result = await ipc.settings.setTorKeepEnabled(next);
-        if (torKeepUpdateIdRef.current !== requestId) return;
-        if (result?.ok) {
-          const keep = Boolean(result.keepEnabled);
-          setTorKeepEnabled(keep);
-          setTorKeepEnabledDraft(keep);
-          setTorConfigFeedback('Saved');
-        } else {
+        try {
+          const result = await ipc.settings.setTorKeepEnabled(next);
+          if (result?.ok) {
+            const keep = Boolean(result.keepEnabled);
+            setTorKeepEnabled(keep);
+            setTorKeepEnabledDraft(keep);
+            setTorConfigFeedback('Saved');
+          } else {
+            setTorKeepEnabled(previousKeep);
+            setTorKeepEnabledDraft(previousKeep);
+            setTorConfigFeedback(result?.error || 'Failed to update Tor preference.');
+          }
+        } catch (err) {
           setTorKeepEnabled(previousKeep);
           setTorKeepEnabledDraft(previousKeep);
-          setTorConfigFeedback(result?.error || 'Failed to update Tor preference.');
+          setTorConfigFeedback(String(err));
+        } finally {
+          setTorConfigSaving(false);
         }
       })();
     },
-    [torContainerDraft, torKeepEnabled]
+    [torKeepEnabled, torConfigSaving]
   );
 
-  const handleSaveTorContainer = useCallback(async () => {
-    const trimmed = torContainerDraft.trim();
-    setTorConfigSaving(true);
-    setTorConfigFeedback('');
-    try {
-      const result = await ipc.settings.saveTorConfig({
-        containerId: trimmed,
-        keepEnabled: torKeepEnabledDraft && !!trimmed
-      });
-      if (result?.ok) {
-        const nextId = result.containerId ?? trimmed;
-        const nextKeep = typeof result.keepEnabled === 'boolean'
-          ? result.keepEnabled
-          : (torKeepEnabledDraft && !!trimmed);
-        setTorContainerId(nextId);
-        setTorContainerDraft(nextId);
-        setTorKeepEnabled(nextKeep && !!nextId.trim());
-        setTorKeepEnabledDraft(nextKeep && !!nextId.trim());
-        setTorConfigFeedback('Saved');
-      } else {
-        setTorConfigFeedback(result?.error || 'Failed to save container identifier.');
-      }
-    } catch (err) {
-      setTorConfigFeedback(String(err));
-    } finally {
-      setTorConfigSaving(false);
-    }
-  }, [torContainerDraft, torKeepEnabledDraft]);
-
   const handleToggleTor = useCallback(async () => {
-    const trimmedContainerId = (torContainerId || '').trim();
-    if (!torEnabled && !trimmedContainerId) {
-      showTorAlert('Libertine container identifier is missing in Settings.');
-      setShowSettingsModal(true);
-      return;
-    }
     try {
-      const state = await torService.toggle({ containerId: trimmedContainerId });
+      const state = await torService.toggle();
       if (!torEnabled && (!state || !state.enabled)) {
-        const reason = state?.reason || '';
-        if (reason) {
-          if (/identifier/i.test(reason)) {
-            showTorAlert('Libertine container identifier is missing in Settings.');
-          } else {
-            showTorAlert('Tor is missing in your Libertine container. Please check your settings.');
-          }
-        }
+        const reason = state?.reason?.trim() || 'Tor failed to start.';
+        showTorAlert(reason);
       }
     } catch (err) {
       console.error('[Merezhyvo] tor toggle failed', err);
+      showTorAlert('Tor toggle failed.');
     }
-  }, [torEnabled, torContainerId, setShowSettingsModal, showTorAlert]);
+  }, [torEnabled, showTorAlert]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -1976,19 +1904,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
   useEffect(() => {
-    const trimmed = torContainerId.trim();
-    if (!torKeepEnabled || !trimmed) {
+    if (!torKeepEnabled || torEnabled) {
       torAutoStartGuardRef.current = false;
-      torAutoStartKeyRef.current = '';
       return;
     }
-    const key = `${trimmed}|${torKeepEnabled ? '1' : '0'}`;
-    if (torAutoStartKeyRef.current !== key) {
-      torAutoStartGuardRef.current = false;
-      torAutoStartKeyRef.current = key;
-    }
-    void autoStartTorIfNeeded(torKeepEnabled, trimmed);
-  }, [autoStartTorIfNeeded, torKeepEnabled, torContainerId]);
+    if (torAutoStartGuardRef.current) return;
+    torAutoStartGuardRef.current = true;
+    void (async () => {
+      try {
+        await torService.toggle();
+      } catch (err) {
+        console.error('[Merezhyvo] tor auto-start failed', err);
+      } finally {
+        torAutoStartGuardRef.current = false;
+      }
+    })();
+  }, [torKeepEnabled, torEnabled]);
 
   useEffect(() => {
     refreshTorIp();
@@ -2398,18 +2329,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeInputRef.current === 'url') activeInputRef.current = null;
   }, []);
 
-
-  const handleTorInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'torContainer';
-  }, []);
-
-  const handleTorInputFocus = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    activeInputRef.current = 'torContainer';
-  }, []);
-
-  const handleTorInputBlur = useCallback((_: ReactFocusEvent<HTMLInputElement>) => {
-    if (activeInputRef.current === 'torContainer') activeInputRef.current = null;
-  }, []);
 
   const handleKeyboardHeightChange = useCallback((height: number) => {
     setKeyboardHeight(height > 0 ? height : 0);
@@ -3043,96 +2962,31 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               torEnabled={torEnabled}
               torCurrentIp={torIp}
               torIpLoading={torIpLoading}
-              torContainerValue={torContainerDraft}
-              torSavedContainerId={torContainerId}
-              torContainerSaving={torConfigSaving}
-              torContainerMessage={torConfigFeedback}
               torKeepEnabledDraft={torKeepEnabledDraft}
-              torInputRef={torContainerInputRef}
-              onTorInputPointerDown={handleTorInputPointerDown}
-              onTorInputFocus={handleTorInputFocus}
-              onTorInputBlur={handleTorInputBlur}
-              onTorContainerChange={handleTorInputChange}
-              onSaveTorContainer={handleSaveTorContainer}
+              torConfigSaving={torConfigSaving}
+              torConfigFeedback={torConfigFeedback}
               onTorKeepChange={handleTorKeepChange}
               onClose={closeSettingsModal}
-          onOpenPasswords={openPasswordsFromSettings}
-          messengerItems={orderedMessengers}
-          messengerOrderSaving={messengerOrderSaving}
-          messengerOrderMessage={messengerOrderMessage}
-          onMessengerMove={handleMessengerMove}
-          onRequestPasswordUnlock={requestPasswordUnlock}
-          scrollToSection={settingsScrollTarget}
-          onScrollSectionHandled={() => setSettingsScrollTarget(null)}
-          onOpenLicenses={openLicensesFromSettings}
+              onOpenPasswords={openPasswordsFromSettings}
+              messengerItems={orderedMessengers}
+              messengerOrderSaving={messengerOrderSaving}
+              messengerOrderMessage={messengerOrderMessage}
+              onMessengerMove={handleMessengerMove}
+              onRequestPasswordUnlock={requestPasswordUnlock}
+              scrollToSection={settingsScrollTarget}
+              onScrollSectionHandled={() => setSettingsScrollTarget(null)}
+              onOpenLicenses={openLicensesFromSettings}
               downloadsDefaultDir={downloadsDefaultDir}
               downloadsConcurrent={downloadsConcurrent}
               downloadsSaving={downloadsSaving}
               onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
               onDownloadsSave={handleSaveDownloadSettings}
-              downloadsCommand={downloadsCommand}
               onCopyDownloadsCommand={handleCopyDownloadsCommand}
+              downloadsCommand={downloadsCommand}
               uiScale={uiScale}
-          onUiScaleChange={applyUiScale}
-          onUiScaleReset={handleUiScaleReset}
-        />
-      )}
-
-          <PasswordUnlockModal
-            mode={mode}
-            open={showUnlockModal}
-            payload={unlockPayload ?? undefined}
-            onClose={closeUnlockModal}
-            onUnlock={handlePasswordUnlock}
-            error={unlockError}
-            submitting={unlockSubmitting}
-            defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
-          />
-
-          <PasswordCapturePrompt
-            mode={mode}
-            open={Boolean(passwordPrompt)}
-            payload={passwordPrompt ?? undefined}
-            busy={passwordPromptBusy}
-            onAction={handlePasswordPromptAction}
-            onClose={handlePromptCancel}
-          />
-
-          {torAlertMessage && (
-            <div
-              style={styles.torAlertOverlay}
-              role="alertdialog"
-              aria-modal="true"
-              aria-live="assertive"
-              onClick={dismissTorAlert}
-            >
-              <div
-                style={{
-                  ...styles.torAlertCard,
-                  ...(mode === 'mobile' ? styles.torAlertCardMobile : styles.torAlertCardDesktop)
-                }}
-                onClick={(event) => event.stopPropagation()}
-              >
-                <p
-                  style={{
-                    ...styles.torAlertText,
-                    ...(mode === 'mobile' ? styles.torAlertTextMobile : styles.torAlertTextDesktop)
-                  }}
-                >
-                  {torAlertMessage}
-                </p>
-                <button
-                  type="button"
-                  style={{
-                    ...styles.torAlertButton,
-                    ...(mode === 'mobile' ? styles.torAlertButtonMobile : styles.torAlertButtonDesktop)
-                  }}
-                  onClick={dismissTorAlert}
-                >
-                  OK
-                </button>
-              </div>
-            </div>
+              onUiScaleChange={applyUiScale}
+              onUiScaleReset={handleUiScaleReset}
+            />
           )}
 
       {globalToast && (

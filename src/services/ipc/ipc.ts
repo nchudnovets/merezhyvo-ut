@@ -10,8 +10,6 @@ import type {
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 
-type SaveTorConfigResponse = TorConfigResult;
-
 type Bridge = NonNullable<Window['merezhyvo']>;
 
 export type PermissionType = 'camera' | 'microphone' | 'geolocation' | 'notifications';
@@ -57,22 +55,11 @@ export const ipc = {
         return null;
       }
     },
-    async saveTorConfig(payload: { containerId: string; keepEnabled: boolean }): Promise<SaveTorConfigResponse> {
-      try {
-        const res = await getApi()?.settings?.tor?.update?.(payload);
-        if (res && typeof res === 'object') {
-          return res as SaveTorConfigResponse;
-        }
-      } catch (err) {
-        return { ok: false, error: String(err) };
-      }
-      return { ok: false, error: 'Unknown error' };
-    },
-    async setTorKeepEnabled(keepEnabled: boolean): Promise<SaveTorConfigResponse> {
+    async setTorKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult> {
       try {
         const res = await getApi()?.settings?.tor?.setKeepEnabled?.(keepEnabled);
         if (res && typeof res === 'object') {
-          return res as SaveTorConfigResponse;
+          return res as TorConfigResult;
         }
       } catch (err) {
         return { ok: false, error: String(err) };

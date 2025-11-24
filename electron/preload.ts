@@ -7,7 +7,6 @@ import type {
   MerezhyvoAPI,
   MerezhyvoAppInfo,
   MerezhyvoOpenUrlPayload,
-  MerezhyvoTorToggleOptions,
   MerezhyvoTorState,
   MerezhyvoSessionState,
   MerezhyvoSettingsState,
@@ -164,8 +163,8 @@ const exposeApi: MerezhyvoAPI = {
   },
 
   tor: {
-    toggle: (options?: MerezhyvoTorToggleOptions) =>
-      ipcRenderer.invoke('tor:toggle', options ?? {}) as Promise<MerezhyvoTorState>,
+    toggle: () =>
+      ipcRenderer.invoke('tor:toggle') as Promise<MerezhyvoTorState>,
     getState: () => ipcRenderer.invoke('tor:get-state') as Promise<MerezhyvoTorState>,
     onState: (handler) => {
       if (typeof handler !== 'function') return noopUnsubscribe;
@@ -252,24 +251,13 @@ const exposeApi: MerezhyvoAPI = {
         console.error('[merezhyvo] settings.load failed', err);
         return {
           schema: 2,
-          tor: { containerId: '', keepEnabled: false },
+          tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null)
         };
       }
     },
     tor: {
-      update: async (payload?: { containerId?: string; keepEnabled?: boolean }) => {
-        try {
-          return (await ipcRenderer.invoke(
-            'merezhyvo:settings:tor:update',
-            payload ?? {}
-          )) as TorConfigResult;
-        } catch (err) {
-          console.error('[merezhyvo] settings.tor.update failed', err);
-          return { ok: false, error: String(err) };
-        }
-      },
       setKeepEnabled: async (keepEnabled: boolean) => {
         try {
           return (await ipcRenderer.invoke(

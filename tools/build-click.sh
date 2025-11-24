@@ -11,7 +11,7 @@ ARCH="arm64"
 OUT_DIR="build"
 
 # .deb, з якого витягаємо tor (arm64)
-TOR_DEB_URL_DEFAULT="https://ftp.debian.org/debian/pool/main/t/tor/tor_0.4.5.16-1_arm64.deb"
+TOR_DEB_URL_DEFAULT="https://ftp.debian.org/debian/pool/main/t/tor/tor_0.4.8.16-1_arm64.deb"
 
 # Шлях до "кешованого" бінарника tor у репозиторії
 TOR_SOURCE_BIN="resources/tor/tor"

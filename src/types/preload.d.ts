@@ -54,10 +54,6 @@ export type MerezhyvoTorState = TorState;
 
 export type MerezhyvoSessionState = SessionState;
 
-export interface MerezhyvoTorToggleOptions {
-  containerId?: string | null;
-}
-
 export interface MerezhyvoAppInfo {
   name: string;
   version: string;
@@ -176,7 +172,7 @@ export interface MerezhyvoAPI {
     handler: (payload: MerezhyvoOpenUrlPayload) => void
   ): MerezhyvoUnsubscribe;
   tor: {
-    toggle(options?: MerezhyvoTorToggleOptions): Promise<MerezhyvoTorState>;
+    toggle(): Promise<MerezhyvoTorState>;
     getState(): Promise<MerezhyvoTorState>;
     onState(handler: (enabled: boolean, reason: string | null) => void): MerezhyvoUnsubscribe;
   };
@@ -188,7 +184,6 @@ export interface MerezhyvoAPI {
   settings: {
     load(): Promise<MerezhyvoSettingsState>;
     tor: {
-      update(payload: { containerId?: string; keepEnabled?: boolean }): Promise<TorConfigResult>;
       setKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult>;
     };
     keyboard: {

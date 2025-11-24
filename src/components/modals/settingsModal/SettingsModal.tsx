@@ -1,5 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
-import type { CSSProperties, RefObject, PointerEvent as ReactPointerEvent, FocusEvent as ReactFocusEvent, ReactNode } from 'react';
+import type { CSSProperties, ReactNode } from 'react';
 import type { Mode, MessengerDefinition, MessengerId } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
@@ -22,17 +22,10 @@ interface SettingsModalProps {
   torEnabled: boolean;
   torCurrentIp: string;
   torIpLoading: boolean;
-  torContainerValue: string;
-  torSavedContainerId: string;
-  torContainerSaving: boolean;
-  torContainerMessage: string;
+  torKeepEnabled: boolean;
   torKeepEnabledDraft: boolean;
-  torInputRef: RefObject<HTMLInputElement | null>;
-  onTorInputPointerDown: (event: ReactPointerEvent<HTMLInputElement>) => void;
-  onTorInputFocus: (event: ReactFocusEvent<HTMLInputElement>) => void;
-  onTorInputBlur: (event: React.FocusEvent<HTMLInputElement>) => void;
-  onTorContainerChange: (value: string) => void;
-  onSaveTorContainer: () => void;
+  torConfigSaving: boolean;
+  torConfigFeedback: string;
   onTorKeepChange: (value: boolean) => void;
   onClose: () => void;
   onOpenPasswords: () => void;
@@ -53,7 +46,7 @@ interface SettingsModalProps {
   downloadsCommand: string;
   uiScale: number;
   onUiScaleChange: (value: number) => void;
-  onUiScaleReset: () => void;
+  onUiScaleReset: (value: number) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -63,17 +56,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torEnabled,
   torCurrentIp,
   torIpLoading,
-  torContainerValue,
-  torSavedContainerId,
-  torContainerSaving,
-  torContainerMessage,
+  torKeepEnabled,
   torKeepEnabledDraft,
-  torInputRef,
-  onTorInputPointerDown,
-  onTorInputFocus,
-  onTorInputBlur,
-  onTorContainerChange,
-  onSaveTorContainer,
+  torConfigSaving,
+  torConfigFeedback,
   onTorKeepChange,
   onClose,
   onOpenPasswords,
@@ -206,17 +192,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torEnabled={torEnabled}
                 torCurrentIp={torCurrentIp}
                 torIpLoading={torIpLoading}
-                torContainerValue={torContainerValue}
-                torSavedContainerId={torSavedContainerId}
-                torContainerSaving={torContainerSaving}
-                torContainerMessage={torContainerMessage}
+                torKeepEnabled={torKeepEnabled}
                 torKeepEnabledDraft={torKeepEnabledDraft}
-                torInputRef={torInputRef}
-                onTorInputPointerDown={onTorInputPointerDown}
-                onTorInputFocus={onTorInputFocus}
-                onTorInputBlur={onTorInputBlur}
-                onTorContainerChange={onTorContainerChange}
-                onSaveTorContainer={onSaveTorContainer}
+                torConfigSaving={torConfigSaving}
+                torConfigFeedback={torConfigFeedback}
                 onTorKeepChange={onTorKeepChange}
               />
             }
