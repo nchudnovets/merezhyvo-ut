@@ -59,18 +59,18 @@ function isUbuntuTouchSandbox(): boolean {
 
 /** Try to resolve bundled tor binary inside the click package. */
 function resolveBundledTorBinary(): string | null {
-  const appId =
-    process.env.CLICK_APP_ID && process.env.CLICK_APP_ID.trim().length
-      ? process.env.CLICK_APP_ID.trim()
-      : APP_ID;
+  // const appId =
+  //   process.env.CLICK_APP_ID && process.env.CLICK_APP_ID.trim().length
+  //     ? process.env.CLICK_APP_ID.trim()
+  //     : APP_ID;
 
   const candidates: string[] = [];
 
-  if (isUbuntuTouchSandbox()) {
-    // Path inside click package on device, e.g.
-    // /opt/click.ubuntu.com/merezhyvo.naz.r/current/app/resources/tor/tor
-    candidates.push(`/opt/click.ubuntu.com/${appId}/current/app/resources/tor/tor`);
-  }
+  // if (isUbuntuTouchSandbox()) {
+  //   // Path inside click package on device, e.g.
+  //   // /opt/click.ubuntu.com/merezhyvo.naz.r/current/app/resources/tor/tor
+  //   candidates.push(`/opt/click.ubuntu.com/${appId}/current/app/resources/tor/tor`);
+  // }
 
   // Development / fallback candidates (when running from repo)
   const cwd = process.cwd();
