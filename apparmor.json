@@ -5,10 +5,6 @@
     "webview",
     "location",
     "audio",
-    "video",
-    "camera",
-    "microphone",
-    "content_exchange",
-    "content_exchange_source"
+    "video"
   ]
 }
