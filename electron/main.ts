@@ -206,6 +206,17 @@ global.lastCtx = global.lastCtx ?? {
 app.setName('Merezhyvo');
 app.setAppUserModelId('dev.naz.r.merezhyvo');
 
+if (process.env.ELECTRON_DISABLE_GPU === '1') {
+  console.log('[Merezhyvo] ELECTRON_DISABLE_GPU=1 → disabling hardware acceleration and VAAPI');
+
+  app.disableHardwareAcceleration();
+
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+  app.commandLine.appendSwitch('disable-software-rasterizer');
+  app.commandLine.appendSwitch('disable-features', 'VaapiVideoDecoder,VaapiVideoEncoder');
+}
+
 windows.installDesktopName();
 
 Menu.setApplicationMenu(null);
