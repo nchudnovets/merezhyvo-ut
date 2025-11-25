@@ -714,6 +714,7 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
 
 const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string): void => {
     if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return;
+    if (contents === typedWin.webContents) return;
     const host = (contents as WebContentsWithHost).hostWebContents;
     if (host) return;
     if (contents.id === typedWin.webContents.id) return;
@@ -732,11 +733,12 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     }
   };
 
-  const closeDownloadContentsIfNeeded = (
+    const closeDownloadContentsIfNeeded = (
     downloadContents: WebContents | null,
     downloadUrl: string
   ): void => {
     if (!downloadContents) return;
+    if (downloadContents === typedWin.webContents) return;
     if (autoCloseSkipIds.has(downloadContents.id)) {
       autoCloseSkipIds.delete(downloadContents.id);
       return;
@@ -796,6 +798,13 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     const url = typeof item.getURL === 'function' ? item.getURL() || '' : '';
     const isHttpDownload = /^https?:\/\//.test(url);
     closeBlankDownloadTab(downloadContents, url);
+    const downloadHost = (downloadContents as WebContentsWithHost | null)?.hostWebContents;
+    if (downloadContents && downloadHost) {
+      skipAutoCloseForDownload(downloadContents.id);
+    }
+    if (downloadContents && downloadContents === typedWin.webContents) {
+      skipAutoCloseForDownload(downloadContents.id);
+    }
     if (!isHttpDownload) {
       handleNativeItemDownload(item, url);
       closeDownloadContentsIfNeeded(downloadContents, url);
