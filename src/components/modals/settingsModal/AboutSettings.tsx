@@ -21,6 +21,10 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo, onOpenLice
   const aboutVersion = appInfo?.version || '0.0.0';
   const chromiumVersion = appInfo?.chromium || 'Unknown';
   const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
+  const torVersionLabel =
+    appInfo?.torVersion && appInfo.torVersion.trim()
+      ? `Tor: ${appInfo.torVersion}`
+      : 'Tor: not available';
   return (
     <div
       style={{
@@ -51,6 +55,14 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo, onOpenLice
         }}
       >
         {aboutDescription}
+      </p>
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        {torVersionLabel}
       </p>
       <p
         style={{

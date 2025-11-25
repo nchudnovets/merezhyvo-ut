@@ -53,6 +53,7 @@ import type {
   PasswordPromptPayload,
   PasswordCaptureAction
 } from './types/models';
+import type { MerezhyvoAboutInfo } from './types/preload';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
@@ -78,6 +79,7 @@ type AppInfo = {
   chromium: string;
   electron: string;
   node: string;
+  torVersion?: string | null;
 };
 
 type ActiveInputTarget = 'url' | null;
@@ -216,7 +218,8 @@ const FALLBACK_APP_INFO: AppInfo = {
   description: '',
   chromium: '',
   electron: '',
-  node: ''
+  node: '',
+  torVersion: null
 };
 
 const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
@@ -459,18 +462,46 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
   }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
 
+  const [aboutInfoFromMain, setAboutInfoFromMain] = useState<MerezhyvoAboutInfo | null>(null);
+
+  useEffect(() => {
+    let canceled = false;
+    const fetchAboutInfo = async () => {
+      try {
+        const info = await window.merezhyvo?.about.getInfo();
+        if (!canceled && info) {
+          setAboutInfoFromMain(info);
+        }
+      } catch {
+        if (!canceled) {
+          setAboutInfoFromMain(null);
+        }
+      }
+    };
+    fetchAboutInfo();
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
   const appInfo = useMemo<AppInfo>(() => {
     if (typeof window === 'undefined') return FALLBACK_APP_INFO;
     const info = window.merezhyvo?.appInfo as Partial<AppInfo> | undefined;
+    const version = info?.version ?? FALLBACK_APP_INFO.version;
+    const chromium =
+      aboutInfoFromMain?.chromiumVersion ?? info?.chromium ?? FALLBACK_APP_INFO.chromium;
+    const torVersion =
+      aboutInfoFromMain?.torVersion ?? info?.torVersion ?? FALLBACK_APP_INFO.torVersion;
     return {
       name: info?.name ?? FALLBACK_APP_INFO.name,
-      version: info?.version ?? FALLBACK_APP_INFO.version,
+      version,
       description: info?.description ?? FALLBACK_APP_INFO.description,
-      chromium: info?.chromium ?? FALLBACK_APP_INFO.chromium,
+      chromium,
       electron: info?.electron ?? FALLBACK_APP_INFO.electron,
-      node: info?.node ?? FALLBACK_APP_INFO.node
+      node: info?.node ?? FALLBACK_APP_INFO.node,
+      torVersion
     };
-  }, []);
+  }, [aboutInfoFromMain]);
 
   const tabsReadyRef = useRef<boolean>(tabsReady);
   const tabsRef = useRef<Tab[]>(tabs);

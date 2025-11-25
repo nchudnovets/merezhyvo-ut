@@ -62,8 +62,14 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     error: null,
     loading: true
   });
+  const [torLicense, setTorLicense] = useState<LoadState>({
+    text: null,
+    error: null,
+    loading: true
+  });
   const [showApp, setShowApp] = useState(false);
   const [showThird, setShowThird] = useState(false);
+  const [showTor, setShowTor] = useState(false);
 
   useEffect(() => {
     let canceled = false;
@@ -105,6 +111,26 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     };
   }, []);
 
+  useEffect(() => {
+    let canceled = false;
+    fetchText('resources/tor/LICENSE')
+      .then((text) => {
+        if (!canceled) setTorLicense({ text, error: null, loading: false });
+      })
+      .catch(() => {
+        if (!canceled) {
+          setTorLicense({
+            text: null,
+            error: 'File not found. Please reinstall or contact support.',
+            loading: false
+          });
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, []);
+
   const styles = licensesStyles;
   const modeStyles = licensesModeStyles[mode] || {};
   const mergeContainer = () => ({
@@ -133,9 +159,18 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
           open={showThird}
           mode={mode}
         />
+        <Viewer
+          lead="Tor browser component"
+          subtext="This app bundles the Tor software. It is licensed separately by The Tor Project. See the full Tor license text below."
+          load={torLicense}
+          toggleLabel="View Tor license"
+          onToggle={() => setShowTor((prev) => !prev)}
+          open={showTor}
+          mode={mode}
+        />
       </>
     ),
-    [appLicense, thirdParty, showApp, showThird, mode]
+    [appLicense, thirdParty, showApp, showThird, torLicense, showTor, mode]
   );
 
   return (

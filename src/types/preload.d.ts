@@ -61,6 +61,13 @@ export interface MerezhyvoAppInfo {
   chromium?: string;
   electron?: string;
   node?: string;
+  torVersion?: string | null;
+}
+
+export interface MerezhyvoAboutInfo {
+  appVersion: string;
+  chromiumVersion: string;
+  torVersion: string | null;
 }
 
 export interface MerezhyvoTabCleanPayload {
@@ -166,6 +173,9 @@ export type MerezhyvoSettingsState = SettingsState;
 
 export interface MerezhyvoAPI {
   appInfo?: MerezhyvoAppInfo;
+  about: {
+    getInfo(): Promise<MerezhyvoAboutInfo>;
+  };
   onMode(handler: (mode: 'desktop' | 'mobile') => void): MerezhyvoUnsubscribe;
   notifyTabsReady(): void;
   onOpenUrl(

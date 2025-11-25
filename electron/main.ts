@@ -65,6 +65,31 @@ try {
 
 const fsp = fs.promises;
 
+const getTorVersionCandidates = (): string[] => {
+  const cwd = process.cwd();
+  const candidates = [
+    path.join(cwd, 'app', 'resources', 'tor', 'version.txt'),
+    path.join(cwd, 'resources', 'tor', 'version.txt'),
+    path.join(process.resourcesPath ?? '', 'tor', 'version.txt')
+  ];
+  return Array.from(new Set(candidates));
+};
+
+const getTorVersion = async (): Promise<string | null> => {
+  const candidates = getTorVersionCandidates();
+  for (const candidate of candidates) {
+    try {
+      await fsp.access(candidate, fs.constants.R_OK);
+      const data = await fsp.readFile(candidate, 'utf8');
+      const trimmed = data.trim();
+      if (trimmed.length > 0) return trimmed;
+    } catch {
+      // ignore
+    }
+  }
+  return null;
+};
+
 const { DEFAULT_URL } = windows;
 
 void (async () => {
@@ -1150,6 +1175,15 @@ ipcMain.on('merezhyvo:ui:getScaleSync', (event) => {
     /* ignore */
   }
   event.returnValue = 1;
+});
+
+ipcMain.handle('about:get-info', async () => {
+  const torVersion = await getTorVersion();
+  return {
+    appVersion: app.getVersion(),
+    chromiumVersion: process.versions.chrome ?? '',
+    torVersion: torVersion ?? null
+  };
 });
 
 ipcMain.handle('merezhyvo:settings:tor:set-keep', async (_event, payload: unknown) => {

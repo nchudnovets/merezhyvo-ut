@@ -3,4 +3,5 @@ export type SettingsAppInfo = {
   version: string;
   description?: string;
   chromium?: string;
+  torVersion?: string | null;
 };

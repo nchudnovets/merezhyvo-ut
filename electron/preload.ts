@@ -6,6 +6,7 @@ import pkgJson from '../package.json';
 import type {
   MerezhyvoAPI,
   MerezhyvoAppInfo,
+  MerezhyvoAboutInfo,
   MerezhyvoOpenUrlPayload,
   MerezhyvoTorState,
   MerezhyvoSessionState,
@@ -68,7 +69,8 @@ const pkg = pkgJson as PackageMeta;
 const appInfo: MerezhyvoAppInfo = {
   name: pkg.productName || pkg.name || 'Merezhyvo',
   version: pkg.version || '0.0.0',
-  description: pkg.description || ''
+  description: pkg.description || '',
+  torVersion: null
 };
 
 const runtimeVersions = {
@@ -195,6 +197,10 @@ const exposeApi: MerezhyvoAPI = {
         }
       };
     }
+  },
+  about: {
+    getInfo: () =>
+      ipcRenderer.invoke('about:get-info') as Promise<MerezhyvoAboutInfo>
   },
 
   tabs: {
