@@ -29,8 +29,8 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({
   const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
   const torVersionLabel =
     appInfo?.torVersion && appInfo.torVersion.trim()
-      ? `Tor: ${appInfo.torVersion}`
-      : 'Tor: not available';
+      ? `Tor version: ${appInfo.torVersion}`
+      : 'Tor version: not available';
   return (
     <div
       style={{
@@ -61,6 +61,22 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({
         }}
       >
         {aboutDescription}
+      </p>
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        Merezhyvo is free to use.
+      </p>
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        All rights reserved by the author.
       </p>
       <p
         style={{
@@ -103,15 +119,13 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({
           ...(modeStyles.settingsAboutDescription || {})
         }}
       >
-        Merezhyvo is free to use.
-      </p>
-      <p
-        style={{
-          ...styles.aboutDescription,
-          ...(modeStyles.settingsAboutDescription || {})
-        }}
-      >
-        All rights reserved by the author.
+        This browser includes Tor as an optional connection layer, 
+        but it is not the official Tor Browser and does not implement all of Tor Browser’s security and 
+        fingerprinting protections. 
+        Using Tor may improve your privacy and help hide your IP address, 
+        but it does not automatically make you anonymous or protect you from all tracking or deanonymization techniques. 
+        For sensitive use, combine Tor with good security habits (no logins you care about, 
+        minimal extensions, careful with downloads) and follow the recommendations from the Tor Project.
       </p>
       <button
         type="button"
