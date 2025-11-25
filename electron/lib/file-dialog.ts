@@ -2,7 +2,7 @@
 
 import fs from 'fs';
 import path from 'path';
-import { DOCUMENTS_FOLDER } from './internal-paths';
+import { DOCUMENTS_FOLDER, DOWNLOADS_FOLDER, INTERNAL_BASE_FOLDER } from './internal-paths';
 
 const fsp = fs.promises;
 
@@ -19,18 +19,28 @@ export type FileDialogListing = {
 };
 
 const DOCUMENTS_PATH = path.resolve(DOCUMENTS_FOLDER);
+const DOWNLOADS_PATH = path.resolve(DOWNLOADS_FOLDER);
+const ALLOWED_ROOTS = [DOCUMENTS_PATH, DOWNLOADS_PATH];
+const BASE_PATH = path.resolve(INTERNAL_BASE_FOLDER);
 
-const isPathWithinDocuments = (target: string): boolean => {
+const isWithinAllowedRoots = (target: string): boolean => {
   const normalized = path.resolve(target);
-  return (
-    normalized === DOCUMENTS_PATH ||
-    normalized.startsWith(`${DOCUMENTS_PATH}${path.sep}`)
+  return ALLOWED_ROOTS.some(
+    (root) => normalized === root || normalized.startsWith(`${root}${path.sep}`)
   );
 };
 
 const ensureDocumentsScope = (target: string): string => {
   const normalized = path.resolve(target);
-  if (isPathWithinDocuments(normalized)) {
+  if (isWithinAllowedRoots(normalized) && normalized.startsWith(DOCUMENTS_PATH)) {
+    return normalized;
+  }
+  throw new Error('Access to the requested path is not allowed');
+};
+
+const ensureReadScope = (target: string): string => {
+  const normalized = path.resolve(target);
+  if (isWithinAllowedRoots(normalized) || normalized === BASE_PATH) {
     return normalized;
   }
   throw new Error('Access to the requested path is not allowed');
@@ -40,13 +50,18 @@ const resolveTargetPath = (provided?: string): string => {
   let candidate = DOCUMENTS_PATH;
   if (provided) {
     try {
-      candidate = ensureDocumentsScope(provided);
+      candidate = ensureReadScope(provided);
     } catch {
       candidate = DOCUMENTS_PATH;
     }
   }
   try {
     fs.mkdirSync(DOCUMENTS_PATH, { recursive: true });
+  } catch {
+    // noop
+  }
+  try {
+    fs.mkdirSync(DOWNLOADS_PATH, { recursive: true });
   } catch {
     // noop
   }
@@ -85,10 +100,21 @@ export const listDirectory = async (
   const entries = dirents
     .map((dirent) => {
       const entryPath = path.join(resolved, dirent.name);
-      if (!isPathWithinDocuments(entryPath)) return null;
+      const normalizedEntry = path.resolve(entryPath);
+      if (resolved === BASE_PATH) {
+        if (!dirent.isDirectory()) return null;
+        const matchedRoot = ALLOWED_ROOTS.find((root) => normalizedEntry === root);
+        if (!matchedRoot) return null;
+        return {
+          name: path.basename(matchedRoot),
+          path: matchedRoot,
+          isDirectory: true
+        };
+      }
+      if (!isWithinAllowedRoots(normalizedEntry)) return null;
       return {
         name: dirent.name,
-        path: entryPath,
+        path: normalizedEntry,
         isDirectory: dirent.isDirectory()
       };
     })
@@ -104,7 +130,17 @@ export const listDirectory = async (
       }
       return a.name.localeCompare(b.name, undefined, { sensitivity: 'base' });
     });
-  const parent = resolved === path.parse(resolved).root ? null : path.dirname(resolved);
+  const parent = (() => {
+    if (resolved === BASE_PATH) {
+      return null;
+    }
+    if (ALLOWED_ROOTS.includes(resolved)) {
+      return BASE_PATH;
+    }
+    const candidate = path.dirname(resolved);
+    if (candidate === BASE_PATH) return BASE_PATH;
+    return isWithinAllowedRoots(candidate) ? candidate : BASE_PATH;
+  })();
   return { path: resolved, parent, entries };
 };
 
@@ -112,7 +148,7 @@ export const readFileContent = async (filePath: string): Promise<string> => {
   if (!filePath) {
     throw new Error('Path is required');
   }
-  const resolved = ensureDocumentsScope(filePath);
+  const resolved = ensureReadScope(filePath);
   let stat: fs.Stats;
   try {
     stat = await fsp.stat(resolved);
@@ -130,7 +166,7 @@ export const readFileAsBase64 = async (filePath: string): Promise<string> => {
   if (!filePath) {
     throw new Error('Path is required');
   }
-  const resolved = ensureDocumentsScope(filePath);
+  const resolved = ensureReadScope(filePath);
   let stat: fs.Stats;
   try {
     stat = await fsp.stat(resolved);

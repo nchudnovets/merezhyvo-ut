@@ -15,20 +15,25 @@ TOR_DEB_URL_DEFAULT="https://ftp.debian.org/debian/pool/main/t/tor/tor_0.4.8.16-
 
 # Шлях до "кешованого" бінарника tor у репозиторії
 TOR_SOURCE_BIN="resources/tor/tor"
-# Шлях, куди його треба покласти у зібраний app/
+TOR_LICENSE_SOURCE="resources/tor/LICENSE"
+TOR_VERSION_SOURCE="resources/tor/version.txt"
+
+# Шляхи, куди їх треба покласти у зібраний app/
 TOR_TARGET_BIN="app/resources/tor/tor"
+TOR_LICENSE_TARGET="app/resources/tor/LICENSE"
+TOR_VERSION_TARGET="app/resources/tor/version.txt"
 
 echo "==> Pre-clean build/"
 rm -rf build || true
 
-echo "==> Step 0: ensure cached Tor binary (${TOR_SOURCE_BIN})"
+echo "==> Step 0: ensure cached Tor binary and metadata (${TOR_SOURCE_BIN})"
 
-if [ -f "${TOR_SOURCE_BIN}" ]; then
-  echo "    Tor source binary already present, skipping download."
+if [ -f "${TOR_SOURCE_BIN}" ] && [ -f "${TOR_LICENSE_SOURCE}" ] && [ -f "${TOR_VERSION_SOURCE}" ]; then
+  echo "    Tor source binary and metadata already present, skipping download."
 else
   TOR_DEB_URL="${TOR_DEB_URL:-$TOR_DEB_URL_DEFAULT}"
 
-  echo "    Tor binary not found, fetching from:"
+  echo "    Tor binary not found or metadata missing, fetching from:"
   echo "      ${TOR_DEB_URL}"
 
   TMP_DIR="$(mktemp -d)"
@@ -61,14 +66,32 @@ else
     exit 1
   fi
 
-  echo "    Copying tor to ${TOR_SOURCE_BIN}"
+  # зчитати версію tor з метаданих deb
+  echo "    Reading tor version from .deb metadata..."
+  TOR_VERSION="$(dpkg-deb -f "${TOR_DEB}" Version || echo "unknown")"
+  mkdir -p "$(dirname "${TOR_VERSION_SOURCE}")"
+  printf '%s\n' "${TOR_VERSION}" > "${TOR_VERSION_SOURCE}"
+  echo "    Tor version: ${TOR_VERSION}"
+
+  # витягти license/copyright
+  TOR_COPYRIGHT_PATH="${ROOTFS_DIR}/usr/share/doc/tor/copyright"
+  mkdir -p "$(dirname "${TOR_LICENSE_SOURCE}")"
+  if [ -f "${TOR_COPYRIGHT_PATH}" ]; then
+    echo "    Copying tor license from deb copyright file..."
+    cp "${TOR_COPYRIGHT_PATH}" "${TOR_LICENSE_SOURCE}"
+  else
+    echo "WARNING: tor copyright file not found in deb; writing placeholder LICENSE."
+    printf 'Tor license file not found in deb package.\n' > "${TOR_LICENSE_SOURCE}"
+  fi
+
+  echo "    Copying tor binary to ${TOR_SOURCE_BIN}"
   mkdir -p "$(dirname "${TOR_SOURCE_BIN}")"
   cp "${ROOTFS_DIR}/usr/bin/tor" "${TOR_SOURCE_BIN}"
   chmod +x "${TOR_SOURCE_BIN}"
 
   rm -rf "${TMP_DIR}"
 
-  echo "    Tor source binary cached successfully."
+  echo "    Tor source binary and metadata cached successfully."
 fi
 
 echo "==> Step 1/3: npm ci"
@@ -81,16 +104,23 @@ npm run package
 mkdir -p app/resources/ut
 cp electron/ut/location_once.qml app/resources/ut/location_once.qml
 
-# Скопіювати tor всередину зібраного app/
-echo "==> Step 2.5: copy Tor into app/resources"
-if [ ! -f "${TOR_SOURCE_BIN}" ]; then
-  echo "ERROR: cached Tor binary ${TOR_SOURCE_BIN} is missing after package step."
+# Скопіювати tor та його метадані всередину зібраного app/
+echo "==> Step 2.5: copy Tor and metadata into app/resources"
+if [ ! -f "${TOR_SOURCE_BIN}" ] || [ ! -f "${TOR_LICENSE_SOURCE}" ] || [ ! -f "${TOR_VERSION_SOURCE}" ]; then
+  echo "ERROR: cached Tor binary and/or metadata missing."
+  echo "       Expected:"
+  echo "         ${TOR_SOURCE_BIN}"
+  echo "         ${TOR_LICENSE_SOURCE}"
+  echo "         ${TOR_VERSION_SOURCE}"
   exit 1
 fi
 
 mkdir -p "$(dirname "${TOR_TARGET_BIN}")"
 cp "${TOR_SOURCE_BIN}" "${TOR_TARGET_BIN}"
 chmod +x "${TOR_TARGET_BIN}"
+
+cp "${TOR_LICENSE_SOURCE}" "${TOR_LICENSE_TARGET}"
+cp "${TOR_VERSION_SOURCE}" "${TOR_VERSION_TARGET}"
 
 # sanity-check: бінар має існувати
 if [ ! -f "./app/merezhyvo" ]; then
