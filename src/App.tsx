@@ -61,6 +61,7 @@ import FileDialogHost from './components/fileDialog/FileDialog';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
 const DEFAULT_URL = defaultTabUrl;
+const bannedCountries: string[] = ['RU'];
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
@@ -298,6 +299,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [status, setStatus] = useState<StatusState>('loading');
   const [webviewReady, setWebviewReady] = useState<boolean>(false);
 
+  const [accessBlocked, setAccessBlocked] = useState<boolean>(false);
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
@@ -881,6 +883,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     powerBlockerIdRef.current = null;
   }, []);
 
+  const evaluateAccessRestriction = useCallback(async (ip?: string) => {
+    try {
+      const endpoint = ip && ip.trim().length ? `https://ipapi.co/${ip}/json/` : 'https://ipapi.co/json/';
+      const response = await fetch(endpoint, { cache: 'no-store' });
+      if (!response.ok) {
+        setAccessBlocked(false);
+        return;
+      }
+      const data = (await response.json().catch(() => ({}))) as { country_code?: string };
+      const country = typeof data.country_code === 'string' ? data.country_code.trim().toUpperCase() : '';
+      setAccessBlocked(country ? bannedCountries.includes(country) : false);
+    } catch {
+      setAccessBlocked(false);
+    }
+  }, [setAccessBlocked]);
+
   const refreshTorIp = useCallback(async (): Promise<void> => {
     const requestId = Date.now();
     torIpRequestRef.current = requestId;
@@ -892,17 +910,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (torIpRequestRef.current === requestId) {
         const ip = typeof data.ip === 'string' ? data.ip : '';
         setTorIp(ip);
+        evaluateAccessRestriction(ip);
       }
     } catch {
       if (torIpRequestRef.current === requestId) {
         setTorIp('');
+        evaluateAccessRestriction();
       }
     } finally {
       if (torIpRequestRef.current === requestId) {
         setTorIpLoading(false);
       }
     }
-  }, []);
+  }, [evaluateAccessRestriction]);
 
 
   const mountInActiveHost = useCallback((node: HTMLDivElement | null | undefined) => {
@@ -2904,6 +2924,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }),
     [contentTop, contentBottom]
   );
+
+  if (accessBlocked) {
+    return (
+      <div
+        style={{
+          width: '100vw',
+          height: '100vh',
+          margin: 0,
+          padding: 0,
+          background: 'linear-gradient(180deg, #0057b7 50%, #ffd700 50%)'
+        }}
+      />
+    );
+  }
 
   return (
     <div style={containerStyle} className={`app app--${mode}`}>
