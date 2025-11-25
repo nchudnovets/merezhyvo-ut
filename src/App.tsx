@@ -59,9 +59,9 @@ import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
 import FileDialogHost from './components/fileDialog/FileDialog';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
+import { bannedCountries } from './config/bannedCountries';
 
 const DEFAULT_URL = defaultTabUrl;
-const bannedCountries: string[] = ['RU'];
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
