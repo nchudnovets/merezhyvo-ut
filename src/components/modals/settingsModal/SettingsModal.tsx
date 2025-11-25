@@ -47,6 +47,7 @@ interface SettingsModalProps {
   uiScale: number;
   onUiScaleChange: (value: number) => void;
   onUiScaleReset: (value: number) => void;
+  onOpenTorLink: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -81,7 +82,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   downloadsCommand,
   uiScale,
   onUiScaleChange,
-  onUiScaleReset
+  onUiScaleReset,
+  onOpenTorLink
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -273,6 +275,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 mode={mode}
                 appInfo={appInfo}
                 onOpenLicenses={onOpenLicenses}
+                onOpenTorLink={onOpenTorLink}
               />
             }
           />

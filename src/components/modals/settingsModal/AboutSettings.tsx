@@ -9,9 +9,15 @@ type AboutSettingsProps = {
   mode: Mode;
   appInfo: SettingsAppInfo;
   onOpenLicenses: () => void;
+  onOpenTorLink: () => void;
 };
 
-const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo, onOpenLicenses }) => {
+const AboutSettings: React.FC<AboutSettingsProps> = ({
+  mode,
+  appInfo,
+  onOpenLicenses,
+  onOpenTorLink
+}) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const aboutNameRaw = (appInfo?.name || 'Merezhyvo').trim();
@@ -55,6 +61,33 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({ mode, appInfo, onOpenLice
         }}
       >
         {aboutDescription}
+      </p>
+      <p
+        style={{
+          ...styles.aboutDescription,
+          ...(modeStyles.settingsAboutDescription || {})
+        }}
+      >
+        This product includes Tor software developed by The Tor Project, Inc. (
+        <button
+          type="button"
+          onClick={(event) => {
+            event.preventDefault();
+            onOpenTorLink();
+          }}
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'inherit',
+            textDecoration: 'underline',
+            padding: 0,
+            font: 'inherit',
+            cursor: 'pointer'
+          }}
+        >
+          https://www.torproject.org
+        </button>
+        )
       </p>
       <p
         style={{

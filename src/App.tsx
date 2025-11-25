@@ -1839,6 +1839,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPendingSettingsReopen(false);
   }, []);
 
+  const handleOpenTorProjectLink = useCallback(() => {
+    closeSettingsModal();
+    newTabAction('https://www.torproject.org');
+  }, [closeSettingsModal, newTabAction]);
+
   const fetchPasswordStatus = useCallback(async (): Promise<PasswordStatus | null> => {
     const api = window.merezhyvo?.passwords;
     if (!api) {
@@ -3083,6 +3088,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               uiScale={uiScale}
               onUiScaleChange={applyUiScale}
               onUiScaleReset={handleUiScaleReset}
+              onOpenTorLink={handleOpenTorProjectLink}
             />
           )}
 
