@@ -2679,6 +2679,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [passwordPrompt, showGlobalToast]
   );
 
+  const handlePasswordPromptClose = useCallback(() => {
+    setPasswordPrompt(null);
+    setPasswordPromptBusy(false);
+  }, []);
+
   const handlePromptCancel = useCallback(() => {
     setPasswordPrompt(null);
   }, []);
@@ -3091,6 +3096,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenTorLink={handleOpenTorProjectLink}
             />
           )}
+
+          <PasswordCapturePrompt
+            open={Boolean(passwordPrompt)}
+            mode={mode}
+            payload={passwordPrompt}
+            busy={passwordPromptBusy}
+            onAction={handlePasswordPromptAction}
+            onClose={handlePasswordPromptClose}
+          />
+
+          <PasswordUnlockModal
+            open={showUnlockModal}
+            mode={mode}
+            payload={unlockPayload ?? undefined}
+            onClose={closeUnlockModal}
+            onUnlock={handlePasswordUnlock}
+            error={unlockError}
+            submitting={unlockSubmitting}
+            defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
+          />
 
       {globalToast && (
         <div
