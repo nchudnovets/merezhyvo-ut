@@ -2827,7 +2827,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     : null;
 
   const toolbarRef = useRef<HTMLDivElement | null>(null);
+  const messengerToolbarRef = useRef<HTMLDivElement | null>(null);
   const [toolbarHeight, setToolbarHeight] = useState(0);
+  const [messengerToolbarHeight, setMessengerToolbarHeight] = useState(0);
   useEffect(() => {
     const node = toolbarRef.current;
     if (!node) {
@@ -2858,8 +2860,38 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [mode, uiScale]);
 
+  useEffect(() => {
+    const node = messengerToolbarRef.current;
+    if (!node) {
+      setMessengerToolbarHeight(0);
+      return;
+    }
+    const update = () => {
+      try {
+        const rect = node.getBoundingClientRect();
+        setMessengerToolbarHeight(rect.height || 0);
+      } catch {
+        setMessengerToolbarHeight(0);
+      }
+    };
+    update();
+    if (typeof ResizeObserver !== 'undefined') {
+      const observer = new ResizeObserver(() => update());
+      observer.observe(node);
+      return () => {
+        observer.disconnect();
+        setMessengerToolbarHeight(0);
+      };
+    }
+    const id = window.setInterval(update, 200);
+    return () => {
+      window.clearInterval(id);
+      setMessengerToolbarHeight(0);
+    };
+  }, [mode, uiScale, mainViewMode]);
+
   const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
-  const contentTop = toolbarHeight;
+  const contentTop = mainViewMode === 'messenger' ? messengerToolbarHeight : toolbarHeight;
   const contentBottom = kbVisible ? keyboardOffset : zoomBarHeight;
   const contentStyle = useMemo<React.CSSProperties>(
     () => ({
@@ -2915,6 +2947,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               activeMessengerId={activeMessengerId}
               onSelectMessenger={handleMessengerSelect}
               onExit={exitMessengerMode}
+              toolbarRef={messengerToolbarRef}
             />
           )}
 

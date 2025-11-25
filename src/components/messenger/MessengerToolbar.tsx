@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { type Ref } from 'react';
 import type { MessengerDefinition, MessengerId, Mode } from '../../types/models';
 import { messengerToolbarStyles, messengerToolbarModeStyles } from './messengerToolbarStyles';
 import { MessengerIcon, BrowserIcon } from './MessengerIcon';
@@ -9,6 +9,7 @@ interface MessengerToolbarProps {
   activeMessengerId: MessengerId | null;
   onSelectMessenger: (id: MessengerId) => void;
   onExit: () => void;
+  toolbarRef?: Ref<HTMLDivElement>;
 }
 
 export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
@@ -17,6 +18,8 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
   activeMessengerId,
   onSelectMessenger,
   onExit
+  ,
+  toolbarRef
 }) => {
   const base = messengerToolbarStyles;
   const modeStyles = messengerToolbarModeStyles[mode] || {};
@@ -46,7 +49,7 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
   }
 
   return (
-    <div style={{ ...base.container, ...(modeStyles.container || {}) }}>
+    <div ref={toolbarRef} style={{ ...base.container, ...(modeStyles.container || {}) }}>
       <div style={{ ...base.list, ...(modeStyles.list || {}) }}>
         {messengers.map((messenger) => {
           const isActive = messenger.id === activeMessengerId;
