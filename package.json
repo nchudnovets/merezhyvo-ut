@@ -3,7 +3,7 @@
   "version": "0.4.1",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "author": "Naz.R",
-  "license": "MIT",
+  "license": "Proprietary",
   "private": true,
   "main": "dist-electron/main.js",
   "bin": {
