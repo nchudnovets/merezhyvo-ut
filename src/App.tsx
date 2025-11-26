@@ -2892,6 +2892,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [messengerToolbarHeight, setMessengerToolbarHeight] = useState(0);
   useEffect(() => {
+    if (isHtmlFullscreen) {
+      setToolbarHeight(0);
+      return undefined;
+    }
     const node = toolbarRef.current;
     if (!node) {
       setToolbarHeight(0);
@@ -2919,9 +2923,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.clearInterval(id);
       setToolbarHeight(0);
     };
-  }, [mode, uiScale]);
+  }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
 
   useEffect(() => {
+    if (isHtmlFullscreen) {
+      setMessengerToolbarHeight(0);
+      return undefined;
+    }
     const node = messengerToolbarRef.current;
     if (!node) {
       setMessengerToolbarHeight(0);
@@ -2949,7 +2957,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.clearInterval(id);
       setMessengerToolbarHeight(0);
     };
-  }, [mode, uiScale, mainViewMode]);
+  }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
 
   const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
   const contentTop = mainViewMode === 'messenger' ? messengerToolbarHeight : toolbarHeight;
