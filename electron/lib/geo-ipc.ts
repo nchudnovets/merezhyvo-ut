@@ -1,3 +1,5 @@
+// commenting it out temporary since this functionality is paused yet
+
 // import { app, ipcMain } from 'electron';
 // import fs from 'fs';
 // import path from 'path';

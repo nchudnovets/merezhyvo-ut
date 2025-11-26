@@ -1,3 +1,5 @@
+// for future, not implemented yet
+
 import React, { useEffect, useMemo, useState } from 'react';
 import { toastCenterStyles, toastCenterMobStyles } from './ToastCenterStyles';
 
@@ -22,7 +24,6 @@ export const ToastCenter: React.FC = () => {
   const maxOnScreen = 3;
   const defaultTtl = 5000;
 
-  // Add toasts from window event fired by WebViewHost (mzr:webview:notification mirror)
   useEffect(() => {
     const handler = (e: Event) => {
     const detail = (e as CustomEvent<ToastPayload>).detail;
@@ -44,19 +45,17 @@ export const ToastCenter: React.FC = () => {
     const isFocused = document.hasFocus();
 
     if (isFocused) {
-        // Foreground: show in-app toast only (no system duplicate).
         addToast();
         return;
     }
 
-    // Background: prefer system notification; fallback to in-app toast on failure.
     try {
         if (typeof window.Notification === 'function') {
         new window.Notification(detail.title, {
             body: detail.options.body || '',
             icon: detail.options.icon || undefined
         });
-        return; // do not add toast when system notification is shown
+        return; 
         }
     } catch {
         // ignore and fallback below
@@ -69,7 +68,6 @@ export const ToastCenter: React.FC = () => {
       window.removeEventListener('mzr-notification' as unknown as keyof WindowEventMap, handler as EventListener);
   }, []);
 
-  // Auto-remove by TTL
   useEffect(() => {
     const tick = setInterval(() => {
       const now = Date.now();
@@ -90,7 +88,6 @@ export const ToastCenter: React.FC = () => {
           role="status"
           aria-live="polite"
           onClick={() => {
-            // Ask App to focus the source tab (or match by URL)
             window.dispatchEvent(
               new CustomEvent('mzr-focus-tab', {
                 detail: { tabId: t.source?.tabId, url: t.source?.url }

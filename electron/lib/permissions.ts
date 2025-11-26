@@ -1,4 +1,3 @@
-// electron/lib/permissions.ts
 import {
   app,
   ipcMain,

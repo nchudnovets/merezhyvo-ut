@@ -1,10 +1,5 @@
 import { ipcRenderer, webFrame } from 'electron';
 
-// Mark preload as initialized in logs
-// try {
-//   void ipcRenderer.invoke('mzr:geo:log', 'preload init');
-// } catch {}
-
 /** -------------------------------
  *  Mirror Notification to host
  *  ------------------------------- */

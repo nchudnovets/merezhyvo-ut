@@ -1,4 +1,3 @@
-// electron/lib/system-location.ts
 import { spawn } from 'child_process';
 import { Message, type MessageBus, systemBus, type Variant } from 'dbus-next';
 import fs from 'fs';

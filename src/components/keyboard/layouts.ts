@@ -1,12 +1,4 @@
-// src/keyboard/layouts.ts
-// Backward-compatible exports + new languages.
-// Provides: LayoutId (incl. 'symbols1'|'symbols2'), LANGUAGE_LAYOUT_IDS (languages only),
-// humanLabel, isRTL, LONG_PRESS, longPressMap (alias), resolveLayoutRows,
-// nextLayoutId, isSymbols, and OskContext.
-
 import React from 'react';
-
-// --- Types --------------------------------------------------------------
 
 export type LanguageId =
   | 'en' | 'uk' | 'de' | 'pl'
@@ -14,12 +6,9 @@ export type LanguageId =
 
 export type SymbolId = 'symbols1' | 'symbols2';
 
-// LayoutId intentionally includes symbols pages for backward-compat
 export type LayoutId = LanguageId | SymbolId;
 
 type Rows = string[][];
-
-// --- Language registry --------------------------------------------------
 
 export const LANGUAGE_LAYOUT_IDS: readonly LanguageId[] = [
   'en', 'uk', 'de', 'pl',

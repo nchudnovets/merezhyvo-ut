@@ -1,4 +1,3 @@
-// src/keyboard/KeyboardPane.tsx
 import React, {
   useMemo,
   useRef,

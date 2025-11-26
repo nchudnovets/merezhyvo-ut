@@ -1,7 +1,3 @@
-/* Global styling scaffold moved from inline/index usage.
- * Existing inline styles remain in place to avoid behavioural changes;
- * this file will be wired into the bundle during a later refactor. */
-
 html,
 body {
   height: 100%;
