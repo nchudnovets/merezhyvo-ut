@@ -61,7 +61,6 @@ export function ensureOskCssInjected() {
     transform: translateX(-2px) translateY(2px);
   }
 
-  /* робимо службові кнопки вужчими на вузьких екранах */
   .mzr-osk .hg-button.hg-button-enter,
   .mzr-osk .hg-button.hg-button-bksp,
   .mzr-osk .hg-button.hg-button-lang,
@@ -72,24 +71,20 @@ export function ensureOskCssInjected() {
     min-width: 90px !important;
   }
 
-  /* стрілки поруч */
   .mzr-osk .hg-button.hg-button-arrow,
   .mzr-osk .hg-button-arrowleft,
   .mzr-osk .hg-button-arrowright { flex: 0 0 auto !important; width: 60px }
 
-  /* ширший пробіл у 2 рази */
   .mzr-osk .hg-button.hg-button-space {
     flex: 2 1 0 !important;
     min-width: 30vw !important;
   }
 
-  /* активний Shift/Caps */
   .mzr-osk .hg-button.hg-button-shift.hg-button-active {
     background: #3b82f6 !important;
     color: #fff !important;
   }
 
-  /* попап альтернатив */
   .mzr-osk-popup {
     position: fixed;
     transform: translate(-50%, -100%);
@@ -118,7 +113,6 @@ export function ensureOskCssInjected() {
     background: rgba(255,255,255,0.12);
   }
 
-  /* невелика адаптація для дуже вузьких екранів */
   @media (max-width: 400px) {
     .mzr-osk .hg-button { font-size: 48px !important; height: 80px !important; padding: 5px 7px !important; }
     .mzr-osk .hg-button.osk-space { min-width: 40vw !important; }

@@ -61,7 +61,6 @@ export const LONG_PRESS: Record<LanguageId, Record<string, string[]>> = {
     "'": ["ʼ"]
   },
 
-  // Ukrainian (apostrophe, ґ, ₴)
   uk: {
     "'": ["ʼ"],
     г: ["ґ"],

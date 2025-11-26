@@ -130,8 +130,6 @@ function ensureDir(p: string): void {
   try { fs.mkdirSync(p, { recursive: true }); } catch {}
 }
 
-// Мінімальна версія прелоада (CommonJS), самодостатня, без залежності від шляхів у пакеті
-
 // commenting it out tmporary and replasing with a silent version below
 
 // const WEBVIEW_PRELOAD_SRC = `

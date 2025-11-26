@@ -2218,7 +2218,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
                   list.appendChild(item);
                 }
 
-                // Клік по фону — закриває оверлей
                 overlay.addEventListener('click', function(ev){
                   if (ev.target === overlay) {
                     ev.preventDefault();
@@ -2232,13 +2231,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
               }
 
-              // Головний обробник — відкриває оверлей на click по <select>
               document.addEventListener('click', function(ev){
                 var el = resolveSelectFromEvent(ev);
                 if (!el) return;
                 if (el.disabled) return;
 
-                // тільки лівий "клік"
                 try {
                   if (ev.button != null && ev.button !== 0) return;
                 } catch(_) {}

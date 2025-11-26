@@ -76,7 +76,6 @@ export const ipc = {
         } catch (e) {
           console.error('settings.keyboard.get failed', e);
         }
-        // Safe fallback (UI все одно нормалізує значення):
         return { enabledLayouts: ['en'], defaultLayout: 'en' };
       },
 
