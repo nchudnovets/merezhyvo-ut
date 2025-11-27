@@ -17,7 +17,12 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     tabIcon: {},
     tabActions: {},
     newTabButton: {},
-    header: {}
+    header: {},
+    controlRow: {},
+    searchInput: {},
+    searchToggleButton: {},
+    searchToggleIcon: {},
+    activeSeparator: {}
   },
   mobile: {
     tabsPanelTitle: {
@@ -65,13 +70,15 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       fontSize: 'clamp(36px, 5.2vw, 48px)'
     },
     newTabButton: {
-      height: 'clamp(120px, 14vh, 168px)',
       borderRadius: '32px',
       fontSize: 'clamp(42px, 6vw, 54px)',
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
       gap: '10px',
+      padding: '22px',
+      width: '80%',
+      height: '105px'
     },
     header: {
       alignItems: 'start',
@@ -83,6 +90,27 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     headerButton: {
       padding: '6px 22px',
       fontSize: 'clamp(42px, 6vw, 54px)'
+    },
+    controlRow: {
+      gap: '18px',
+      flexWrap: 'wrap'
+    },
+    searchInput: {
+      fontSize: '50px',
+      height: '105px'
+    },
+    searchToggleButton: {
+      width: '108px',
+      height: '108px',
+      padding: '30px',
+      borderRadius: '20px'
+    },
+    searchToggleIcon: {
+      width: '80px',
+      height: '80px'
+    },
+    activeSeparator: {
+      margin: '12px 0'
     }
   }
 };
