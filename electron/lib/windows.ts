@@ -1019,9 +1019,17 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       typedWin.setFullScreen(true);
     }
 
-    if (devtools) typedWin.webContents.openDevTools({ mode: 'detach' });
     typedWin.show();
     typedWin.focus();
+
+    // Opening devtools too early intermittently crashes Electron on some hosts.
+    // Defer until after the window is visible to keep startup stable.
+    if (devtools) {
+      setTimeout(() => {
+        if (typedWin.isDestroyed()) return;
+        typedWin.webContents.openDevTools({ mode: 'detach' });
+      }, 300);
+    }
   });
 
   const rebalanceBounds = () => {
