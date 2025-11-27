@@ -126,41 +126,71 @@ Both folders are created automatically on first start if they do not exist.
 
 The repository is organised roughly as follows:
 
+
 src/ # React renderer (UI, pages, modals, keyboard, etc.)
+
   App.tsx
+
   index.tsx
+
   components/
+
   keyboard/
+
 ...
   
 electron/ # Electron main process and preload
+
   main.ts # Electron app lifecycle, windows, IPC
+
   preload.ts # exposes window.merezhyvo.\* to the renderer
+
   lib/ # main-process helpers (settings, Tor, geo, etc.)
 
+
 resources/
+
   app.asar # packaged renderer
+
   ut/location\_once.qml # UT-specific QML snippet
+
   tor/tor # embedded Tor binary (copied at build time)
+
   tor/LICENSE # Tor license
+
   tor/version.txt # Tor version used in this build
 
+
 resources/
+
   tor/tor # cached Tor binary (host side, before packaging)
+
   tor/LICENSE # cached Tor license text
+
   tor/version.txt # cached Tor version
+
   legal/LICENSE.txt # Merezhyvo application license text
+
   legal/THIRD-PARTY-NOTICES.txt # generated third-party notices
 
+
 tools/
+
   build-click.sh # one-shot full build to .click
+
   tor-update.sh # refresh cached Tor binary/license/version
 
+
 manifest.json # Click manifest
+
 merezhyvo.apparmor # AppArmor profile (confined)
+
 app.desktop # Launcher entry for Lomiri
+
 package.json
+
 README.md
+
 
 ...
 
