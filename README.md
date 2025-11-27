@@ -146,14 +146,6 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
     
 *   `tools/build-click.sh` — full cycle to `.click`
     
-
-## Known limitations
-
-*   AppArmor profile is **unconfined** → not OpenStore-ready.
-    
-*   Browser features (history/bookmarks/passwords) are **WIP**.
-    
-*   UT specifics: graphics flags can vary by device; see “Rendering tips”.
     
 
 ## Troubleshooting
@@ -172,3 +164,11 @@ Find **merezhyvo** in the launcher. If it doesn’t start, run manually to see l
     
 
 - - -
+## Licence
+resources/legal/LICENSE.txt
+
+## Third-party-licenses
+resources/legal/THIRD-PARTY-NOTICES.txt
+
+## Tor license
+resources/tor/LICENSE
