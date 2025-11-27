@@ -26,7 +26,7 @@ const AboutSettings: React.FC<AboutSettingsProps> = ({
     : 'Merezhyvo';
   const aboutVersion = appInfo?.version || '0.0.0';
   const chromiumVersion = appInfo?.chromium || 'Unknown';
-  const aboutDescription = `A browser designed for Ubuntu Touch. Based on Chromium version: ${chromiumVersion || 'Unknown'}.`;
+  const aboutDescription = `A browser designed for Ubuntu Touch. Powered by Electron and Chromium ${chromiumVersion || 'Unknown'}.`;
   const torVersionLabel =
     appInfo?.torVersion && appInfo.torVersion.trim()
       ? `Tor version: ${appInfo.torVersion}`
