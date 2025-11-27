@@ -74,8 +74,10 @@ export const tabsPanelStyles: StyleRecord = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: '10px',
-    height: '38px',
+    gap: '8px',
+    height: '34px',
+    minWidth: '130px',
+    width: '90%',
     borderRadius: '14px',
     border: '1px solid rgba(59, 130, 246, 0.45)',
     background: 'rgba(37, 99, 235, 0.15)',
@@ -93,6 +95,42 @@ export const tabsPanelStyles: StyleRecord = {
     fontSize: 'clamp(39px, 5.7vw, 51px)',
     fontWeight: 600,
     cursor: 'pointer'
+  },
+  controlRow: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    width: '100%',
+    justifyContent: 'space-between'
+  },
+  searchInput: {
+    flex: 1,
+    minWidth: '200px',
+    height: '38px',
+    padding: '0 12px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.4)',
+    background: 'rgba(15, 23, 42, 0.85)',
+    color: '#f8fafc',
+    fontSize: '14px',
+    fontWeight: 500,
+    boxSizing: 'border-box'
+  },
+  searchToggleButton: {
+    width: '38px',
+    height: '38px',
+    borderRadius: '12px',
+    border: '1px solid rgba(148, 163, 184, 0.4)',
+    background: 'rgba(148, 163, 184, 0.1)',
+    color: '#f8fafc',
+    cursor: 'pointer',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center'
+  },
+  searchToggleIcon: {
+    width: '20px',
+    height: '20px'
   },
   body: {
     flex: 1,
@@ -223,5 +261,11 @@ export const tabsPanelStyles: StyleRecord = {
     fontSize: '13px',
     fontWeight: 600,
     letterSpacing: '0.01em'
+  },
+  activeSeparator: {
+    height: '1px',
+    width: '100%',
+    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+    margin: '6px 0'
   }
 } as const;

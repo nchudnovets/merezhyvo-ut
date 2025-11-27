@@ -1,4 +1,11 @@
-import React, { useEffect, memo, useState, useCallback } from 'react';
+import React, {
+  useEffect,
+  memo,
+  useState,
+  useCallback,
+  useMemo,
+  useRef
+} from 'react';
 import type { CSSProperties } from 'react';
 import type { Mode, Tab } from '../../../types/models';
 import { tabsPanelStyles } from './tabsPanelStyles';
@@ -455,6 +462,15 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
   const styles = tabsPanelStyles;
   const modeStyles = tabsPanelModeStyles[mode] || {};
   const [feedbackMessage, setFeedbackMessage] = useState<string | null>(null);
+  const [searchOpen, setSearchOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const searchInputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    if (!searchOpen) return;
+    if (!searchInputRef.current) return;
+    searchInputRef.current.focus({ preventScroll: true });
+  }, [searchOpen]);
 
   useEffect(() => {
     if (!feedbackMessage) return undefined;
@@ -473,6 +489,85 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     },
     [onCleanClose]
   );
+
+  const newTabButtonStyle =
+    mode === 'mobile' ? styles.newTabButtonMobile : styles.newTabButton;
+  const controlRowStyle = {
+    ...styles.controlRow,
+    ...(modeStyles.controlRow || {})
+  };
+  const searchInputStyle = {
+    ...styles.searchInput,
+    ...(modeStyles.searchInput || {})
+  };
+  const searchToggleButtonStyle = {
+    ...styles.searchToggleButton,
+    ...(modeStyles.searchToggleButton || {})
+  };
+  const searchToggleIconStyle = {
+    ...styles.searchToggleIcon,
+    ...(modeStyles.searchToggleIcon || {})
+  };
+  const activeSeparatorStyle = {
+    ...styles.activeSeparator,
+    ...(modeStyles.activeSeparator || {})
+  };
+
+  const normalizedQuery = searchOpen ? searchQuery.trim().toLowerCase() : '';
+  const hasQuery = normalizedQuery.length > 0;
+
+  const matchesQuery = useCallback(
+    (tab: Tab) => {
+      if (!normalizedQuery) return true;
+      const values = [
+        displayTitle(tab),
+        displaySubtitle(tab) ?? '',
+        tab.title ?? '',
+        tab.url ?? '',
+        tab.kind ?? '',
+        tab.pinned ? 'pinned' : 'tab'
+      ];
+      return values.some((value) => value.toLowerCase().includes(normalizedQuery));
+    },
+    [displayTitle, displaySubtitle, normalizedQuery]
+  );
+
+  const filteredPinnedTabs = useMemo(() => {
+    if (!searchOpen) return pinnedTabs;
+    return pinnedTabs.filter((tab) => tab.id === activeTabId || matchesQuery(tab));
+  }, [matchesQuery, pinnedTabs, searchOpen, activeTabId]);
+
+  const activeRegularTab = useMemo(() => {
+    if (!activeTabId) return null;
+    return regularTabs.find((tab) => tab.id === activeTabId) ?? null;
+  }, [regularTabs, activeTabId]);
+
+  const shouldSeparateActive = hasQuery && !!activeRegularTab;
+
+  const filteredRegularTabs = useMemo(() => {
+    const base = shouldSeparateActive
+      ? regularTabs.filter((tab) => tab.id !== activeTabId)
+      : regularTabs;
+    if (!searchOpen) return base;
+    if (!hasQuery) return base;
+    return base.filter(matchesQuery);
+  }, [hasQuery, matchesQuery, regularTabs, activeTabId, searchOpen, shouldSeparateActive]);
+
+  const toggleSearch = useCallback(() => {
+    setSearchOpen((prev) => {
+      const next = !prev;
+      if (!next) {
+        setSearchQuery('');
+        if (searchInputRef.current) {
+          searchInputRef.current.blur();
+        }
+      }
+      return next;
+    });
+  }, [setSearchQuery]);
+
+  const showActiveSection = shouldSeparateActive && !!activeRegularTab;
+  const showActiveSeparator = showActiveSection && filteredRegularTabs.length > 0;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -513,9 +608,6 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =
     mode === 'mobile' ? baseStyles.modalCloseMobile : baseStyles.modalClose;
-  const newTabButtonStyle =
-    mode === 'mobile' ? styles.newTabButtonMobile : styles.newTabButton;
-
   return (
     <div
       style={{ ...styles.backdrop, ...backdropStyle }}
@@ -599,30 +691,89 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
           </div>
         )}
 
-        <button
-          type="button"
-          style={{
-            ...newTabButtonStyle,
-            ...(modeStyles.newTabButton || {})
-          }}
-          onClick={onNewTab}
-        >
-          <svg
-            viewBox="0 0 16 16"
-            style={{ ...styles.tabIcon, ...(modeStyles.tabIcon || {}) }}
-            xmlns="http://www.w3.org/2000/svg"
-          >
-            <path
-              fill="none"
-              stroke="currentColor"
-              strokeWidth="1.5"
-              strokeLinecap="round"
-              strokeLinejoin="round"
-              d="M8 3v10M3 8h10"
+        <div style={controlRowStyle}>
+          {searchOpen ? (
+            <input
+              ref={searchInputRef}
+              type="search"
+              aria-label="Search tabs"
+              placeholder="Search tabs"
+              value={searchQuery}
+              onChange={(event) => setSearchQuery(event.target.value)}
+              style={searchInputStyle}
             />
-          </svg>
-          <span>New Tab</span>
-        </button>
+          ) : (
+            <button
+              type="button"
+              style={{
+                ...newTabButtonStyle,
+                ...(modeStyles.newTabButton || {})
+              }}
+              onClick={onNewTab}
+            >
+              <svg
+                viewBox="0 0 16 16"
+                style={{ ...styles.tabIcon, ...(modeStyles.tabIcon || {}) }}
+                xmlns="http://www.w3.org/2000/svg"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M8 3v10M3 8h10"
+                />
+              </svg>
+              <span>New Tab</span>
+            </button>
+          )}
+          <button
+            type="button"
+            aria-label={searchOpen ? 'Close search' : 'Open search'}
+            aria-expanded={searchOpen}
+            style={searchToggleButtonStyle}
+            onClick={(event) => {
+              event.stopPropagation();
+              toggleSearch();
+            }}
+          >
+            <svg
+              viewBox="0 0 24 24"
+              style={searchToggleIconStyle}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              {searchOpen ? (
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  d="M6 6 18 18M18 6 6 18"
+                />
+              ) : (
+                <>
+                  <circle
+                    cx="10"
+                    cy="10"
+                    r="7"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                  />
+                  <path
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    d="M16 16 21 21"
+                  />
+                </>
+              )}
+            </svg>
+          </button>
+        </div>
 
         <div
           className="tabs-modal-body"
@@ -631,7 +782,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             ...(modeStyles.tabsPanelBody || {})
           }}
         >
-          {pinnedTabs.length > 0 && (
+          {filteredPinnedTabs.length > 0 && (
             <div style={styles.section}>
               <p
                 style={{
@@ -642,7 +793,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                 Pinned
               </p>
               <div style={styles.list}>
-                {pinnedTabs.map((tab) => (
+                {filteredPinnedTabs.map((tab) => (
                   <TabRow
                     key={tab.id}
                     tab={tab}
@@ -661,9 +812,9 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             </div>
           )}
 
-          {regularTabs.length > 0 && (
+          {(filteredRegularTabs.length > 0 || showActiveSection) && (
             <div style={styles.section}>
-              {pinnedTabs.length > 0 && (
+              {filteredPinnedTabs.length > 0 && (
                 <p
                   style={{
                     ...styles.sectionTitle,
@@ -674,7 +825,25 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                 </p>
               )}
               <div style={styles.list}>
-                {regularTabs.map((tab) => (
+                {showActiveSection && activeRegularTab && (
+                  <>
+                    <TabRow
+                      key={activeRegularTab.id}
+                      tab={activeRegularTab}
+                      mode={mode}
+                      isActive
+                      onActivate={onActivateTab}
+                      onTogglePin={onTogglePin}
+                      onCleanClose={handleCleanCloseTab}
+                      onClose={onCloseTab}
+                      displayTitle={displayTitle}
+                      displaySubtitle={displaySubtitle}
+                      fallbackInitial={fallbackInitial}
+                    />
+                    {showActiveSeparator && <div style={activeSeparatorStyle} />}
+                  </>
+                )}
+                {filteredRegularTabs.map((tab) => (
                   <TabRow
                     key={tab.id}
                     tab={tab}
