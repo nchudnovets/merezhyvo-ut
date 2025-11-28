@@ -34,6 +34,7 @@ import PasswordUnlockModal, {
   type PasswordUnlockPayload
 } from './components/modals/PasswordUnlockModal';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
+import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
@@ -291,6 +292,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const inputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
   const webviewReadyRef = useRef<boolean>(false);
+  const { t } = useI18n();
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
@@ -2728,7 +2730,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     async (master: string, durationMinutes?: number) => {
       const api = window.merezhyvo?.passwords;
       if (!api) {
-        setUnlockError('Unable to reach passwords service');
+        setUnlockError(t('passwordUnlock.error.unavailable'));
         return false;
       }
       setUnlockSubmitting(true);
@@ -2749,16 +2751,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.dispatchEvent(new CustomEvent('merezhyvo:pw:unlocked'));
       return true;
     }
-        setUnlockError(result?.error ?? 'Master password is incorrect');
+        setUnlockError(t('passwordUnlock.error.invalid'));
         return false;
       } catch (err) {
-        setUnlockError(String(err));
+        setUnlockError(t('passwordUnlock.error.generic'));
         return false;
       } finally {
         setUnlockSubmitting(false);
       }
     },
-    [fetchPasswordStatus, pendingSettingsReopen, openSettingsModal]
+    [fetchPasswordStatus, pendingSettingsReopen, openSettingsModal, t]
   );
 
   const handleCloseTab = useCallback((id: string) => {

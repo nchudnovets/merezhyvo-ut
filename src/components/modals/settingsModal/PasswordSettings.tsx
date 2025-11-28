@@ -159,11 +159,13 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         setStatus(message);
         dispatchPasswordToast(message);
       } else {
-        setChangeError(result.error ?? t('passwordSettings.error.change'));
+        const msg = t('passwordSettings.error.change');
+        setChangeError(msg);
+        return { error: msg };
       }
       return result;
     } catch (err) {
-      const message = String(err);
+      const message = t('passwordSettings.error.change');
       setChangeError(message);
       return { error: message };
     } finally {

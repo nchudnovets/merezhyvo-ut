@@ -63,7 +63,8 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
           flexDirection: 'column',
           gap: '25px',
           marginBottom: '25px',
-          maxHeight: '460px'
+          maxHeight: '520px',
+          overflow: 'auto'
         }}
       >
         {availableLocales.map((locale) => (
