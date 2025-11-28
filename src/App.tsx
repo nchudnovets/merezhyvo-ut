@@ -2667,7 +2667,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           showGlobalToast(result?.error ?? 'Unable to save password');
         }
       } catch (err) {
-        console.error('[pw] capture action failed', err);
         showGlobalToast('Unable to save password');
       } finally {
         setPasswordPromptBusy(false);

@@ -285,7 +285,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
         username,
         password
       });
-      console.log('[pw] capture sent', { origin, signonRealm, formAction, username });
     } catch {
       // noop
     }

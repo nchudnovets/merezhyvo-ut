@@ -139,7 +139,6 @@ const broadcastPrompt = (captureId: string, payload: CapturePayload, siteName: s
     isUpdate,
     entryId
   });
-  console.log('[pw] prompt', { captureId, siteName, isUpdate, entryId });
 };
 
 const requestUnlockDialog = (payload: { siteName?: string; origin?: string; username?: string }) => {
@@ -565,7 +564,6 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     const formAction = toString(record.formAction) || origin;
     if (!formAction) return;
     const username = toString(record.username);
-    console.log('[pw] capture received raw payload', { origin, signonRealm, formAction, username });
     processCapturePayload({ origin, signonRealm, formAction, username, password });
   });
 
