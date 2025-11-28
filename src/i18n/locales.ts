@@ -7,7 +7,8 @@ export type LocaleInfo = {
 
 export const AVAILABLE_LOCALES: LocaleInfo[] = [
   { id: 'en', label: 'English', nativeLabel: 'English', direction: 'ltr' },
-  { id: 'uk', label: 'Ukrainian', nativeLabel: 'Українська', direction: 'ltr' }
+  { id: 'uk', label: 'Ukrainian', nativeLabel: 'Українська', direction: 'ltr' },
+  { id: 'de', label: 'German', nativeLabel: 'Deutsch', direction: 'ltr' }
 ];
 
 export const DEFAULT_LOCALE = AVAILABLE_LOCALES[0].id;
