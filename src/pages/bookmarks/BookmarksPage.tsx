@@ -4,6 +4,7 @@ import type { ServicePageProps } from '../services/types';
 import { bookmarksStyles } from './bookmarksStyles';
 import { bookmarksModeStyles } from './bookmarksModeStyles';
 import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const ROOT_LABEL = 'MyBookmarks';
 const SEARCH_DEBOUNCE_MS = 250;
@@ -104,6 +105,7 @@ const cloneForExport = (node: BookmarkNode): BookmarkNode => ({
 const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const styles = bookmarksStyles;
   const modeStyles = bookmarksModeStyles[mode] || {};
+  const { t } = useI18n();
   const [tree, setTree] = useState<BookmarksTree | null>(null);
   const [activeNodeId, setActiveNodeId] = useState<string | null>(null);
   const [search, setSearch] = useState('');
@@ -148,7 +150,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     window.dispatchEvent(new CustomEvent('merezhyvo:bookmarks:changed'));
   }, []);
 
-  const refreshTree = useCallback(async () => {
+const refreshTree = useCallback(async () => {
     const api = getBookmarksApi();
     if (!api) return;
     try {
@@ -156,9 +158,9 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       setTree(data);
       setErrorBanner(null);
     } catch {
-      setErrorBanner('Couldn\'t save changes. Retry');
+      setErrorBanner(t('bookmarks.error.save'));
     }
-  }, [getBookmarksApi]);
+  }, [getBookmarksApi, t]);
 
   useEffect(() => {
     void Promise.resolve().then(() => {
@@ -200,6 +202,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   }, [tree, activeNodeId]);
 
   const rootId = tree?.roots.toolbar ?? '';
+  const rootLabel = useMemo(() => t('bookmarks.title'), [t]);
 
   const breadcrumbs = useMemo(() => {
     if (!tree) return [];
@@ -207,20 +210,20 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     let node = currentNode;
     if (!node) {
       if (tree.nodes[rootId]) {
-        path.push({ id: rootId, label: ROOT_LABEL });
+        path.push({ id: rootId, label: rootLabel });
       }
       return path;
     }
     while (node) {
       if (node.id === rootId) {
-        path.push({ id: node.id, label: ROOT_LABEL });
+        path.push({ id: node.id, label: rootLabel });
         break;
       }
       path.push({ id: node.id, label: node.title });
       node = node.parentId ? tree.nodes[node.parentId] ?? null : null;
     }
     return path.reverse();
-  }, [tree, currentNode, rootId]);
+  }, [tree, currentNode, rootId, rootLabel]);
 
   const tagFilterLower = tagFilter?.trim().toLowerCase() ?? '';
   const matchesTagFilter = useCallback(
@@ -238,14 +241,14 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const traverse = (nodeId: string, depth: number, parentLabel: string) => {
       const node = tree.nodes[nodeId];
       if (!node || node.type !== 'folder') return;
-      const label = depth === 0 ? ROOT_LABEL : `${parentLabel} / ${node.title}`;
+      const label = depth === 0 ? rootLabel : `${parentLabel} / ${node.title}`;
       result.push({ id: nodeId, label, depth });
-      const nextLabel = depth === 0 ? ROOT_LABEL : label;
+      const nextLabel = depth === 0 ? rootLabel : label;
       (node.children ?? []).forEach((childId) => traverse(childId, depth + 1, nextLabel));
     };
-    traverse(rootId, 0, ROOT_LABEL);
+    traverse(rootId, 0, rootLabel);
     return result;
-  }, [tree, rootId]);
+  }, [tree, rootId, rootLabel]);
 
   const folderLabels = useMemo(() => {
     return Object.fromEntries(folderList.map((item) => [item.id, item.label]));
@@ -353,9 +356,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const api = getBookmarksApi();
     if (!api?.importHtml) {
       setImportDialog((prev) =>
-        prev
-          ? { ...prev, error: 'Bookmarks API unavailable', loading: false }
-          : prev
+        prev ? { ...prev, error: t('bookmarks.error.api'), loading: false } : prev
       );
       return;
     }
@@ -367,7 +368,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         kind: 'file',
         allowMultiple: false,
         filters: ['html'],
-        title: 'Import bookmarks (HTML)'
+        title: t('bookmarks.import.title')
       });
       const chosenPath = dialogResult?.paths?.[0];
       if (!chosenPath) {
@@ -376,7 +377,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       }
       const fileContent = await window.merezhyvo?.fileDialog?.readFile?.({ path: chosenPath });
       if (typeof fileContent !== 'string') {
-        throw new Error('Unable to read file');
+        throw new Error(t('bookmarks.import.error.read'));
       }
       importContentRef.current = fileContent;
       const preview = await api.importHtml.preview({
@@ -396,7 +397,8 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           : null
       );
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Couldn\'t import this file';
+      const message =
+        err instanceof Error ? err.message : t('bookmarks.import.error.generic');
       importContentRef.current = null;
       setImportDialog((prev) =>
         prev
@@ -411,29 +413,27 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       );
       setErrorBanner(message);
     }
-  }, [currentNode?.id, importDialog?.mode, rootId, getBookmarksApi]);
+  }, [currentNode?.id, importDialog?.mode, rootId, getBookmarksApi, t]);
 
   const handleImportDialogConfirm = async () => {
     if (!importDialog) return;
     const content = importContentRef.current;
     if (!content) {
       setImportDialog((prev) =>
-        prev
-          ? { ...prev, error: 'Select a valid bookmarks file before importing' }
-          : prev
+        prev ? { ...prev, error: t('bookmarks.import.error.noFile') } : prev
       );
       return;
     }
     if (!tree) {
       setImportDialog((prev) =>
-        prev ? { ...prev, error: 'Bookmarks are still loading' } : prev
+        prev ? { ...prev, error: t('bookmarks.import.error.loading') } : prev
       );
       return;
     }
     const api = getBookmarksApi();
     if (!api?.importHtml) {
       setImportDialog((prev) =>
-        prev ? { ...prev, error: 'Bookmarks API unavailable' } : prev
+        prev ? { ...prev, error: t('bookmarks.error.api') } : prev
       );
       return;
     }
@@ -448,7 +448,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         targetFolderId: targetId
       });
       if ((result.foldersImported ?? 0) === 0 && (result.bookmarksImported ?? 0) === 0) {
-        const message = 'No new bookmarks were imported';
+        const message = t('bookmarks.import.noNew');
         setImportDialog((prev) =>
           prev ? { ...prev, loading: false, error: message } : prev
         );
@@ -459,12 +459,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       setActiveNodeId(targetId);
       setSearch('');
       setTagFilter(null);
-      showToast('Import completed');
+      showToast(t('bookmarks.import.success'));
       notifyBookmarksChanged();
       setImportDialog(null);
       importContentRef.current = null;
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Couldn\'t import bookmarks';
+      const message =
+        err instanceof Error ? err.message : t('bookmarks.import.error.generic');
       setImportDialog((prev) =>
         prev ? { ...prev, loading: false, error: message } : prev
       );
@@ -515,7 +516,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     anchor.download = fileName;
     anchor.click();
     URL.revokeObjectURL(url);
-    showToast('Bookmarks exported');
+    showToast(t('bookmarks.export.success'));
     closeExportDialog();
   };
 
@@ -523,7 +524,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     if (!tree) return;
     const api = getBookmarksApi();
     if (!api?.exportHtml) {
-      setErrorBanner('Bookmarks API unavailable');
+      setErrorBanner(t('bookmarks.error.api'));
       return;
     }
     setExportDialog((prev) => (prev ? { ...prev, loading: true } : prev));
@@ -534,7 +535,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       const result = await api.exportHtml({ scope, targetFolderId });
       const folderChoice = await requestFileDialog({
         kind: 'folder',
-        title: 'Export bookmarks (HTML)',
+        title: t('bookmarks.export.title'),
         allowMultiple: false
       });
       const folderPath = folderChoice?.paths?.[0];
@@ -548,10 +549,11 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         data: result.htmlContent,
         encoding: 'utf8'
       });
-      showToast(`Exported to ${result.filenameSuggested}`);
+      showToast(t('bookmarks.export.successPath', { filename: result.filenameSuggested }));
       setExportDialog(null);
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Couldn\'t export bookmarks';
+      const message =
+        err instanceof Error ? err.message : t('bookmarks.export.error.generic');
       setErrorBanner(message);
       setExportDialog((prev) => (prev ? { ...prev, loading: false } : prev));
     }
@@ -587,8 +589,8 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   }, [closeMenus]);
 
   const folderItemLabel = (nodeId: string | null) => {
-    if (!nodeId) return ROOT_LABEL;
-    return folderLabels[nodeId] ?? ROOT_LABEL;
+    if (!nodeId) return rootLabel;
+    return folderLabels[nodeId] ?? rootLabel;
   };
 
   const openFolder = (node: BookmarkNode & { type: 'folder' }) => {
@@ -631,7 +633,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const openFolderPicker = (purpose: 'parent' | 'move', onChoose: (id: string) => void, initialId?: string) => {
     const fallback = initialId || currentNode?.id || rootId;
     if (!fallback) return;
-    const title = purpose === 'move' ? 'Choose destination' : 'Choose folder';
+    const title =
+      purpose === 'move'
+        ? t('bookmarks.folderPicker.chooseDestination')
+        : t('bookmarks.folderPicker.chooseFolder');
     setFolderPicker({ title, selectedId: fallback, onChoose });
   };
 
@@ -651,19 +656,19 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       parentId: bookmarkForm.folderId || rootId
     };
     if (!payload.title.trim() || !payload.url?.trim()) {
-      setErrorBanner('Title and URL are required.');
+      setErrorBanner(t('bookmarks.dialog.required.titleUrl'));
       return;
     }
     try {
       if (dialogState.type === 'bookmark' && dialogState.mode === 'add') {
         const result = await api.add({ ...payload, type: 'bookmark' });
         if (result.ok) {
-          showToast('Bookmark added');
+          showToast(t('bookmarks.toast.added'));
           notifyBookmarksChanged();
           setDialogState(null);
           await refreshTree();
         } else {
-          setErrorBanner(result.error || 'Couldn\'t save changes. Retry');
+          setErrorBanner(result.error || t('bookmarks.error.save'));
         }
       } else if (dialogState.type === 'bookmark' && dialogState.mode === 'edit' && dialogState.node) {
         const result = await api.update({
@@ -673,16 +678,16 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           tags: payload.tags
         });
         if (result.ok) {
-          showToast('Bookmark added');
+          showToast(t('bookmarks.toast.added'));
           notifyBookmarksChanged();
           setDialogState(null);
           await refreshTree();
         } else {
-          setErrorBanner('Couldn\'t save changes. Retry');
+          setErrorBanner(t('bookmarks.error.save'));
         }
       }
     } catch {
-      setErrorBanner('Couldn\'t save changes. Retry');
+      setErrorBanner(t('bookmarks.error.save'));
     }
   };
 
@@ -690,7 +695,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const api = getBookmarksApi();
     if (!api || !dialogState) return;
     if (!folderForm.title.trim()) {
-      setErrorBanner('Name is required.');
+      setErrorBanner(t('bookmarks.dialog.required.name'));
       return;
     }
     try {
@@ -698,44 +703,44 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         const parentId = dialogState.node?.id ?? rootId;
         const result = await api.add({ type: 'folder', title: folderForm.title, parentId });
         if (result.ok) {
-          showToast('Bookmark added');
+          showToast(t('bookmarks.toast.folderSaved'));
           notifyBookmarksChanged();
           setDialogState(null);
           await refreshTree();
         } else {
-          setErrorBanner(result.error || 'Couldn\'t save changes. Retry');
+          setErrorBanner(result.error || t('bookmarks.error.save'));
         }
       } else if (dialogState.type === 'folder' && dialogState.mode === 'rename' && dialogState.node) {
         const result = await api.update({ id: dialogState.node.id, title: folderForm.title });
         if (result.ok) {
-          showToast('Bookmark added');
+          showToast(t('bookmarks.toast.folderSaved'));
           notifyBookmarksChanged();
           setDialogState(null);
           await refreshTree();
         } else {
-          setErrorBanner('Couldn\'t save changes. Retry');
+          setErrorBanner(t('bookmarks.error.save'));
         }
       }
     } catch {
-      setErrorBanner('Couldn\'t save changes. Retry');
+      setErrorBanner(t('bookmarks.error.save'));
     }
   };
 
   const handleRemoveNode = (node: BookmarkNode) => {
     setConfirmState({
-      message: node.type === 'folder' ? 'Delete folder?' : 'Remove bookmark?',
-      confirmLabel: node.type === 'folder' ? 'Delete' : 'Remove',
+      message: node.type === 'folder' ? t('bookmarks.confirm.deleteFolder') : t('bookmarks.confirm.removeBookmark'),
+      confirmLabel: node.type === 'folder' ? t('bookmarks.confirm.delete') : t('bookmarks.confirm.remove'),
       onConfirm: async () => {
         const api = getBookmarksApi();
         if (!api) return;
         const result = await api.remove(node.id);
         if (result.ok) {
-          showToast(node.type === 'folder' ? 'Deleted 1 items' : 'Bookmark removed');
+          showToast(node.type === 'folder' ? t('bookmarks.toast.deletedOne') : t('bookmarks.toast.removed'));
           notifyBookmarksChanged();
           setConfirmState(null);
           await refreshTree();
         } else {
-          setErrorBanner('Couldn\'t save changes. Retry');
+          setErrorBanner(t('bookmarks.error.save'));
         }
       }
     });
@@ -745,35 +750,35 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     event.stopPropagation();
     if (node.type !== 'bookmark') return;
     setConfirmState({
-      message: 'Remove bookmark?',
-      confirmLabel: 'Remove',
+      message: t('bookmarks.confirm.removeBookmark'),
+      confirmLabel: t('bookmarks.confirm.remove'),
       onConfirm: async () => {
         const api = getBookmarksApi();
         if (!api) return;
         const result = await api.remove(node.id);
         if (result.ok) {
-          showToast('Bookmark removed');
+          showToast(t('bookmarks.toast.bookmarkRemoved'));
           notifyBookmarksChanged();
           setConfirmState(null);
           await refreshTree();
         } else {
-          setErrorBanner('Couldn\'t save changes. Retry');
+          setErrorBanner(t('bookmarks.error.save'));
         }
       }
     });
   };
 
-  const handleDeleteSelection = () => {
+const handleDeleteSelection = () => {
     if (!selectedIds.size) return;
     setConfirmState({
-      message: `Delete ${selectedIds.size} items`,
-      confirmLabel: 'Delete',
+      message: t('bookmarks.confirm.deleteMany', { count: selectedIds.size }),
+      confirmLabel: t('bookmarks.confirm.delete'),
       onConfirm: async () => {
         const api = getBookmarksApi();
         if (!api) return;
         const ids = Array.from(selectedIds);
         await Promise.all(ids.map((id) => api.remove(id)));
-        showToast(`Deleted ${ids.length} items`);
+        showToast(t('bookmarks.toast.deletedMany', { count: ids.length }));
         notifyBookmarksChanged();
         setConfirmState(null);
         toggleSelectionMode(false);
@@ -791,7 +796,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       if (!target || target.type !== 'folder') return;
       const ids = Array.from(selectedIds);
       await Promise.all(ids.map((id) => api.move({ id, newParentId: targetId })));
-      showToast(`Moved to '${target.title}'`);
+      showToast(t('bookmarks.toast.moved', { title: target.title }));
       notifyBookmarksChanged();
       toggleSelectionMode(false);
       await refreshTree();
@@ -802,7 +807,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const api = getBookmarksApi();
     if (!api) return;
     await api.export();
-    showToast('Exported selected items');
+    showToast(t('bookmarks.toast.exportSelected'));
   };
 
   const handleFolderMove = async (node: BookmarkNode, targetId: string) => {
@@ -811,7 +816,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const target = tree?.nodes[targetId];
     if (!target || target.type !== 'folder') return;
     await api.move({ id: node.id, newParentId: targetId });
-    showToast(`Moved to '${target.title}'`);
+    showToast(t('bookmarks.toast.moved', { title: target.title }));
     notifyBookmarksChanged();
     setContextMenu(null);
     await refreshTree();
@@ -823,7 +828,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     const target = tree?.nodes[targetId];
     if (!target || target.type !== 'folder') return;
     await api.move({ id: node.id, newParentId: targetId });
-    showToast(`Moved to '${target.title}'`);
+    showToast(t('bookmarks.toast.moved', { title: target.title }));
     notifyBookmarksChanged();
     setContextMenu(null);
     await refreshTree();
@@ -833,13 +838,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     if (!url) return;
     try {
       if (typeof navigator === 'undefined' || !navigator.clipboard) {
-        showToast('Couldn\'t copy URL');
+        showToast(t('bookmarks.copy.error'));
         return;
       }
       await navigator.clipboard.writeText(url);
-      showToast('Copied to clipboard');
+      showToast(t('bookmarks.copy.success'));
     } catch {
-      showToast('Couldn\'t copy URL');
+      showToast(t('bookmarks.copy.error'));
     }
   };
 
@@ -853,26 +858,26 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         if (node.type === 'folder') {
           const isRoot = node.id === rootId;
           return [
-            { label: 'Rename…', action: () => openRenameFolderDialog(node), disabled: isRoot },
-            { label: 'Move…', action: () => openFolderPicker('move', async (targetId) => { await handleFolderMove(node, targetId); }) },
-            { label: 'Delete', action: () => handleRemoveNode(node), disabled: isRoot },
-            { label: 'New subfolder…', action: () => openNewFolderDialog(node.id) },
-            { label: 'Select', action: () => { toggleSelectionMode(true); setSelectedIds(new Set([node.id])); } }
+            { label: t('bookmarks.menu.rename'), action: () => openRenameFolderDialog(node), disabled: isRoot },
+            { label: t('bookmarks.menu.move'), action: () => openFolderPicker('move', async (targetId) => { await handleFolderMove(node, targetId); }) },
+            { label: t('bookmarks.menu.delete'), action: () => handleRemoveNode(node), disabled: isRoot },
+            { label: t('bookmarks.menu.newSubfolder'), action: () => openNewFolderDialog(node.id) },
+            { label: t('bookmarks.menu.select'), action: () => { toggleSelectionMode(true); setSelectedIds(new Set([node.id])); } }
           ];
         }
         return [
-          { label: 'Open', action: () => openInTab(node.url ?? '') },
-          { label: 'Edit…', action: () => openEditBookmarkDialog(node) },
-          { label: 'Move…', action: () => openFolderPicker('move', async (targetId) => { await handleBookmarkMove(node, targetId); }) },
-          { label: 'Copy URL', action: () => handleCopyUrl(node.url ?? '') },
-          { label: 'Delete', action: () => handleRemoveNode(node) },
-          { label: 'Select', action: () => { toggleSelectionMode(true); setSelectedIds(new Set([node.id])); } }
+          { label: t('bookmarks.menu.open'), action: () => openInTab(node.url ?? '') },
+          { label: t('bookmarks.menu.edit'), action: () => openEditBookmarkDialog(node) },
+          { label: t('bookmarks.menu.move'), action: () => openFolderPicker('move', async (targetId) => { await handleBookmarkMove(node, targetId); }) },
+          { label: t('bookmarks.menu.copyUrl'), action: () => handleCopyUrl(node.url ?? '') },
+          { label: t('bookmarks.menu.delete'), action: () => handleRemoveNode(node) },
+          { label: t('bookmarks.menu.select'), action: () => { toggleSelectionMode(true); setSelectedIds(new Set([node.id])); } }
         ];
       })()
     : [];
 
   if (!tree || !currentNode) {
-    return <div style={styles.container}>Loading bookmarks…</div>;
+    return <div style={styles.container}>{t('bookmarks.loading')}</div>;
   }
 
   const addMenuStyle = { ...styles.menu, ...(modeStyles.menu ?? {}) };
@@ -891,14 +896,16 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   return (
     <div style={{ ...styles.container, ...(modeStyles.container ?? {}) }}>
       <header style={styles.hero}>
-        <h1 style={{ ...styles.heroTitle, ...(modeStyles.heroTitle ?? {}) }}>Bookmarks</h1>
+        <h1 style={{ ...styles.heroTitle, ...(modeStyles.heroTitle ?? {}) }}>{t('bookmarks.title')}</h1>
         <div style={styles.badgeGroup}>
           {selectionMode && (
-            <span style={{...styles.feedback, ...modeStyles.feedback}}>{`${selectedIds.size} selected`}</span>
+            <span style={{...styles.feedback, ...modeStyles.feedback}}>
+              {t('bookmarks.selected', { count: selectedIds.size })}
+            </span>
           )}
           {selectionMode && (
             <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={() => toggleSelectionMode(false)}>
-              Done
+              {t('bookmarks.done')}
             </button>
           )}
           <div style={{...styles.actionGroup, ...modeStyles.actionGroup}}>
@@ -919,10 +926,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                 onClick={(event) => event.stopPropagation()}
               >
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={openAddBookmarkDialog}>
-                  Add bookmark…
+                  {t('bookmarks.menu.addBookmark')}
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => openNewFolderDialog(undefined)}>
-                  New folder…
+                  {t('bookmarks.menu.newFolder')}
                 </button>
               </div>
             )}
@@ -945,16 +952,16 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                 onClick={(event) => event.stopPropagation()}
               >
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={openImportDialog}>
-                  Import (HTML)…
+                  {t('bookmarks.menu.importHtml')}
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => openExportDialog('all')}>
-                  Export (HTML)…
+                  {t('bookmarks.menu.exportHtml')}
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={handleJsonExport}>
-                  Export JSON
+                  {t('bookmarks.menu.exportJson')}
                 </button>
                 <button style={{...styles.menuItem, ...modeStyles.menuItem}} onClick={() => toggleSelectionMode(true)}>
-                  Select
+                  {t('bookmarks.menu.select')}
                 </button>
               </div>
             )}
@@ -966,7 +973,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           <input
             style={{ ...styles.searchInput, ...(modeStyles.searchInput ?? {}) }}
             value={search}
-            placeholder="Search in titles, URLs, and tags…"
+            placeholder={t('bookmarks.search.placeholder')}
             onChange={(event) => setSearch(event.target.value)}
           />
           {search && (
@@ -1010,9 +1017,9 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       <div style={listWrapperStyle} className="service-scroll">
         {!displayItems.length && (
           <div style={styles.emptyState}>
-            <p>No items here yet</p>
+            <p>{t('bookmarks.empty')}</p>
             <button style={{...styles.button, ...modeStyles.button}} onClick={openAddBookmarkDialog}>
-              Add bookmark
+              {t('bookmarks.menu.addBookmark')}
             </button>
           </div>
         )}
@@ -1046,7 +1053,9 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
               <>
                 <span style={{...styles.folderIcon, ...modeStyles.folderIcon}}>📁</span>
                 <span style={{...styles.folderTitle, ...modeStyles.folderTitle}}>{node.title}</span>
-                <span style={{...styles.folderMeta, ...modeStyles.folderMeta}}>{`${(node.children ?? []).length} items`}</span>
+                <span style={{...styles.folderMeta, ...modeStyles.folderMeta}}>
+                  {t('bookmarks.folder.items', { count: (node.children ?? []).length })}
+                </span>
                 <span style={{...styles.folderChevron, ...modeStyles.folderChevron}}>›</span>
               </>
             ) : (
@@ -1089,19 +1098,21 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           </div>
         ))}
         {debouncedSearch && !displayItems.length && (
-          <div style={styles.emptyState}>No results for ‘{debouncedSearch}’</div>
+          <div style={styles.emptyState}>
+            {t('bookmarks.search.empty', { query: debouncedSearch })}
+          </div>
         )}
       </div>
       {selectionMode && (
         <div style={selectionBarStyle}>
           <button type="button" style={styles.bottomButton} onClick={handleDeleteSelection}>
-            Delete
+            {t('bookmarks.confirm.delete')}
           </button>
           <button type="button" style={styles.bottomButton} onClick={handleMoveSelection}>
-            Move…
+            {t('bookmarks.menu.move')}
           </button>
           <button type="button" style={styles.bottomButton} onClick={handleExportSelection}>
-            Export selected…
+            {t('bookmarks.toast.exportSelected')}
           </button>
         </div>
       )}
@@ -1135,7 +1146,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       {exportDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Export bookmarks (HTML)</h2>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>{t('bookmarks.export.title')}</h2>
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <input
@@ -1146,7 +1157,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   onChange={() => updateExportScope('all')}
                   style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                 />
-                <span style={{ marginLeft: '10px' }}>All bookmarks</span>
+                <span style={{ marginLeft: '10px' }}>{t('bookmarks.export.scope.all')}</span>
               </label>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
                 <input
@@ -1159,14 +1170,14 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                 />
                 <span style={{ marginLeft: '10px' }}>
-                  Current folder
-                  {!currentNode && ' (no folder selected yet)'}
+                  {t('bookmarks.export.scope.current')}
+                  {!currentNode && ` (${t('bookmarks.export.scope.noneSelected')})`}
                 </span>
               </label>
             </div>
             <div style={{...styles.dialogActions, ...modeStyles.dialogActions}}>
               <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={closeExportDialog}>
-                Cancel
+                {t('bookmarks.button.cancel')}
               </button>
               <button
                 type="button"
@@ -1178,7 +1189,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   (exportDialog.scope === 'current' && !currentNode)
                 }
               >
-                {exportDialog.loading ? 'Exporting…' : 'Export'}
+                {exportDialog.loading ? t('bookmarks.export.loading') : t('bookmarks.export.submit')}
               </button>
             </div>
           </div>
@@ -1187,10 +1198,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       {importDialog && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>Import bookmarks (HTML)</h2>
+            <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>{t('bookmarks.import.title')}</h2>
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                File
+                {t('bookmarks.dialog.fileLabel')}
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap', alignItems: 'center' }}>
                   <button
                     type="button"
@@ -1198,15 +1209,15 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                     onClick={chooseImportFile}
                     disabled={importDialog.loading}
                   >
-                    {importDialog.filePath ? 'Change file…' : 'Choose file…'}
+                    {importDialog.filePath ? t('bookmarks.import.changeFile') : t('bookmarks.import.chooseFile')}
                   </button>
                   <span style={{...styles.fileHint, ...modeStyles.fileHint}}>
-                    {importDialog.filePath ? importDialog.filePath.split(/[\\/]/).pop() : 'No file selected'}
+                    {importDialog.filePath ? importDialog.filePath.split(/[\\/]/).pop() : t('bookmarks.import.noFileSelected')}
                   </span>
                 </div>
               </label>
               <div style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                <span>Mode</span>
+                <span>{t('bookmarks.dialog.modeLabel')}</span>
                 <div style={{ display: 'flex', gap: '12px', flexWrap: 'wrap' }}>
                   <label>
                     <input
@@ -1219,7 +1230,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       }
                       style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
-                    <span style={{ marginLeft: '8px' }}>Add to current folder</span>
+                    <span style={{ marginLeft: '8px' }}>{t('bookmarks.import.mode.add')}</span>
                   </label>
                   <label>
                     <input
@@ -1232,13 +1243,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       }
                       style={{...styles.dialogRadioInput, ...modeStyles.dialogRadioInput}}
                     />
-                    <span style={{ marginLeft: '8px' }}>Replace current folder</span>
+                    <span style={{ marginLeft: '8px' }}>{t('bookmarks.import.mode.replace')}</span>
                   </label>
                 </div>
               </div>
               {importDialog.preview && (
                 <p style={{...styles.feedback, ...modeStyles.feedback}}>
-                  Found {importDialog.preview.folders} folders · {importDialog.preview.bookmarks} bookmarks
+                  {t('bookmarks.import.preview', { folders: importDialog.preview.folders, bookmarks: importDialog.preview.bookmarks })}
                 </p>
               )}
               {importDialog.error && (
@@ -1249,7 +1260,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             </div>
             <div style={{...styles.dialogActions, ...modeStyles.dialogActions}}>
               <button type="button" style={{...styles.smallButton, ...modeStyles.smallButton}} onClick={closeImportDialog}>
-                Cancel
+                {t('bookmarks.button.cancel')}
               </button>
               <button
                 type="button"
@@ -1257,7 +1268,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                 onClick={handleImportDialogConfirm}
                 disabled={!importContentRef.current || importDialog.loading || !tree}
               >
-                {importDialog.loading ? 'Importing…' : 'Import'}
+                {importDialog.loading ? t('bookmarks.import.loading') : t('bookmarks.import.submit')}
               </button>
             </div>
           </div>
@@ -1267,11 +1278,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
             <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>
-              {dialogState.mode === 'add' ? 'Add bookmark' : 'Edit bookmark'}
+              {dialogState.mode === 'add'
+                ? t('bookmarks.dialog.addBookmark')
+                : t('bookmarks.dialog.editBookmark')}
             </h2>
             <div style={{...styles.dialogBody, ...modeStyles.dialogBody}}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                Title
+                {t('bookmarks.field.title')}
                 <input
                   type="text"
                   style={{...styles.dialogInput, ...modeStyles.dialogInput}}
@@ -1280,7 +1293,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                 />
               </label>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                URL
+                {t('bookmarks.field.url')}
                 <input
                   type="text"
                   style={{...styles.dialogInput, ...modeStyles.dialogInput}}
@@ -1289,17 +1302,19 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                 />
               </label>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                Tags
+                {t('bookmarks.field.tags')}
                 <input
                   type="text"
                   style={{...styles.dialogInput, ...modeStyles.dialogInput}}
-                  placeholder="comma separated"
+                  placeholder={t('bookmarks.tags.placeholder')}
                   value={bookmarkForm.tags}
                   onChange={(event) => setBookmarkForm((prev) => ({ ...prev, tags: event.target.value }))}
                 />
               </label>
               <div style={styles.folderPickerRow}>
-                <span style={{...styles.folderPickerLabel, ...modeStyles.folderPickerLabel}}>Folder</span>
+                <span style={{...styles.folderPickerLabel, ...modeStyles.folderPickerLabel}}>
+                  {t('bookmarks.field.folder')}
+                </span>
                 <button
                   type="button"
                   style={{...styles.smallButton, ...modeStyles.smallButton}}
@@ -1313,7 +1328,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                     )
                   }
                 >
-                  Choose…
+                  {t('bookmarks.button.choose')}
                 </button>
                 <span style={{...styles.folderPickerValue, ...modeStyles.folderPickerValue}}>
                   {folderItemLabel(bookmarkForm.folderId)}
@@ -1322,10 +1337,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             </div>
             <div style={styles.dialogActions}>
               <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setDialogState(null)}>
-                Cancel
+                {t('bookmarks.button.cancel')}
               </button>
               <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleBookmarkFormSave}>
-                Save
+                {t('bookmarks.button.save')}
               </button>
             </div>
           </div>
@@ -1335,11 +1350,13 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
             <h2 style={{...styles.dialogTitle, ...modeStyles.dialogTitle}}>
-              {dialogState.mode === 'create' ? 'New folder' : 'Rename folder'}
+              {dialogState.mode === 'create'
+                ? t('bookmarks.dialog.newFolder')
+                : t('bookmarks.dialog.renameFolder')}
             </h2>
             <div style={styles.dialogBody}>
               <label style={{...styles.dialogLabel, ...modeStyles.dialogLabel}}>
-                Name
+                {t('bookmarks.field.name')}
                 <input
                   type="text"
                   style={{...styles.dialogInput, ...modeStyles.dialogInput}}
@@ -1350,10 +1367,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             </div>
             <div style={styles.dialogActions}>
               <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setDialogState(null)}>
-                Cancel
+                {t('bookmarks.button.cancel')}
               </button>
               <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleFolderFormSave}>
-                {dialogState.mode === 'create' ? 'Create' : 'Save'}
+                {dialogState.mode === 'create' ? t('bookmarks.button.create') : t('bookmarks.button.save')}
               </button>
             </div>
           </div>
@@ -1373,7 +1390,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   openNewFolderDialog(parentId);
                 }}
               >
-                New folder…
+                {t('bookmarks.folderPicker.newFolder')}
               </button>
             </div>
             <div style={styles.folderListPicker}>
@@ -1394,10 +1411,10 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             </div>
             <div style={styles.dialogActions}>
               <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setFolderPicker(null)}>
-                Cancel
+                {t('bookmarks.button.cancel')}
               </button>
               <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={handleFolderPickerChoose}>
-                Choose
+                {t('bookmarks.folderPicker.choose')}
               </button>
             </div>
           </div>
@@ -1409,7 +1426,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             <p style={{...styles.dialogMessage, ...modeStyles.dialogMessage}}>{confirmState.message}</p>
             <div style={styles.dialogActions}>
               <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setConfirmState(null)}>
-                {confirmState.cancelLabel ?? 'Cancel'}
+                {confirmState.cancelLabel ?? t('bookmarks.button.cancel')}
               </button>
               <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
                 {confirmState.confirmLabel}

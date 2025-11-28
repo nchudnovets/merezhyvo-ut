@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from 'react';
 import type { Mode } from '../../types/models';
 import { licensesStyles } from './licensesStyles';
 import { licensesModeStyles } from './licensesModeStyles';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type LoadState = {
   text: string | null;
@@ -22,12 +23,22 @@ type ViewerProps = {
   subtext: string;
   load: LoadState;
   toggleLabel: string;
+  hideLabel: string;
   onToggle: () => void;
   open: boolean;
   mode: Mode;
 };
 
-const Viewer: React.FC<ViewerProps> = ({ lead, subtext, load, toggleLabel, onToggle, open, mode }) => {
+const Viewer: React.FC<ViewerProps> = ({
+  lead,
+  subtext,
+  load,
+  toggleLabel,
+  hideLabel,
+  onToggle,
+  open,
+  mode
+}) => {
   const styles = licensesStyles;
   const modeStyles = licensesModeStyles[mode] || {};
   const merge = (key: keyof typeof styles) => ({
@@ -40,7 +51,7 @@ const Viewer: React.FC<ViewerProps> = ({ lead, subtext, load, toggleLabel, onTog
       <p style={merge('subtext')}>{subtext}</p>
       {load.error && <div style={merge('banner')}>{load.error}</div>}
       <button type="button" style={merge('button')} onClick={onToggle}>
-        {open ? 'Hide content' : toggleLabel}
+        {open ? hideLabel : toggleLabel}
       </button>
       {open && !load.loading && load.text && <div style={merge('viewer')}>{load.text}</div>}
     </section>
@@ -70,6 +81,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
   const [showApp, setShowApp] = useState(false);
   const [showThird, setShowThird] = useState(false);
   const [showTor, setShowTor] = useState(false);
+  const { t } = useI18n();
 
   useEffect(() => {
     let canceled = false;
@@ -81,7 +93,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
         if (!canceled) {
           setAppLicense({
             text: null,
-            error: 'File not found. Please reinstall or contact support.',
+            error: t('licenses.error.missing'),
             loading: false
           });
         }
@@ -89,7 +101,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let canceled = false;
@@ -101,7 +113,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
         if (!canceled) {
           setThirdParty({
             text: null,
-            error: 'File not found. Please reinstall or contact support.',
+            error: t('licenses.error.missing'),
             loading: false
           });
         }
@@ -109,7 +121,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     let canceled = false;
@@ -121,7 +133,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
         if (!canceled) {
           setTorLicense({
             text: null,
-            error: 'File not found. Please reinstall or contact support.',
+            error: t('licenses.error.missing'),
             loading: false
           });
         }
@@ -129,7 +141,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     return () => {
       canceled = true;
     };
-  }, []);
+  }, [t]);
 
   const styles = licensesStyles;
   const modeStyles = licensesModeStyles[mode] || {};
@@ -142,40 +154,43 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
     () => (
       <>
         <Viewer
-          lead="Merezhyvo — Free to use."
-          subtext="You may use the app for free, including for commercial purposes. The software remains the property of the author. See the full license text below."
+          lead={t('licenses.app.lead')}
+          subtext={t('licenses.app.subtext')}
           load={appLicense}
-          toggleLabel="View full license text"
+          toggleLabel={t('licenses.app.toggle')}
+          hideLabel={t('licenses.hide')}
           onToggle={() => setShowApp((prev) => !prev)}
           open={showApp}
           mode={mode}
         />
         <Viewer
-          lead="This app bundles open-source components."
-          subtext="Each component is licensed under its own terms. See the consolidated notices below."
+          lead={t('licenses.third.lead')}
+          subtext={t('licenses.third.subtext')}
           load={thirdParty}
-          toggleLabel="Open THIRD-PARTY-NOTICES"
+          toggleLabel={t('licenses.third.toggle')}
+          hideLabel={t('licenses.hide')}
           onToggle={() => setShowThird((prev) => !prev)}
           open={showThird}
           mode={mode}
         />
         <Viewer
-          lead="Tor browser component"
-          subtext="This app bundles the Tor software. It is licensed separately by The Tor Project. See the full Tor license text below."
+          lead={t('licenses.tor.lead')}
+          subtext={t('licenses.tor.subtext')}
           load={torLicense}
-          toggleLabel="View Tor license"
+          toggleLabel={t('licenses.tor.toggle')}
+          hideLabel={t('licenses.hide')}
           onToggle={() => setShowTor((prev) => !prev)}
           open={showTor}
           mode={mode}
         />
       </>
     ),
-    [appLicense, thirdParty, showApp, showThird, torLicense, showTor, mode]
+    [appLicense, thirdParty, showApp, showThird, torLicense, showTor, mode, t]
   );
 
   return (
     <div style={mergeContainer()}>
-      <h2>Licenses</h2>
+      <h2>{t('licenses.title')}</h2>
       {viewerContent}
     </div>
   );

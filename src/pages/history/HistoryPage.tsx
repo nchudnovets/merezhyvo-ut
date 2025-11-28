@@ -3,15 +3,11 @@ import type { HistoryVisit, Mode } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
 import { historyStyles } from './historyStyles';
 import { historyModeStyles } from './historyModeStyles';
+import { useI18n } from '../../i18n/I18nProvider';
 
-const groupLabels = [
-  { key: 'today', label: 'Today' },
-  { key: 'yesterday', label: 'Yesterday' },
-  { key: 'week', label: 'Last 7 days' },
-  { key: 'older', label: 'Older' }
-] as const;
+const groupLabels = ['today', 'yesterday', 'week', 'older'] as const;
 
-type GroupKey = (typeof groupLabels)[number]['key'];
+type GroupKey = (typeof groupLabels)[number];
 
 const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ faviconId, mode }) => {
   const [src, setSrc] = useState<string | null>(null);
@@ -77,6 +73,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearBusy, setClearBusy] = useState(false);
+  const { t } = useI18n();
 
   const styles = historyStyles;
   const modeStyles = historyModeStyles[mode] || {};
@@ -85,6 +82,16 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
     ...styles[key],
     ...(modeStyles[key] ?? {})
   });
+
+  const groupLabelMap = useMemo(
+    () => ({
+      today: t('history.group.today'),
+      yesterday: t('history.group.yesterday'),
+      week: t('history.group.week'),
+      older: t('history.group.older')
+    }),
+    [t]
+  );
 
   const refreshHistory = useCallback(async () => {
     const api = typeof window !== 'undefined' ? window.merezhyvo?.history : undefined;
@@ -100,7 +107,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
 
   useEffect(() => {
     void refreshHistory();
-  }, [refreshHistory]);
+  }, [refreshHistory, t]);
 
   const filteredVisits = useMemo(() => {
     if (!search.trim()) return visits;
@@ -146,10 +153,10 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
       const api = typeof window !== 'undefined' ? window.merezhyvo?.history : undefined;
       if (!api) return;
       await api.remove({ url: visit.url });
-      setFeedback('Entry removed');
+      setFeedback(t('history.feedback.entryRemoved'));
       await refreshHistory();
     },
-    [refreshHistory]
+    [refreshHistory, t]
   );
 
   const handleRemoveDomain = useCallback(
@@ -165,10 +172,10 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
         }
       }
       await api.remove({ origin });
-      setFeedback('Domain removed');
+      setFeedback(t('history.feedback.domainRemoved'));
       await refreshHistory();
     },
-    [refreshHistory]
+    [refreshHistory, t]
   );
 
   const requestClearAll = useCallback(() => {
@@ -186,7 +193,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
     setClearBusy(true);
     try {
       await api.clearAll();
-      setFeedback('History cleared');
+      setFeedback(t('history.feedback.cleared'));
       await refreshHistory();
     } finally {
       setClearBusy(false);
@@ -229,27 +236,27 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
   return (
     <div style={styles.container}>
       <div style={styles.header}>
-        <h1 style={profileModeStyle('title')}>History</h1>
+        <h1 style={profileModeStyle('title')}>{t('history.title')}</h1>
         <button type="button" style={{...styles.button, ...modeStyles.button}} onClick={requestClearAll}>
-          Clear History
+          {t('history.clear')}
         </button>
       </div>
       <input
-        placeholder="Search history"
+        placeholder={t('history.search.placeholder')}
         style={profileModeStyle('searchInput')}
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
       {feedback && <div style={{ color: '#34d399', fontSize: '12px' }}>{feedback}</div>}
       <div style={groupsStyle} className="service-scroll">
-        {loading && <div style={styles.placeholder}>Loading history…</div>}
-        {!loading && !filteredVisits.length && <div style={styles.placeholder}>No history entries.</div>}
-        {groupLabels.map(({ key, label }) => {
-          const entries = groups[key];
+        {loading && <div style={styles.placeholder}>{t('history.loading')}</div>}
+        {!loading && !filteredVisits.length && <div style={styles.placeholder}>{t('history.empty')}</div>}
+        {groupLabels.map((key) => {
+          const entries = groups[key as GroupKey];
           if (!entries || !entries.length) return null;
           return (
-            <div key={key} style={styles.group}>
-              <h3 style={groupsTitle}>{label}</h3>
+            <div key={key as string} style={styles.group}>
+              <h3 style={groupsTitle}>{groupLabelMap[key as GroupKey]}</h3>
               {entries.map((visit) => (
                 <div key={visit.id} style={{ ...styles.entry, ...(modeStyles.entry ?? {}) }}>
                   <div style={styles.entryMain}>
@@ -262,13 +269,13 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
                   </div>
                   <div style={entryActionsStyle}>
                     <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
-                      Open
+                      {t('history.entry.open')}
                     </button>
                     <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
-                      Delete
+                      {t('history.entry.delete')}
                     </button>
                     <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>
-                      Delete domain
+                      {t('history.entry.deleteDomain')}
                     </button>
                   </div>
                 </div>
@@ -287,13 +294,13 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
               ...historyStyles.confirmTitle,
               ...(modeStyles.confirmTitle ?? {})
             }}>
-              Confirm Clear
+              {t('history.confirm.title')}
             </h2>
             <p style={{
               ...historyStyles.confirmMessage,
               ...(modeStyles.confirmMessage ?? {})
             }}>
-              This will remove every visit from your history and cannot be undone.
+              {t('history.confirm.message')}
             </p>
             <div style={{
               ...historyStyles.confirmActions,
@@ -308,7 +315,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
                 onClick={cancelClearAll}
                 disabled={clearBusy}
               >
-                Cancel
+                {t('history.confirm.cancel')}
               </button>
               <button
                 type="button"
@@ -319,7 +326,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
                 onClick={handleClearAll}
                 disabled={clearBusy}
               >
-                Clear History
+                {t('history.confirm.confirm')}
               </button>
             </div>
           </div>
