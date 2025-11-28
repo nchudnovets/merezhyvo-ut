@@ -124,7 +124,7 @@ async function getManagedObjects(bus: MessageBus, service: string, objPath: stri
     }
 
     return out;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -149,7 +149,7 @@ async function propsGet(
     if (!reply) return null;
     const val = vGet(reply.body?.[0]);
     return vGet(val);
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -168,7 +168,7 @@ async function introspect(bus: MessageBus, service: string, objPath: string): Pr
     if (!reply) return null;
     const xml = String(reply.body?.[0] ?? '');
     return xml || null;
-  } catch (e) {
+  } catch {
     return null;
   }
 }
@@ -193,7 +193,7 @@ async function listSystemBusNames(bus: MessageBus): Promise<string[]> {
     if (!reply) return [];
     const names = reply.body?.[0] as unknown;
     if (Array.isArray(names)) return names.map((x) => String(x));
-  } catch (e) {
+  } catch {
   }
   return [];
 }
@@ -302,7 +302,7 @@ async function tryCallLikelyMethod(
         return fix;
       }
     }
-  } catch (e) {
+  } catch {
   }
   return null;
 }
@@ -643,7 +643,7 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
     try {
       const generic = await tryViaGenericDbusScan(3000);
       if (generic) return generic;
-    } catch (e) {
+    } catch {
       // noop
     }
 
@@ -651,14 +651,14 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
     try {
       const om = await tryLomiriOverObjectManager(2000);
       if (om) return om;
-    } catch (e) {
+    } catch {
       // noop
     }
 
     try {
       const viaIntrospect = await tryLomiriViaIntrospect(3000);
       if (viaIntrospect) return viaIntrospect;
-    } catch (e) {
+    } catch {
       // noop
     }
   }
@@ -667,7 +667,7 @@ export async function getSystemPosition(timeoutMs: number): Promise<Fix | null> 
   try {
     const q = await tryQmlOnce(qmlTimeout);
     if (q) return q;
-  } catch (e) {
+  } catch {
     // no op
   }
 

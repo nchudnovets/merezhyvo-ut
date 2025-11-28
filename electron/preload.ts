@@ -605,7 +605,7 @@ const exposeApi: MerezhyvoAPI = {
 
   // Simple debug hook to write into geo.log from the renderer
   debug: {
-    logGeo(msg: string): void {
+    logGeo(_msg: string): void {
   // try { void ipcRenderer.invoke('mzr:geo:log', `renderer: ${msg}`); } catch {}
     }
   }

@@ -6,7 +6,6 @@ import { bookmarksModeStyles } from './bookmarksModeStyles';
 import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
 import { useI18n } from '../../i18n/I18nProvider';
 
-const ROOT_LABEL = 'MyBookmarks';
 const SEARCH_DEBOUNCE_MS = 250;
 const zoomToolbarHeights: Record<Mode, number> = {
   desktop: 72,

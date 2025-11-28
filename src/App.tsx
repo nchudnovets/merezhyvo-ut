@@ -333,7 +333,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [torConfigFeedback, setTorConfigFeedback] = useState<string>('');
   const [torIp, setTorIp] = useState<string>('');
   const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
-  const [torAlertMessage, setTorAlertMessage] = useState<string>('');
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
@@ -582,14 +581,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setIsHtmlFullscreen(false);
     }
   }, [activeId]);
-  const showTorAlert = useCallback((message: string) => {
-    setTorAlertMessage(message);
-  }, []);
-
-  const dismissTorAlert = useCallback(() => {
-    setTorAlertMessage('');
-  }, []);
-
   const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
     const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
     setDownloadsConcurrent(clamped);
@@ -1934,13 +1925,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const state = await torService.toggle();
       if (!torEnabled && (!state || !state.enabled)) {
         const reason = state?.reason?.trim() || 'Tor failed to start.';
-        showTorAlert(reason);
+        showGlobalToast(reason);
       }
     } catch (err) {
       console.error('[Merezhyvo] tor toggle failed', err);
-      showTorAlert('Tor toggle failed.');
+      showGlobalToast('Tor toggle failed.');
     }
-  }, [torEnabled, showTorAlert]);
+  }, [torEnabled, showGlobalToast]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -2666,7 +2657,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         } else {
           showGlobalToast(result?.error ?? 'Unable to save password');
         }
-      } catch (err) {
+      } catch {
         showGlobalToast('Unable to save password');
       } finally {
         setPasswordPromptBusy(false);
@@ -2678,10 +2669,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const handlePasswordPromptClose = useCallback(() => {
     setPasswordPrompt(null);
     setPasswordPromptBusy(false);
-  }, []);
-
-  const handlePromptCancel = useCallback(() => {
-    setPasswordPrompt(null);
   }, []);
 
   const openTabsPanel = useCallback(() => {

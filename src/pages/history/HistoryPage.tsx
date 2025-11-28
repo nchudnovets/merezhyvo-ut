@@ -199,7 +199,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
       setClearBusy(false);
       setShowClearConfirm(false);
     }
-  }, [refreshHistory]);
+  }, [refreshHistory, t]);
 
   const formatTime = (ts: number) => new Date(ts).toLocaleString();
 

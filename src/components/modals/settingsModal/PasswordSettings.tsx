@@ -84,7 +84,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
       setStatus(t('passwordSettings.status.loadError'));
       setStatusInfo(null);
     }
-  }, []);
+  }, [t]);
 
   useEffect(() => {
     void refreshStatus();
