@@ -174,11 +174,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               ...(modeStyles.settingsModalTitle || {})
             }}
           >
-            Settings
+            {t('settings.title')}
           </h2>
           <button
             type="button"
-            aria-label="Close settings dialog"
+            aria-label={t('settings.close')}
             style={closeButtonStyle}
             onClick={onClose}
           >

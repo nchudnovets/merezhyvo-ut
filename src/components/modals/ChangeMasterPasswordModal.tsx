@@ -61,17 +61,17 @@ const buttonBaseStyle: CSSProperties = {
 };
 
 const strengthLevels = [
-  { label: 'Very weak', color: '#f87171' },
-  { label: 'Weak', color: '#fb923c' },
-  { label: 'Fair', color: '#facc15' },
-  { label: 'Good', color: '#22c55e' },
-  { label: 'Strong', color: '#16a34a' }
+  { labelKey: 'passwords.strength.veryWeak', color: '#f87171' },
+  { labelKey: 'passwords.strength.weak', color: '#fb923c' },
+  { labelKey: 'passwords.strength.fair', color: '#facc15' },
+  { labelKey: 'passwords.strength.good', color: '#22c55e' },
+  { labelKey: 'passwords.strength.strong', color: '#16a34a' }
 ];
 
 const computeStrength = (value: string) => {
-  const fallback = strengthLevels[0] ?? { label: 'Very weak', color: '#f87171' };
+  const fallback = strengthLevels[0] ?? { labelKey: 'passwords.strength.veryWeak', color: '#f87171' };
   if (!value) {
-    return { score: 0, label: fallback.label, color: fallback.color };
+    return { score: 0, labelKey: fallback.labelKey, color: fallback.color };
   }
   let score = 0;
   if (value.length >= 8) score++;
@@ -81,7 +81,7 @@ const computeStrength = (value: string) => {
   if (/[^A-Za-z0-9]/.test(value)) score++;
   const capped = Math.min(strengthLevels.length - 1, score);
   const level = strengthLevels[capped] ?? strengthLevels[strengthLevels.length - 1] ?? fallback;
-  return { score: capped, label: level.label, color: level.color };
+  return { score: capped, labelKey: level.labelKey, color: level.color };
 };
 
 const ChangeMasterPasswordModal: React.FC<Props> = ({
@@ -242,7 +242,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
             </button>
           </div>
           <div style={{ marginTop: '6px', color: '#cbd5f5', fontSize: isMobile ? '38px' : '12px' }}>
-            {t('passwords.strength', { label: strength.label })}
+            {t('passwords.strength', { label: t(strength.labelKey) })}
           </div>
           <div style={strengthBarStyle}>
             <div style={strengthInnerStyle} />

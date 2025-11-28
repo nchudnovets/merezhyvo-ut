@@ -3,6 +3,7 @@ import type { Mode, MessengerDefinition, MessengerId } from '../../../types/mode
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
+import { useI18n } from '../../../i18n/I18nProvider';
 
 type MessengerSettingsProps = {
   mode: Mode;
@@ -23,6 +24,7 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
+  const { t } = useI18n();
   const blockBodyStyle = {
     ...styles.blockBody,
     ...(modeStyles.settingsBlockBody || {})
@@ -38,7 +40,7 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
           ...(modeStyles.settingsMessengerHint || {})
         }}
       >
-        Arrange messengers to adjust their order in the messenger toolbar.
+        {t('settings.messenger.arrange')}
       </p>
 
       {items.length === 0 ? (
@@ -48,7 +50,7 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
             ...(modeStyles.settingsMessengerHint || {})
           }}
         >
-          No messengers available.
+          {t('settings.messenger.empty')}
         </p>
       ) : (
         <ul style={styles.messengerList}>
@@ -88,7 +90,7 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
                     type="button"
                     onClick={() => onMove(item.id, 'up')}
                     disabled={disableUp}
-                    aria-label={`Move ${item.title} up`}
+                    aria-label={t('settings.messenger.moveUp', { title: item.title })}
                     style={{
                       ...styles.messengerActionButton,
                       ...(modeStyles.settingsMessengerActionButton || {}),
@@ -110,7 +112,7 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
                     type="button"
                     onClick={() => onMove(item.id, 'down')}
                     disabled={disableDown}
-                    aria-label={`Move ${item.title} down`}
+                    aria-label={t('settings.messenger.moveDown', { title: item.title })}
                     style={{
                       ...styles.messengerActionButton,
                       ...(modeStyles.settingsMessengerActionButton || {}),

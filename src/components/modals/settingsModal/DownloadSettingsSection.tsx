@@ -141,7 +141,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
         <div style={rowStyle}>
           <span style={pathStyle} title={defaultDir || ''}>{defaultDir || 'Not set'}</span>
           <button type="button" style={buttonStyle} disabled>
-            Choose…
+            {t('settings.downloads.choose')}
           </button>
         </div>
       </div>

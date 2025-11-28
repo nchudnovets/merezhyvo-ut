@@ -2,6 +2,7 @@ import React from 'react';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import type { Mode } from '../../../types/models';
+import { useI18n } from '../../../i18n/I18nProvider';
 
 type TorSettingsProps = {
   mode: Mode;
@@ -26,13 +27,14 @@ const TorSettings: React.FC<TorSettingsProps> = ({
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
-  const torStatusText = torEnabled ? 'Tor enabled' : 'Tor disabled';
+  const { t } = useI18n();
+  const torStatusText = torEnabled ? t('tor.status.enabled') : t('tor.status.disabled');
   const torStatusStyle = torEnabled ? styles.torInfoValueEnabled : styles.torInfoValueDisabled;
-  const torIpText = torIpLoading ? 'Loading…' : torCurrentIp || 'Unavailable';
+  const torIpText = torIpLoading ? t('global.loading') : torCurrentIp || t('tor.ip.unavailable');
   return (
     <>
       <div style={styles.torInfoRow}>
-        <span style={styles.torInfoLabel}>Tor status</span>
+        <span style={styles.torInfoLabel}>{t('tor.status.label')}</span>
         <span
           style={{
             ...styles.torInfoValue,
@@ -44,7 +46,7 @@ const TorSettings: React.FC<TorSettingsProps> = ({
         </span>
       </div>
       <div style={styles.torInfoRow}>
-        <span style={styles.torInfoLabel}>Current IP</span>
+        <span style={styles.torInfoLabel}>{t('tor.ip.label')}</span>
         <span
           style={{
             ...styles.torInfoValue,
@@ -75,10 +77,10 @@ const TorSettings: React.FC<TorSettingsProps> = ({
           <span
             style={{
               ...styles.torKeepLabel,
-              ...(modeStyles.settingsTorKeepLabel || {})
-            }}
-          >
-            Keep Tor enabled
+            ...(modeStyles.settingsTorKeepLabel || {})
+          }}
+        >
+            {t('tor.keep.label')}
           </span>
         </label>
         {torConfigFeedback && (

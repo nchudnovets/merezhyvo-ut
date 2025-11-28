@@ -10,6 +10,7 @@ import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
 import type { Mode } from '../../../types/models';
+import { useI18n } from '../../../i18n/I18nProvider';
 
 type KeyboardSettingsState = {
   enabledLayouts: string[];
@@ -30,6 +31,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
+  const { t } = useI18n();
   
   const load = useCallback(async () => {
     setLoading(true);
@@ -122,7 +124,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
           ...styles.keyboardSavedPill,
           ...(modeStyles.settingsKeyboardSavedPill || {})
         }}>
-          Saved
+          {t('settings.language.saved')}
         </span>
       )}
       {loading ? (
@@ -133,7 +135,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
             opacity: 0.85
           }}
         >
-          Loading…
+          {t('global.loading')}
         </span>
       ) : (
         <>
@@ -180,7 +182,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                       onChange={() => setDefault(layoutId)}
                       style={modeStyles.settingsKeyboardInput}
                     />
-                    <span>Default</span>
+                    <span>{t('settings.keyboard.default')}</span>
                   </label>
                 </span>
               </label>
@@ -200,7 +202,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
               fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
               ...baseStyles.modalButtonPrimary
             }}>
-              Save
+              {t('settings.language.save')}
             </button>
           </div>
         </>
