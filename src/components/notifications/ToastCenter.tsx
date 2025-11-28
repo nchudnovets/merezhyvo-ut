@@ -24,7 +24,7 @@ export const ToastCenter: React.FC = () => {
   const [items, setItems] = useState<ToastItem[]>([]);
   const maxOnScreen = 3;
   const defaultTtl = 5000;
-  const { t } = useI18n();
+  const { t: translate } = useI18n();
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -32,14 +32,14 @@ export const ToastCenter: React.FC = () => {
     if (!detail || !detail.title) return;
 
     const addToast = () => {
-        const t: ToastItem = {
+        const toast: ToastItem = {
         ...detail,
         id: uid(),
         createdAt: Date.now(),
         ttlMs: defaultTtl
         };
         setItems((prev) => {
-        const next = [...prev, t];
+        const next = [...prev, toast];
         return next.slice(-8);
         });
     };
@@ -126,7 +126,7 @@ export const ToastCenter: React.FC = () => {
               }}
               style={toastCenterStyles.dismiss}
             >
-              {t('toast.dismiss')}
+              {translate('toast.dismiss')}
             </button>
           </div>
         </div>

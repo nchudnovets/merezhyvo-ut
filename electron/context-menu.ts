@@ -6,7 +6,6 @@ import uk from '../src/i18n/translations/uk';
 import de from '../src/i18n/translations/de';
 import fr from '../src/i18n/translations/fr';
 import pl from '../src/i18n/translations/pl';
-import { getI18n } from '../src/i18n/rendererI18n';
 
 let renderLock = false;
 let currentLanguage = 'en';

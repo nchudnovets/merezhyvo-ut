@@ -13,7 +13,7 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
   { id: 'pl', label: 'Polish', nativeLabel: 'Polski', direction: 'ltr' }
 ];
 
-export const DEFAULT_LOCALE = AVAILABLE_LOCALES[0].id;
+export const DEFAULT_LOCALE = AVAILABLE_LOCALES[0]?.id ?? 'en';
 export const LOCALE_IDS = AVAILABLE_LOCALES.map((locale) => locale.id);
 
 export const isValidLocale = (value: unknown): value is string =>

@@ -260,7 +260,9 @@ const exposeApi: MerezhyvoAPI = {
           schema: 2,
           tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
-          messenger: sanitizeMessengerSettings(null)
+          messenger: sanitizeMessengerSettings(null),
+          downloads: { defaultDir: '', concurrent: 2 },
+          ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE }
         };
       }
     },

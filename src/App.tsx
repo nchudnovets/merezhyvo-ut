@@ -2883,8 +2883,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     )
     : null;
 
-  const toolbarRef = useRef<HTMLDivElement | null>(null);
-  const messengerToolbarRef = useRef<HTMLDivElement | null>(null);
+  const toolbarRef = useRef<HTMLDivElement>(null!);
+  const messengerToolbarRef = useRef<HTMLDivElement>(null!);
   const [toolbarHeight, setToolbarHeight] = useState(0);
   const [messengerToolbarHeight, setMessengerToolbarHeight] = useState(0);
   useEffect(() => {

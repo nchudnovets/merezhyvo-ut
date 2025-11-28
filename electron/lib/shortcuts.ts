@@ -48,6 +48,8 @@ type SettingsLike = {
   keyboard?: unknown;
   tor?: unknown;
   messenger?: unknown;
+  downloads?: unknown;
+  ui?: unknown;
   permissions?: unknown;
 };
 

@@ -31,10 +31,12 @@ import * as links from './lib/links';
 import {
   createDefaultSettingsState,
   getSessionFilePath,
+  getSettingsFilePath,
   readSettingsState,
   writeSettingsState,
   sanitizeDownloadsSettings,
-  sanitizeUiSettings
+  sanitizeUiSettings,
+  sanitizeSettingsPayload
 } from './lib/shortcuts';
 import { DEFAULT_LOCALE } from '../src/i18n/locales';
 import * as downloads from './lib/downloads';
@@ -1203,9 +1205,13 @@ ipcMain.handle('merezhyvo:ui:setLanguage', async (_event, payload: unknown) => {
 
 ipcMain.on('merezhyvo:ui:getScaleSync', (event) => {
   try {
-    const state = readSettingsState();
-    if (state && typeof state.ui?.scale === 'number') {
-      event.returnValue = state.ui.scale;
+    const file = getSettingsFilePath();
+    const raw = fs.readFileSync(file, 'utf8');
+    const parsed = JSON.parse(raw) as unknown;
+    const state = sanitizeSettingsPayload(parsed);
+    const scale = state?.ui?.scale;
+    if (typeof scale === 'number' && Number.isFinite(scale)) {
+      event.returnValue = scale;
       return;
     }
   } catch {

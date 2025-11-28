@@ -1151,5 +1151,5 @@ export const setupSelectFileInterceptor = (contents: WebContents | null): void =
     }
     callback(paths);
   };
-  contents.on('select-file', handler);
+  contents.on('select-file' as Parameters<WebContents['on']>[0], handler as never);
 };

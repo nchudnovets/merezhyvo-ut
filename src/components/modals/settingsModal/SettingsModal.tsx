@@ -24,7 +24,6 @@ interface SettingsModalProps {
   torEnabled: boolean;
   torCurrentIp: string;
   torIpLoading: boolean;
-  torKeepEnabled: boolean;
   torKeepEnabledDraft: boolean;
   torConfigSaving: boolean;
   torConfigFeedback: string;
@@ -48,7 +47,7 @@ interface SettingsModalProps {
   downloadsCommand: string;
   uiScale: number;
   onUiScaleChange: (value: number) => void;
-  onUiScaleReset: (value: number) => void;
+  onUiScaleReset: () => void;
   onOpenTorLink: () => void;
 }
 
@@ -59,7 +58,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torEnabled,
   torCurrentIp,
   torIpLoading,
-  torKeepEnabled,
   torKeepEnabledDraft,
   torConfigSaving,
   torConfigFeedback,
@@ -197,7 +195,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torEnabled={torEnabled}
                 torCurrentIp={torCurrentIp}
                 torIpLoading={torIpLoading}
-                torKeepEnabled={torKeepEnabled}
                 torKeepEnabledDraft={torKeepEnabledDraft}
                 torConfigSaving={torConfigSaving}
                 torConfigFeedback={torConfigFeedback}

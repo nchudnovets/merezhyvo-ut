@@ -168,7 +168,7 @@ export const ipc = {
   tor: {
     async toggle(options?: { containerId?: string | null }): Promise<TorState | null> {
       try {
-        const res = await getApi()?.tor?.toggle?.(options);
+        const res = await getApi()?.tor?.toggle?.();
         return res ?? null;
       } catch {
         return null;

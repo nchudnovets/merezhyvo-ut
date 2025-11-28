@@ -527,7 +527,8 @@ document.addEventListener('focusout', handleFocusOut, true);
 
   const clampSelection = <T>(items: T[], multiple: boolean): T[] => {
     if (multiple) return items;
-    return items.length ? [items[0]] : [];
+    if (!items.length) return [];
+    return [items[0] as T];
   };
 
   const handleResponse = (_event: Electron.IpcRendererEvent, payload: FileDialogResponse): void => {
@@ -549,7 +550,7 @@ document.addEventListener('focusout', handleFocusOut, true);
       const buffer = base64ToArray(descriptor.data);
       const name = descriptor.name ?? descriptor.path ?? 'file';
       const type = descriptor.type ?? guessMimeType(name);
-      files.push(new File([buffer], name, { type }));
+      files.push(new File([buffer as unknown as BlobPart], name, { type }));
     }
     if (!files.length) return;
     const dataTransfer = new DataTransfer();

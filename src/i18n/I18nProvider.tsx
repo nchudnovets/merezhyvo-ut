@@ -82,6 +82,10 @@ export const I18nProvider: React.FC<I18nProviderProps> = ({
       setReady(false);
       try {
         const loader = localeLoaders[language] ?? localeLoaders[DEFAULT_LOCALE];
+        if (!loader) {
+          setReady(true);
+          return;
+        }
         const dictionary = await loader();
         if (cancelled) return;
         setDictionaryMap((prev) => ({ ...prev, [language]: dictionary }));
