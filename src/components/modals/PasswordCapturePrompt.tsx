@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CSSProperties } from 'react';
 import type { Mode, PasswordCaptureAction, PasswordPromptPayload } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type Props = {
   open: boolean;
@@ -101,20 +102,28 @@ const labelFontSizes = (mode: Mode) => ({
 });
 
 const PasswordCapturePrompt: React.FC<Props> = ({ open, mode, payload, busy, onAction, onClose }) => {
+  const { t } = useI18n();
   if (!open || !payload) return null;
   const sizes = labelFontSizes(mode);
   const computedCardStyle: CSSProperties = {
     ...cardBaseStyle,
     ...promptCardDimensions(mode)
   };
-  const titleText = payload.isUpdate ? 'Update saved password?' : `Save password for ${payload.siteName}?`;
+  const titleText = payload.isUpdate
+    ? t('passwordPrompt.title.update')
+    : t('passwordPrompt.title.save', { site: payload.siteName });
   const subtitle = payload.isUpdate
-    ? `An existing password for ${payload.username || 'this account'} on ${payload.siteName} was found.`
-    : `Username: ${payload.username || '(none)'}`;
-  const primaryLabel = payload.isUpdate ? 'Update' : 'Save';
-  const tertiaryLabel = payload.isUpdate ? 'Cancel' : 'Not now';
+    ? t('passwordPrompt.subtitle.update', {
+        site: payload.siteName,
+        account: payload.username || t('passwordPrompt.fallback.none')
+      })
+    : t('passwordPrompt.subtitle.save', {
+        username: payload.username || t('passwordPrompt.fallback.none')
+      });
+  const primaryLabel = payload.isUpdate ? t('passwordPrompt.button.update') : t('passwordPrompt.button.save');
+  const tertiaryLabel = payload.isUpdate ? t('passwordPrompt.button.cancel') : t('passwordPrompt.button.notNow');
   const tertiaryAction = () => onClose();
-  const secondaryLabel = payload.isUpdate ? 'Keep both' : 'Never for this site';
+  const secondaryLabel = payload.isUpdate ? t('passwordPrompt.button.keepBoth') : t('passwordPrompt.button.never');
   const secondaryAction: PasswordCaptureAction = payload.isUpdate ? 'keep-both' : 'never';
 
   return (

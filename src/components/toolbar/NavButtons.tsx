@@ -1,5 +1,6 @@
 import React from 'react';
 import type { Mode } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface NavButtonsProps {
@@ -22,13 +23,14 @@ const NavButtons: React.FC<NavButtonsProps> = ({
   onReload
 }) => {
   const modeStyles = toolbarModeStyles[mode];
+  const { t } = useI18n();
   const isMobile = mode === 'mobile';
   return (
     <div style={toolbarStyles.navGroup}>
       {!isMobile && (
         <button
           type="button"
-          aria-label="Back"
+          aria-label={t('nav.back')}
           disabled={!canGoBack}
           onClick={onBack}
           style={{
@@ -55,9 +57,9 @@ const NavButtons: React.FC<NavButtonsProps> = ({
         </button>
       )}
 
-      <button
-        type="button"
-        aria-label="Forward"
+          <button
+            type="button"
+            aria-label={t('nav.forward')}
         disabled={!canGoForward}
       onClick={onForward}
       style={{
@@ -86,7 +88,7 @@ const NavButtons: React.FC<NavButtonsProps> = ({
       {!isMobile && (
         <button
           type="button"
-          aria-label="Reload"
+          aria-label={t('nav.reload')}
           onClick={onReload}
           disabled={!webviewReady}
           style={{

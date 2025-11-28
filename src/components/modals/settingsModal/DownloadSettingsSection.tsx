@@ -1,6 +1,7 @@
 import React from 'react';
 import type { CSSProperties } from 'react';
 import type { Mode } from '../../../types/models';
+import { useI18n } from '../../../i18n/I18nProvider';
 
 export type DownloadSettingsSectionProps = {
   mode: Mode;
@@ -23,6 +24,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   onCopyCommand,
   command
 }) => {
+  const { t } = useI18n();
   const labelFontSize = mode === 'mobile' ? '41px' : '16px';
   const valueFontSize = mode === 'mobile' ? '39px' : '14px';
   const buttonMinHeight = mode === 'mobile' ? 48 : 36;
@@ -115,26 +117,26 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     alignSelf: 'flex-start'
   };
 
+  const defaultFolderLabel = t('settings.downloads.defaultFolder');
+  const concurrentLabel = t('settings.downloads.concurrent');
+  const saveLabel = saving ? t('settings.downloads.saving') : t('settings.downloads.save');
   return (
     <div style={sectionStyle}>
       <div style={noteStyle}>
-        In this version of the browser, access to the file system is limited. All downloads are automatically
-        saved to the folder <strong>~/.local/share/merezhyvo.naz.r/mDownloads</strong>.
+        {t('settings.downloads.note')}
       </div>
       <div style={noticeBlockStyle}>
-        <div>
-          For easier access we recommend creating a symlink from your standard Downloads folder:
-        </div>
+        <div>{t('settings.downloads.helper')}</div>
         <div style={commandWrapperStyle}>
           <span style={{ ...commandTextStyle, fontSize: noteFontSize }}>{command}</span>
           <button type="button" style={commandButtonStyle} onClick={onCopyCommand}>
-            Copy command
+            {t('settings.downloads.copy')}
           </button>
         </div>
       </div>
       <div>
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
-          Default download folder
+          {defaultFolderLabel}
         </div>
         <div style={rowStyle}>
           <span style={pathStyle} title={defaultDir || ''}>{defaultDir || 'Not set'}</span>
@@ -145,7 +147,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
       </div>
       <div>
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
-          Concurrent downloads
+          {concurrentLabel}
         </div>
         <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
           {concurrencyValues.map((value) => (
@@ -161,7 +163,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
         </div>
       </div>
       <button type="button" style={saveButtonStyle} onClick={onSave} disabled={!defaultDir || saving}>
-        {saving ? 'Saving…' : 'Save'}
+        {saveLabel}
       </button>
     </div>
   );

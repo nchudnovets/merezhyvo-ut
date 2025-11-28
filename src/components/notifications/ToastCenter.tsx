@@ -2,6 +2,7 @@
 
 import React, { useEffect, useMemo, useState } from 'react';
 import { toastCenterStyles, toastCenterMobStyles } from './ToastCenterStyles';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type ToastPayload = {
   title: string;
@@ -23,6 +24,7 @@ export const ToastCenter: React.FC = () => {
   const [items, setItems] = useState<ToastItem[]>([]);
   const maxOnScreen = 3;
   const defaultTtl = 5000;
+  const { t } = useI18n();
 
   useEffect(() => {
     const handler = (e: Event) => {
@@ -124,7 +126,7 @@ export const ToastCenter: React.FC = () => {
               }}
               style={toastCenterStyles.dismiss}
             >
-              Dismiss
+              {t('toast.dismiss')}
             </button>
           </div>
         </div>

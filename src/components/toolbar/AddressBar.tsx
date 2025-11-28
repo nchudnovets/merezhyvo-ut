@@ -8,6 +8,7 @@ import type {
   FormEvent
 } from 'react';
 import type { Mode } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
 interface AddressBarProps {
@@ -41,6 +42,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   downloadIndicatorState,
   onDownloadIndicatorClick
 }) => {
+  const { t } = useI18n();
   const showIndicator = downloadIndicatorState !== 'hidden';
   const indicatorSize = mode === 'mobile' ? 55 : 16;
   const inputStyle: CSSProperties = {
@@ -50,10 +52,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
   };
   const indicatorLabel =
     downloadIndicatorState === 'completed'
-      ? 'Downloads complete'
+      ? t('address.downloads.complete')
       : downloadIndicatorState === 'error'
-      ? 'Downloads failed'
-      : 'Downloads in progress';
+      ? t('address.downloads.error')
+      : t('address.downloads.inProgress');
   const arrowColor =
     downloadIndicatorState === 'completed'
       ? '#22c55e'
@@ -78,13 +80,14 @@ const AddressBar: React.FC<AddressBarProps> = ({
     right: mode === 'mobile' ? '20px' : '10px'
   };
 
+  const openTabsLabel = t('address.openTabs', { count: tabCount });
   return (
     <form onSubmit={onSubmit} style={toolbarStyles.form}>
       <div style={toolbarStyles.addressField}>
-        <input
-          ref={inputRef}
-          type="text"
-          value={value}
+          <input
+            ref={inputRef}
+            type="text"
+            value={value}
           onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
           onPointerDown={onPointerDown}
           onFocus={onFocus}
@@ -93,8 +96,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
           autoCapitalize="none"
           autoCorrect="off"
           spellCheck="false"
-          placeholder="Enter a URL or search"
-          style={inputStyle}
+            placeholder={t('address.placeholder')}
+            style={inputStyle}
         />
         {showIndicator && (
           <button
@@ -109,8 +112,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
       </div>
       <button
         type="button"
-        title="Open tabs"
-        aria-label={`Open tabs (${tabCount})`}
+        title={openTabsLabel}
+        aria-label={openTabsLabel}
         aria-haspopup="dialog"
         onClick={onOpenTabsPanel}
         disabled={!tabsReady}
@@ -120,7 +123,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
           ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
         }}
       >
-        <span style={toolbarStyles.visuallyHidden}>Open tabs ({tabCount})</span>
+        <span style={toolbarStyles.visuallyHidden}>{openTabsLabel}</span>
         <span
           aria-hidden="true"
           style={{

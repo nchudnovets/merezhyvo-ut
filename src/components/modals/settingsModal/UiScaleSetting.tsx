@@ -1,6 +1,7 @@
 import React from 'react';
 import type { ChangeEvent, CSSProperties } from 'react';
 import type { Mode } from '../../../types/models';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 
@@ -23,6 +24,7 @@ type UiScaleSettingProps = {
 };
 
 const UiScaleSetting: React.FC<UiScaleSettingProps> = ({ mode, value, onChange, onReset }) => {
+  const { t } = useI18n();
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] ?? {};
   const mergeStyle = (key: keyof typeof settingsModalStyles): CSSProperties => ({
@@ -42,7 +44,7 @@ const UiScaleSetting: React.FC<UiScaleSettingProps> = ({ mode, value, onChange, 
   return (
     <div style={mergeStyle('scaleContainer')}>
       <div style={mergeStyle('scaleRow')}>
-        <span style={mergeStyle('scaleLabel')}>UI scale</span>
+        <span style={mergeStyle('scaleLabel')}>{t('settings.scale.label')}</span>
         <span style={mergeStyle('scaleValue')}>{value.toFixed(2)}</span>
       </div>
       <input
@@ -55,30 +57,24 @@ const UiScaleSetting: React.FC<UiScaleSettingProps> = ({ mode, value, onChange, 
         style={mergeStyle('scaleRange')}
         aria-label="UI scale"
       />
-      <p style={mergeStyle('scaleHelper')}>
-        Adjust the size of toolbars and controls. Does not change page zoom.
-      </p>
+      <p style={mergeStyle('scaleHelper')}>{t('settings.scale.helper')}</p>
       <div style={mergeStyle('scaleButtons')}>
         <button
           type="button"
           style={mergeStyle('scaleButton')}
           onClick={() => handleStepper(-1)}
-          aria-label="Decrease UI scale"
+          aria-label={t('settings.scale.decrease')}
         >
           −
         </button>
-        <button
-          type="button"
-          style={mergeStyle('scaleButton')}
-          onClick={onReset}
-        >
-          Reset
+        <button type="button" style={mergeStyle('scaleButton')} onClick={onReset}>
+          {t('settings.scale.reset')}
         </button>
         <button
           type="button"
           style={mergeStyle('scaleButton')}
           onClick={() => handleStepper(1)}
-          aria-label="Increase UI scale"
+          aria-label={t('settings.scale.increase')}
         >
           +
         </button>

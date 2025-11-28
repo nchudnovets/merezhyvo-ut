@@ -3,6 +3,7 @@
 import React, { useEffect } from 'react';
 import type { CSSProperties } from 'react';
 import type { Mode, PasswordChangeMasterResult } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type Props = {
   open: boolean;
@@ -92,6 +93,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
   onSubmit,
   variant = 'change'
 }) => {
+  const { t } = useI18n();
   const isMobile = mode === 'mobile';
   const [current, setCurrent] = React.useState('');
   const [next, setNext] = React.useState('');
@@ -117,25 +119,24 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
   }, [open]);
 
   if (!open) return null;
-
   const strength = computeStrength(next);
-  const headingText = isCreate ? 'Create master password' : 'Change master password';
+  const headingText = isCreate ? t('passwords.heading.create') : t('passwords.heading.change');
   const descriptionText = isCreate
-    ? 'Create a master password to secure your vault.'
-    : 'Update the password that unlocks your vault.';
+    ? t('passwords.description.create')
+    : t('passwords.description.change');
 
   const handleSubmit = async () => {
     setValidationError(null);
     if (!isCreate && !current.trim()) {
-      setValidationError('Current password is required');
+      setValidationError(t('passwords.validation.currentRequired'));
       return;
     }
     if (!next) {
-      setValidationError('New password is required');
+      setValidationError(t('passwords.validation.newRequired'));
       return;
     }
     if (next !== confirm) {
-      setValidationError('Passwords do not match');
+      setValidationError(t('passwords.validation.match'));
       return;
     }
     try {
@@ -213,7 +214,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
         )}
         {!isCreate && (
           <div>
-            <label style={{ ...labelStyle, fontSize: labelFontSize }}>Current master password</label>
+            <label style={{ ...labelStyle, fontSize: labelFontSize }}>{t('passwords.current')}</label>
             <div style={{ position: 'relative' }}>
               <input
                 type={showCurrent ? 'text' : 'password'}
@@ -228,9 +229,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
           </div>
         )}
         <div>
-          <label style={{ ...labelStyle, fontSize: labelFontSize }}>
-            {isCreate ? 'Master password' : 'New master password'}
-          </label>
+          <label style={{ ...labelStyle, fontSize: labelFontSize }}>{t('passwords.new')}</label>
           <div style={{ position: 'relative' }}>
             <input
               type={showNext ? 'text' : 'password'}
@@ -239,18 +238,18 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
               style={inputStyle}
             />
             <button type="button" onClick={() => setShowNext((prev) => !prev)} style={toggleButtonStyle}>
-              {showNext ? 'Hide' : 'Reveal'}
+              {showNext ? t('passwords.hide') : t('passwords.show')}
             </button>
           </div>
           <div style={{ marginTop: '6px', color: '#cbd5f5', fontSize: isMobile ? '38px' : '12px' }}>
-            Strength: {strength.label}
+            {t('passwords.strength', { label: strength.label })}
           </div>
           <div style={strengthBarStyle}>
             <div style={strengthInnerStyle} />
           </div>
         </div>
         <div>
-          <label style={{ ...labelStyle, fontSize: labelFontSize }}>Confirm password</label>
+          <label style={{ ...labelStyle, fontSize: labelFontSize }}>{t('passwords.confirm')}</label>
           <div style={{ position: 'relative' }}>
             <input
               type={showConfirm ? 'text' : 'password'}
@@ -259,7 +258,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
               style={inputStyle}
             />
             <button type="button" onClick={() => setShowConfirm((prev) => !prev)} style={toggleButtonStyle}>
-              {showConfirm ? 'Hide' : 'Reveal'}
+              {showConfirm ? t('passwords.hide') : t('passwords.show')}
             </button>
           </div>
         </div>
@@ -278,7 +277,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
               fontSize: isMobile ? '38px' : '14px'
             }}
           >
-            Cancel
+            {t('passwords.cancel')}
           </button>
           <button
             type="button"

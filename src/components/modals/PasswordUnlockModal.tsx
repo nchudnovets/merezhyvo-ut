@@ -2,6 +2,7 @@
 
 import React, { type CSSProperties, useEffect } from 'react';
 import type { Mode } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 
 const overlayStyle: CSSProperties = {
   position: 'fixed',
@@ -76,11 +77,11 @@ type Props = {
 };
 
 const keepOptions = [
-  { label: '1 minute', value: 1 },
-  { label: '5 minutes', value: 5 },
-  { label: '15 minutes', value: 15 },
-  { label: '60 minutes', value: 60 },
-  { label: 'Until quit', value: 0 }
+  { key: 'passwordUnlock.keep.1', value: 1 },
+  { key: 'passwordUnlock.keep.5', value: 5 },
+  { key: 'passwordUnlock.keep.15', value: 15 },
+  { key: 'passwordUnlock.keep.60', value: 60 },
+  { key: 'passwordUnlock.keep.untilQuit', value: 0 }
 ];
 
 const PasswordUnlockModal: React.FC<Props> = ({
@@ -93,6 +94,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
   submitting,
   defaultDuration
 }) => {
+  const { t } = useI18n();
   const [master, setMaster] = React.useState('');
   const [showPassword, setShowPassword] = React.useState(false);
   const [duration, setDuration] = React.useState<number>(defaultDuration);
@@ -177,12 +179,12 @@ const PasswordUnlockModal: React.FC<Props> = ({
     <div style={overlayStyle} role="dialog" aria-modal="true">
       <div style={computedSheetStyle}>
         <div>
-          <h2 style={headingStyle}>Unlock passwords</h2>
+          <h2 style={headingStyle}>{t('passwordUnlock.heading')}</h2>
           <p style={paragraphStyle}>
-            {payload?.siteName ? `for ${payload.siteName}` : 'Enter your master password'}
+            {payload?.siteName ? t('passwordUnlock.desc.site', { site: payload.siteName }) : t('passwordUnlock.desc.default')}
           </p>
         </div>
-        <label style={computedLabelStyle}>Master password</label>
+        <label style={computedLabelStyle}>{t('passwords.current')}</label>
         <div style={{ position: 'relative' }}>
           <input
             type={showPassword ? 'text' : 'password'}
@@ -195,11 +197,11 @@ const PasswordUnlockModal: React.FC<Props> = ({
             onClick={() => setShowPassword((prev) => !prev)}
             style={toggleButtonStyle}
           >
-            {showPassword ? 'Hide' : 'Reveal'}
+            {showPassword ? t('passwords.hide') : t('passwords.show')}
           </button>
         </div>
         <div style={{ position: 'relative' }}>
-          <label style={computedLabelStyle}>Keep unlocked for</label>
+          <label style={computedLabelStyle}>{t('passwordUnlock.label.duration')}</label>
           <select
             value={duration}
             onChange={(event) => setDuration(Number(event.target.value))}
@@ -207,7 +209,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
           >
             {keepOptions.map((option) => (
               <option key={option.value} value={option.value}>
-                {option.label}
+                {t(option.key)}
               </option>
             ))}
           </select>
@@ -219,7 +221,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
             style={{ ...computedButtonStyle, background: 'transparent', border: '1px solid rgba(148, 163, 184, 0.4)', color: '#cbd5f5' }}
             onClick={onClose}
           >
-            Cancel
+            {t('passwords.cancel')}
           </button>
           <button
             type="button"
@@ -227,7 +229,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
             onClick={handleUnlock}
             disabled={submitting || !master.trim()}
           >
-            {submitting ? 'Unlocking…' : 'Unlock'}
+            {submitting ? t('passwordUnlock.button.unlocking') : t('passwordUnlock.button.unlock')}
           </button>
         </div>
       </div>
