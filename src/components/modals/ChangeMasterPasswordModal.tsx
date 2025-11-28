@@ -197,8 +197,8 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
     background: strength.color,
     transition: 'width 0.2s ease'
   };
-  const primaryLabel = isCreate ? 'Create master password' : 'Change master password';
-  const submittingLabel = isCreate ? 'Creating…' : 'Changing…';
+  const primaryLabel = isCreate ? t('passwords.submit.create') : t('passwords.submit.change');
+  const submittingLabel = isCreate ? t('passwords.submitting.create') : t('passwords.submitting.change');
 
   return (
     <div style={overlayStyle} role="dialog" aria-modal="true">
@@ -223,7 +223,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
                 style={inputStyle}
               />
               <button type="button" onClick={() => setShowCurrent((prev) => !prev)} style={toggleButtonStyle}>
-                {showCurrent ? 'Hide' : 'Reveal'}
+                {showCurrent ? t('passwords.hide') : t('passwords.show')}
               </button>
             </div>
           </div>

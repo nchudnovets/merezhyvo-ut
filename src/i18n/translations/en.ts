@@ -91,6 +91,25 @@ const en = {
   'passwordUnlock.keep.untilQuit': 'Until quit',
   'passwordUnlock.button.unlock': 'Unlock',
   'passwordUnlock.button.unlocking': 'Unlocking…'
+  ,
+  'passwordSettings.status.unavailable': 'Passwords service unavailable',
+  'passwordSettings.status.locked': 'Passwords are locked. Unlock to edit settings.',
+  'passwordSettings.status.createMaster': 'Create a master password to get started',
+  'passwordSettings.status.loadError': 'Unable to load password settings',
+  'passwordSettings.status.updated': 'Settings updated',
+  'passwordSettings.toast.created': 'Master password created',
+  'passwordSettings.toast.updated': 'Master password updated',
+  'passwordSettings.error.change': 'Unable to change master password'
+  ,
+  'passwordSettings.toggle.saveAndFill': 'Save and fill passwords (beta)',
+  'passwordSettings.toggle.offerToSave': 'Offer to save passwords',
+  'passwordSettings.toggle.disallowHttp': 'Never save on HTTP (insecure)',
+  'passwordSettings.label.autoLock': 'Auto-lock after',
+  'passwordSettings.button.changeMaster': 'Change master password…',
+  'passwordSettings.button.createMaster': 'Create master password…',
+  'passwordSettings.button.lockNow': 'Lock now',
+  'passwordSettings.button.unlock': 'Unlock',
+  'passwordSettings.button.manage': 'Manage passwords…'
 } as const;
 
 export type EnglishTranslationKeys = keyof typeof en;

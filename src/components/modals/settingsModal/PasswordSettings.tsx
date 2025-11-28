@@ -2,16 +2,17 @@
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { Mode, PasswordSettings, PasswordStatus, PasswordChangeMasterResult } from '../../../types/models';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import ChangeMasterPasswordModal from '../ChangeMasterPasswordModal';
 
-const LOCK_OPTIONS: Array<{ value: number; label: string }> = [
-  { value: 1, label: '1 minute' },
-  { value: 5, label: '5 minutes' },
-  { value: 15, label: '15 minutes' },
-  { value: 60, label: '60 minutes' },
-  { value: 0, label: 'On app exit' }
+const LOCK_OPTIONS: Array<{ value: number; key: string }> = [
+  { value: 1, key: 'passwordUnlock.keep.1' },
+  { value: 5, key: 'passwordUnlock.keep.5' },
+  { value: 15, key: 'passwordUnlock.keep.15' },
+  { value: 60, key: 'passwordUnlock.keep.60' },
+  { value: 0, key: 'passwordUnlock.keep.untilQuit' }
 ];
 
 type Props = {
@@ -24,6 +25,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const isMobile = mode === 'mobile';
+  const { t } = useI18n();
   const [settings, setSettings] = useState<PasswordSettings | null>(null);
   const [status, setStatus] = useState<string | null>(null);
   const [statusInfo, setStatusInfo] = useState<PasswordStatus | null>(null);
@@ -56,7 +58,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   const refreshStatus = useCallback(async () => {
     const api = window.merezhyvo?.passwords;
     if (!api) {
-      setStatus('Passwords service unavailable');
+      setStatus(t('passwordSettings.status.unavailable'));
       return;
     }
     try {
@@ -72,14 +74,14 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           setStatus(null);
         } else {
           setSettings(null);
-          setStatus('Passwords are locked. Unlock to edit settings.');
+          setStatus(t('passwordSettings.status.locked'));
         }
       } else {
         setSettings(null);
-        setStatus('Create a master password to get started');
+        setStatus(t('passwordSettings.status.createMaster'));
       }
     } catch {
-      setStatus('Unable to load password settings');
+      setStatus(t('passwordSettings.status.loadError'));
       setStatusInfo(null);
     }
   }, []);
@@ -98,7 +100,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         setStatus(result.error);
       } else {
         setSettings(result);
-        setStatus('Settings updated');
+        setStatus(t('passwordSettings.status.updated'));
       }
     } catch (err) {
       setStatus(String(err));
@@ -122,7 +124,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
     const api = window.merezhyvo?.passwords;
     if (!api) return;
     await api.lock();
-    setStatus('Passwords locked');
+        setStatus(t('passwordSettings.status.locked'));
   };
 
   const hasMaster = statusInfo?.hasMaster ?? false;
@@ -137,7 +139,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   const handleChangeMasterSubmit = async (current: string, next: string): Promise<PasswordChangeMasterResult> => {
     const api = window.merezhyvo?.passwords;
     if (!api) {
-      const err = 'Passwords service unavailable';
+      const err = t('passwordSettings.status.unavailable');
       setChangeError(err);
       return { error: err };
     }
@@ -152,12 +154,12 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         setChangeModalOpen(false);
         await refreshStatus();
         const message = modalVariant === 'create'
-          ? 'Master password created'
-          : 'Master password updated';
+          ? t('passwordSettings.toast.created')
+          : t('passwordSettings.toast.updated');
         setStatus(message);
         dispatchPasswordToast(message);
       } else {
-        setChangeError(result.error ?? 'Unable to change master password');
+        setChangeError(result.error ?? t('passwordSettings.error.change'));
       }
       return result;
     } catch (err) {
@@ -201,7 +203,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   return (
     <div style={styles.passwordSettings}>
       <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>Save and fill passwords (beta)</span>
+        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.saveAndFill')}</span>
         <input
           type="checkbox"
           checked={settings?.saveAndFill ?? false}
@@ -211,7 +213,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         />
       </label>
       <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>Offer to save passwords</span>
+        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.offerToSave')}</span>
         <input
           type="checkbox"
           checked={settings?.offerToSave ?? false}
@@ -221,7 +223,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         />
       </label>
       <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>Never save on HTTP (insecure)</span>
+        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.disallowHttp')}</span>
         <input
           type="checkbox"
           checked={settings?.disallowHttp ?? false}
@@ -231,7 +233,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         />
       </label>
       <div style={rowStyle}>
-        <span style={toggleLabelStyle}>Auto-lock after</span>
+        <span style={toggleLabelStyle}>{t('passwordSettings.label.autoLock')}</span>
         <select
           value={settings?.autoLockMinutes ?? 15}
           disabled={!settings || saving}
@@ -240,7 +242,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         >
           {LOCK_OPTIONS.map((option) => (
             <option key={option.value} value={option.value}>
-              {option.label}
+            {t(option.key)}
             </option>
           ))}
         </select>
@@ -253,7 +255,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
             onClick={handleChangeMasterPassword}
             disabled={changeButtonDisabled}
           >
-            {hasMaster ? 'Change master password…' : 'Create master password…'}
+            {hasMaster ? t('passwordSettings.button.changeMaster') : t('passwordSettings.button.createMaster')}
           </button>
         </div>
       )}
@@ -265,7 +267,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
             onClick={handleLockNow}
             disabled={lockButtonDisabled}
           >
-            Lock now
+            {t('passwordSettings.button.lockNow')}
           </button>
         </div>
       )}
@@ -277,19 +279,19 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
             onClick={() => onRequestUnlock(true)}
             disabled={saving}
           >
-            Unlock
+            {t('passwordSettings.button.unlock')}
           </button>
         </div>
       )}
       <div style={linkRowStyle}>
-        <button
-          type="button"
-          style={{ ...linkButtonStyle, ...(isPasswordsLocked || !hasMaster ? styles.settingsLinkButtonDisabled : {}) }}
-          onClick={onManagePasswords}
-          disabled={isPasswordsLocked || !hasMaster}
-        >
-          Manage passwords…
-        </button>
+          <button
+            type="button"
+            style={{ ...linkButtonStyle, ...(isPasswordsLocked || !hasMaster ? styles.settingsLinkButtonDisabled : {}) }}
+            onClick={onManagePasswords}
+            disabled={isPasswordsLocked || !hasMaster}
+          >
+            {t('passwordSettings.button.manage')}
+          </button>
       </div>
       {status && (
         <p
