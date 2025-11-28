@@ -10,11 +10,13 @@ import React, {
 import type { LocaleInfo } from './locales';
 import { AVAILABLE_LOCALES, DEFAULT_LOCALE } from './locales';
 import enTranslations from './translations/en';
+import ukTranslations from './translations/uk';
 
 type LocaleDictionary = Record<string, string>;
 
 const localeLoaders: Record<string, () => Promise<LocaleDictionary>> = {
-  en: async () => enTranslations
+  en: async () => enTranslations,
+  uk: async () => ukTranslations
 };
 
 const interpolate = (
