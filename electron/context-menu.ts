@@ -108,8 +108,7 @@ function item(label: string, id: string, opts: MenuItemOptions = {}): HTMLDivEle
         }
       }
     },
-    label,
-    opts.kbd ? el('span', { class: 'kbd' }, opts.kbd) : null
+    label
   );
 }
 
