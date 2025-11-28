@@ -11,6 +11,7 @@ import type {
 } from '../../types/models';
 import { passwordsStyles } from './passwordsStyles';
 import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
+import { useI18n } from '../../i18n/I18nProvider';
 
 type PasswordsPageProps = {
   mode: Mode;
@@ -27,15 +28,6 @@ const getSiteName = (origin: string): string => {
   } catch {
     return origin;
   }
-};
-
-const getRelativeTime = (timestamp?: number): string => {
-  if (!timestamp) return 'Never used';
-  const deltaSeconds = Math.round((Date.now() - timestamp) / 1000);
-  if (deltaSeconds < 60) return 'Just now';
-  if (deltaSeconds < 3600) return `${Math.floor(deltaSeconds / 60)} minutes ago`;
-  if (deltaSeconds < 86400) return `${Math.floor(deltaSeconds / 3600)} hours ago`;
-  return `${Math.floor(deltaSeconds / 86400)} days ago`;
 };
 
 const groupEntries = (
@@ -102,6 +94,7 @@ const formatTimestampFilename = (suffix: string) => {
 
 const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
   const isMobile = mode === 'mobile';
+  const { t } = useI18n();
   const [entries, setEntries] = useState<PasswordEntryMeta[]>([]);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(true);
@@ -140,6 +133,18 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
   const overflowRef = useRef<HTMLDivElement | null>(null);
   const [expandedEntryId, setExpandedEntryId] = useState<string | null>(null);
   const [revealedPasswords, setRevealedPasswords] = useState<Record<string, string>>({});
+
+  const getRelativeTime = useCallback(
+    (timestamp?: number): string => {
+      if (!timestamp) return t('passwords.page.time.never');
+      const deltaSeconds = Math.round((Date.now() - timestamp) / 1000);
+      if (deltaSeconds < 60) return t('passwords.page.time.justNow');
+      if (deltaSeconds < 3600) return t('passwords.page.time.minutes', { count: Math.floor(deltaSeconds / 60) });
+      if (deltaSeconds < 86400) return t('passwords.page.time.hours', { count: Math.floor(deltaSeconds / 3600) });
+      return t('passwords.page.time.days', { count: Math.floor(deltaSeconds / 86400) });
+    },
+    [t]
+  );
 
   const showToast = (message: string): void => {
     setToast(message);
@@ -231,7 +236,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     clearBanner();
     const choice = await requestFileDialog({
       kind: 'file',
-      title: 'Import passwords (CSV)',
+      title: t('passwords.page.importCsv.title'),
       allowMultiple: false,
       filters: ['csv']
     });
@@ -240,11 +245,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     try {
       const content = await window.merezhyvo?.fileDialog?.readFile?.({ path });
       if (typeof content !== 'string') {
-        throw new Error('Unable to read file');
+        throw new Error(t('passwords.page.import.error.read'));
       }
       const preview = await window.merezhyvo?.passwords?.import.csv.preview(content);
       if (!preview) {
-        throw new Error('Unable to preview CSV');
+        throw new Error(t('passwords.page.import.error.preview'));
       }
       setImportCsvDialog({
         open: true,
@@ -256,7 +261,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
         content
       });
     } catch {
-      showBanner("Couldn’t import this file. It doesn’t look like a passwords CSV.");
+      showBanner(t('passwords.page.import.error.invalid'));
     }
   };
 
@@ -267,11 +272,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       await window.merezhyvo?.passwords?.import.csv.apply(importCsvDialog.content, importCsvDialog.mode);
       clearBanner();
       clearBanner();
-      showToast('Import completed');
+      showToast(t('passwords.page.import.success'));
       closeImportCsvDialog();
       void refreshEntries();
     } catch {
-      showBanner("Couldn’t import this file. It doesn’t look like a passwords CSV.");
+      showBanner(t('passwords.page.import.error.invalid'));
     } finally {
       setImportCsvDialog((prev) => ({ ...prev, loading: false }));
     }
@@ -307,8 +312,8 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     setExportCsvDialog((prev) => ({ ...prev, loading: true }));
     try {
       const content = await window.merezhyvo?.passwords?.export.csv();
-      if (typeof content !== 'string') throw new Error('Unable to export CSV');
-      const folder = await pickFolder('Export passwords (CSV)');
+      if (typeof content !== 'string') throw new Error(t('passwords.page.export.error'));
+      const folder = await pickFolder(t('passwords.page.exportCsv.pickFolder'));
       if (!folder) {
         setExportCsvDialog((prev) => ({ ...prev, loading: false }));
         return;
@@ -316,10 +321,10 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       const fileName = formatTimestampFilename('csv');
       await saveFileToFolder(folder, fileName, content);
       clearBanner();
-      showToast(`Exported to ${fileName}`);
+      showToast(t('passwords.page.export.success', { fileName }));
       handleExportCsvCancel();
     } catch {
-      showBanner('Couldn’t export CSV');
+      showBanner(t('passwords.page.export.error'));
       setExportCsvDialog((prev) => ({ ...prev, loading: false }));
     }
   };
@@ -374,7 +379,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
 
   const handleCopyUsername = async (entry: PasswordEntryMeta) => {
     await copyToClipboard(entry.username);
-    showToast('Username copied');
+    showToast(t('passwords.page.toast.usernameCopied'));
   };
 
   const handleCopyPassword = async (entry: PasswordEntryMeta) => {
@@ -382,16 +387,16 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     if (!api) return;
     const status = await api.status();
     if (status.locked) {
-      showToast('Unlock passwords to copy');
+      showToast(t('passwords.page.toast.unlockToCopy'));
       return;
     }
     const result = await api.get(entry.id);
     if ('error' in result) {
-      showToast('Unable to retrieve password');
+      showToast(t('passwords.page.toast.unableRetrieve'));
       return;
     }
     await copyToClipboard(result.password);
-    showToast('Password copied (clears in 15s)');
+    showToast(t('passwords.page.toast.passwordCopied'));
     scheduleClipboardClear();
   };
 
@@ -415,7 +420,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
         setFormValues((prev) => ({ ...prev, password: result.password }));
       }
     } catch {
-      showToast('Unable to load password');
+      showToast(t('passwords.page.toast.loadError'));
     }
   };
 
@@ -461,7 +466,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       tags: parseTags(formValues.tags)
     };
     if (!payload.origin || !payload.username || !payload.password) {
-      showToast('Origin, username, and password are required');
+      showToast(t('passwords.page.toast.required'));
       return;
     }
     const api = window.merezhyvo?.passwords;
@@ -470,15 +475,15 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     try {
       if (modalMode === 'add') {
         await api.add(payload);
-        showToast('Password saved');
+        showToast(t('passwords.page.toast.saved'));
       } else if (currentEntry) {
         await api.update(currentEntry.id, payload);
-        showToast('Password updated');
+        showToast(t('passwords.page.toast.updated'));
       }
       void refreshEntries();
       closeModal();
     } catch {
-      showToast('Couldn’t save password');
+      showToast(t('passwords.page.toast.saveError'));
     } finally {
       setModalBusy(false);
     }
@@ -493,11 +498,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     setModalBusy(true);
     try {
       await api.remove(currentEntry.id);
-      showToast('Password deleted');
+      showToast(t('passwords.page.toast.deleted'));
       void refreshEntries();
       closeModal();
     } catch {
-      showToast('Couldn’t delete password');
+      showToast(t('passwords.page.toast.deleteError'));
     } finally {
       setModalBusy(false);
       setConfirmVisible(false);
@@ -510,7 +515,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
 
   const handleCopyPasswordModal = async () => {
     await copyToClipboard(formValues.password);
-    showToast('Password copied (clears in 15s)');
+    showToast(t('passwords.page.toast.passwordCopied'));
     scheduleClipboardClear();
   };
 
@@ -518,7 +523,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     const api = window.merezhyvo?.passwords;
     if (!api) return;
     await api.lock();
-    showToast('Passwords locked');
+    showToast(t('passwords.page.toast.locked'));
     setOverflowOpen(false);
   };
 
@@ -535,10 +540,10 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
     if (!api) return;
     try {
       await api.remove(entryId);
-      showToast('Password deleted');
+      showToast(t('passwords.page.toast.deleted'));
       void refreshEntries();
     } catch {
-      showToast('Couldn’t delete password');
+      showToast(t('passwords.page.toast.deleteError'));
     } finally {
       setDeleteRequestId(null);
     }
@@ -562,14 +567,14 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
         setRevealedPasswords((prev) => ({ ...prev, [entry.id]: result.password }));
       }
     } catch {
-      showToast('Unable to load password');
+      showToast(t('passwords.page.toast.loadError'));
     }
   };
 
   const handleRowOpen = (entry: PasswordEntryMeta) => {
     const target = entry.signonRealm || entry.origin;
     if (!target) {
-      showToast('No URL available');
+      showToast(t('passwords.page.entry.noUrl'));
       return;
     }
     openInTab(target);
@@ -664,7 +669,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
             isMobile ? passwordsStyles.headerTitleMobile : undefined
           )}
         >
-          Passwords
+          {t('passwords.page.title')}
         </h1>
         <div style={passwordsStyles.headerActions}>
           <button
@@ -693,7 +698,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   void handleImportCsvFile();
                 }}
               >
-                Import (CSV)…
+                {t('passwords.page.menu.import')}
               </div>
               <div
                 style={mergeStyle(
@@ -705,7 +710,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   handleExportCsvOpen();
                 }}
               >
-                Export (CSV)…
+                {t('passwords.page.menu.export')}
               </div>
               <div
                 style={mergeStyle(
@@ -714,7 +719,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 )}
                 onClick={handleLockNow}
               >
-                Lock now
+                {t('passwords.page.menu.lock')}
               </div>
             </div>
           )}
@@ -723,7 +728,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       <div style={passwordsStyles.searchBar}>
         <input
           type="text"
-          placeholder="Search sites and usernames…"
+          placeholder={t('passwords.page.search.placeholder')}
           value={search}
           onChange={handleSearchChange}
           style={searchInputStyle}
@@ -742,16 +747,16 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       )}
       <div style={passwordsStyles.list}>
         {loading ? (
-          <div style={passwordsStyles.loading}>Loading passwords…</div>
+          <div style={passwordsStyles.loading}>{t('passwords.page.loading')}</div>
         ) : isEmpty ? (
           <div style={passwordsStyles.emptyState}>
-            <div style={emptyTitleStyle}>No passwords saved yet</div>
+            <div style={emptyTitleStyle}>{t('passwords.page.empty.title')}</div>
             <button
               type="button"
               style={passwordsStyles.emptyAction}
               onClick={() => openModal('add')}
             >
-              Add password
+              {t('passwords.page.empty.action')}
             </button>
           </div>
         ) : (
@@ -765,7 +770,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 <span style={mergeStyle(
                   passwordsStyles.groupMeta,
                   { fontSize: isMobile ? '38px' : '18px' }
-                )}>{group.entries.length} accounts</span>
+                )}>{t('passwords.page.group.accounts', { count: group.entries.length })}</span>
               </div>
               {group.entries.map((entry) => {
                 const isExpanded = expandedEntryId === entry.id;
@@ -807,7 +812,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                               isMobile ? passwordsStyles.entryDetailTextMobile : undefined
                             )}
                           >
-                            Username: {entry.username}
+                            {t('passwords.page.entry.usernameLabel', { username: entry.username })}
                           </span>
                           {revealed ? (
                             <span
@@ -816,7 +821,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                                 isMobile ? passwordsStyles.entryDetailTextMobile : undefined
                               )}
                             >
-                              Password: {revealed}
+                              {t('passwords.page.entry.passwordLabel', { password: revealed })}
                             </span>
                           ) : (
                             <button
@@ -824,7 +829,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                               style={entryActionButtonStyle}
                               onClick={() => handleRevealPassword(entry)}
                             >
-                              Show password
+                              {t('passwords.page.entry.showPassword')}
                             </button>
                           )}
                         </div>
@@ -839,35 +844,35 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                             style={entryActionButtonStyle}
                             onClick={() => handleRowOpen(entry)}
                           >
-                            Open
+                            {t('passwords.page.entry.open')}
                           </button>
                           <button
                             type="button"
                             style={entryActionButtonStyle}
                             onClick={() => handleCopyUsername(entry)}
                           >
-                            Copy username
+                            {t('passwords.page.entry.copyUsername')}
                           </button>
                           <button
                             type="button"
                             style={entryActionButtonStyle}
                             onClick={() => handleCopyRowPassword(entry)}
                           >
-                            Copy password
+                            {t('passwords.page.entry.copyPassword')}
                           </button>
                           <button
                             type="button"
                             style={entryActionButtonStyle}
                             onClick={() => openModal('edit', entry)}
                           >
-                            Edit
+                            {t('passwords.page.entry.edit')}
                           </button>
                           <button
                             type="button"
                             style={deleteEntryButtonStyle}
                             onClick={() => handleDeleteRequest(entry.id)}
                           >
-                            Delete
+                            {t('passwords.page.entry.delete')}
                           </button>
                         </div>
                         {deleteRequestId === entry.id && (
@@ -883,7 +888,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                                 isMobile ? passwordsStyles.deleteConfirmationTextMobile : undefined
                               )}
                             >
-                              Are you sure you want to delete this password?
+                              {t('passwords.page.entry.deleteConfirm')}
                             </span>
                             <div style={passwordsStyles.deleteConfirmationActions}>
                               <button
@@ -891,14 +896,14 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                                 style={deleteCancelButtonStyle}
                                 onClick={handleCancelDelete}
                               >
-                                Cancel
+                                {t('passwords.page.confirm.cancel')}
                               </button>
                               <button
                                 type="button"
                                 style={deleteConfirmButtonStyle}
                                 onClick={() => handleConfirmDelete(entry.id)}
                               >
-                                Delete
+                                {t('passwords.page.confirm.delete')}
                               </button>
                             </div>
                           </div>
@@ -911,7 +916,9 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                             )}
                           >
                             {entry.notes}
-                            {entry.tags && entry.tags.length ? ` · Tags: ${entry.tags.join(', ')}` : ''}
+                            {entry.tags && entry.tags.length
+                              ? ` · ${t('passwords.page.entry.tags', { tags: entry.tags.join(', ') })}`
+                              : ''}
                           </div>
                         )}
                         <div
@@ -920,7 +927,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                             isMobile ? passwordsStyles.entryDetailTextMobile : undefined
                           )}
                         >
-                          Last used {getRelativeTime(entry.lastUsedAt)}
+                          {t('passwords.page.entry.lastUsed', { time: getRelativeTime(entry.lastUsedAt) })}
                         </div>
                       </div>
                     )}
@@ -941,11 +948,13 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
         >
             <div style={passwordsStyles.modalHeader}>
               <h2 style={modalTitleStyle}>
-                {modalMode === 'add' ? 'Add password' : 'Edit password'}
+                {modalMode === 'add'
+                  ? t('passwords.page.modal.addTitle')
+                  : t('passwords.page.modal.editTitle')}
               </h2>
               <button
                 type="button"
-                aria-label="Close modal"
+                aria-label={t('passwords.page.modal.close')}
                 style={modalCloseStyle}
                 onClick={closeModal}
               >
@@ -953,22 +962,22 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
               </button>
             </div>
             <div style={passwordsStyles.modalForm}>
-              <label style={modalLabelStyle}>Website</label>
+              <label style={modalLabelStyle}>{t('passwords.page.modal.website')}</label>
                 <input
                   type="text"
                   value={formValues.origin}
                   onChange={handleFormChange('origin')}
                   style={modalInputStyle}
-                  placeholder="https://example.com"
+                  placeholder={t('passwords.page.modal.placeholder.url')}
                 />
-              <label style={modalLabelStyle}>Username</label>
+              <label style={modalLabelStyle}>{t('passwords.page.modal.username')}</label>
               <input
                 type="text"
                 value={formValues.username}
                 onChange={handleFormChange('username')}
                 style={modalInputStyle}
               />
-              <label style={modalLabelStyle}>Password</label>
+              <label style={modalLabelStyle}>{t('passwords.page.modal.password')}</label>
               <div style={{ display: 'flex', gap: '8px' }}>
                 <input
                   type={showPassword ? 'text' : 'password'}
@@ -981,23 +990,23 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   style={secondaryButtonStyle}
                   onClick={() => setShowPassword((prev) => !prev)}
                 >
-                  {showPassword ? 'Hide' : 'Reveal'}
+                  {showPassword ? t('passwords.page.modal.hide') : t('passwords.page.modal.reveal')}
                 </button>
                 <button
                   type="button"
                   style={secondaryButtonStyle}
                   onClick={handleCopyPasswordModal}
                 >
-                  Copy
+                  {t('passwords.page.modal.copy')}
                 </button>
               </div>
-              <label style={modalLabelStyle}>Notes</label>
+              <label style={modalLabelStyle}>{t('passwords.page.modal.notes')}</label>
               <textarea
                 value={formValues.notes}
                 onChange={handleFormChange('notes')}
                 style={{ ...modalInputStyle, ...passwordsStyles.modalTextarea }}
               />
-              <label style={modalLabelStyle}>Tags (comma separated)</label>
+              <label style={modalLabelStyle}>{t('passwords.page.modal.tags')}</label>
               <input
                 type="text"
                 value={formValues.tags}
@@ -1012,7 +1021,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   onClick={promptDelete}
                   disabled={modalBusy}
                 >
-                  Delete
+                  {t('passwords.page.modal.delete')}
                   </button>
                 )}
                 <button
@@ -1021,7 +1030,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   onClick={handleSave}
                   disabled={modalBusy}
                 >
-                  Save
+                  {t('passwords.page.modal.save')}
                 </button>
               <button
                 type="button"
@@ -1029,7 +1038,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={closeModal}
                 disabled={modalBusy}
               >
-                  Cancel
+                  {t('passwords.page.modal.cancel')}
                 </button>
               </div>
             </div>
@@ -1052,11 +1061,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   isMobile ? { fontSize: '38px' } : undefined
                 )}
               >
-                Import passwords (CSV)
+                {t('passwords.page.importCsv.title')}
               </h2>
               <button
                 type="button"
-                aria-label="Close modal"
+                aria-label={t('passwords.page.modal.close')}
                 style={passwordsStyles.modalClose}
                 onClick={closeImportCsvDialog}
               >
@@ -1064,7 +1073,10 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
               </button>
             </div>
             <p style={{ fontSize: isMobile ? '38px' : '14px' }}>
-              Found {importCsvDialog.valid}/{importCsvDialog.total} valid rows
+              {t('passwords.page.importCsv.found', {
+                valid: importCsvDialog.valid,
+                total: importCsvDialog.total
+              })}
             </p>
             <div style={{ display: 'flex', gap: '10px', marginBottom: '12px' }}>
               {['add', 'replace'].map((modeOption) => {
@@ -1081,14 +1093,19 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                     onClick={() => setImportCsvMode(modeOption as PasswordImportMode)}
                     style={mergeStyle(secondaryButtonStyle, extraStyle)}
                   >
-                    {modeOption === 'add' ? 'Add' : 'Replace all'}
+                    {modeOption === 'add'
+                      ? t('passwords.page.importCsv.mode.add')
+                      : t('passwords.page.importCsv.mode.replace')}
                   </button>
                 );
               })}
             </div>
             {importCsvDialog.sample && (
               <div style={{ fontSize: isMobile ? '30px' : '14px', marginBottom: '12px' }}>
-                Sample: {importCsvDialog.sample.username} · {importCsvDialog.sample.url}
+                {t('passwords.page.importCsv.sample', {
+                  username: importCsvDialog.sample.username,
+                  url: importCsvDialog.sample.url
+                })}
               </div>
             )}
             <div style={modalActionsStyle}>
@@ -1098,7 +1115,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={closeImportCsvDialog}
                 disabled={importCsvDialog.loading}
               >
-                Cancel
+                {t('passwords.page.importCsv.cancel')}
               </button>
               <button
                 type="button"
@@ -1106,7 +1123,9 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={handleApplyImportCsv}
                 disabled={importCsvDialog.loading}
               >
-                {importCsvDialog.loading ? 'Importing…' : 'Import'}
+                {importCsvDialog.loading
+                  ? t('passwords.page.importCsv.loading')
+                  : t('passwords.page.importCsv.submit')}
               </button>
             </div>
           </div>
@@ -1128,11 +1147,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                   isMobile ? { fontSize: '38px' } : undefined
                 )}
               >
-                Export CSV (plaintext)
+                {t('passwords.page.exportCsv.title')}
               </h2>
               <button
                 type="button"
-                aria-label="Close modal"
+                aria-label={t('passwords.page.modal.close')}
                 style={passwordsStyles.modalClose}
                 onClick={handleExportCsvCancel}
               >
@@ -1140,7 +1159,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
               </button>
             </div>
             <p style={{ fontSize: isMobile ? '38px' : '14px' }}>
-              The CSV file includes your passwords in plaintext. Keep it secure.
+              {t('passwords.page.exportCsv.description')}
             </p>
             <label
               style={{
@@ -1159,7 +1178,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 }
                 style={{ width: isMobile ? '35px' : '16px', height: isMobile ? '35px' : '16px' }}
               />
-              I understand the risks
+              {t('passwords.page.exportCsv.ack')}
             </label>
             <div style={modalActionsStyle}>
               <button
@@ -1168,7 +1187,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={handleExportCsvCancel}
                 disabled={exportCsvDialog.loading}
               >
-                Cancel
+                {t('passwords.page.exportCsv.cancel')}
               </button>
               <button
                 type="button"
@@ -1176,7 +1195,9 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={handleExportCsvConfirm}
                 disabled={!exportCsvDialog.acknowledged || exportCsvDialog.loading}
               >
-                {exportCsvDialog.loading ? 'Exporting…' : 'Export'}
+                {exportCsvDialog.loading
+                  ? t('passwords.page.exportCsv.loading')
+                  : t('passwords.page.exportCsv.submit')}
               </button>
             </div>
           </div>
@@ -1185,8 +1206,8 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
       {confirmVisible && (
         <div style={passwordsStyles.confirmOverlay} onClick={() => setConfirmVisible(false)}>
           <div style={passwordsStyles.confirmBox} onClick={(event) => event.stopPropagation()}>
-            <div style={passwordsStyles.confirmTitle}>Delete password?</div>
-            <div>Are you sure you want to delete this entry? This cannot be undone.</div>
+            <div style={passwordsStyles.confirmTitle}>{t('passwords.page.confirm.title')}</div>
+            <div>{t('passwords.page.confirm.message')}</div>
             <div style={passwordsStyles.confirmActions}>
               <button
                 type="button"
@@ -1194,7 +1215,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={() => setConfirmVisible(false)}
                 disabled={modalBusy}
               >
-                Cancel
+                {t('passwords.page.confirm.cancel')}
               </button>
               <button
                 type="button"
@@ -1202,7 +1223,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
                 onClick={handleDelete}
                 disabled={modalBusy}
               >
-                Delete
+                {t('passwords.page.confirm.delete')}
               </button>
             </div>
           </div>
