@@ -71,27 +71,29 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   if (!isGeoReq(ev.data)) return;
 
   const d = ev.data;
-  const origin = window.location.origin;
+  // const origin = window.location.origin;
+
+  // paused: disable geo logging and softRequest while geo perms feature is on hold
+  // try {
+  //   await ipcRenderer.invoke(
+  //     'mzr:geo:log',
+  //     `preload: req kind=${d.kind ?? 'get'} origin=${origin}`,
+  //   );
+  // } catch {}
 
   try {
-    await ipcRenderer.invoke(
-      'mzr:geo:log',
-      `preload: req kind=${d.kind ?? 'get'} origin=${origin}`,
-    );
-  } catch {}
-
-  try {
-    const allowed: boolean = await ipcRenderer.invoke(
-      'mzr:perms:softRequest',
-      { origin, types: ['geolocation'] },
-    );
+    // const allowed: boolean = await ipcRenderer.invoke(
+    //   'mzr:perms:softRequest',
+    //   { origin, types: ['geolocation'] },
+    // );
+    const allowed = false;
 
     if (!allowed) {
-      try { await ipcRenderer.invoke('mzr:geo:log', 'preload: denied by softRequest'); } catch {}
-      window.postMessage(
-        { channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 1, errorMessage: 'Permission denied' },
-        '*',
-      );
+      // try { await ipcRenderer.invoke('mzr:geo:log', 'preload: denied by softRequest'); } catch {}
+      // window.postMessage(
+      //   { channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 1, errorMessage: 'Permission denied' },
+      //   '*',
+      // );
       return;
     }
 
@@ -122,7 +124,7 @@ window.addEventListener('message', async (ev: MessageEvent) => {
       );
     }
   } catch (e) {
-    try { await ipcRenderer.invoke('mzr:geo:log', `preload: error ${String(e)}`); } catch {}
+    // try { await ipcRenderer.invoke('mzr:geo:log', `preload: error ${String(e)}`); } catch {}
     window.postMessage(
       { channel: 'MZR_GEO_RES', id: d.id, ok: false, errorCode: 2, errorMessage: String(e) },
       '*',
