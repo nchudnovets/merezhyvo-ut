@@ -12,13 +12,15 @@ import { AVAILABLE_LOCALES, DEFAULT_LOCALE } from './locales';
 import enTranslations from './translations/en';
 import ukTranslations from './translations/uk';
 import deTranslations from './translations/de';
+import frTranslations from './translations/fr';
 
 type LocaleDictionary = Record<string, string>;
 
 const localeLoaders: Record<string, () => Promise<LocaleDictionary>> = {
   en: async () => enTranslations,
   uk: async () => ukTranslations,
-  de: async () => deTranslations
+  de: async () => deTranslations,
+  fr: async () => frTranslations
 };
 
 const interpolate = (

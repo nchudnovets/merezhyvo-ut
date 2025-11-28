@@ -4,6 +4,7 @@ import { ipcRenderer } from 'electron';
 import en from '../src/i18n/translations/en';
 import uk from '../src/i18n/translations/uk';
 import de from '../src/i18n/translations/de';
+import fr from '../src/i18n/translations/fr';
 import { getI18n } from '../src/i18n/rendererI18n';
 
 let renderLock = false;
@@ -11,7 +12,8 @@ let currentLanguage = 'en';
 const dictionaries: Record<string, Record<string, string>> = {
   en: en as unknown as Record<string, string>,
   uk: uk as unknown as Record<string, string>,
-  de: de as unknown as Record<string, string>
+  de: de as unknown as Record<string, string>,
+  fr: fr as unknown as Record<string, string>
 };
 
 const t = (key: string): string => {
