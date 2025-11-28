@@ -10,6 +10,7 @@ import type { CSSProperties } from 'react';
 import type { Mode, Tab } from '../../../types/models';
 import { tabsPanelStyles } from './tabsPanelStyles';
 import { tabsPanelModeStyles } from './tabsPanelModeStyles';
+import { useI18n } from '../../../i18n/I18nProvider';
 import { styles as baseStyles } from '../../../styles/styles';
 
 interface TabsPanelProps {
@@ -465,6 +466,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
   const [searchOpen, setSearchOpen] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const searchInputRef = useRef<HTMLInputElement | null>(null);
+  const { t } = useI18n();
 
   useEffect(() => {
     if (!searchOpen) return;
@@ -632,7 +634,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                 ...(modeStyles.tabsPanelTitle || {})
               }}
             >
-              Tabs
+              {t('tabs.title')}
             </h2>
               <div
                 style={{
@@ -651,7 +653,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                     onOpenBookmarks();
                   }}
                 >
-                  ⭐ Bookmarks
+                  ⭐ {t('tabs.openBookmarks')}
                 </button>
                 <button
                   type="button"
@@ -664,7 +666,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                     onOpenHistory();
                   }}
                 >
-                  🕘 History
+                  🕘 {t('tabs.openHistory')}
                 </button>
               </div>
           </div>
@@ -725,7 +727,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                   d="M8 3v10M3 8h10"
                 />
               </svg>
-              <span>New Tab</span>
+              <span>{t('tabs.newTab')}</span>
             </button>
           )}
           <button
@@ -790,7 +792,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                   ...(modeStyles.tabsSectionTitle || {})
                 }}
               >
-                Pinned
+                {t('tabs.section.pinned')}
               </p>
               <div style={styles.list}>
                 {filteredPinnedTabs.map((tab) => (
@@ -821,7 +823,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                     ...(modeStyles.tabsSectionTitle || {})
                   }}
                 >
-                  Others
+                  {t('tabs.section.others')}
                 </p>
               )}
               <div style={styles.list}>

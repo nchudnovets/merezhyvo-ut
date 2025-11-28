@@ -14,6 +14,8 @@ export interface MessengerSettings {
 
 export interface UISettings {
   scale: number;
+  hideFileDialogNote: boolean;
+  language: string;
 }
 
 export type TabKind = 'browser' | 'messenger';

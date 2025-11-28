@@ -13,6 +13,8 @@ import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
 import DownloadSettingsSection from './DownloadSettingsSection';
 import UiScaleSetting from './UiScaleSetting';
+import LanguageSettings from './LanguageSettings';
+import { useI18n } from '../../../i18n/I18nProvider';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -87,6 +89,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
+  const { t } = useI18n();
   const passwordSectionRef = useRef<HTMLDivElement | null>(null);
   const [forceExpandPasswords, setForceExpandPasswords] = useState(false);
   const shouldForceExpandPasswords = forceExpandPasswords;
@@ -186,7 +189,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div style={styles.sections} className="settings-modal-body">
           <SettingsSection
             mode={mode}
-            title="Tor"
+            title={t('settings.section.tor')}
             expandedDefault
             body={
               <TorSettings
@@ -205,7 +208,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title="Appearance"
+            title={t('settings.section.appearance')}
             body={
               <UiScaleSetting
                 mode={mode}
@@ -218,13 +221,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title='Keyboard Layouts'
+            title={t('settings.language.title')}
+            body={<LanguageSettings mode={mode} />}
+          />
+
+          <SettingsSection
+            mode={mode}
+            title={t('settings.section.keyboardLayout')}
             body={KeyboardSettings({mode}) as ReactNode}
           />
 
           <SettingsSection
             mode={mode}
-            title="Passwords"
+            title={t('settings.section.passwords')}
             expandedDefault={false}
             forceExpanded={shouldForceExpandPasswords}
             sectionRef={passwordSectionRef}
@@ -239,7 +248,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title="Downloads"
+            title={t('settings.section.downloads')}
               body={
                 <DownloadSettingsSection
                   mode={mode}
@@ -256,7 +265,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title='Messenger toolbar'
+            title={t('settings.section.messengerToolbar')}
             body={MessengerSettings({
               mode,
               items: messengerItems,
@@ -268,7 +277,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
 
           <SettingsSection
             mode={mode}
-            title="About"
+            title={t('settings.section.about')}
             expandedDefault
             body={
               <AboutSettings

@@ -8,9 +8,10 @@ import {
   sanitizeMessengerSettings as sanitizeSharedMessengerSettings,
   type MessengerSettings
 } from '../../src/shared/messengers';
+import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 2;
+export const SETTINGS_SCHEMA = 3;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -29,6 +30,7 @@ export type DownloadsSettings = {
 export type UISettings = {
   scale: number;
   hideFileDialogNote: boolean;
+  language: string;
 };
 
 export type SettingsState = {
@@ -115,7 +117,8 @@ const DEFAULT_DOWNLOADS_SETTINGS: DownloadsSettings = {
 
 const DEFAULT_UI_SETTINGS: UISettings = {
   scale: 1.0,
-  hideFileDialogNote: false
+  hideFileDialogNote: false,
+  language: DEFAULT_LOCALE
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
@@ -142,7 +145,11 @@ export const sanitizeUiSettings = (raw: unknown): UISettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<UISettings> : {};
   const scaleRaw = typeof source.scale === 'number' ? source.scale : DEFAULT_UI_SETTINGS.scale;
   const hide = typeof source.hideFileDialogNote === 'boolean' ? source.hideFileDialogNote : DEFAULT_UI_SETTINGS.hideFileDialogNote;
-  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide };
+  const language =
+    typeof source.language === 'string' && isValidLocale(source.language)
+      ? source.language
+      : DEFAULT_UI_SETTINGS.language;
+  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language };
 };
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {

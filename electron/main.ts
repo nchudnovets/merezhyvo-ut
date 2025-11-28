@@ -36,6 +36,7 @@ import {
   sanitizeDownloadsSettings,
   sanitizeUiSettings
 } from './lib/shortcuts';
+import { DEFAULT_LOCALE } from '../src/i18n/locales';
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
@@ -1136,10 +1137,11 @@ ipcMain.handle('merezhyvo:ui:getScale', async () => {
     const state = await readSettingsState();
     return {
       scale: state.ui?.scale ?? 1,
-      hideFileDialogNote: state.ui?.hideFileDialogNote ?? false
+      hideFileDialogNote: state.ui?.hideFileDialogNote ?? false,
+      language: state.ui?.language ?? DEFAULT_LOCALE
     };
   } catch {
-    return { scale: 1, hideFileDialogNote: false };
+    return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
   }
 });
 
@@ -1156,10 +1158,45 @@ ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
     return {
       ok: true,
       scale: nextState.ui?.scale ?? mergedUi.scale,
-      hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote
+      hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote,
+      language: nextState.ui?.language ?? mergedUi.language
     };
   } catch (err) {
     console.error('[merezhyvo] ui scale update failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:ui:getLanguage', async () => {
+  try {
+    const state = await readSettingsState();
+    return state.ui?.language ?? DEFAULT_LOCALE;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+});
+
+ipcMain.handle('merezhyvo:ui:setLanguage', async (_event, payload: unknown) => {
+  const language =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { language?: unknown }).language === 'string'
+      ? String((payload as { language?: unknown }).language)
+      : '';
+  if (!language.length) {
+    return { ok: false, error: 'Invalid language' };
+  }
+  try {
+    const currentState = await readSettingsState();
+    const existingUi = currentState?.ui ?? {};
+    const mergedUi = sanitizeUiSettings({ ...existingUi, language });
+    const nextState = await writeSettingsState({ ui: mergedUi });
+    return {
+      ok: true,
+      language: nextState.ui?.language ?? mergedUi.language
+    };
+  } catch (err) {
+    console.error('[merezhyvo] ui language update failed', err);
     return { ok: false, error: String(err) };
   }
 });

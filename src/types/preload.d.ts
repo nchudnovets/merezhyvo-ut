@@ -54,6 +54,12 @@ export type MerezhyvoTorState = TorState;
 
 export type MerezhyvoSessionState = SessionState;
 
+export interface MerezhyvoUISettings {
+  scale: number;
+  hideFileDialogNote: boolean;
+  language: string;
+}
+
 export interface MerezhyvoAppInfo {
   name: string;
   version: string;
@@ -206,13 +212,15 @@ export interface MerezhyvoAPI {
     };
   };
   ui: {
-    get(): Promise<{ scale: number; hideFileDialogNote: boolean }>;
+    get(): Promise<MerezhyvoUISettings>;
     set(
-      payload: Partial<{ scale: number; hideFileDialogNote: boolean }>
+      payload: Partial<MerezhyvoUISettings>
     ): Promise<
-      | { ok: true; scale: number; hideFileDialogNote: boolean }
+      | { ok: true; scale: number; hideFileDialogNote: boolean; language: string }
       | { ok: false; error: string }
     >;
+    getLanguage(): Promise<string>;
+    setLanguage(language: string): Promise<{ ok: true; language: string } | { ok: false; error: string }>;
   };
   downloads: {
     settings: {

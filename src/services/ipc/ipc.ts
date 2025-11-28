@@ -9,6 +9,8 @@ import type {
   KeyboardSettings
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
+import { DEFAULT_LOCALE } from '../../i18n/locales';
+import type { MerezhyvoUISettings } from '../../types/preload';
 
 type Bridge = NonNullable<Window['merezhyvo']>;
 
@@ -123,6 +125,43 @@ export const ipc = {
       try {
         await getApi()?.power?.stop?.(id ?? null);
       } catch {}
+    }
+  },
+
+  ui: {
+    async get(): Promise<MerezhyvoUISettings> {
+      try {
+        const res = await getApi()?.ui?.get?.();
+        if (res) return res;
+      } catch {}
+      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
+    },
+    async update(patch: Partial<MerezhyvoUISettings>) {
+      try {
+        const res = await getApi()?.ui?.set?.(patch);
+        if (res && typeof res === 'object') {
+          return res;
+        }
+      } catch (err) {
+        console.error('ui.set failed', err);
+      }
+      return { ok: false, error: 'Unknown error' };
+    },
+    async getLanguage(): Promise<string> {
+      try {
+        const res = await getApi()?.ui?.getLanguage?.();
+        if (typeof res === 'string' && res.trim().length) return res;
+      } catch {}
+      return DEFAULT_LOCALE;
+    },
+    async setLanguage(language: string) {
+      try {
+        const res = await getApi()?.ui?.setLanguage?.(language);
+        if (res && typeof res === 'object') return res;
+      } catch (err) {
+        console.error('ui.setLanguage failed', err);
+      }
+      return { ok: false, error: 'Unknown error' };
     }
   },
 

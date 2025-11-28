@@ -35,6 +35,7 @@ import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
 import { DOWNLOADS_SYMLINK_COMMAND, DOCUMENTS_SYMLINK_COMMAND } from './lib/internal-paths';
 import path from 'path';
+import { DEFAULT_LOCALE } from '../src/i18n/locales';
 
 type KeyboardSettings = {
   enabledLayouts: string[];
@@ -467,19 +468,45 @@ const exposeApi: MerezhyvoAPI = {
         if (typeof result === 'object' && result && typeof result.scale === 'number') {
           return {
             scale: result.scale,
-            hideFileDialogNote: Boolean(result.hideFileDialogNote)
+            hideFileDialogNote: Boolean(result.hideFileDialogNote),
+            language: typeof result.language === 'string' ? result.language : DEFAULT_LOCALE
           };
         }
       } catch {
         // noop
       }
-      return { scale: 1, hideFileDialogNote: false };
+      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
     },
     set: async (payload) => {
       try {
         const normalized = (await ipcRenderer.invoke('merezhyvo:ui:setScale', payload ?? {})) as
-          | { ok: true; scale: number; hideFileDialogNote: boolean }
+          | { ok: true; scale: number; hideFileDialogNote: boolean; language: string }
           | { ok: false; error: string };
+        return normalized;
+      } catch (err) {
+        return { ok: false, error: String(err) };
+      }
+    },
+    getLanguage: async () => {
+      try {
+        const result = await ipcRenderer.invoke('merezhyvo:ui:getLanguage');
+        if (typeof result === 'string' && result.trim().length) {
+          return result;
+        }
+      } catch {
+        /* noop */
+      }
+      return DEFAULT_LOCALE;
+    },
+    setLanguage: async (language?: string) => {
+      if (!language || typeof language !== 'string') {
+        return { ok: false, error: 'Invalid language' };
+      }
+      try {
+        const normalized = (await ipcRenderer.invoke(
+          'merezhyvo:ui:setLanguage',
+          language
+        )) as { ok: true; language: string } | { ok: false; error: string };
         return normalized;
       } catch (err) {
         return { ok: false, error: String(err) };

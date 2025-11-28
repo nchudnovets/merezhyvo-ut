@@ -1,5 +1,6 @@
 import React from 'react';
 import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
+import { useI18n } from '../../i18n/I18nProvider';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
 import type { Mode } from '../../types/models';
@@ -62,13 +63,14 @@ const Toolbar: React.FC<ToolbarProps> = ({
   toolbarRef
 }) => {
   const modeStyles = toolbarModeStyles[mode];
+  const { t } = useI18n();
 
   return (
     <div ref={toolbarRef} style={toolbarStyles.toolbar} className="toolbar">
     <button
       type="button"
-      aria-label="Open messenger mode"
-      title="Open messenger mode"
+      aria-label={t('toolbar.openMessenger')}
+      title={t('toolbar.openMessenger')}
       onClick={onEnterMessengerMode}
       style={{
         ...toolbarStyles.navButton,
@@ -108,7 +110,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
     <button
       type="button"
       onClick={onToggleTor}
-      title={torEnabled ? 'Disable Tor' : 'Enable Tor'}
+      title={torEnabled ? t('toolbar.tor.disable') : t('toolbar.tor.enable')}
       aria-pressed={torEnabled ? 'true' : 'false'}
       style={{
         ...toolbarStyles.navButton,
@@ -130,8 +132,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
     <button
       type="button"
-      title="Open settings"
-      aria-label="Open settings"
+      title={t('toolbar.openSettings')}
+      aria-label={t('toolbar.openSettings')}
       className="btn btn--settings"
       onClick={onOpenSettings}
       style={{
