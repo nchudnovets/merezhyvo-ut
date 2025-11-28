@@ -850,7 +850,8 @@ export const settingsModalStyles: StyleRecord = {
   },
   settingsMessage: {
     margin: 0,
-    fontSize: '13px',
-    color: '#a5b4fc'
+    fontSize: '16px',
+    color: '#a5b4fc',
+    marginBottom: '15px'
   }
 } as const;

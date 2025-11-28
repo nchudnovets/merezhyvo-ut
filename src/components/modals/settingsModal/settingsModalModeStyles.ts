@@ -188,8 +188,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
       borderRadius: '24px',
       fontSize: 'clamp(30px, 4.8vw, 36px)'
     },
+    settingsRow: {fontSize: '38px'},
     settingsMessage: {
-      fontSize: 'clamp(30px, 4.8vw, 36px)',
+      fontSize: '38px',
       padding: 'clamp(30px, 4.5vw, 42px)',
       borderRadius: '30px'
     },
@@ -291,7 +292,8 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsKeyboardLayoutRow: {
       gap: 'clamp(22px, 3.6vw, 32px)',
       padding: 'clamp(32px, 4.8vw, 40px)',
-      borderRadius: '32px'
+      borderRadius: '32px',
+      fontSize: '38px'
     },
     settingsKeyboardLayoutCode: {
       width: 'clamp(140px, 18vw, 180px)',

@@ -57,19 +57,21 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
         {t('settings.language.description')}
       </p>
       <div
+        className="settings-keyboard-scroll"
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '8px',
-          marginBottom: '12px'
+          gap: '25px',
+          marginBottom: '25px',
+          maxHeight: '460px'
         }}
       >
         {availableLocales.map((locale) => (
           <label
             key={locale.id}
             style={{
-              ...styles.settingsRow,
-              ...(modeStyles.settingsRow || {})
+              ...styles.keyboardLayoutRow,
+                ...(modeStyles.settingsKeyboardLayoutRow || {})
             }}
           >
             <input
