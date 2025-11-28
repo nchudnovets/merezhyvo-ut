@@ -327,7 +327,22 @@ const uk = {
   'passwordSettings.button.createMaster': 'Створити майстер-пароль…',
   'passwordSettings.button.lockNow': 'Заблокувати зараз',
   'passwordSettings.button.unlock': 'Розблокувати',
-  'passwordSettings.button.manage': 'Керувати паролями…'
+  'passwordSettings.button.manage': 'Керувати паролями…',
+  'ctx.downloadLink': 'Завантажити посилання',
+  'ctx.openLinkNewTab': 'Відкрити посилання у новій вкладці',
+  'ctx.copyLink': 'Копіювати адресу посилання',
+  'ctx.downloadImage': 'Завантажити зображення',
+  'ctx.downloadVideo': 'Завантажити відео',
+  'ctx.downloadAudio': 'Завантажити аудіо',
+  'ctx.back': 'Назад',
+  'ctx.forward': 'Вперед',
+  'ctx.reload': 'Перезавантажити',
+  'ctx.copySelection': 'Копіювати виділене',
+  'ctx.paste': 'Вставити',
+  'ctx.autofill.header': 'Автозаповнення паролем…',
+  'ctx.autofill.unlock': 'Розблокувати для автозаповнення…',
+  'ctx.autofill.none': 'Немає відповідних паролів',
+  'ctx.devtools': 'Відкрити інструменти розробника'
 } as const;
 
 export type UkrainianTranslationKeys = keyof typeof uk;

@@ -1,8 +1,21 @@
 'use strict';
 
 import { ipcRenderer } from 'electron';
+import en from '../src/i18n/translations/en';
+import uk from '../src/i18n/translations/uk';
+import { getI18n } from '../src/i18n/rendererI18n';
 
 let renderLock = false;
+let currentLanguage = 'en';
+const dictionaries: Record<string, Record<string, string>> = {
+  en: en as unknown as Record<string, string>,
+  uk: uk as unknown as Record<string, string>
+};
+
+const t = (key: string): string => {
+  const dict = dictionaries[currentLanguage] ?? dictionaries.en;
+  return dict?.[key] ?? dictionaries.en?.[key] ?? key;
+};
 
 type ContextMode = 'desktop' | 'mobile';
 
@@ -111,11 +124,11 @@ function fillLabel(text: string): HTMLDivElement {
 function appendAutofillSection(menu: HTMLElement, autofill?: ContextMenuState['autofill']): void {
   if (!autofill?.available) return;
   menu.appendChild(sep());
-  menu.appendChild(fillLabel('Fill with password…'));
+  menu.appendChild(fillLabel(t('ctx.autofill.header')));
   if (autofill.locked) {
-    menu.appendChild(item('Unlock to fill…', 'pw-unlock'));
+    menu.appendChild(item(t('ctx.autofill.unlock'), 'pw-unlock'));
   } else if (autofill.options.length === 0) {
-    menu.appendChild(fillLabel('No matching passwords'));
+    menu.appendChild(fillLabel(t('ctx.autofill.none')));
   } else {
     autofill.options.forEach((option) => {
       const label = `${option.username} — ${option.siteName}`;
@@ -159,14 +172,14 @@ function render(): void {
       const normalized = normalizeState(state);
       try {
         if (normalized.linkUrl) {
-          menu.appendChild(item('Download link', 'download-link'));
-          menu.appendChild(item('Open link in new tab', 'open-link'));
-          menu.appendChild(item('Copy link address', 'copy-link'));
+          menu.appendChild(item(t('ctx.downloadLink'), 'download-link'));
+          menu.appendChild(item(t('ctx.openLinkNewTab'), 'open-link'));
+          menu.appendChild(item(t('ctx.copyLink'), 'copy-link'));
           menu.appendChild(sep());
         }
 
         if (normalized.mediaType === 'image' && normalized.mediaSrc) {
-          menu.appendChild(item('Download image', 'download-image'));
+          menu.appendChild(item(t('ctx.downloadImage'), 'download-image'));
         }
         if ( 
           (normalized.mediaType === 'video' || normalized.mediaType === 'audio') &&
@@ -174,30 +187,30 @@ function render(): void {
         ) {
           menu.appendChild(
             item(
-              normalized.mediaType === 'video' ? 'Download video' : 'Download audio',
+              normalized.mediaType === 'video' ? t('ctx.downloadVideo') : t('ctx.downloadAudio'),
               normalized.mediaType === 'video' ? 'download-video' : 'download-audio'
             )
           );
         }
 
         menu.appendChild(
-          item('Back', 'back', { disabled: !normalized.canBack, kbd: 'Alt+←' })
+          item(t('ctx.back'), 'back', { disabled: !normalized.canBack, kbd: 'Alt+←' })
         );
         menu.appendChild(
-          item('Forward', 'forward', { disabled: !normalized.canForward, kbd: 'Alt+→' })
+          item(t('ctx.forward'), 'forward', { disabled: !normalized.canForward, kbd: 'Alt+→' })
         );
-        menu.appendChild(item('Reload', 'reload', { kbd: 'Ctrl+R' }));
+        menu.appendChild(item(t('ctx.reload'), 'reload', { kbd: 'Ctrl+R' }));
 
         if (normalized.isEditable || normalized.hasSelection) {
           menu.appendChild(sep());
           if (normalized.hasSelection) {
             menu.appendChild(
-              item('Copy selection', 'copy-selection', { kbd: 'Ctrl+C' })
+              item(t('ctx.copySelection'), 'copy-selection', { kbd: 'Ctrl+C' })
             );
           }
           if (normalized.isEditable) {
             menu.appendChild(
-              item('Paste', 'paste', {
+              item(t('ctx.paste'), 'paste', {
                 kbd: 'Ctrl+V',
                 disabled: !normalized.canPaste
               })
@@ -208,7 +221,7 @@ function render(): void {
         appendAutofillSection(menu, normalized.autofill);
 
         menu.appendChild(sep());
-        menu.appendChild(item('Open devtools', 'inspect'));
+        menu.appendChild(item(t('ctx.devtools'), 'inspect'));
 
         const raf =
           typeof window.requestAnimationFrame === 'function'
@@ -256,6 +269,20 @@ declare global {
 }
 
 window.__mzr_render = render;
+
+void ipcRenderer
+  .invoke('merezhyvo:ui:getLanguage')
+  .then((lang) => {
+    if (typeof lang === 'string' && dictionaries[lang]) {
+      currentLanguage = lang;
+      if (typeof window.__mzr_render === 'function') {
+        window.__mzr_render();
+      }
+    }
+  })
+  .catch(() => {
+    // ignore language load errors
+  });
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') ipcRenderer.send('mzr:ctxmenu:close');

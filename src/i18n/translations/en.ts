@@ -327,7 +327,22 @@ const en = {
   'passwordSettings.button.createMaster': 'Create master password…',
   'passwordSettings.button.lockNow': 'Lock now',
   'passwordSettings.button.unlock': 'Unlock',
-  'passwordSettings.button.manage': 'Manage passwords…'
+  'passwordSettings.button.manage': 'Manage passwords…',
+  'ctx.downloadLink': 'Download link',
+  'ctx.openLinkNewTab': 'Open link in new tab',
+  'ctx.copyLink': 'Copy link address',
+  'ctx.downloadImage': 'Download image',
+  'ctx.downloadVideo': 'Download video',
+  'ctx.downloadAudio': 'Download audio',
+  'ctx.back': 'Back',
+  'ctx.forward': 'Forward',
+  'ctx.reload': 'Reload',
+  'ctx.copySelection': 'Copy selection',
+  'ctx.paste': 'Paste',
+  'ctx.autofill.header': 'Fill with password…',
+  'ctx.autofill.unlock': 'Unlock to fill…',
+  'ctx.autofill.none': 'No matching passwords',
+  'ctx.devtools': 'Open devtools'
 } as const;
 
 export type EnglishTranslationKeys = keyof typeof en;
