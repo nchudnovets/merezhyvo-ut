@@ -270,34 +270,47 @@ const matchesFilters = (entry: VisitRecord, options: HistoryQueryOptions): boole
 export const query = async (options: HistoryQueryOptions = {}): Promise<HistoryQueryResult> => {
   try {
     const buffer = await fsp.readFile(HISTORY_FILE);
-    const start = Math.max(Math.min(buffer.length, options.cursor ?? 0), 0);
-    const slice = buffer.subarray(start);
-    const text = slice.toString('utf8');
+    const text = buffer.toString('utf8');
     if (!text) return { items: [] };
     const lines = text.split('\n');
-    const result: VisitRecord[] = [];
-    let cursorOffset = start;
-    let sliceConsumed = 0;
+    const entries: VisitRecord[] = [];
+    for (const line of lines) {
+      if (!line.trim()) continue;
+      const entry = tryParseVisitLine(line);
+      if (entry) entries.push(entry);
+    }
+
+    // Sort newest first
+    entries.sort((a, b) => b.ts - a.ts);
+
     const limit = Math.max(1, Math.min(1024, options.limit ?? DEFAULT_QUERY_LIMIT));
-    for (let index = 0; index < lines.length; index += 1) {
-    const line = lines[index] ?? '';
-      const hasMoreAfter = index < lines.length - 1;
-      if (!line.trim()) {
-        sliceConsumed += Buffer.byteLength(line, 'utf8') + (hasMoreAfter ? 1 : 0);
-        cursorOffset = start + sliceConsumed;
+    const startIndex = Math.max(0, Math.min(entries.length, options.cursor ?? 0));
+    const filtered: VisitRecord[] = [];
+    let lastKept: VisitRecord | null = null;
+    for (let i = startIndex; i < entries.length; i += 1) {
+      const entry = entries[i];
+      if (!matchesFilters(entry, options)) continue;
+      const isDuplicate =
+        lastKept &&
+        entry.url === lastKept.url &&
+        Math.abs(entry.ts - lastKept.ts) <= 2000;
+      if (isDuplicate) {
         continue;
       }
-      const entry = tryParseVisitLine(line);
-      sliceConsumed += Buffer.byteLength(line, 'utf8') + (hasMoreAfter ? 1 : 0);
-      cursorOffset = start + sliceConsumed;
-      if (!entry) continue;
-      if (!matchesFilters(entry, options)) continue;
-      result.push(entry);
-      if (result.length >= limit) {
-        return { items: result, nextCursor: cursorOffset < buffer.length ? cursorOffset : undefined };
+      filtered.push(entry);
+      lastKept = entry;
+      if (filtered.length >= limit) {
+        return {
+          items: filtered,
+          nextCursor: i + 1 < entries.length ? i + 1 : undefined
+        };
       }
     }
-    return { items: result, nextCursor: cursorOffset < buffer.length ? cursorOffset : undefined };
+
+    return {
+      items: filtered,
+      nextCursor: undefined
+    };
   } catch (err) {
     if ((err as NodeJS.ErrnoException).code === 'ENOENT') {
       return { items: [] };
