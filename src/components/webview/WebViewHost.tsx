@@ -143,6 +143,7 @@ const WebViewHost = forwardRef(function WebViewHost(
     onUrlChange,
     onDomReady
   });
+  const lastFailedRef = useRef(false);
   const initialUrlAppliedRef = useRef(false);
   const zoomRef = useRef(zoom);
 
@@ -335,11 +336,13 @@ const WebViewHost = forwardRef(function WebViewHost(
     const handleDidStartNavigation: EventListener = (event) => {
       const nav = event as unknown as Electron.DidStartNavigationEvent;
       if (nav?.isMainFrame && !nav.isInPlace) {
+        lastFailedRef.current = false;
         callbacksRef.current.onStatus('loading');
       }
     };
 
     const handleDidStop: EventListener = () => {
+      if (lastFailedRef.current) return;
       callbacksRef.current.onStatus('ready');
       emitNavigationState();
       try {
@@ -350,12 +353,17 @@ const WebViewHost = forwardRef(function WebViewHost(
       } catch {}
     };
 
-    const handleDidFail: EventListener = () => {
+    const handleDidFail: EventListener = (event) => {
+      const nav = event as unknown as { isMainFrame?: boolean };
+      if (nav?.isMainFrame === false) return;
+      lastFailedRef.current = true;
       callbacksRef.current.onStatus('error');
     };
 
     const handleDomReady: EventListener = () => {
-      callbacksRef.current.onStatus('ready');
+      if (!lastFailedRef.current) {
+        callbacksRef.current.onStatus('ready');
+      }
       applyZoomPolicy();
       emitNavigationState();
       callbacksRef.current.onDomReady?.();

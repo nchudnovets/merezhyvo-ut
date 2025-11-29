@@ -214,6 +214,72 @@ export const styles = {
     height: 'clamp(96px, 16vw, 140px)',
     borderWidth: '6px'
   },
+  webviewErrorOverlay: {
+    position: 'absolute',
+    inset: 0,
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: '12px',
+    padding: '24px',
+    color: '#e2e8f0',
+    background: 'radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9))',
+    textAlign: 'center',
+    zIndex: 6
+  },
+  webviewErrorOverlayMobile: {
+    gap: 'clamp(20px, 3vh, 32px)',
+    padding: 'clamp(32px, 6vw, 48px)',
+    fontSize: 'clamp(30px, 4vw, 38px)'
+  },
+  webviewErrorTitle: {
+    fontSize: '18px',
+    fontWeight: 700,
+    color: '#f8fafc'
+  },
+  webviewErrorTitleMobile: {
+    fontSize: 'clamp(34px, 4.6vw, 42px)'
+  },
+  webviewErrorSubtitle: {
+    fontSize: '14px',
+    color: 'rgba(226,232,240,0.8)',
+    maxWidth: '520px',
+    lineHeight: 1.5
+  },
+  webviewErrorSubtitleMobile: {
+    fontSize: 'clamp(28px, 3.8vw, 34px)',
+    maxWidth: '90vw'
+  },
+  webviewErrorUrl: {
+    marginTop: '8px',
+    padding: '8px 12px',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    border: '1px solid rgba(148,163,184,0.3)',
+    color: '#f8fafc',
+    fontSize: '13px',
+    wordBreak: 'break-all'
+  },
+  webviewErrorUrlMobile: {
+    fontSize: 'clamp(24px, 3.5vw, 30px)',
+    padding: 'clamp(14px, 2.5vw, 18px)'
+  },
+  webviewErrorButton: {
+    marginTop: '6px',
+    padding: '10px 18px',
+    borderRadius: '14px',
+    border: '1px solid rgba(37,156,235,0.9)',
+    backgroundColor: 'rgba(37,156,235,0.16)',
+    color: '#f8fafc',
+    fontSize: '15px',
+    cursor: 'pointer'
+  },
+  webviewErrorButtonMobile: {
+    fontSize: 'clamp(28px, 3.8vw, 34px)',
+    padding: 'clamp(20px, 3vw, 28px) clamp(26px, 4vw, 34px)',
+    borderRadius: '22px'
+  },
   backgroundShelf: {
     position: 'absolute',
     width: 1,

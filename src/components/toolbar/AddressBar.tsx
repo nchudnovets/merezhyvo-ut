@@ -69,9 +69,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const suggestionsStyle: CSSProperties = {
     position: 'absolute',
     top: 'calc(100% + 6px)',
-    left: mode === 'mobile' ? 0 : undefined,
-    right: mode === 'mobile' ? 0 : undefined,
-    width: mode === 'mobile' ? '100%' : '100%',
+    left: 0,
+    right: 0,
+    width: '100%',
     backgroundColor: '#0f1729',
     border: '1px solid rgba(148, 163, 184, 0.35)',
     borderRadius: '12px',

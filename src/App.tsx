@@ -363,6 +363,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [downloadIndicatorState, setDownloadIndicatorState] = useState<
     'hidden' | 'active' | 'completed' | 'error'
   >('hidden');
+  const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
+  const lastFailedUrlRef = useRef<string | null>(null);
+  const ignoreUrlChangeRef = useRef(false);
   const bookmarksCacheRef = useRef<
     { url: string; title?: string | null; createdAt?: number; updatedAt?: number }[]
   >([]);
@@ -1194,13 +1197,31 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeIdRef.current !== tabId) return;
     setStatus(nextStatus);
     if (nextStatus === 'loading') {
+      ignoreUrlChangeRef.current = false;
+      lastFailedUrlRef.current = null;
+      setPageError(null);
       webviewReadyRef.current = false;
       setWebviewReady(false);
     } else if (nextStatus === 'ready') {
+      setPageError(null);
       webviewReadyRef.current = true;
       setWebviewReady(true);
       refreshNavigationState();
     } else if (nextStatus === 'error') {
+      const lastTried =
+        lastLoadedRef.current.id === tabId ? lastLoadedRef.current.url?.trim() || null : null;
+      const activeTabUrl = activeTabRef.current?.url?.trim() || null;
+      const pickUrl = (candidate: string | null | undefined) =>
+        candidate && !candidate.startsWith('data:') && !candidate.includes('dist-electron/main.js')
+          ? candidate
+          : null;
+      const failedUrl =
+        pickUrl(lastTried) ||
+        pickUrl(activeTabUrl) ||
+        pickUrl(inputValue) ||
+        null;
+      lastFailedUrlRef.current = failedUrl || null;
+      setPageError({ url: failedUrl || null });
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
@@ -1208,6 +1229,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const handleHostUrlChange = useCallback((tabId: string, nextUrl: string) => {
     if (!nextUrl) return;
+    if (ignoreUrlChangeRef.current) {
+      const lowered = nextUrl.toLowerCase();
+      if (
+        lowered.startsWith('data:text/html') ||
+        lowered.includes('dist-electron/main.js') ||
+        lowered.startsWith('chrome-error://') ||
+        lowered.includes('chromewebdata')
+      ) {
+        return;
+      }
+      ignoreUrlChangeRef.current = false;
+    }
+    const lowered = nextUrl.toLowerCase();
+    if (
+      lowered.startsWith('data:text/html') ||
+      lowered.includes('dist-electron/main.js') ||
+      lowered.startsWith('chrome-error://') ||
+      lowered.includes('chromewebdata')
+    ) {
+      return;
+    }
     const cleanUrl = nextUrl.trim();
     updateMetaAction(tabId, {
       url: cleanUrl,
@@ -2310,6 +2352,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const handleSubmit = useCallback((event: SubmitEvent) => {
     event?.preventDefault?.();
+    setPageError(null);
+    lastFailedUrlRef.current = null;
+    ignoreUrlChangeRef.current = false;
     navigateToUrl(inputValue);
   }, [inputValue, navigateToUrl]);
 
@@ -3018,27 +3063,167 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     error: 'Failed to load'
   };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
-  const tabLoadingOverlay = activeTabIsLoading
-    ? (
+  const tabLoadingOverlay = status === 'error'
+    ? null
+    : activeTabIsLoading
+      ? (
+        <div
+          style={{
+            ...styles.webviewLoadingOverlay,
+            ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
+          }}
+          aria-live="polite"
+          aria-label="Loading"
+        >
+          <div
+            aria-hidden="true"
+            className="mzv-spinner"
+            style={{
+              ...styles.webviewLoadingSpinner,
+              ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
+            }}
+          />
+        </div>
+      )
+      : null;
+  const webviewVisibility = status === 'error' ? 'hidden' : 'visible';
+
+  const errorOverlay = pageError && status === 'error' ? (
+    <div
+      style={{
+        ...styles.webviewErrorOverlay,
+        ...(mode === 'mobile' ? styles.webviewErrorOverlayMobile : null)
+      }}
+      role="alert"
+      aria-live="assertive"
+    >
       <div
         style={{
-          ...styles.webviewLoadingOverlay,
-          ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
+          ...styles.webviewErrorTitle,
+          ...(mode === 'mobile' ? styles.webviewErrorTitleMobile : null)
         }}
-        aria-live="polite"
-        aria-label="Loading"
       >
-        <div
-          aria-hidden="true"
-          className="mzv-spinner"
-          style={{
-            ...styles.webviewLoadingSpinner,
-            ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
-          }}
-        />
+        {t('webview.error.title')}
       </div>
-    )
-    : null;
+      <div
+        style={{
+          ...styles.webviewErrorSubtitle,
+          ...(mode === 'mobile' ? styles.webviewErrorSubtitleMobile : null)
+        }}
+      >
+        {t('webview.error.subtitle')}
+        {pageError.url ? (
+          <div
+            style={{
+              ...styles.webviewErrorUrl,
+              ...(mode === 'mobile' ? styles.webviewErrorUrlMobile : null)
+            }}
+            title={pageError.url}
+          >
+            {pageError.url}
+          </div>
+        ) : null}
+      </div>
+      <button
+        type="button"
+        onClick={() => {
+          setPageError(null);
+          lastFailedUrlRef.current = null;
+          ignoreUrlChangeRef.current = false;
+          handleReload();
+        }}
+        style={{
+          ...styles.webviewErrorButton,
+          ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null)
+        }}
+      >
+        {t('webview.error.retry')}
+      </button>
+    </div>
+  ) : null;
+
+  useEffect(() => {
+    if (status !== 'error' || !pageError) return;
+    const view = webviewRef.current;
+    if (!view) return;
+    const title = t('webview.error.title');
+    const subtitle = t('webview.error.subtitle');
+    const urlDisplayValue = pageError.url || lastFailedUrlRef.current || '';
+    const urlDisplay = urlDisplayValue
+      ? `<div style="margin-top:12px;padding:10px 14px;border-radius:12px;background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.4);font-size:14px;word-break:break-all;color:#f8fafc;">${urlDisplayValue}</div>`
+      : '';
+    const reloadLabel = t('webview.error.retry');
+    const html = `
+      <!doctype html>
+      <html>
+      <head>
+        <meta charset="utf-8"/>
+        <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+        <style>
+          :root {
+            color-scheme: dark;
+          }
+          body {
+            margin:0;
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            background: radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9));
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+            color:#e2e8f0;
+            padding:20px;
+            text-align:center;
+          }
+          .card {
+            max-width: 640px;
+            width: 100%;
+            background: rgba(5,7,15,0.65);
+            border: 1px solid rgba(148,163,184,0.35);
+            border-radius: 18px;
+            padding: 28px;
+            box-shadow: 0 14px 42px rgba(0,0,0,0.35);
+          }
+          h1 {
+            margin: 0 0 12px;
+            font-size: 22px;
+            color: #f8fafc;
+          }
+          p {
+            margin: 0;
+            font-size: 15px;
+            line-height: 1.6;
+            color: rgba(226,232,240,0.85);
+          }
+          button {
+            margin-top: 18px;
+            padding: 12px 18px;
+            border-radius: 12px;
+            border: 1px solid rgba(37,156,235,0.9);
+            background: rgba(37,156,235,0.16);
+            color: #f8fafc;
+            font-size: 15px;
+            cursor: pointer;
+          }
+        </style>
+      </head>
+      <body>
+        <div class="card">
+          <h1>${title}</h1>
+          <p>${subtitle}</p>
+          ${urlDisplay}
+          <button onclick="location.reload()">${reloadLabel}</button>
+        </div>
+      </body>
+      </html>
+    `;
+    try {
+      ignoreUrlChangeRef.current = true;
+      view.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(html)}`);
+    } catch {
+      // ignore
+    }
+  }, [pageError, status, t]);
 
   const toolbarRef = useRef<HTMLDivElement>(null!);
   const messengerToolbarRef = useRef<HTMLDivElement>(null!);
@@ -3332,11 +3517,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             webviewStyle={styles.webviewMount}
             webviewHostStyle={{
               // ...styles.webviewHost,
-              height: webviewHostHeight
+              height: webviewHostHeight,
+              visibility: webviewVisibility
             }}
             backgroundStyle={styles.backgroundShelf}
             overlay={tabLoadingOverlay}
           />
+          {errorOverlay}
           {serviceContent && (
             <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
               {serviceContent}
