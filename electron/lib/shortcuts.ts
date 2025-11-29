@@ -9,6 +9,7 @@ import {
   type MessengerSettings
 } from '../../src/shared/messengers';
 import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
+import { INTERNAL_BASE_FOLDER } from './internal-paths';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
 export const SETTINGS_SCHEMA = 3;
@@ -100,6 +101,7 @@ export const getSessionFilePath = (): string => path.join(getProfileDir(), 'sess
 const getLegacySettingsFilePath = (): string => path.join(getProfileDir(), 'settings.json');
 const getLegacyTorSettingsFilePath = (): string => path.join(getProfileDir(), 'tor-settings.json');
 export const getSettingsFilePath = (): string => path.join(app.getPath('userData'), 'settings.json');
+const getBackupSettingsFilePath = (): string => path.join(INTERNAL_BASE_FOLDER, 'settings.json');
 
 const DEFAULT_KEYBOARD_SETTINGS: KeyboardSettings = {
   enabledLayouts: ['en'],
@@ -190,56 +192,70 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   };
 };
 
+const readJsonIfExists = async (file: string): Promise<unknown | null> => {
+  try {
+    const raw = await fsp.readFile(file, 'utf8');
+    return JSON.parse(raw) as unknown;
+  } catch {
+    return null;
+  }
+};
+
 export async function readSettingsState(): Promise<SettingsState> {
   const targetFile = getSettingsFilePath();
+  const backupFile = getBackupSettingsFilePath();
+
+  const attemptPersist = async (value: SettingsState) => {
+    try {
+      await fsp.mkdir(path.dirname(targetFile), { recursive: true });
+      await fsp.writeFile(targetFile, JSON.stringify(value, null, 2), 'utf8');
+    } catch (writeErr) {
+      console.error('[merezhyvo] settings write failed', writeErr);
+    }
+    try {
+      await fsp.mkdir(path.dirname(backupFile), { recursive: true });
+      await fsp.writeFile(backupFile, JSON.stringify(value, null, 2), 'utf8');
+    } catch {
+      // backup best-effort
+    }
+  };
+
+  // primary read
   try {
     const raw = await fsp.readFile(targetFile, 'utf8');
     const parsed = JSON.parse(raw) as unknown;
     const sanitized = sanitizeSettingsPayload(parsed);
-    await fsp.mkdir(path.dirname(targetFile), { recursive: true });
-    await fsp.writeFile(targetFile, JSON.stringify(sanitized, null, 2), 'utf8');
+    await attemptPersist(sanitized);
     return sanitized;
   } catch (err) {
     const code = (err as NodeJS.ErrnoException)?.code;
     const isSyntaxError = err instanceof SyntaxError;
     if (!isSyntaxError && code !== 'ENOENT') {
-      console.warn('[merezhyvo] settings read failed, attempting legacy fallback', err);
+      console.warn('[merezhyvo] settings read failed, attempting fallback', err);
     }
   }
 
-  let legacyState: unknown = null;
-  try {
-    const legacyRaw = await fsp.readFile(getLegacySettingsFilePath(), 'utf8');
-    legacyState = JSON.parse(legacyRaw) as unknown;
-  } catch {
-    legacyState = null;
-  }
+  // fallback: backup copy
+  const backupState = await readJsonIfExists(backupFile);
 
-  let legacyTor: unknown = null;
-  try {
-    const torRaw = await fsp.readFile(getLegacyTorSettingsFilePath(), 'utf8');
-    legacyTor = JSON.parse(torRaw) as unknown;
-  } catch {
-    legacyTor = null;
-  }
+  // legacy paths
+  const legacyState = await readJsonIfExists(getLegacySettingsFilePath());
+  const legacyTor = await readJsonIfExists(getLegacyTorSettingsFilePath());
 
   const merged = {
+    ...(typeof backupState === 'object' && backupState !== null ? backupState : {}),
     ...(typeof legacyState === 'object' && legacyState !== null ? legacyState : {}),
-    tor: legacyTor
+    ...(legacyTor ? { tor: legacyTor } : {})
   };
 
   const sanitized = sanitizeSettingsPayload(merged);
-  try {
-    await fsp.mkdir(path.dirname(targetFile), { recursive: true });
-    await fsp.writeFile(targetFile, JSON.stringify(sanitized, null, 2), 'utf8');
-  } catch (writeErr) {
-    console.error('[merezhyvo] settings write failed', writeErr);
-  }
+  await attemptPersist(sanitized);
   return sanitized;
 }
 
 export async function writeSettingsState(patch: SettingsLike | SettingsState): Promise<SettingsState> {
   const file = getSettingsFilePath();
+  const backupFile = getBackupSettingsFilePath();
 
   // 1) Read current state from disk, but do NOT write defaults here.
   let current: SettingsState | null = null;
@@ -258,5 +274,11 @@ export async function writeSettingsState(patch: SettingsLike | SettingsState): P
   // 3) Persist merged result.
   await fs.promises.mkdir(path.dirname(file), { recursive: true });
   await fs.promises.writeFile(file, JSON.stringify(merged, null, 2), 'utf8');
+  try {
+    await fs.promises.mkdir(path.dirname(backupFile), { recursive: true });
+    await fs.promises.writeFile(backupFile, JSON.stringify(merged, null, 2), 'utf8');
+  } catch {
+    // best-effort backup
+  }
   return merged;
 }
