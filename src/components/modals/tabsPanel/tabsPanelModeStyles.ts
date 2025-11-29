@@ -62,7 +62,7 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       height: 'clamp(42px, 6vw, 54px)'
     },
     tabActions: {
-      gap: 'clamp(30px, 5vw, 45px)'
+      gap: '15px'
     },
     feedbackBanner: {
       padding: 'clamp(24px, 3vh, 36px) clamp(30px, 4vw, 48px)',
