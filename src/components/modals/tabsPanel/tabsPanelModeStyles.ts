@@ -35,7 +35,7 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       fontSize: 'clamp(30px, 4.5vw, 39px)'
     },
     tabRow: {
-      padding: 'clamp(30px, 5vw, 48px)',
+      padding: '30px',
       borderRadius: '28px'
     },
     tabFaviconWrap: {
