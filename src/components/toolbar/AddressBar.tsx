@@ -4,6 +4,7 @@ import type {
   RefObject,
   ChangeEvent,
   PointerEvent,
+  MouseEvent,
   FocusEvent,
   FormEvent
 } from 'react';
@@ -26,6 +27,9 @@ interface AddressBarProps {
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
   showTabsButton?: boolean;
+  inputFocused?: boolean;
+  suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
+  onSelectSuggestion?: (url: string) => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -42,7 +46,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onOpenTabsPanel,
   downloadIndicatorState,
   onDownloadIndicatorClick,
-  showTabsButton = true
+  showTabsButton = true,
+  inputFocused = false,
+  suggestions = [],
+  onSelectSuggestion
 }) => {
   const { t } = useI18n();
   const showIndicator = downloadIndicatorState !== 'hidden';
@@ -52,6 +59,37 @@ const AddressBar: React.FC<AddressBarProps> = ({
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
     ...(paddingRight ? { paddingRight } : {})
+  };
+  const baseInputFont =
+    (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
+    (mode === 'mobile' ? '36px' : '14px');
+  const baseFontSize = typeof baseInputFont === 'number' ? `${baseInputFont}px` : baseInputFont;
+  const secondaryFontSize = mode === 'mobile' ? '28px' : '12px';
+
+  const suggestionsStyle: CSSProperties = {
+    position: 'absolute',
+    top: 'calc(100% + 6px)',
+    left: mode === 'mobile' ? 0 : undefined,
+    right: mode === 'mobile' ? 0 : undefined,
+    width: mode === 'mobile' ? '100%' : '100%',
+    backgroundColor: '#0f1729',
+    border: '1px solid rgba(148, 163, 184, 0.35)',
+    borderRadius: '12px',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+    padding: 0,
+    margin: 0,
+    listStyle: 'none',
+    overflow: 'hidden',
+    zIndex: 50
+  };
+  const suggestionItemStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: mode === 'mobile' ? 4 : 2,
+    padding: '10px 12px',
+    cursor: 'pointer',
+    borderBottom: '1px solid rgba(148,163,184,0.18)',
+    background: 'transparent'
   };
   const indicatorLabel =
     downloadIndicatorState === 'completed'
@@ -112,6 +150,67 @@ const AddressBar: React.FC<AddressBarProps> = ({
           <span style={arrowStyle} />
         </button>
       )}
+        {inputFocused && suggestions.length > 0 && value.trim().length > 0 && (
+          <ul style={suggestionsStyle}>
+            {suggestions.map((item, idx) => (
+              <li
+                key={`${item.url}_${idx}`}
+                style={{
+                  ...suggestionItemStyle,
+                  ...(idx === suggestions.length - 1
+                    ? { borderBottom: 'none' }
+                    : {})
+                }}
+                onMouseDown={(e: MouseEvent<HTMLLIElement>) => {
+                  e.preventDefault();
+                  onSelectSuggestion?.(item.url);
+                }}
+                onPointerDown={(e: PointerEvent<HTMLLIElement>) => {
+                  e.preventDefault();
+                  onSelectSuggestion?.(item.url);
+                }}
+              >
+                {item.title && item.title.trim().length > 0 ? (
+                  <>
+                    <span
+                      style={{
+                        fontSize: baseFontSize,
+                        color: '#e2e8f0'
+                      }}
+                    >
+                      {item.title}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: secondaryFontSize,
+                        color: 'rgba(226,232,240,0.75)',
+                        overflow: 'hidden',
+                        textOverflow: 'ellipsis',
+                        whiteSpace: 'nowrap'
+                      }}
+                      title={item.url}
+                    >
+                      {item.url}
+                    </span>
+                  </>
+                ) : (
+                  <span
+                    style={{
+                      fontSize: baseFontSize,
+                      color: '#e2e8f0',
+                      overflow: 'hidden',
+                      textOverflow: 'ellipsis',
+                      whiteSpace: 'nowrap'
+                    }}
+                    title={item.url}
+                  >
+                    {item.url}
+                  </span>
+                )}
+              </li>
+            ))}
+          </ul>
+        )}
       </div>
       {showTabsButton && (
         <button

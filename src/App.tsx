@@ -297,6 +297,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
   const [inputValue, setInputValue] = useState<string>(initialUrl);
+  const [urlSuggestions, setUrlSuggestions] = useState<
+    { url: string; title?: string | null; source: 'history' | 'bookmark' }[]
+  >([]);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const isEditingRef = useRef<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
@@ -360,6 +363,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [downloadIndicatorState, setDownloadIndicatorState] = useState<
     'hidden' | 'active' | 'completed' | 'error'
   >('hidden');
+  const bookmarksCacheRef = useRef<
+    { url: string; title?: string | null; createdAt?: number; updatedAt?: number }[]
+  >([]);
+  const bookmarksCacheReadyRef = useRef(false);
   const clearDownloadIndicatorTimer = useCallback(() => {
     if (downloadIndicatorTimerRef.current) {
       window.clearTimeout(downloadIndicatorTimerRef.current);
@@ -2275,29 +2282,45 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       wv.removeEventListener('console-message', onConsole);
     };
   }, [mode, getActiveWebview, activeId, activeViewRevision]);
+  const navigateToUrl = useCallback(
+    (raw: string) => {
+      const handle = getActiveWebviewHandle();
+      const view = (handle && typeof handle.getWebView === 'function')
+        ? handle.getWebView()
+        : getActiveWebview();
+      if (!handle && !view) return;
+      const target = normalizeAddress(raw);
+      setInputValue(target);
+      setStatus('loading');
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+      const activeIdCurrent = activeIdRef.current;
+      if (activeIdCurrent) {
+        navigateActiveAction(target);
+        lastLoadedRef.current = { id: activeIdCurrent, url: target };
+      }
+      if (handle) {
+        handle.loadURL(target);
+      } else if (view) {
+        try { view.loadURL(target); } catch {}
+      }
+    },
+    [getActiveWebview, getActiveWebviewHandle, navigateActiveAction]
+  );
+
   const handleSubmit = useCallback((event: SubmitEvent) => {
     event?.preventDefault?.();
-    const handle = getActiveWebviewHandle();
-    const view = (handle && typeof handle.getWebView === 'function')
-      ? handle.getWebView()
-      : getActiveWebview();
-    if (!handle && !view) return;
-    const target = normalizeAddress(inputValue);
-    setInputValue(target);
-    setStatus('loading');
-    webviewReadyRef.current = false;
-    setWebviewReady(false);
-    const activeIdCurrent = activeIdRef.current;
-    if (activeIdCurrent) {
-      navigateActiveAction(target);
-      lastLoadedRef.current = { id: activeIdCurrent, url: target };
-    }
-    if (handle) {
-      handle.loadURL(target);
-    } else if (view) {
-      try { view.loadURL(target); } catch {}
-    }
-  }, [getActiveWebview, getActiveWebviewHandle, inputValue, navigateActiveAction]);
+    navigateToUrl(inputValue);
+  }, [inputValue, navigateToUrl]);
+
+  const handleSuggestionSelect = useCallback(
+    (url: string) => {
+      if (!url) return;
+      setUrlSuggestions([]);
+      navigateToUrl(url);
+    },
+    [navigateToUrl]
+  );
 
   const handleBack = useCallback(() => {
     const handle = getActiveWebviewHandle();
@@ -2373,6 +2396,152 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setIsEditing(false);
     if (activeInputRef.current === 'url') activeInputRef.current = null;
   }, []);
+
+  const loadBookmarksCache = useCallback(async () => {
+    if (bookmarksCacheReadyRef.current) {
+      return bookmarksCacheRef.current;
+    }
+    const api = typeof window !== 'undefined' ? window.merezhyvo?.bookmarks : undefined;
+    if (!api?.list) {
+      bookmarksCacheReadyRef.current = true;
+      bookmarksCacheRef.current = [];
+      return [];
+    }
+    try {
+      const tree = await api.list();
+      const nodes = tree?.nodes ? Object.values(tree.nodes) : [];
+      const bookmarks = nodes.filter((n) => n?.type === 'bookmark' && n.url?.trim());
+      bookmarksCacheRef.current = bookmarks.map((b: any) => ({
+        url: b.url as string,
+        title: b.title,
+        createdAt: b.createdAt,
+        updatedAt: b.updatedAt
+      }));
+    } catch {
+      bookmarksCacheRef.current = [];
+    } finally {
+      bookmarksCacheReadyRef.current = true;
+    }
+    return bookmarksCacheRef.current;
+  }, []);
+
+  useEffect(() => {
+    const onBookmarksChanged = () => {
+      bookmarksCacheReadyRef.current = false;
+      bookmarksCacheRef.current = [];
+    };
+    window.addEventListener('merezhyvo:bookmarks:changed', onBookmarksChanged);
+    return () => {
+      window.removeEventListener('merezhyvo:bookmarks:changed', onBookmarksChanged);
+    };
+  }, []);
+
+  const fetchUrlSuggestions = useCallback(
+    async (query: string) => {
+      if (typeof window === 'undefined') {
+        return;
+      }
+      if (!window.merezhyvo?.history && !window.merezhyvo?.bookmarks) {
+        return;
+      }
+      const needle = query.trim();
+      if (!needle) {
+        setUrlSuggestions([]);
+        return;
+      }
+      const normalizedNeedle = needle.toLowerCase();
+      const apiHistory = window.merezhyvo?.history;
+      let historyItems: { url: string; title?: string | null }[] = [];
+      try {
+        const result = await apiHistory?.query?.({ q: needle, limit: 20 });
+        historyItems =
+          result?.items?.map((item: any) => ({ url: item.url, title: item.title })) ?? [];
+      } catch (err) {
+        console.error('[suggestions] history query failed', err);
+        historyItems = [];
+      }
+
+      let bookmarkItems:
+        | { url: string; title?: string | null; createdAt?: number; updatedAt?: number }[]
+        | [] = [];
+      try {
+        const cache = await loadBookmarksCache();
+        bookmarkItems = cache.filter((entry) => {
+          const haystack = `${entry.url} ${entry.title ?? ''}`.toLowerCase();
+          return haystack.includes(normalizedNeedle);
+        });
+        bookmarkItems.sort((a, b) => {
+          const aTs = a.updatedAt ?? a.createdAt ?? 0;
+          const bTs = b.updatedAt ?? b.createdAt ?? 0;
+          return bTs - aTs;
+        });
+      } catch (err) {
+        console.error('[suggestions] bookmark scan failed', err);
+        bookmarkItems = [];
+      }
+
+      const seen = new Set<string>();
+      const combined: { url: string; title?: string | null; source: 'history' | 'bookmark' }[] =
+        [];
+      for (const item of historyItems) {
+        const key = item.url;
+        if (!key || seen.has(key)) continue;
+        seen.add(key);
+        combined.push({ url: key, title: item.title, source: 'history' });
+        if (combined.length >= 5) break;
+      }
+      if (combined.length < 5) {
+        for (const bm of bookmarkItems) {
+          const key = bm.url;
+          if (!key || seen.has(key)) continue;
+          seen.add(key);
+          combined.push({ url: key, title: bm.title, source: 'bookmark' });
+          if (combined.length >= 5) break;
+        }
+      }
+      // If all entries share the same origin but the bare origin is missing, prepend it.
+      if (combined.length > 0) {
+        try {
+          const first = new URL(combined[0].url);
+          const baseOrigin = first.origin;
+          const allSameOrigin = combined.every((item) => {
+            try {
+              return new URL(item.url).origin === baseOrigin;
+            } catch {
+              return false;
+            }
+          });
+          const hasOriginEntry = combined.some((item) => {
+            try {
+              const parsed = new URL(item.url);
+              return parsed.origin === baseOrigin && (parsed.pathname === '/' || parsed.pathname === '');
+            } catch {
+              return false;
+            }
+          });
+          if (allSameOrigin && !hasOriginEntry && !seen.has(baseOrigin)) {
+            combined.unshift({ url: baseOrigin, title: baseOrigin, source: 'history' });
+            seen.add(baseOrigin);
+            if (combined.length > 5) {
+              combined.length = 5;
+            }
+          }
+        } catch {
+          // ignore malformed URLs
+        }
+      }
+      setUrlSuggestions(combined);
+    },
+    [loadBookmarksCache]
+  );
+
+  useEffect(() => {
+    if (typeof window === 'undefined') return undefined;
+    const timer = window.setTimeout(() => {
+      void fetchUrlSuggestions(inputValue);
+    }, 140);
+    return () => window.clearTimeout(timer);
+  }, [inputValue, fetchUrlSuggestions]);
 
   const handleKeyboardHeightChange = useCallback((height: number) => {
     setKeyboardHeight(height > 0 ? height : 0);
@@ -2989,7 +3158,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               status={status}
               statusLabel={statusLabelMap[status] || status}
               torEnabled={torEnabled}
-              inputFocused={mode === 'mobile' && isEditing}
+              inputFocused={isEditing}
               onBack={handleBack}
               onForward={handleForward}
               onReload={handleReload}
@@ -3005,6 +3174,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               downloadIndicatorState={downloadIndicatorState}
               onDownloadIndicatorClick={handleDownloadIndicatorClick}
               toolbarRef={toolbarRef}
+              suggestions={urlSuggestions}
+              onSelectSuggestion={handleSuggestionSelect}
             />
           )}
 

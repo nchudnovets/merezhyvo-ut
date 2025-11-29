@@ -35,6 +35,8 @@ interface ToolbarProps {
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
   toolbarRef?: RefObject<HTMLDivElement>;
+  suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
+  onSelectSuggestion?: (url: string) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -62,7 +64,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onEnterMessengerMode,
   downloadIndicatorState,
   onDownloadIndicatorClick,
-  toolbarRef
+  toolbarRef,
+  suggestions,
+  onSelectSuggestion
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -113,6 +117,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
       downloadIndicatorState={downloadIndicatorState}
       onDownloadIndicatorClick={onDownloadIndicatorClick}
       showTabsButton={!compact}
+      inputFocused={inputFocused}
+      suggestions={suggestions}
+      onSelectSuggestion={onSelectSuggestion}
     />
 
     {!compact && (
