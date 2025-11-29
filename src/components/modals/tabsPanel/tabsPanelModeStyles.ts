@@ -88,7 +88,7 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       flexWrap: 'nowrap'
     },
     headerButton: {
-      padding: '6px 22px',
+      padding: '10px 32px',
       fontSize: 'clamp(42px, 6vw, 54px)'
     },
     controlRow: {

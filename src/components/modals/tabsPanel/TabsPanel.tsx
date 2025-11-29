@@ -634,40 +634,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
               }}
             >
               {t('tabs.title')}
-            </h2>
-              <div
-                style={{
-                  ...styles.headerButtons,
-                  ...(modeStyles.headerButtons || {})
-                }}
-              >
-                <button
-                  type="button"
-                  style={{
-                    ...styles.headerButton,
-                    ...(modeStyles.headerButton || {})
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenBookmarks();
-                  }}
-                >
-                  {t('tabs.openBookmarks')}
-                </button>
-                <button
-                  type="button"
-                  style={{
-                    ...styles.headerButton,
-                    ...(modeStyles.headerButton || {})
-                  }}
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    onOpenHistory();
-                  }}
-                >
-                  {t('tabs.openHistory')}
-                </button>
-              </div>
+            </h2>              
           </div>
           <button
             type="button"
@@ -676,6 +643,39 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             onClick={onClose}
           >
             ✕
+          </button>
+        </div>
+        <div
+          style={{
+            ...styles.headerButtons,
+            ...(modeStyles.headerButtons || {})
+          }}
+        >
+          <button
+            type="button"
+            style={{
+              ...styles.headerButton,
+              ...(modeStyles.headerButton || {})
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenBookmarks();
+            }}
+          >
+            {t('tabs.openBookmarks')}
+          </button>
+          <button
+            type="button"
+            style={{
+              ...styles.headerButton,
+              ...(modeStyles.headerButton || {})
+            }}
+            onClick={(event) => {
+              event.stopPropagation();
+              onOpenHistory();
+            }}
+          >
+            {t('tabs.openHistory')}
           </button>
         </div>
 
