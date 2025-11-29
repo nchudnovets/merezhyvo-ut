@@ -66,6 +66,17 @@ try {
   // noop
 }
 
+// Default environment values (for launches without wrapper scripts)
+if (!process.env.XCURSOR_SIZE) {
+  process.env.XCURSOR_SIZE = '14';
+}
+if (!process.env.OZONE_PLATFORM) {
+  process.env.OZONE_PLATFORM = 'wayland';
+}
+if (!process.env.ELECTRON_DISABLE_SANDBOX) {
+  process.env.ELECTRON_DISABLE_SANDBOX = '1';
+}
+
 const fsp = fs.promises;
 
 const getTorVersionCandidates = (): string[] => {
