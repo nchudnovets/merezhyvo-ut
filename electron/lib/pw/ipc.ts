@@ -166,12 +166,33 @@ const processCapturePayload = (payload: CapturePayload, captureId?: string): voi
   const siteName = getSiteName(payload.origin);
 
   let existingId: string | undefined;
+  let shouldPrompt = true;
   if (isVaultUnlocked()) {
     const entries = getEntriesMeta();
-    const existing = entries.find(
-      (entry) => entry.signonRealm === payload.signonRealm && entry.username === payload.username
-    );
-    existingId = existing?.id;
+    const sameRealm = entries.filter((entry) => entry.signonRealm === payload.signonRealm);
+    const sameUser = sameRealm.find((entry) => entry.username === payload.username);
+    if (sameUser) {
+      try {
+        const secret = getEntrySecret(sameUser.id);
+        if (secret.password === payload.password) {
+          shouldPrompt = false;
+        } else {
+          existingId = sameUser.id;
+        }
+      } catch {
+        // fall through to prompt update
+        existingId = sameUser.id;
+      }
+    } else if (sameRealm.length === 0) {
+      shouldPrompt = true;
+    } else {
+      // different username on same realm -> allow saving another
+      shouldPrompt = true;
+    }
+  }
+  if (!shouldPrompt) {
+    clearCapturePayload(id);
+    return;
   }
   broadcastPrompt(id, payload, siteName, Boolean(existingId), existingId);
 };
