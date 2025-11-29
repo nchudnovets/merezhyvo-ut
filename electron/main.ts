@@ -426,6 +426,13 @@ const openCtxWindowFor = async (
 ): Promise<void> => {
   const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
   const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
+  let uiLanguage: string | undefined;
+  try {
+    const st = getCachedSettings();
+    uiLanguage = st?.ui?.language;
+  } catch {
+    uiLanguage = undefined;
+  }
 
   if (isTouchSource(params) && normalizedMode !== 'mobile') {
     return;
@@ -589,6 +596,11 @@ const openCtxWindowFor = async (
 
   const askRender = () => {
     if (!ctxWin || ctxWin.isDestroyed()) return;
+    try {
+      ctxWin.webContents.send('mzr:ctxmenu:language', uiLanguage);
+    } catch {
+      // noop
+    }
     try {
       ctxWin.webContents.send('mzr:ctxmenu:render');
     } catch {

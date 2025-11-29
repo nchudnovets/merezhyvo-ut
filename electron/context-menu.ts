@@ -274,19 +274,27 @@ declare global {
 
 window.__mzr_render = render;
 
+const loadLanguage = (lang?: string) => {
+  if (lang && dictionaries[lang]) {
+    currentLanguage = lang;
+  } else {
+    currentLanguage = 'en';
+  }
+  if (typeof window.__mzr_render === 'function') {
+    window.__mzr_render();
+  }
+};
+
+ipcRenderer.on('mzr:ctxmenu:language', (_event, lang: unknown) => {
+  if (typeof lang === 'string') {
+    loadLanguage(lang);
+  }
+});
+
 void ipcRenderer
   .invoke('merezhyvo:ui:getLanguage')
-  .then((lang) => {
-    if (typeof lang === 'string' && dictionaries[lang]) {
-      currentLanguage = lang;
-      if (typeof window.__mzr_render === 'function') {
-        window.__mzr_render();
-      }
-    }
-  })
-  .catch(() => {
-    // ignore language load errors
-  });
+  .then((lang) => loadLanguage(typeof lang === 'string' ? lang : undefined))
+  .catch(() => loadLanguage());
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') ipcRenderer.send('mzr:ctxmenu:close');
