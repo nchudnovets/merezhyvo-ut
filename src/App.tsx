@@ -1202,6 +1202,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setPageError(null);
       webviewReadyRef.current = false;
       setWebviewReady(false);
+      if (mode === 'mobile') {
+        setKbVisible(false);
+      }
     } else if (nextStatus === 'ready') {
       setPageError(null);
       webviewReadyRef.current = true;
@@ -2062,12 +2065,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (isEditableElement(t)) setKbVisible(true);
     };
 
+    const onFocusOut = () => {
+      if (oskPressGuardRef.current) return;
+      const active = document.activeElement as HTMLElement | null;
+      if (!isEditableElement(active)) {
+        setKbVisible(false);
+      }
+    };
+
     document.addEventListener('pointerdown', onPointerDown, true);
     document.addEventListener('focusin', onFocusIn, true);
+    document.addEventListener('focusout', onFocusOut, true);
 
     return () => {
       document.removeEventListener('pointerdown', onPointerDown, true);
       document.removeEventListener('focusin', onFocusIn, true);
+      document.removeEventListener('focusout', onFocusOut, true);
     };
   }, [mode, isEditableElement]);
 
@@ -3141,6 +3154,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       </button>
     </div>
   ) : null;
+
+  useEffect(() => {
+    if (mode !== 'mobile') return;
+    setKbVisible(false);
+  }, [mode, activeId, mainViewMode]);
 
   useEffect(() => {
     if (status !== 'error' || !pageError) return;

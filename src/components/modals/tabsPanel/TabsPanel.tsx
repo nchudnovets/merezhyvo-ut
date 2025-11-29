@@ -652,7 +652,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                     onOpenBookmarks();
                   }}
                 >
-                  ⭐ {t('tabs.openBookmarks')}
+                  {t('tabs.openBookmarks')}
                 </button>
                 <button
                   type="button"
@@ -665,7 +665,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                     onOpenHistory();
                   }}
                 >
-                  🕘 {t('tabs.openHistory')}
+                  {t('tabs.openHistory')}
                 </button>
               </div>
           </div>

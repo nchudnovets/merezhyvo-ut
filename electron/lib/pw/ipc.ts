@@ -112,6 +112,28 @@ const getSiteName = (origin: string): string => {
   }
 };
 
+const hostFromRealm = (realm: string): string => {
+  try {
+    return new URL(realm).hostname.toLowerCase();
+  } catch {
+    try {
+      const stripped = realm.replace(/^https?:\/\//i, '');
+      const hostPart = stripped.split('/')[0];
+      return hostPart.split(':')[0].toLowerCase();
+    } catch {
+      return realm.toLowerCase();
+    }
+  }
+};
+
+const hostsMatch = (a: string, b: string): boolean => {
+  const hostA = hostFromRealm(a);
+  const hostB = hostFromRealm(b);
+  if (!hostA || !hostB) return false;
+  if (hostA === hostB) return true;
+  return hostA.endsWith(`.${hostB}`) || hostB.endsWith(`.${hostA}`);
+};
+
 const broadcastToRenderers = (channel: string, payload: unknown): void => {
   for (const win of BrowserWindow.getAllWindows()) {
     try {
@@ -167,10 +189,14 @@ const processCapturePayload = (payload: CapturePayload, captureId?: string): voi
 
   let existingId: string | undefined;
   let shouldPrompt = true;
+  const normalizeUsername = (value?: string | null) => (value ?? '').trim().toLowerCase();
+  const payloadUsername = normalizeUsername(payload.username);
   if (isVaultUnlocked()) {
     const entries = getEntriesMeta();
-    const sameRealm = entries.filter((entry) => entry.signonRealm === payload.signonRealm);
-    const sameUser = sameRealm.find((entry) => entry.username === payload.username);
+    const sameRealm = entries.filter((entry) => hostsMatch(entry.signonRealm, payload.signonRealm));
+    const sameUser = sameRealm.find(
+      (entry) => normalizeUsername(entry.username) === payloadUsername
+    );
     if (sameUser) {
       try {
         const secret = getEntrySecret(sameUser.id);
@@ -180,14 +206,30 @@ const processCapturePayload = (payload: CapturePayload, captureId?: string): voi
           existingId = sameUser.id;
         }
       } catch {
-        // fall through to prompt update
         existingId = sameUser.id;
       }
-    } else if (sameRealm.length === 0) {
-      shouldPrompt = true;
-    } else {
-      // different username on same realm -> allow saving another
-      shouldPrompt = true;
+    } else if (payloadUsername === '') {
+      const matchByPassword = sameRealm.find((entry) => {
+        try {
+          const secret = getEntrySecret(entry.id);
+          return secret.password === payload.password;
+        } catch {
+          return false;
+        }
+      });
+      if (matchByPassword) {
+        shouldPrompt = false;
+      }
+    }
+  } else {
+    // If vault locked but we already have an entry for this origin+username (matching by host), suppress prompt.
+    const entries = getEntriesMeta();
+    const sameRealm = entries.filter((entry) => hostsMatch(entry.signonRealm, payload.signonRealm));
+    const sameUser = sameRealm.find(
+      (entry) => normalizeUsername(entry.username) === payloadUsername
+    );
+    if (sameUser) {
+      shouldPrompt = false;
     }
   }
   if (!shouldPrompt) {

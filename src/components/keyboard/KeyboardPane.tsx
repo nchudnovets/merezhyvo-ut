@@ -505,14 +505,18 @@ const KeyboardPane: React.FC<Props> = (p) => {
       const alts =
         lpMap[btn] || lpMap[btnLower] || lpMap[btn.toUpperCase()] || [];
       if (alts.length && rect) {
+        const scale = parseFloat(
+          getComputedStyle(document.documentElement).getPropertyValue('--ui-scale') || '1'
+        );
+        const inv = scale && Number.isFinite(scale) && scale > 0 ? 1 / scale : 1;
         holdTimer.current = window.setTimeout(() => {
           holdActivated.current = true;
           setActiveButton(null);
           setPopup({
             key: btn,
             alts,
-            x: Math.round(rect.left + rect.width / 2),
-            y: Math.round(rect.top - 10),
+            x: Math.round((rect.left + rect.width / 2) * inv),
+            y: Math.round((rect.top - 10) * inv),
           });
         }, LONGPRESS_MS);
         return;

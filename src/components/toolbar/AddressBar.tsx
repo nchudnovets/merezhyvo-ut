@@ -52,6 +52,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onSelectSuggestion
 }) => {
   const { t } = useI18n();
+  const pointerDownTsRef = React.useRef<number>(0);
   const showIndicator = downloadIndicatorState !== 'hidden';
   const indicatorSize = mode === 'mobile' ? 55 : 16;
   const paddingRight = showIndicator ? indicatorSize + (mode === 'mobile' ? 30 : 15) : 0;
@@ -130,7 +131,20 @@ const AddressBar: React.FC<AddressBarProps> = ({
             type="text"
             value={value}
           onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-          onPointerDown={onPointerDown}
+          onPointerDown={(event: PointerEvent<HTMLInputElement>) => {
+            pointerDownTsRef.current = Date.now();
+            onPointerDown(event);
+          }}
+          onContextMenu={(event: MouseEvent<HTMLInputElement>) => {
+            if (mode === 'mobile') {
+              const delta = Date.now() - pointerDownTsRef.current;
+              if (delta < 500) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
+              }
+            }
+          }}
           onFocus={onFocus}
           onBlur={onBlur}
           inputMode="url"
