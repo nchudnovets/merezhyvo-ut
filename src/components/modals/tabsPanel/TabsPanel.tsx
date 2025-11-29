@@ -510,11 +510,6 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     ...styles.searchToggleIcon,
     ...(modeStyles.searchToggleIcon || {})
   };
-  const activeSeparatorStyle = {
-    ...styles.activeSeparator,
-    ...(modeStyles.activeSeparator || {})
-  };
-
   const normalizedQuery = searchOpen ? searchQuery.trim().toLowerCase() : '';
   const hasQuery = normalizedQuery.length > 0;
 
@@ -534,26 +529,33 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     [displayTitle, displaySubtitle, normalizedQuery]
   );
 
-  const filteredPinnedTabs = useMemo(() => {
-    if (!searchOpen) return pinnedTabs;
-    return pinnedTabs.filter((tab) => tab.id === activeTabId || matchesQuery(tab));
-  }, [matchesQuery, pinnedTabs, searchOpen, activeTabId]);
+  const filterTabs = useCallback(
+    (tabs: Tab[]) => {
+      if (!searchOpen || !hasQuery) return tabs;
+      return tabs.filter(matchesQuery);
+    },
+    [searchOpen, hasQuery, matchesQuery]
+  );
 
-  const activeRegularTab = useMemo(() => {
+  const activeTab = useMemo(() => {
     if (!activeTabId) return null;
-    return regularTabs.find((tab) => tab.id === activeTabId) ?? null;
-  }, [regularTabs, activeTabId]);
+    return pinnedTabs.find((tab) => tab.id === activeTabId) ??
+      regularTabs.find((tab) => tab.id === activeTabId) ??
+      null;
+  }, [activeTabId, pinnedTabs, regularTabs]);
 
-  const shouldSeparateActive = hasQuery && !!activeRegularTab;
+  const showActive =
+    !!activeTab && (!searchOpen || !hasQuery || matchesQuery(activeTab));
+
+  const filteredPinnedTabs = useMemo(() => {
+    const filtered = filterTabs(pinnedTabs);
+    return activeTabId ? filtered.filter((tab) => tab.id !== activeTabId) : filtered;
+  }, [filterTabs, pinnedTabs, activeTabId]);
 
   const filteredRegularTabs = useMemo(() => {
-    const base = shouldSeparateActive
-      ? regularTabs.filter((tab) => tab.id !== activeTabId)
-      : regularTabs;
-    if (!searchOpen) return base;
-    if (!hasQuery) return base;
-    return base.filter(matchesQuery);
-  }, [hasQuery, matchesQuery, regularTabs, activeTabId, searchOpen, shouldSeparateActive]);
+    const filtered = filterTabs(regularTabs);
+    return activeTabId ? filtered.filter((tab) => tab.id !== activeTabId) : filtered;
+  }, [filterTabs, regularTabs, activeTabId]);
 
   const toggleSearch = useCallback(() => {
     setSearchOpen((prev) => {
@@ -567,9 +569,6 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
       return next;
     });
   }, [setSearchQuery]);
-
-  const showActiveSection = shouldSeparateActive && !!activeRegularTab;
-  const showActiveSeparator = showActiveSection && filteredRegularTabs.length > 0;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -779,11 +778,31 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
 
         <div
           className="tabs-modal-body"
-          style={{
-            ...styles.body,
-            ...(modeStyles.tabsPanelBody || {})
-          }}
-        >
+        style={{
+          ...styles.body,
+          ...(modeStyles.tabsPanelBody || {})
+        }}
+       >
+          {showActive && activeTab && (
+            <div style={styles.section}>
+              <div style={styles.list}>
+                <TabRow
+                  key={activeTab.id}
+                  tab={activeTab}
+                  mode={mode}
+                  isActive
+                  onActivate={onActivateTab}
+                  onTogglePin={onTogglePin}
+                  onCleanClose={handleCleanCloseTab}
+                  onClose={onCloseTab}
+                  displayTitle={displayTitle}
+                  displaySubtitle={displaySubtitle}
+                  fallbackInitial={fallbackInitial}
+                />
+              </div>
+            </div>
+          )}
+
           {filteredPinnedTabs.length > 0 && (
             <div style={styles.section}>
               <p
@@ -814,37 +833,17 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             </div>
           )}
 
-          {(filteredRegularTabs.length > 0 || showActiveSection) && (
+          {filteredRegularTabs.length > 0 && (
             <div style={styles.section}>
-              {filteredPinnedTabs.length > 0 && (
-                <p
-                  style={{
-                    ...styles.sectionTitle,
-                    ...(modeStyles.tabsSectionTitle || {})
-                  }}
-                >
-                  {t('tabs.section.others')}
-                </p>
-              )}
+              <p
+                style={{
+                  ...styles.sectionTitle,
+                  ...(modeStyles.tabsSectionTitle || {})
+                }}
+              >
+                {t('tabs.section.others')}
+              </p>
               <div style={styles.list}>
-                {showActiveSection && activeRegularTab && (
-                  <>
-                    <TabRow
-                      key={activeRegularTab.id}
-                      tab={activeRegularTab}
-                      mode={mode}
-                      isActive
-                      onActivate={onActivateTab}
-                      onTogglePin={onTogglePin}
-                      onCleanClose={handleCleanCloseTab}
-                      onClose={onCloseTab}
-                      displayTitle={displayTitle}
-                      displaySubtitle={displaySubtitle}
-                      fallbackInitial={fallbackInitial}
-                    />
-                    {showActiveSeparator && <div style={activeSeparatorStyle} />}
-                  </>
-                )}
                 {filteredRegularTabs.map((tab) => (
                   <TabRow
                     key={tab.id}
