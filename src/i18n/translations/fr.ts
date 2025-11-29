@@ -47,6 +47,7 @@ const fr = {
   'address.downloads.inProgress': 'Téléchargements en cours',
   'address.downloads.complete': 'Téléchargements terminés',
   'address.downloads.error': 'Téléchargements échoués',
+  'address.copyUrl': 'Copier l’URL',
   'toast.dismiss': 'Fermer',
   'history.title': 'Historique',
   'history.clear': 'Effacer l’historique',

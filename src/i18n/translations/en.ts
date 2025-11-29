@@ -47,6 +47,7 @@ const en = {
   'address.downloads.inProgress': 'Downloads in progress',
   'address.downloads.complete': 'Downloads complete',
   'address.downloads.error': 'Downloads failed',
+  'address.copyUrl': 'Copy URL',
   'toast.dismiss': 'Dismiss',
   'history.title': 'History',
   'history.clear': 'Clear history',

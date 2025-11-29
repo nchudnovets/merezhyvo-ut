@@ -47,6 +47,7 @@ const uk = {
   'address.downloads.inProgress': 'Завантаження тривають',
   'address.downloads.complete': 'Завантаження завершені',
   'address.downloads.error': 'Помилки завантаження',
+  'address.copyUrl': 'Копіювати URL',
   'toast.dismiss': 'Закрити',
   'history.title': 'Історія',
   'history.clear': 'Очистити історію',

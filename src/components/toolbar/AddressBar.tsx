@@ -25,6 +25,7 @@ interface AddressBarProps {
   onOpenTabsPanel: () => void;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
+  showTabsButton?: boolean;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -40,15 +41,17 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onBlur,
   onOpenTabsPanel,
   downloadIndicatorState,
-  onDownloadIndicatorClick
+  onDownloadIndicatorClick,
+  showTabsButton = true
 }) => {
   const { t } = useI18n();
   const showIndicator = downloadIndicatorState !== 'hidden';
   const indicatorSize = mode === 'mobile' ? 55 : 16;
+  const paddingRight = showIndicator ? indicatorSize + (mode === 'mobile' ? 30 : 15) : 0;
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
-    ...(showIndicator ? { paddingRight: indicatorSize + (mode === 'mobile' ? 30 : 15) } : {})
+    ...(paddingRight ? { paddingRight } : {})
   };
   const indicatorLabel =
     downloadIndicatorState === 'completed'
@@ -106,41 +109,43 @@ const AddressBar: React.FC<AddressBarProps> = ({
             onClick={onDownloadIndicatorClick}
             style={buttonStyle}
           >
-            <span style={arrowStyle} />
-          </button>
-        )}
+          <span style={arrowStyle} />
+        </button>
+      )}
       </div>
-      <button
-        type="button"
-        title={openTabsLabel}
-        aria-label={openTabsLabel}
-        aria-haspopup="dialog"
-        onClick={onOpenTabsPanel}
-        disabled={!tabsReady}
-        style={{
-          ...toolbarStyles.tabsButton,
-          ...(toolbarModeStyles[mode].tabsButton || {}),
-          ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
-        }}
-      >
-        <span style={toolbarStyles.visuallyHidden}>{openTabsLabel}</span>
-        <span
-          aria-hidden="true"
+      {showTabsButton && (
+        <button
+          type="button"
+          title={openTabsLabel}
+          aria-label={openTabsLabel}
+          aria-haspopup="dialog"
+          onClick={onOpenTabsPanel}
+          disabled={!tabsReady}
           style={{
-            ...toolbarStyles.tabsButtonSquare,
-            ...(toolbarModeStyles[mode].tabsButtonSquare || {})
+            ...toolbarStyles.tabsButton,
+            ...(toolbarModeStyles[mode].tabsButton || {}),
+            ...(!tabsReady ? toolbarStyles.tabsButtonDisabled : {})
           }}
         >
+          <span style={toolbarStyles.visuallyHidden}>{openTabsLabel}</span>
           <span
+            aria-hidden="true"
             style={{
-              ...toolbarStyles.tabsButtonCount,
-              ...(toolbarModeStyles[mode].tabsButtonCount || {})
+              ...toolbarStyles.tabsButtonSquare,
+              ...(toolbarModeStyles[mode].tabsButtonSquare || {})
             }}
           >
-            {tabCount}
+            <span
+              style={{
+                ...toolbarStyles.tabsButtonCount,
+                ...(toolbarModeStyles[mode].tabsButtonCount || {})
+              }}
+            >
+              {tabCount}
+            </span>
           </span>
-        </span>
-      </button>
+        </button>
+      )}
     </form>
   );
 };

@@ -2374,7 +2374,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeInputRef.current === 'url') activeInputRef.current = null;
   }, []);
 
-
   const handleKeyboardHeightChange = useCallback((height: number) => {
     setKeyboardHeight(height > 0 ? height : 0);
   }, []);
@@ -2990,6 +2989,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               status={status}
               statusLabel={statusLabelMap[status] || status}
               torEnabled={torEnabled}
+              inputFocused={mode === 'mobile' && isEditing}
               onBack={handleBack}
               onForward={handleForward}
               onReload={handleReload}
