@@ -331,29 +331,146 @@ export function makeWebInjects(
     const wv = getActiveWebview();
     return wv ? wv.getWebContentsId() : null;
   };
-  const focusActiveWebview = (): void => {
+  const shouldUseDomInjection = (): boolean => {
+    try {
+      const wv = getActiveWebview();
+      if (!wv) return false;
+      const raw = typeof wv.getURL === 'function' ? wv.getURL() : '';
+      const url = new URL(raw || 'http://localhost');
+      const host = (url.hostname || '').toLowerCase();
+      return host.endsWith('duckduckgo.com') || host === 'duck.com';
+    } catch {
+      return false;
+    }
+  };
+
+  const injectViaDom = async (txt: string): Promise<boolean> => {
     const wv = getActiveWebview();
-    // HTMLElement#focus exists on <webview>; brings caret back visually
-    if (wv) wv.focus();
+    if (!wv) return false;
+    const payload = JSON.stringify(txt);
+    const code = `
+      (function(t){
+        try{
+          var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
+          var el = document.activeElement;
+          if(!el) { console.info('[osk-inject] no active el'); return false; }
+          var tag = (el.tagName||'').toLowerCase();
+          var type = (el.getAttribute ? (el.getAttribute('type')||'').toLowerCase() : '');
+          var isText = el.isContentEditable || tag==='textarea' || (tag==='input' && !nonText[type]);
+          if(!isText) { console.info('[osk-inject] nonText', {tag,type}); return false; }
+          if(tag==='textarea' || tag==='input'){
+            var ip = el;
+            var val = String(ip.value||'');
+            var s = typeof ip.selectionStart==='number' ? ip.selectionStart : val.length;
+            var e = typeof ip.selectionEnd==='number' ? ip.selectionEnd : s;
+            if(typeof ip.setRangeText==='function'){
+              ip.setRangeText(t,s,e,'end');
+            } else {
+              ip.value = val.slice(0,s) + t + val.slice(e);
+              var pos = s + t.length;
+              if (ip.setSelectionRange) ip.setSelectionRange(pos,pos);
+            }
+            ip.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true}));
+            document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+            try{ ip.focus({preventScroll:true}); }catch(_){ try{ ip.focus(); }catch(__){} }
+            console.info('[osk-inject] ok input', { tag, type, len: ip.value.length });
+            return true;
+          }
+          var sel = window.getSelection && window.getSelection();
+          if(sel && sel.rangeCount>0){
+            var range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(t));
+            range.collapse(false);
+            el.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true}));
+            document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+            try{ el.focus({preventScroll:true}); }catch(_){ try{ el.focus(); }catch(__){} }
+            console.info('[osk-inject] ok contenteditable');
+            return true;
+          }
+          console.info('[osk-inject] fallback failed');
+          return false;
+        }catch(e){ console.info('[osk-inject] error', e && e.message ? e.message : e); return false; }
+      })(${payload});
+    `;
+    try {
+      const res = await wv.executeJavaScript(code, false);
+      return Boolean(res);
+    } catch {
+      return false;
+    }
+  };
+  const ensureEditableFocus = async (): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const code = `
+      (function(){
+        try{
+          var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
+          function isEditable(el){
+            if(!el) return false;
+            if(el.isContentEditable) return true;
+            var tag = (el.tagName||'').toLowerCase();
+            if(tag==='textarea') return !el.disabled && !el.readOnly;
+            if(tag==='input'){
+              var type = (el.getAttribute('type')||'').toLowerCase();
+              if(nonText[type]) return false;
+              return !el.disabled && !el.readOnly;
+            }
+            return false;
+          }
+          var el = document.activeElement;
+          if(!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)){
+            try { window.__mzrLastEditable.focus({ preventScroll: true }); el = window.__mzrLastEditable; } catch(e) { try{ window.__mzrLastEditable.focus(); el = window.__mzrLastEditable; }catch(_){} }
+          }
+          if(isEditable(el)){
+            try { el.focus({ preventScroll: true }); } catch(e) { try{ el.focus(); }catch(_){} }
+            return true;
+          }
+          return false;
+        }catch(e){ return false; }
+      })();
+    `;
+    try {
+      const res = await wv.executeJavaScript(code, false);
+      return Boolean(res);
+    } catch {
+      return false;
+    }
   };
 
   const sendCharsTrusted = async (text: string): Promise<boolean> => {
+    const useDom = shouldUseDomInjection();
+    if (useDom) {
+      const ok = await injectViaDom(text);
+      if (ok) return true;
+    }
     const wcId = getWcId();
     if (wcId == null) return false;
+    await ensureEditableFocus();
     for (const ch of Array.from(String(text))) {
+      const sendLog = { ch, wcId, focused: await ensureEditableFocus(), host: (() => {
+        try {
+          const raw = typeof getActiveWebview()?.getURL === 'function' ? getActiveWebview()!.getURL() : '';
+          return new URL(raw || 'http://localhost').hostname;
+        } catch { return ''; }
+      })() };
+      console.info('[osk-send] char', sendLog);
       await ipc.osk.char(wcId, ch);
     }
-    // Ensure the caret stays visible in the webview after input
-    focusActiveWebview();
+    // Ensure focus stays inside the active editable
+    await ensureEditableFocus();
     return true;
   };
 
   const sendKeyTrusted = async (key: string): Promise<boolean> => {
     const wcId = getWcId();
     if (wcId == null) return false;
+    await ensureEditableFocus();
+    console.info('[osk-send] key', { key, wcId });
     await ipc.osk.key(wcId, key);
-    // Ensure the caret stays visible in the webview after input
-    focusActiveWebview();
+    // Ensure focus stays inside the active editable
+    await ensureEditableFocus();
     return true;
   };
 

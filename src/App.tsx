@@ -872,23 +872,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const injectText = React.useCallback(async (text: string) => {
     if (isEditableMainNow()) { injectTextToMain(text); return; }
-    if (await probeWebEditable(getActiveWebview)) { await injectTextToWeb(text); return; }
+    const ok = await probeWebEditable(getActiveWebview);
+    await injectTextToWeb(text);
+    if (!ok) {
+      // best-effort: even if probe failed, we tried to inject via web
+    }
   }, [getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
 
   const injectBackspace = React.useCallback(async () => {
     if (isEditableMainNow()) { injectBackspaceToMain(); return; }
-    if (await probeWebEditable(getActiveWebview)) { await injectBackspaceToWeb(); return; }
-  }, [getActiveWebview, injectBackspaceToMain, injectBackspaceToWeb, isEditableMainNow]);
+    await injectBackspaceToWeb();
+  }, [injectBackspaceToMain, injectBackspaceToWeb, isEditableMainNow]);
 
   const injectEnter = React.useCallback(async () => {
     if (isEditableMainNow()) { injectEnterToMain(); return; }
-    if (await probeWebEditable(getActiveWebview)) { await injectEnterToWeb(); return; }
-  }, [getActiveWebview, injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
+    await injectEnterToWeb();
+  }, [injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
 
   const injectArrow = React.useCallback(async (dir: KeyboardDirection) => {
     if (isEditableMainNow()) { injectArrowToMain(dir); return; }
-    if (await probeWebEditable(getActiveWebview)) { await injectArrowToWeb(dir); return; }
-  }, [getActiveWebview, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
+    await injectArrowToWeb(dir);
+  }, [injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
   const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
 
