@@ -46,6 +46,23 @@ This repository contains the full source code and build scripts for the Ubuntu T
 *   UI designed for mobile screens but works well in convergence mode with external display, keyboard and mouse.
     
 *   **UI scaling** option to change the size of browser chrome (toolbar, tabs, controls) independently from page zoom, so you can tune it to your particular screen and DPI.
+
+
+### Localization
+
+*   App UI is available in multiple languages:
+
+    *   English
+
+    *   Ukrainian
+
+    *   French
+
+    *   German
+
+    *   Polish
+
+*   More translations can be added over time based on user feedback.
     
 
 ### Tor integration (optional)
@@ -61,6 +78,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
 > Note: Merezhyvo uses Tor as an optional connection layer, but it is **not** the official Tor Browser and does **not** implement all of Tor Browser's fingerprinting protections.
 
+
 ### Bookmarks and password manager
 
 *   Simple bookmark system:
@@ -74,6 +92,14 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   local storage only;
         
     *   protected with a master password.
+
+
+### Tab search & smart address bar
+
+*   **Search across open tabs** – quickly find a tab by typing part of its title or URL.
+
+*   **Address bar suggestions** – as you type in the URL bar, Merezhyvo searches your history and bookmarks and shows a list of previously visited or saved sites.
+
         
 
 ### Predictable downloads & safe uploads
