@@ -6,9 +6,20 @@ import uk from '../src/i18n/translations/uk';
 import de from '../src/i18n/translations/de';
 import fr from '../src/i18n/translations/fr';
 import pl from '../src/i18n/translations/pl';
+import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 
 let renderLock = false;
-let currentLanguage = 'en';
+let currentLanguage = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search ?? '');
+    const fromParam = params.get('lang');
+    const initial = fromParam && isValidLocale(fromParam) ? fromParam : DEFAULT_LOCALE;
+    ipcRenderer.send('mzr:ctxmenu:debug', { stage: 'init', fromParam, initial });
+    return initial;
+  } catch {
+    return DEFAULT_LOCALE;
+  }
+})();
 const dictionaries: Record<string, Record<string, string>> = {
   en: en as unknown as Record<string, string>,
   uk: uk as unknown as Record<string, string>,
@@ -275,11 +286,9 @@ declare global {
 window.__mzr_render = render;
 
 const loadLanguage = (lang?: string) => {
-  if (lang && dictionaries[lang]) {
-    currentLanguage = lang;
-  } else {
-    currentLanguage = 'en';
-  }
+  const normalized = lang && isValidLocale(lang) ? lang : DEFAULT_LOCALE;
+  if (normalized === currentLanguage) return;
+  currentLanguage = normalized;
   if (typeof window.__mzr_render === 'function') {
     window.__mzr_render();
   }
@@ -288,13 +297,11 @@ const loadLanguage = (lang?: string) => {
 ipcRenderer.on('mzr:ctxmenu:language', (_event, lang: unknown) => {
   if (typeof lang === 'string') {
     loadLanguage(lang);
+    return;
   }
 });
 
-void ipcRenderer
-  .invoke('merezhyvo:ui:getLanguage')
-  .then((lang) => loadLanguage(typeof lang === 'string' ? lang : undefined))
-  .catch(() => loadLanguage());
+// Initial language is taken from the window params above; no async override.
 
 window.addEventListener('keydown', (event) => {
   if (event.key === 'Escape') ipcRenderer.send('mzr:ctxmenu:close');

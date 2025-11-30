@@ -38,7 +38,7 @@ import {
   sanitizeUiSettings,
   sanitizeSettingsPayload
 } from './lib/shortcuts';
-import { DEFAULT_LOCALE } from '../src/i18n/locales';
+import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
@@ -439,10 +439,11 @@ const openCtxWindowFor = async (
   const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
   let uiLanguage: string | undefined;
   try {
-    const st = getCachedSettings();
-    uiLanguage = st?.ui?.language;
+    const st = await readSettingsState();
+    const lang = st?.ui?.language;
+    uiLanguage = isValidLocale(lang) ? lang : DEFAULT_LOCALE;
   } catch {
-    uiLanguage = undefined;
+    uiLanguage = DEFAULT_LOCALE;
   }
 
   if (isTouchSource(params) && normalizedMode !== 'mobile') {
@@ -602,7 +603,8 @@ const openCtxWindowFor = async (
     ctxOverlay = null;
   });
 
-  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}`;
+  const langParam = uiLanguage ? `&lang=${encodeURIComponent(uiLanguage)}` : '';
+  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}${langParam}`;
   void ctxWin.loadURL(ctxUrl).catch(() => {});
 
   const askRender = () => {
