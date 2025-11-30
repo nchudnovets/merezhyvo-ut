@@ -7,6 +7,7 @@ const de = {
   'tabs.newTab': 'Neuer Tab',
   'tabs.section.pinned': 'Angeheftet',
   'tabs.section.others': 'Andere',
+  'tabs.feedback.cleaned': 'Alle seitenbezogenen Daten wurden entfernt',
   'settings.language.title': 'Sprache',
   'settings.language.description': 'Wählen Sie die Sprache der Browseroberfläche.',
   'settings.language.saved': 'Gespeichert',

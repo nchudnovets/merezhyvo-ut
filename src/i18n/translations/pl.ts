@@ -7,6 +7,7 @@ const pl = {
   'tabs.newTab': 'Nowa karta',
   'tabs.section.pinned': 'Przypięte',
   'tabs.section.others': 'Pozostałe',
+  'tabs.feedback.cleaned': 'Wszystkie dane związane ze stroną zostały usunięte',
   'settings.language.title': 'Język',
   'settings.language.description': 'Wybierz język interfejsu przeglądarki.',
   'settings.language.saved': 'Zapisano',

@@ -7,6 +7,7 @@ const en = {
   'tabs.newTab': 'New tab',
   'tabs.section.pinned': 'Pinned',
   'tabs.section.others': 'Others',
+  'tabs.feedback.cleaned': 'All data related to the page has been removed',
   'settings.language.title': 'Language',
   'settings.language.description': 'Select the language used across the browser interface.',
   'settings.language.saved': 'Saved',

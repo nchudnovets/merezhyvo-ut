@@ -89,7 +89,9 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     },
     headerButton: {
       padding: '10px 32px',
-      fontSize: 'clamp(42px, 6vw, 54px)'
+      fontSize: 'clamp(42px, 6vw, 54px)',
+      height: '100px',
+      borderRadius: '32px'
     },
     controlRow: {
       gap: '18px',

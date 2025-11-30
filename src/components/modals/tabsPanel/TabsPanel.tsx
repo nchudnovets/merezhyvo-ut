@@ -485,11 +485,11 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     async (id: string) => {
       const result = await onCleanClose(id);
       if (result) {
-        setFeedbackMessage('All data related to the page has been removed');
+        setFeedbackMessage(t('tabs.feedback.cleaned'));
       }
       return result;
     },
-    [onCleanClose]
+    [onCleanClose, t]
   );
 
   const newTabButtonStyle =
@@ -648,33 +648,71 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
         <div
           style={{
             ...styles.headerButtons,
-            ...(modeStyles.headerButtons || {})
+            ...(modeStyles.headerButtons || {}),
+            ...{
+                  width: mode === 'mobile' ? '80%' : '90%',
+                  justifyContent: 'space-between'
+                }
           }}
         >
           <button
             type="button"
             style={{
               ...styles.headerButton,
-              ...(modeStyles.headerButton || {})
+              ...(modeStyles.headerButton || {}),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              ...{width: '48%'}
             }}
             onClick={(event) => {
               event.stopPropagation();
               onOpenBookmarks();
             }}
           >
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              width={mode === 'mobile' ? '54' : '16'}
+              height={mode === 'mobile' ? '54' : '16'}
+              viewBox="0 0 24 24"
+              fill="#ffffff"
+              style={{ flexShrink: 0 }}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M12 2.5l2.9 5.88 6.5.95-4.7 4.57 1.1 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.7-4.57 6.5-.95L12 2.5z" />
+            </svg>
             {t('tabs.openBookmarks')}
           </button>
           <button
             type="button"
             style={{
               ...styles.headerButton,
-              ...(modeStyles.headerButton || {})
+              ...(modeStyles.headerButton || {}),
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '6px',
+              ...{width: '48%'}
             }}
             onClick={(event) => {
               event.stopPropagation();
               onOpenHistory();
             }}
           >
+            <svg
+              aria-hidden="true"
+              focusable="false"
+              width={mode === 'mobile' ? '54' : '16'}
+              height={mode === 'mobile' ? '54' : '16'}
+              viewBox="0 0 24 24"
+              fill="#ffffff"
+              style={{ flexShrink: 0 }}
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path d="M6 3h12v4.5L14 12l4 4.5V21H6v-4.5L10 12 6 7.5zM8 5v1.9L12 12l-4 5.1V19h8v-1.9L12 12l4-5.1V5H8z" />
+            </svg>
             {t('tabs.openHistory')}
           </button>
         </div>

@@ -63,7 +63,8 @@ export const tabsPanelStyles: StyleRecord = {
     color: '#f8fafc',
     fontSize: '13px',
     fontWeight: 600,
-    cursor: 'pointer'
+    cursor: 'pointer',
+    height: '34px'
   },
   title: {
     margin: 0,

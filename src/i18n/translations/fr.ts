@@ -7,6 +7,7 @@ const fr = {
   'tabs.newTab': 'Nouvel onglet',
   'tabs.section.pinned': 'Épinglés',
   'tabs.section.others': 'Autres',
+  'tabs.feedback.cleaned': 'Toutes les données liées à la page ont été supprimées',
   'settings.language.title': 'Langue',
   'settings.language.description': 'Choisissez la langue de l’interface du navigateur.',
   'settings.language.saved': 'Enregistré',

@@ -7,6 +7,7 @@ const uk = {
   'tabs.newTab': 'Нова вкладка',
   'tabs.section.pinned': 'Закріплені',
   'tabs.section.others': 'Інші',
+  'tabs.feedback.cleaned': 'Усі дані, пов’язані зі сторінкою, видалено',
   'settings.language.title': 'Мова',
   'settings.language.description': 'Виберіть мову інтерфейсу браузера.',
   'settings.language.saved': 'Збережено',
