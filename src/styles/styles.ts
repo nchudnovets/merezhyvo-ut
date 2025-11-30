@@ -8,7 +8,8 @@ export const styles = {
     minHeight: 0,
     backgroundColor: '#0f111a',
     color: '#f8fafc',
-    overflow: 'hidden'
+    overflow: 'hidden',
+    WebkitTouchCallout: 'none'
   },
   toolbar: {
     display: 'flex',

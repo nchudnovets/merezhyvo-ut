@@ -59,7 +59,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
-    ...(paddingRight ? { paddingRight } : {})
+    ...(paddingRight ? { paddingRight } : {}),
+    ...{WebkitTouchCallout: 'none'}
   };
   const baseInputFont =
     (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
@@ -128,29 +129,30 @@ const AddressBar: React.FC<AddressBarProps> = ({
       <div style={toolbarStyles.addressField}>
           <input
             ref={inputRef}
+            id="address-input"
             type="text"
             value={value}
-          onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-          onPointerDown={(event: PointerEvent<HTMLInputElement>) => {
-            pointerDownTsRef.current = Date.now();
-            onPointerDown(event);
-          }}
-          onContextMenu={(event: MouseEvent<HTMLInputElement>) => {
-            if (mode === 'mobile') {
-              const delta = Date.now() - pointerDownTsRef.current;
-              if (delta < 500) {
-                event.preventDefault();
-                event.stopPropagation();
-                return;
+            onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
+            onPointerDown={(event: PointerEvent<HTMLInputElement>) => {
+              pointerDownTsRef.current = Date.now();
+              onPointerDown(event);
+            }}
+            onContextMenu={(event: MouseEvent<HTMLInputElement>) => {
+              if (mode === 'mobile') {
+                const delta = Date.now() - pointerDownTsRef.current;
+                if (delta < 500) {
+                  event.preventDefault();
+                  event.stopPropagation();
+                  return;
+                }
               }
-            }
-          }}
-          onFocus={onFocus}
-          onBlur={onBlur}
-          inputMode="url"
-          autoCapitalize="none"
-          autoCorrect="off"
-          spellCheck="false"
+            }}
+            onFocus={onFocus}
+            onBlur={onBlur}
+            inputMode="url"
+            autoCapitalize="none"
+            autoCorrect="off"
+            spellCheck="false"
             placeholder={t('address.placeholder')}
             style={inputStyle}
         />
