@@ -663,8 +663,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-              gap: '6px',
-              ...{width: '48%'}
+              gap: '6px'
             }}
             onClick={(event) => {
               event.stopPropagation();

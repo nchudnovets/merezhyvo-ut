@@ -22,7 +22,8 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     searchInput: {},
     searchToggleButton: {},
     searchToggleIcon: {},
-    activeSeparator: {}
+    activeSeparator: {},
+    headerButton: { width: '48%'}
   },
   mobile: {
     tabsPanelTitle: {
