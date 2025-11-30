@@ -7,6 +7,7 @@ import type {
   FileDialogResult,
   Mode
 } from '../../types/models';
+import { useI18n } from '../../i18n/I18nProvider';
 import { fileDialogStyles } from './fileDialogStyles';
 import { fileDialogModeStyles } from './fileDialogModeStyles';
 import {
@@ -32,6 +33,7 @@ const baseBreadcrumb = (path: string): string[] => {
 const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ mode, onCopyCommand }) => {
   const styles = fileDialogStyles;
   const modeStyles = fileDialogModeStyles[mode] || {};
+  const { t } = useI18n();
   const [request, setRequest] = useState<FileDialogRequestDetail | null>(null);
   const [listing, setListing] = useState<FileDialogListing | null>(null);
   const [currentPath, setCurrentPath] = useState<string | null>(null);
@@ -100,12 +102,16 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
           setError(null);
         }
       } catch (err) {
-        setError(err instanceof Error ? err.message : 'Unable to read directory');
+        setError(
+          err instanceof Error && err.message
+            ? err.message
+            : t('fileDialog.error.read')
+        );
       } finally {
         setLoading(false);
       }
     },
-    [request]
+    [request, t]
   );
 
   useEffect(() => {
@@ -182,22 +188,20 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
       <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }} className="service-scroll">
         <div style={{ ...styles.header, ...(modeStyles.header ?? {}) }}>
           <h2 style={{ ...styles.title, ...(modeStyles.title ?? {}) }}>
-            {request.options.title || (isFileMode ? 'Select file' : 'Choose folder')}
+            {request.options.title || (isFileMode ? t('fileDialog.title.file') : t('fileDialog.title.folder'))}
           </h2>
           <p style={{ ...styles.subtitle, ...(modeStyles.subtitle ?? {}) }}>
-            {request.options.allowMultiple ? 'Multiple selection allowed' : 'Single selection'}
+            {request.options.allowMultiple ? t('fileDialog.subtitle.multiple') : t('fileDialog.subtitle.single')}
           </p>
           {request.options.filters && request.options.filters.length > 0 && (
             <p style={{ ...styles.filterHint, ...(modeStyles.filterHint ?? {}) }}>
-              Filters: {request.options.filters.join(', ')}
+              {t('fileDialog.filters', { filters: request.options.filters.join(', ') })}
             </p>
           )}
           {!hideDialogNotice && (
             <div style={{ ...styles.notice, ...(modeStyles.notice ?? {}) }}>
               <p style={{ ...styles.noticeText, ...(modeStyles.noticeText ?? {}) }}>
-                In this version of the browser, access to the file system is limited. You can choose files only from
-                the internal Merezhyvo folder: ~/.local/share/merezhyvo.naz.r/mDocuments. For easier access we recommend
-                creating a symlink from your standard Documents folder:
+                {t('fileDialog.notice')}
               </p>
               <div style={{ ...styles.noticeCommandRow, ...(modeStyles.noticeCommandRow ?? {}) }}>
                 <p style={{ ...styles.noticeCommand, ...(modeStyles.noticeCommand ?? {}) }}>
@@ -213,7 +217,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
                   }}
                   disabled={!documentsCommand}
                 >
-                  Copy command
+                  {t('fileDialog.copyCommand')}
                 </button>
               </div>
               <label
@@ -232,7 +236,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
                   }}
                   style={{ ...styles.noticeCheckboxInput, ...(modeStyles.noticeCheckboxInput ?? {}) }}
                 />
-                Don&rsquo;t show this again
+                {t('fileDialog.notice.hide')}
               </label>
             </div>
           )}
@@ -244,7 +248,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
                   onChange={(event) => setShowHidden(event.target.checked)}
                   style={{ ...styles.hiddenToggleInput, ...(modeStyles.hiddenToggleInput ?? {}) }}
                 />
-                Show hidden files
+                {t('fileDialog.showHidden')}
               </label>
             </div>
             <div style={styles.breadcrumb}>
@@ -261,10 +265,10 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
           </div>
         </div>
         <div style={{ ...styles.list, ...(modeStyles.list ?? {}) }}>
-          {loading && <span style={styles.loading}>Loading…</span>}
+          {loading && <span style={styles.loading}>{t('fileDialog.loading')}</span>}
           {error && <span style={{ ...styles.error, ...(modeStyles.error ?? {}) }}>{error}</span>}
           {!loading && listing && listing.entries.length === 0 && (
-            <span style={styles.placeholder}>No items found</span>
+            <span style={styles.placeholder}>{t('fileDialog.empty')}</span>
           )}
           {listing?.entries
             .filter((entry) => showHidden || !entry.name.startsWith('.'))
@@ -284,7 +288,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
               >
                 <span style={{ ...styles.entryName, ...(modeStyles.entryName ?? {}) }}>{entry.name}</span>
                 <span style={{ ...styles.entryMeta, ...(modeStyles.entryMeta ?? {}) }}>
-                  {entry.isDirectory ? 'Folder' : 'File'}
+                  {entry.isDirectory ? t('fileDialog.type.folder') : t('fileDialog.type.file')}
                 </span>
               </div>
             );
@@ -296,7 +300,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
             style={{ ...styles.button, ...(modeStyles.button ?? {}) }}
             onClick={handleCancel}
           >
-            Cancel
+            {t('fileDialog.cancel')}
           </button>
           <button
             type="button"
@@ -309,7 +313,7 @@ const FileDialogHost: React.FC<{ mode: Mode; onCopyCommand?: () => void }> = ({ 
             disabled={confirmDisabled}
             onClick={handleConfirm}
           >
-            Choose
+            {t('fileDialog.choose')}
           </button>
         </div>
       </div>

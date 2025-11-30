@@ -349,7 +349,24 @@ const en = {
   'ctx.autofill.header': 'Fill with password…',
   'ctx.autofill.unlock': 'Unlock to fill…',
   'ctx.autofill.none': 'No matching passwords',
-  'ctx.devtools': 'Open devtools'
+  'ctx.devtools': 'Open devtools',
+  'fileDialog.title.file': 'Select file',
+  'fileDialog.title.folder': 'Choose folder',
+  'fileDialog.subtitle.multiple': 'Multiple selection allowed',
+  'fileDialog.subtitle.single': 'Single selection',
+  'fileDialog.filters': 'Filters: {filters}',
+  'fileDialog.notice':
+    'In this version of the browser, access to the file system is limited. You can choose files only from the internal Merezhyvo folder: ~/.local/share/merezhyvo.naz.r/mDocuments. For easier access we recommend creating a symlink from your standard Documents folder:',
+  'fileDialog.copyCommand': 'Copy command',
+  'fileDialog.notice.hide': "Don't show this again",
+  'fileDialog.showHidden': 'Show hidden files',
+  'fileDialog.loading': 'Loading…',
+  'fileDialog.error.read': 'Unable to read directory',
+  'fileDialog.empty': 'No items found',
+  'fileDialog.type.folder': 'Folder',
+  'fileDialog.type.file': 'File',
+  'fileDialog.cancel': 'Cancel',
+  'fileDialog.choose': 'Choose'
 } as const;
 
 export type EnglishTranslationKeys = keyof typeof en;
