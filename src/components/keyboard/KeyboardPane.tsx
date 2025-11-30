@@ -419,10 +419,24 @@ const KeyboardPane: React.FC<Props> = (p) => {
     [popup, typeKey]
   );
 
-  const setActiveButton = useCallback((next: HTMLElement | null) => {
+  const activeClearTimerRef = useRef<number | null>(null);
+
+  const setActiveButton = useCallback((next: HTMLElement | null, lingerMs = 0) => {
     const prev = activeButtonRef.current;
     if (prev && prev !== next) {
-      prev.classList.remove('mzr-osk-pressed');
+      if (activeClearTimerRef.current) {
+        window.clearTimeout(activeClearTimerRef.current);
+        activeClearTimerRef.current = null;
+      }
+      if (lingerMs > 0 && next === null) {
+        // keep previous highlighted briefly for tap feedback
+        activeClearTimerRef.current = window.setTimeout(() => {
+          prev.classList.remove('mzr-osk-pressed');
+          activeClearTimerRef.current = null;
+        }, lingerMs);
+      } else {
+        prev.classList.remove('mzr-osk-pressed');
+      }
     }
     if (next) {
       next.classList.add('mzr-osk-pressed');
@@ -451,7 +465,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
     clearRepeat();
     holdActivated.current = false;
     heldButton.current = null;
-    setActiveButton(null);
+    setActiveButton(null, 90);
   }, [clearRepeat, setActiveButton]);
 
   const onPointerDownCapture = useCallback(
