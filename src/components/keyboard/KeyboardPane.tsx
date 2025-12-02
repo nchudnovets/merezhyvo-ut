@@ -114,7 +114,11 @@ function rowsToStrings(rows: Rows): string[] {
 }
 
 // Build full rows with service keys depending on current layout type
-function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
+function addServiceRows(
+  layoutId: LayoutId,
+  alphaRows: Rows,
+  showLangKey: boolean
+): Rows {
   const rows: Rows = alphaRows.map((r) => [...r]); // shallow clone per row
 
   if (isSymbols(layoutId)) {
@@ -127,7 +131,7 @@ function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
     rows.push([
       '{abc}',
       '{sym12}',
-      '{lang}',
+      ...(showLangKey ? ['{lang}'] : []),
       '{space}',
       '.',
       ',',
@@ -146,7 +150,7 @@ function addServiceRows(layoutId: LayoutId, alphaRows: Rows): Rows {
     }
     rows.push([
       '{symbols}',
-      '{lang}',
+      ...(showLangKey ? ['{lang}'] : []),
       '{space}',
       '.',
       ',',
@@ -281,13 +285,18 @@ const KeyboardPane: React.FC<Props> = (p) => {
   );
 
   // Full rows with service keys for default & shift
+  const showLanguageToggle = useMemo(
+    () => enabledLayouts.filter((id) => !isSymbols(id)).length > 1,
+    [enabledLayouts]
+  );
+
   const fullDefaultRows = useMemo<Rows>(
-    () => addServiceRows(layoutId, baseAlphaRows),
-    [layoutId, baseAlphaRows]
+    () => addServiceRows(layoutId, baseAlphaRows, showLanguageToggle),
+    [layoutId, baseAlphaRows, showLanguageToggle]
   );
   const fullShiftRows = useMemo<Rows>(
-    () => addServiceRows(layoutId, toShiftRows(baseAlphaRows)),
-    [layoutId, baseAlphaRows]
+    () => addServiceRows(layoutId, toShiftRows(baseAlphaRows), showLanguageToggle),
+    [layoutId, baseAlphaRows, showLanguageToggle]
   );
 
   // Build keyboard layout object expected by react-simple-keyboard (string[] per layer)
@@ -305,10 +314,10 @@ const KeyboardPane: React.FC<Props> = (p) => {
     );
     return {
       ...BASE_DISPLAY,
-      '{space}': langLabel,
+      '{space}': showLanguageToggle ? langLabel : ' ',
       '{shift}': caps ? '⇪' : '⇧',
     };
-  }, [layoutId, enabledLayouts, caps]);
+  }, [layoutId, enabledLayouts, caps, showLanguageToggle]);
 
   // Language-specific long-press map for current layout
   const lpMap = useMemo<Record<string, string[]>>(() => {

@@ -75,6 +75,11 @@ export function ensureOskCssInjected() {
   .mzr-osk .hg-button-arrowleft,
   .mzr-osk .hg-button-arrowright { flex: 0 0 auto !important; width: 60px }
 
+  .mzr-osk .hg-button[data-skbtn="."],
+  .mzr-osk .hg-button[data-skbtn=","] {
+    max-width: 60px !important;
+  }
+
   .mzr-osk .hg-button.hg-button-space {
     flex: 2 1 0 !important;
     min-width: 30vw !important;
