@@ -188,6 +188,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
               left: mode === 'mobile' ? '0' : '0',
               right: mode === 'mobile' ? '-40%' : '50%',
               maxWidth:'700px',
+              minWidth: '360px',
               padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
               borderRadius: '12px',
               background: 'rgba(5,7,15,0.97)',
@@ -195,7 +196,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
               boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
               color: '#e2e8f0',
               zIndex: 60,
-              fontSize: mode === 'mobile' ? '36px' : '13px',
+              fontSize: mode === 'mobile' ? '36px' : '14px',
               overflow: 'auto'
             }}
           >

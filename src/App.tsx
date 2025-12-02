@@ -3407,7 +3407,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             background: 'rgba(148,163,184,0.08)',
             color: '#e2e8f0',
             maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '36px' : '13px',
+            fontSize: mode === 'mobile' ? '36px' : '16px',
             wordBreak: 'break-all'
           }}
         >
@@ -3425,7 +3425,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             background: 'rgba(15,23,42,0.6)',
             textAlign: 'left',
             maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '38px' : '13px',
+            fontSize: mode === 'mobile' ? '38px' : '16px',
             lineHeight: 1.5,
             overflow: 'auto'
           }}
@@ -3447,8 +3447,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           style={{
             ...styles.webviewErrorButton,
             ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null),
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239,68,68,0.15)'
+            borderColor: '#259cebff',
+            backgroundColor: 'rgba(37,156,235,0.12)'
           }}
         >
           {t('cert.actions.cancel')}
@@ -3479,7 +3479,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           }}
           style={{
             ...styles.webviewErrorButton,
-            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null)
+            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.15)'
           }}
         >
           {t('cert.actions.proceed')}
