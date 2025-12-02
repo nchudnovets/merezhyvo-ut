@@ -407,8 +407,202 @@ window.addEventListener('message', async (ev: MessageEvent) => {
     }
   });
 
-document.addEventListener('focusin', handleFocusIn, true);
-document.addEventListener('focusout', handleFocusOut, true);
+  document.addEventListener('focusin', handleFocusIn, true);
+  document.addEventListener('focusout', handleFocusOut, true);
+})();
+
+(() => {
+  const TOP_EDGE_PX = 50;
+  const PULL_THRESHOLD_RATIO = 0.5;
+  const MAX_START_SCROLL = 8;
+  const MAX_SCROLL_DELTA = 24;
+
+  let spinner: HTMLDivElement | null = null;
+  const spinnerStyles = `
+    .mzr-pull-spinner {
+      position: fixed;
+      top: 12px;
+      left: 50%;
+      width: 36px;
+      height: 36px;
+      border-radius: 50%;
+      border: 4px solid #259cebff;
+      border-top-color: #fde047;
+      border-right-color: #259cebff;
+      border-bottom-color: #259cebff;
+      border-left-color: #259cebff;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.45);
+      transform: translate3d(-50%, 0, 0);
+      opacity: 0;
+      animation: app-spin 0.8s linear infinite;
+      transition: transform 0.08s ease, opacity 0.2s ease;
+      pointer-events: none;
+      z-index: 99999;
+    }
+    .mzr-pull-spinner[data-active="true"] {
+      opacity: 1;
+    }
+  `;
+  const ensureSpinner = () => {
+    if (spinner) return;
+    try {
+      const styleEl = document.createElement('style');
+      styleEl.textContent = spinnerStyles;
+      const styleParent = document.head ?? document.documentElement;
+      styleParent?.appendChild(styleEl);
+      spinner = document.createElement('div');
+      spinner.className = 'mzr-pull-spinner';
+      spinner.setAttribute('aria-hidden', 'true');
+      spinner.setAttribute('data-active', 'false');
+      const bodyParent = document.body ?? document.documentElement;
+      bodyParent?.appendChild(spinner);
+    } catch (error) {
+      console.warn('[pull] spinner init failed', error);
+      spinner = null;
+    }
+  };
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', ensureSpinner, { once: true });
+  } else {
+    ensureSpinner();
+  }
+  const clamp = (value: number, min: number, max: number) => Math.min(Math.max(value, min), max);
+  const showSpinner = () => {
+    ensureSpinner();
+    if (!spinner) return;
+    spinner.setAttribute('data-active', 'true');
+  };
+  const hideSpinner = () => {
+    ensureSpinner();
+    if (!spinner) return;
+    spinner.setAttribute('data-active', 'false');
+    spinner.style.transform = 'translate3d(-50%, 0, 0) scale(1, 1)';
+  };
+  const moveSpinner = (delta: number) => {
+    ensureSpinner();
+    if (!spinner) return;
+    const capped = clamp(delta, 0, Math.max(threshold(), 1));
+    const progress = clamp(capped / Math.max(threshold(), 1), 0, 1);
+    const translate = capped * 0.6;
+    const scaleY = 1 + progress * 0.25;
+    const scaleX = 1 - progress * 0.08;
+    spinner.style.transform = `translate3d(-50%, ${translate}px, 0) scaleX(${scaleX}) scaleY(${scaleY})`;
+  };
+
+  type GestureSource = 'pointer' | 'touch' | 'mouse';
+
+  let tracking = false;
+  let readyToRefresh = false;
+  let startY = 0;
+  let pointerIdentifier: number | null = null;
+  let source: GestureSource | null = null;
+
+  const getScrollTop = () => document.scrollingElement?.scrollTop ?? 0;
+  const threshold = () => window.innerHeight * PULL_THRESHOLD_RATIO;
+
+  const reset = () => {
+    tracking = false;
+    readyToRefresh = false;
+    startY = 0;
+    pointerIdentifier = null;
+    source = null;
+    hideSpinner();
+  };
+
+  const shouldTrack = (clientY: number) => {
+    const scrollTop = getScrollTop();
+    return clientY <= TOP_EDGE_PX && scrollTop <= MAX_START_SCROLL;
+  };
+
+  const startTracking = (clientY: number, type: GestureSource, id?: number) => {
+    if (tracking) return;
+    tracking = true;
+    source = type;
+    pointerIdentifier = typeof id === 'number' ? id : null;
+    startY = clientY;
+    showSpinner();
+    moveSpinner(0);
+  };
+
+  const MAX_NEGATIVE_DELTA = -8;
+  const updateTracking = (clientY: number, type: GestureSource, id?: number) => {
+    if (!tracking || source !== type) return;
+    if (pointerIdentifier !== null && typeof id === 'number' && id !== pointerIdentifier) return;
+    const delta = clientY - startY;
+    const currentScroll = getScrollTop();
+    if (currentScroll > MAX_SCROLL_DELTA || delta < MAX_NEGATIVE_DELTA) {
+      reset();
+      return;
+    }
+    readyToRefresh = delta >= threshold();
+    moveSpinner(delta);
+  };
+
+  const finishTracking = (type: GestureSource, id?: number) => {
+    if (!tracking || source !== type) return;
+    if (pointerIdentifier !== null && typeof id === 'number' && id !== pointerIdentifier) {
+      return;
+    }
+    if (readyToRefresh) {
+      try {
+        window.location.reload();
+      } catch {
+        // noop
+      }
+    }
+    reset();
+  };
+
+  const handlePointerDown = (event: PointerEvent) => {
+    if (event.pointerType !== 'mouse') return;
+    if (!shouldTrack(event.clientY)) return;
+    startTracking(event.clientY, 'pointer', event.pointerId);
+  };
+
+  const handlePointerMove = (event: PointerEvent) => {
+    updateTracking(event.clientY, 'pointer', event.pointerId);
+  };
+
+  const handlePointerUp = (event: PointerEvent) => {
+    finishTracking('pointer', event.pointerId);
+  };
+
+  const handlePointerCancel = (event: PointerEvent) => {
+    finishTracking('pointer', event.pointerId);
+  };
+
+  const handleTouchStart = (event: TouchEvent) => {
+    const touch = event.touches[0];
+    if (!touch || !shouldTrack(touch.clientY)) return;
+    startTracking(touch.clientY, 'touch', touch.identifier);
+  };
+
+  const handleTouchMove = (event: TouchEvent) => {
+    if (!tracking || source !== 'touch' || pointerIdentifier === null) return;
+    const touch = Array.from(event.touches).find((t) => t.identifier === pointerIdentifier);
+    if (!touch) return;
+    updateTracking(touch.clientY, 'touch', touch.identifier);
+  };
+
+  const handleTouchEnd = (event: TouchEvent) => {
+    if (!tracking || source !== 'touch' || pointerIdentifier === null) return;
+    const ended = Array.from(event.changedTouches).find((t) => t.identifier === pointerIdentifier);
+    if (ended) {
+      finishTracking('touch', ended.identifier);
+    } else if (event.touches.length === 0) {
+      finishTracking('touch');
+    }
+  };
+
+  window.addEventListener('pointerdown', handlePointerDown, { passive: true });
+  window.addEventListener('pointermove', handlePointerMove, { passive: true });
+  window.addEventListener('pointerup', handlePointerUp);
+  window.addEventListener('pointercancel', handlePointerCancel);
+
+  window.addEventListener('touchstart', handleTouchStart, { passive: true });
+  window.addEventListener('touchmove', handleTouchMove, { passive: true });
+  window.addEventListener('touchend', handleTouchEnd);
+  window.addEventListener('touchcancel', handleTouchEnd);
 })();
 
 (() => {
