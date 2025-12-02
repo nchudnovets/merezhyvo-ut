@@ -276,6 +276,21 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
     return createDefaultSessionState();
   }
 
+  const sanitizeUrl = (value: string): string => {
+    if (!value || !value.trim()) return DEFAULT_URL;
+    const trimmed = value.trim();
+    const lowered = trimmed.toLowerCase();
+    if (
+      lowered.includes('dist-electron/main.js') ||
+      lowered.startsWith('data:text/html') ||
+      lowered.startsWith('chrome-error://') ||
+      lowered.includes('chromewebdata')
+    ) {
+      return DEFAULT_URL;
+    }
+    return redirectMailToGmail(trimmed);
+  };
+
   const tabsSource = Array.isArray(source.tabs) ? (source.tabs as SessionTabLike[]) : [];
   const tabs: SessionTab[] = [];
 
@@ -285,9 +300,9 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
       typeof raw.id === 'string' && raw.id.trim().length ? raw.id.trim() : makeSessionTabId();
     const rawUrl =
       typeof raw.url === 'string' && raw.url.trim().length ? raw.url.trim() : DEFAULT_URL;
-    const url = redirectMailToGmail(rawUrl);
-    const title = typeof raw.title === 'string' ? raw.title : '';
-    const favicon = typeof raw.favicon === 'string' ? raw.favicon : '';
+    const url = sanitizeUrl(rawUrl);
+    const title = url === DEFAULT_URL ? '' : (typeof raw.title === 'string' ? raw.title : '');
+    const favicon = url === DEFAULT_URL ? '' : (typeof raw.favicon === 'string' ? raw.favicon : '');
     const pinned = Boolean(raw.pinned);
     const muted = Boolean(raw.muted);
     const discarded = Boolean(raw.discarded);
@@ -787,31 +802,6 @@ registerPasswordsIpc(ipcMain);
 app.whenReady().then(() => {
   // installPermissionHandlers();
   // installGeoHandlers();
-  try {
-    session.defaultSession.setCertificateVerifyProc((req, callback) => {
-      try {
-        // eslint-disable-next-line no-console
-        console.warn('[certs] verify', {
-          host: req.hostname,
-          errorCode: req.errorCode,
-          verificationResult: req.verificationResult
-        });
-      } catch {
-        // noop
-      }
-      if (req.errorCode === 0) {
-        callback(0);
-      } else {
-        callback(req.errorCode);
-      }
-    });
-  } catch (err) {
-    try {
-      console.error('[certs] setCertificateVerifyProc failed', err);
-    } catch {
-      /* noop */
-    }
-  }
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);

@@ -227,16 +227,33 @@ function sanitizeSession(data: unknown): TabsState {
   const tabs: Tab[] = [];
   const now = Date.now();
 
+  const sanitizeUrl = (value: unknown): string => {
+    if (typeof value !== 'string') return DEFAULT_URL;
+    const trimmed = value.trim();
+    const lowered = trimmed.toLowerCase();
+    if (
+      !trimmed ||
+      lowered.includes('dist-electron/main.js') ||
+      lowered.startsWith('data:text/html') ||
+      lowered.startsWith('chrome-error://') ||
+      lowered.includes('chromewebdata')
+    ) {
+      return DEFAULT_URL;
+    }
+    return trimmed;
+  };
+
   for (const raw of tabsInput) {
     if (!raw || typeof raw !== 'object') continue;
     const persistedKind = typeof (raw as { kind?: unknown })?.kind === 'string'
       && (raw as { kind?: string }).kind === 'messenger'
       ? 'messenger'
       : 'browser';
-      const tab = createTab(typeof raw.url === 'string' ? raw.url : DEFAULT_URL, {
+      const safeUrl = sanitizeUrl((raw as { url?: unknown }).url);
+      const tab = createTab(safeUrl, {
         id: typeof raw.id === 'string' ? raw.id : undefined,
-        title: typeof raw.title === 'string' ? raw.title : '',
-        favicon: typeof raw.favicon === 'string' ? raw.favicon : '',
+        title: safeUrl === DEFAULT_URL ? '' : (typeof raw.title === 'string' ? raw.title : ''),
+        favicon: safeUrl === DEFAULT_URL ? '' : (typeof raw.favicon === 'string' ? raw.favicon : ''),
         isLoading: Boolean(raw.isLoading),
         pinned: Boolean(raw.pinned),
         muted: Boolean(raw.muted),

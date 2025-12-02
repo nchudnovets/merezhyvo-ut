@@ -1474,10 +1474,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       };
       const id = typeof webContentsId === 'number' ? webContentsId : wcId;
       const next = info ?? (payload as any);
-      try {
-        // eslint-disable-next-line no-console
-        console.log('[cert debug] update', { id, next });
-      } catch {}
       const isActiveMatch = (() => {
         if (!id || !activeIdRef.current) return false;
         const entry = tabViewsRef.current.get(activeIdRef.current);
@@ -1563,22 +1559,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [certStatus]);
 
   useEffect(() => {
-    try {
-      // eslint-disable-next-line no-console
-      console.log('[cert debug] render state', {
-        activeId,
-        certStatus,
-        bypassed: activeId ? certBypassRef.current.has(activeId) : false,
-        certWarning
-      });
-    } catch {
-      // noop
-    }
   }, [activeId, certStatus, certWarning]);
 
   useEffect(() => {
     setSecurityPopoverOpen(false);
   }, [activeId, mainViewMode, certStatus, certWarning]);
+
+  useEffect(() => {
+    if (!certWarning) return;
+    if (!certCandidate?.url) return;
+    if (isEditingRef.current) return;
+    setInputValue(certCandidate.url);
+  }, [certWarning, certCandidate]);
 
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
@@ -3463,9 +3455,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             const wcId = activeWcIdRef.current;
             if (certStatus.state === 'invalid' && wcId) {
               try {
-                const result = await window.merezhyvo?.certificates?.continue?.(wcId);
-                // eslint-disable-next-line no-console
-                console.log('[cert debug] proceed clicked', { wcId, result });
+                await window.merezhyvo?.certificates?.continue?.(wcId);
               } catch {
                 // ignore
               }

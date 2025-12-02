@@ -181,10 +181,6 @@ export const attachCertificateTracking = (contents: WebContents): void => {
       return;
     }
     event.preventDefault();
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[certs] certificate-error', { wcId, url, error });
-    } catch {}
     pendingCallbacks.set(wcId, callback);
     setState(wcId, {
       state: 'invalid',
@@ -203,15 +199,7 @@ export const attachCertificateTracking = (contents: WebContents): void => {
     isMainFrame: boolean
   ) => {
     if (!isMainFrame) return;
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[certs] did-fail-load', { wcId, errorCode, errorDescription, validatedURL });
-    } catch {}
     if (!isLikelyCertError(errorCode, errorDescription)) return;
-    try {
-      // eslint-disable-next-line no-console
-      console.warn('[certs] did-fail-load SSL', { wcId, errorCode, errorDescription, validatedURL });
-    } catch {}
     const host = (() => { try { return new URL(validatedURL).hostname; } catch { return null; } })();
     setState(wcId, {
       state: 'invalid',
