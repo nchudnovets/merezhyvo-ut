@@ -31,6 +31,19 @@ interface AddressBarProps {
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
   securityState?: 'ok' | 'warn';
+  securityInfo?: {
+    state: string;
+    url?: string | null;
+    host?: string | null;
+    error?: string | null;
+    issuer?: string | null;
+    subject?: string | null;
+    validFrom?: number | null;
+    validTo?: number | null;
+    fingerprint?: string | null;
+  } | null;
+  securityOpen?: boolean;
+  onToggleSecurity?: () => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -51,7 +64,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
   inputFocused = false,
   suggestions = [],
   onSelectSuggestion,
-  securityState = 'ok'
+  securityState = 'ok',
+  securityInfo = null,
+  securityOpen = false,
+  onToggleSecurity
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -130,29 +146,92 @@ const AddressBar: React.FC<AddressBarProps> = ({
   return (
     <form onSubmit={onSubmit} style={toolbarStyles.form}>
       <div style={{ ...toolbarStyles.addressField, position: 'relative' }}>
-        <span
-          aria-hidden="true"
+        <button
+          type="button"
+          aria-label={t('cert.info.title')}
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onToggleSecurity?.();
+          }}
           style={{
             position: 'absolute',
-            left: mode === 'mobile' ? 18 : 12,
+            left: mode === 'mobile' ? 10 : 12,
             top: '50%',
             transform: 'translateY(-50%)',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: securityState === 'ok' ? '#ffffff' : '#ef4444'
+            color: securityState === 'ok' ? '#ffffff' : '#ef4444',
+            background: 'transparent',
+            border: 'none',
+            padding: 0,
+            cursor: 'pointer'
           }}
         >
           <svg
             viewBox="0 0 24 24"
-            width={mode === 'mobile' ? 32 : 18}
-            height={mode === 'mobile' ? 32 : 18}
+            width={mode === 'mobile' ? 50 : 18}
+            height={mode === 'mobile' ? 50 : 18}
             fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
           >
             <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
           </svg>
-        </span>
+        </button>
+        {securityOpen && securityInfo && (
+          <div
+            className="service-scroll"
+            style={{
+              position: 'absolute',
+              top: mode === 'mobile' ? '110%' : '105%',
+              left: mode === 'mobile' ? '0' : '0',
+              right: mode === 'mobile' ? '-40%' : '50%',
+              maxWidth:'700px',
+              padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
+              borderRadius: '12px',
+              background: 'rgba(5,7,15,0.97)',
+              border: '1px solid rgba(148,163,184,0.35)',
+              boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+              color: '#e2e8f0',
+              zIndex: 60,
+              fontSize: mode === 'mobile' ? '36px' : '13px',
+              overflow: 'auto'
+            }}
+          >
+            <div style={{ fontWeight: 700, marginBottom: mode === 'mobile' ? '10px' : '6px' }}>
+              {t('cert.info.title')}
+            </div>
+            <div style={{ marginBottom: '6px', color: securityState === 'ok' ? '#a7f3d0' : '#fca5a5' }}>
+              {securityState === 'ok' ? t('cert.info.status.ok') : t('cert.info.status.problem')}
+            </div>
+            {securityInfo.host || securityInfo.url ? (
+              <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
+                <div style={{ opacity: 0.8 }}>{t('cert.info.url')}</div>
+                <div style={{ wordBreak: 'break-all' }}>{securityInfo.url || securityInfo.host}</div>
+              </div>
+            ) : null}
+            {securityInfo.error ? (
+              <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
+                <div style={{ opacity: 0.8 }}>{t('cert.info.error')}</div>
+                <div>{securityInfo.error}</div>
+              </div>
+            ) : null}
+            {securityInfo.issuer || securityInfo.subject ? (
+              <div style={{ display: 'grid', rowGap: '4px', lineHeight: 1.4 }}>
+                {securityInfo.issuer ? (
+                  <div><strong>{t('cert.details.issuer')} </strong>{securityInfo.issuer}</div>
+                ) : null}
+                {securityInfo.subject ? (
+                  <div><strong>{t('cert.details.subject')} </strong>{securityInfo.subject}</div>
+                ) : null}
+                {securityInfo.fingerprint ? (
+                  <div><strong>{t('cert.details.fingerprint')} </strong>{securityInfo.fingerprint}</div>
+                ) : null}
+              </div>
+            ) : null}
+          </div>
+        )}
         <input
           ref={inputRef}
           id="address-input"

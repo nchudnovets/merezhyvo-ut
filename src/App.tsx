@@ -370,6 +370,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
   const blockingCertRef = useRef<CertificateInfo | null>(null);
+  const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
   const bookmarksCacheRef = useRef<
@@ -1431,6 +1432,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const next = await window.merezhyvo?.certificates?.getStatus?.(wcId);
         if (wcId !== activeWcIdRef.current) return;
         const current = certStatusRef.current;
+        const activeTabId = activeIdRef.current;
+        const bypassed = activeTabId ? certBypassRef.current.has(activeTabId) : false;
+        const hasBlocking =
+          (current && (current.state === 'invalid' || current.state === 'missing')) ||
+          (blockingCertRef.current && (blockingCertRef.current.state === 'invalid' || blockingCertRef.current.state === 'missing'));
+        if (bypassed && hasBlocking && (!next || next.state === 'ok' || next.state === 'unknown')) {
+          return;
+        }
         if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
           return;
         }
@@ -1440,11 +1449,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           blockingCertRef.current = next;
         } else if (next && next.state === 'ok') {
           blockingCertRef.current = null;
-        }
-        if (next?.state === 'ok') {
-          const activeTabId = activeIdRef.current;
-          if (activeTabId) {
-            certBypassRef.current.delete(activeTabId);
+          const activeTabIdCurrent = activeIdRef.current;
+          if (activeTabIdCurrent) {
+            certBypassRef.current.delete(activeTabIdCurrent);
           }
         }
       } catch {
@@ -1486,9 +1493,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
           return;
         }
-        setCertStatus(next ?? null);
-        certStatusRef.current = next ?? null;
-        if (next?.state === 'invalid' || next?.state === 'missing') {
+        const activeTabId = activeIdRef.current;
+        const bypassed = activeTabId ? certBypassRef.current.has(activeTabId) : false;
+        const shouldIgnoreOk = bypassed && next?.state === 'ok' && (current?.state === 'invalid' || current?.state === 'missing' || blockingCertRef.current);
+        const nextState = shouldIgnoreOk ? (current ?? blockingCertRef.current ?? next ?? null) : (next ?? null);
+
+        setCertStatus(nextState);
+        certStatusRef.current = nextState;
+        if (nextState && (nextState.state === 'invalid' || nextState.state === 'missing')) {
+          blockingCertRef.current = nextState;
+        } else if (nextState && nextState.state === 'ok' && !shouldIgnoreOk) {
+          blockingCertRef.current = null;
+        }
+        if (nextState?.state === 'invalid' || nextState?.state === 'missing') {
           const activeTabId = activeIdRef.current;
           if (activeTabId) {
             updateMetaAction(activeTabId, { isLoading: false });
@@ -1496,10 +1513,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setStatus('error');
           setWebviewReady(false);
         }
-        if (next?.state === 'ok') {
-          const activeTabId = activeIdRef.current;
-          if (activeTabId) {
-            certBypassRef.current.delete(activeTabId);
+        if (next?.state === 'ok' && !shouldIgnoreOk) {
+          const activeTabIdCurrent = activeIdRef.current;
+          if (activeTabIdCurrent) {
+            certBypassRef.current.delete(activeTabIdCurrent);
           }
         }
       }
@@ -1516,7 +1533,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     certCandidate &&
     (certCandidate.state === 'invalid' || certCandidate.state === 'missing') &&
     !certBypassRef.current.has(activeId ?? '');
-  const securityState = certWarning ? 'warn' : 'ok';
+  const securityState =
+    certCandidate && (certCandidate.state === 'invalid' || certCandidate.state === 'missing')
+      ? 'warn'
+      : 'ok';
+  const securityInfo = useMemo(() => {
+    if (!certCandidate) return null;
+    return {
+      state: certCandidate.state,
+      url: certCandidate.url ?? null,
+      host: certCandidate.host ?? null,
+      error: certCandidate.error ?? null,
+      issuer: certCandidate.certificate?.issuerName ?? null,
+      subject: certCandidate.certificate?.subjectName ?? null,
+      validFrom: certCandidate.certificate?.validStart ?? null,
+      validTo: certCandidate.certificate?.validExpiry ?? null,
+      fingerprint: certCandidate.certificate?.fingerprint ?? null
+    };
+  }, [certCandidate]);
 
   useEffect(() => {
     certStatusRef.current = certStatus;
@@ -1541,6 +1575,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       // noop
     }
   }, [activeId, certStatus, certWarning]);
+
+  useEffect(() => {
+    setSecurityPopoverOpen(false);
+  }, [activeId, mainViewMode, certStatus, certWarning]);
 
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
@@ -3369,7 +3407,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             background: 'rgba(148,163,184,0.08)',
             color: '#e2e8f0',
             maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '26px' : '13px',
+            fontSize: mode === 'mobile' ? '36px' : '13px',
             wordBreak: 'break-all'
           }}
         >
@@ -3378,6 +3416,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       )}
       {displayCert.certificate && (
         <div
+          className="service-scroll"
           style={{
             marginTop: '10px',
             padding: '12px',
@@ -3386,8 +3425,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             background: 'rgba(15,23,42,0.6)',
             textAlign: 'left',
             maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '28px' : '13px',
-            lineHeight: 1.5
+            fontSize: mode === 'mobile' ? '38px' : '13px',
+            lineHeight: 1.5,
+            overflow: 'auto'
           }}
         >
           <div><strong>{t('cert.details.issuer')} </strong>{displayCert.certificate.issuerName || '—'}</div>
@@ -3418,7 +3458,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onClick={async () => {
             if (!activeId) return;
             certBypassRef.current.add(activeId);
-            blockingCertRef.current = null;
+            // Keep blocking cert cached so the shield stays red after proceeding.
+            // Only clear the overlay state.
             const wcId = activeWcIdRef.current;
             if (certStatus.state === 'invalid' && wcId) {
               try {
@@ -3672,6 +3713,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               suggestions={urlSuggestions}
               onSelectSuggestion={handleSuggestionSelect}
               securityState={securityState}
+              securityInfo={securityInfo}
+              securityOpen={securityPopoverOpen}
+              onToggleSecurity={() => setSecurityPopoverOpen((prev) => !prev)}
             />
           )}
 

@@ -37,6 +37,20 @@ interface ToolbarProps {
   toolbarRef?: RefObject<HTMLDivElement>;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
+  securityState?: 'ok' | 'warn';
+  securityInfo?: {
+    state: string;
+    url?: string | null;
+    host?: string | null;
+    error?: string | null;
+    issuer?: string | null;
+    subject?: string | null;
+    validFrom?: number | null;
+    validTo?: number | null;
+    fingerprint?: string | null;
+  } | null;
+  securityOpen?: boolean;
+  onToggleSecurity?: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -66,7 +80,11 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onDownloadIndicatorClick,
   toolbarRef,
   suggestions,
-  onSelectSuggestion
+  onSelectSuggestion,
+  securityState = 'ok',
+  securityInfo = null,
+  securityOpen = false,
+  onToggleSecurity
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -120,6 +138,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
       inputFocused={inputFocused}
       suggestions={suggestions}
       onSelectSuggestion={onSelectSuggestion}
+      securityState={securityState}
+      securityInfo={securityInfo}
+      securityOpen={securityOpen}
+      onToggleSecurity={onToggleSecurity}
     />
 
     {!compact && (
