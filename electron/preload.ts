@@ -29,7 +29,8 @@ import type {
   PasswordImportMode,
   PasswordImportFormat,
   PasswordChangeMasterResult,
-  PasswordStatus
+  PasswordStatus,
+  CertificateInfo
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
@@ -525,7 +526,12 @@ const exposeApi: MerezhyvoAPI = {
     onUpdate: (handler) => {
       if (typeof handler !== 'function') return noopUnsubscribe;
       const channel = 'merezhyvo:certs:update';
-      const listener = (_event: IpcRendererEvent, payload: any) => {
+      type CertificateUpdatePayload = {
+        wcId?: number;
+        webContentsId?: number;
+        info?: CertificateInfo;
+      };
+      const listener = (_event: IpcRendererEvent, payload: CertificateUpdatePayload | CertificateInfo) => {
         try {
           handler(payload);
         } catch {

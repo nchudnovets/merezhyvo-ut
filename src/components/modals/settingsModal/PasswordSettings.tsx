@@ -164,7 +164,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         return { error: msg };
       }
       return result;
-    } catch (err) {
+    } catch {
       const message = t('passwordSettings.error.change');
       setChangeError(message);
       return { error: message };

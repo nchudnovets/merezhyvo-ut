@@ -1263,7 +1263,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
-  }, [refreshNavigationState, updateMetaAction]);
+  }, [refreshNavigationState, updateMetaAction, inputValue, mode]);
 
   const handleHostUrlChange = useCallback((tabId: string, nextUrl: string) => {
     if (!nextUrl) return;
@@ -1465,16 +1465,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   );
 
   useEffect(() => {
+    const isCertificateInfo = (value: unknown): value is CertificateInfo =>
+      typeof value === 'object' &&
+      value !== null &&
+      typeof (value as CertificateInfo).state === 'string' &&
+      Number.isFinite((value as CertificateInfo).updatedAt);
+
     const off = window.merezhyvo?.certificates?.onUpdate?.((payload) => {
       if (!payload) return;
-      const { wcId, info, webContentsId } = payload as {
-        wcId?: number;
-        webContentsId?: number;
-        info?: CertificateInfo;
-      };
-      const id = typeof webContentsId === 'number' ? webContentsId : wcId;
-      const next = info ?? (payload as any);
+      const wrapped = typeof payload === 'object' && payload !== null
+        ? (payload as { wcId?: number; webContentsId?: number; info?: CertificateInfo })
+        : {};
+      const wcIdCandidate =
+        typeof wrapped.webContentsId === 'number'
+          ? wrapped.webContentsId
+          : typeof wrapped.wcId === 'number'
+            ? wrapped.wcId
+            : null;
+      const next = wrapped.info ?? (isCertificateInfo(payload) ? payload : null);
       const isActiveMatch = (() => {
+        const id = wcIdCandidate ?? null;
         if (!id || !activeIdRef.current) return false;
         const entry = tabViewsRef.current.get(activeIdRef.current);
         const wc = getWebContentsIdSafe(entry?.view);
@@ -1484,27 +1494,34 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
         return id === activeWcIdRef.current;
       })();
-      if (id && isActiveMatch) {
+      if (wcIdCandidate && isActiveMatch) {
         const current = certStatusRef.current;
         if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
           return;
         }
         const activeTabId = activeIdRef.current;
         const bypassed = activeTabId ? certBypassRef.current.has(activeTabId) : false;
-        const shouldIgnoreOk = bypassed && next?.state === 'ok' && (current?.state === 'invalid' || current?.state === 'missing' || blockingCertRef.current);
-        const nextState = shouldIgnoreOk ? (current ?? blockingCertRef.current ?? next ?? null) : (next ?? null);
+        const shouldIgnoreOk =
+          bypassed &&
+          next?.state === 'ok' &&
+          (current?.state === 'invalid' || current?.state === 'missing' || blockingCertRef.current);
+        const nextState =
+          shouldIgnoreOk
+            ? current ?? blockingCertRef.current ?? next ?? null
+            : next ?? null;
+        const safeNextState: CertificateInfo | null = nextState ?? null;
 
-        setCertStatus(nextState);
-        certStatusRef.current = nextState;
-        if (nextState && (nextState.state === 'invalid' || nextState.state === 'missing')) {
-          blockingCertRef.current = nextState;
-        } else if (nextState && nextState.state === 'ok' && !shouldIgnoreOk) {
+        setCertStatus(safeNextState);
+        certStatusRef.current = safeNextState;
+        if (safeNextState && (safeNextState.state === 'invalid' || safeNextState.state === 'missing')) {
+          blockingCertRef.current = safeNextState;
+        } else if (safeNextState && safeNextState.state === 'ok' && !shouldIgnoreOk) {
           blockingCertRef.current = null;
         }
-        if (nextState?.state === 'invalid' || nextState?.state === 'missing') {
-          const activeTabId = activeIdRef.current;
-          if (activeTabId) {
-            updateMetaAction(activeTabId, { isLoading: false });
+        if (safeNextState?.state === 'invalid' || safeNextState?.state === 'missing') {
+          const currentActiveTabId = activeIdRef.current;
+          if (currentActiveTabId) {
+            updateMetaAction(currentActiveTabId, { isLoading: false });
           }
           setStatus('error');
           setWebviewReady(false);
@@ -1522,7 +1539,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try { off(); } catch {}
       }
     };
-  }, []);
+  }, [getWebContentsIdSafe, updateMetaAction]);
 
   const certCandidate = certStatus ?? blockingCertRef.current;
   const certWarning =
@@ -3172,7 +3189,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
         setUnlockError(t('passwordUnlock.error.invalid'));
         return false;
-      } catch (err) {
+      } catch {
         setUnlockError(t('passwordUnlock.error.generic'));
         return false;
       } finally {

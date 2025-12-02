@@ -1,6 +1,6 @@
 'use strict';
 
-import { BrowserWindow, type Certificate, type WebContents } from 'electron';
+import { BrowserWindow, type Certificate, type Event, type WebContents } from 'electron';
 import { DEFAULT_URL } from './windows';
 
 export type CertState = 'unknown' | 'ok' | 'missing' | 'invalid';
@@ -46,7 +46,7 @@ const isLikelyCertError = (code?: number, description?: string): boolean => {
   ]);
   if (Number.isFinite(code)) {
     if (specificCodes.has(code!)) return true;
-    if (code <= -200 && code >= -299) return true;
+    if (code && code <= -200 && code >= -299) return true;
   }
   if (typeof description === 'string') {
     const upper = description.toUpperCase();
@@ -143,7 +143,12 @@ export const attachCertificateTracking = (contents: WebContents): void => {
   const wcId = contents.id;
   resetForUrl(wcId, contents.getURL());
 
-  const handleDidStartNavigation = (_event: unknown, url: string, _isInPlace: boolean, isMainFrame: boolean) => {
+  const handleDidStartNavigation = (
+    _event: Event,
+    url: string,
+    _isInPlace: boolean,
+    isMainFrame: boolean
+  ) => {
     if (!isMainFrame) return;
     resetForUrl(wcId, url);
   };
@@ -169,7 +174,7 @@ export const attachCertificateTracking = (contents: WebContents): void => {
   };
 
   const handleCertificateError = (
-    event: Electron.Event,
+    event: Event,
     url: string,
     error: string,
     certificate: Certificate,
@@ -192,11 +197,13 @@ export const attachCertificateTracking = (contents: WebContents): void => {
   };
 
   const handleDidFailLoad = (
-    _event: Electron.Event,
+    _event: Event,
     errorCode: number,
     errorDescription: string,
     validatedURL: string,
-    isMainFrame: boolean
+    isMainFrame: boolean,
+    _frameProcessId: number,
+    _frameRoutingId: number
   ) => {
     if (!isMainFrame) return;
     if (!isLikelyCertError(errorCode, errorDescription)) return;
@@ -215,11 +222,11 @@ export const attachCertificateTracking = (contents: WebContents): void => {
     pendingCallbacks.delete(wcId);
   };
 
-  contents.on('did-start-navigation', handleDidStartNavigation as any);
+  contents.on('did-start-navigation', handleDidStartNavigation);
   contents.on('did-finish-load', handleDidFinishLoad);
-  contents.on('certificate-error', handleCertificateError as any);
-  contents.on('did-fail-load', handleDidFailLoad as any);
-  contents.on('did-fail-provisional-load', handleDidFailLoad as any);
+  contents.on('certificate-error', handleCertificateError);
+  contents.on('did-fail-load', handleDidFailLoad);
+  contents.on('did-fail-provisional-load', handleDidFailLoad);
   contents.on('destroyed', handleDestroyed);
 };
 

@@ -69,7 +69,7 @@ const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ favi
 const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab }) => {
   const [visits, setVisits] = useState<HistoryVisit[]>([]);
   const [hasMore, setHasMore] = useState(false);
-  const [loadingMore, setLoadingMore] = useState(false);
+  const [, setLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);

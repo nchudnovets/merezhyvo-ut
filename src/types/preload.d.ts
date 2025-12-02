@@ -166,7 +166,9 @@ export interface FileDialogResponsePayload {
 export interface MerezhyvoCertificatesApi {
   getStatus(wcId: number): Promise<CertificateInfo>;
   continue(wcId: number): Promise<{ ok: boolean; error?: string }>;
-  onUpdate(handler: (payload: { wcId: number; info: CertificateInfo }) => void): MerezhyvoUnsubscribe;
+  onUpdate(
+    handler: (payload: { wcId?: number; webContentsId?: number; info?: CertificateInfo } | CertificateInfo) => void
+  ): MerezhyvoUnsubscribe;
 }
 
 export interface MerezhyvoFileDialogApi {
