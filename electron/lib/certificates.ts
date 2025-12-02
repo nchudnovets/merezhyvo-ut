@@ -1,3 +1,43 @@
+/**
+ * IMPORTANT LIMITATIONS (Electron / Chromium):
+ *
+ * - HPKP / pinned keys:
+ *   HTTP Public Key Pinning (HPKP) and related pinned-key checks
+ *   (e.g. ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN) are not enforced
+ *   by Electron in the same way as in Chrome/Brave. In practice
+ *   these failures usually do NOT surface as certificate errors
+ *   to the JS layer, so this module cannot reliably detect them.
+ *
+ * - Certificate Transparency (CT):
+ *   Electron does not provide full Certificate Transparency
+ *   enforcement (SCT / CT log requirements). Sites that would
+ *   fail CT policies in Chrome may still be treated as having a
+ *   valid certificate here (no certificate-error / did-fail-load).
+ *
+ * - Revocation checks (CRL / OCSP):
+ *   Revoked certificates (e.g. ERR_CERT_REVOKED) are only detected
+ *   if the underlying Chromium stack successfully performs and trusts
+ *   CRL/OCSP checks. This behaviour is implementation- and platform-
+ *   dependent and can differ from Chrome/Brave/Firefox. Some
+ *   revoked.badssl.com-style tests may therefore load without
+ *   triggering any error in Electron.
+ *
+ * - badssl.com expectations:
+ *   Several badssl.com test hosts exercise HPKP, CT, weak/obsolete
+ *   cipher suites, mixed content and other conditions that are NOT
+ *   always mapped to hard TLS/certificate errors in Electron.
+ *   It is expected that some of these sites will load without
+ *   this module marking the certificate as invalid. This is a
+ *   limitation of the underlying engine, not a bug in this file.
+ *
+ * In other words, this module implements a best-effort indicator
+ * of certificate validity based on what Electron actually reports
+ * (certificate-error / did-fail-load). It is not a complete TLS
+ * security auditor and cannot enforce policies that the engine
+ * itself does not expose.
+ */
+
+
 'use strict';
 
 import { BrowserWindow, type Certificate, type Event, type WebContents } from 'electron';
@@ -28,30 +68,33 @@ const listeners = new Set<Listener>();
 const pendingCallbacks = new Map<number, (trust: boolean) => void>();
 
 const isLikelyCertError = (code?: number, description?: string): boolean => {
-  const specificCodes = new Set([
-    -21,  // ERR_CERT_REVOKED
-    -150, // ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN
-    -151, // ERR_SSL_PINNED_KEY_IN_CERT_CHAIN
-    -152, // other pinning
-    -153, // cert common name invalid
-    -194, // CT required
-    -214, // ERR_CERTIFICATE_TRANSPARENCY_REQUIRED
-    -202, // authority invalid
-    -201, // contains errors
-    -200, // weak signature
-    -207, // date invalid
-    -204, // revoked
-    -120, // revoked (alt code)
-    -177, // cert weak key
-  ]);
-  if (Number.isFinite(code)) {
-    if (specificCodes.has(code!)) return true;
-    if (code && code <= -200 && code >= -299) return true;
+  if (typeof code === 'number') {
+    // Special case for HPKP pinned key violation (if ever surfaced).
+    if (code === -150 /* ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN */) {
+      return true;
+    }
+
+    if (code <= -200 && code >= -299) {
+      return true;
+    }
   }
-  if (typeof description === 'string') {
+
+  if (typeof description === 'string' && description) {
     const upper = description.toUpperCase();
-    if (upper.includes('CERT') || upper.includes('SSL')) return true;
+
+    // ERR_CERT_*, ERR_SSL_*, ERR_INSECURE_RESPONSE, CT/HPKP
+    if (
+      upper.includes('CERT') ||
+      upper.includes('SSL') ||
+      upper.includes('INSECURE_RESPONSE') ||
+      upper.includes('CERTIFICATE_TRANSPARENCY') ||
+      upper.includes('HPKP') ||
+      upper.includes('PINNED_KEY')
+    ) {
+      return true;
+    }
   }
+
   return false;
 };
 
@@ -106,9 +149,20 @@ const resetForUrl = (wcId: number, url: string | null | undefined): void => {
     const protocol = parsed.protocol.toLowerCase();
     if (protocol === 'http:') state = 'missing';
     if (protocol !== 'https:' && protocol !== 'http:') state = 'unknown';
-    setState(wcId, { state, url: safeUrl, host: parsed.hostname || null, error: null, certificate: null });
+    setState(wcId, {
+      state,
+      url: safeUrl,
+      host: parsed.hostname || null,
+      error: null,
+      certificate: null
+    });
   } catch {
-    setState(wcId, { state: 'unknown', url: safeUrl, error: null, certificate: null });
+    setState(wcId, {
+      state: 'unknown',
+      url: safeUrl,
+      error: null,
+      certificate: null
+    });
   }
 };
 
@@ -182,15 +236,27 @@ export const attachCertificateTracking = (contents: WebContents): void => {
     isMainFrame: boolean
   ) => {
     if (!isMainFrame) {
-      try { callback(false); } catch { /* ignore */ }
+      try {
+        callback(false);
+      } catch {
+        // ignore
+      }
       return;
     }
+
     event.preventDefault();
     pendingCallbacks.set(wcId, callback);
+
     setState(wcId, {
       state: 'invalid',
       url,
-      host: (() => { try { return new URL(url).hostname; } catch { return null; } })(),
+      host: (() => {
+        try {
+          return new URL(url).hostname;
+        } catch {
+          return null;
+        }
+      })(),
       error,
       certificate: serializeCertificate(certificate)
     });
@@ -207,7 +273,15 @@ export const attachCertificateTracking = (contents: WebContents): void => {
   ) => {
     if (!isMainFrame) return;
     if (!isLikelyCertError(errorCode, errorDescription)) return;
-    const host = (() => { try { return new URL(validatedURL).hostname; } catch { return null; } })();
+
+    const host = (() => {
+      try {
+        return new URL(validatedURL).hostname;
+      } catch {
+        return null;
+      }
+    })();
+
     setState(wcId, {
       state: 'invalid',
       url: validatedURL || null,
