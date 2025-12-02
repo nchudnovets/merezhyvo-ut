@@ -19,6 +19,7 @@ export const toolbarStyles = {
   tabsButtonCount: baseStyles.tabsButtonCount,
   settingsButton: baseStyles.settingsButton,
   settingsButtonIcon: baseStyles.settingsButtonIcon,
+  securityIcon: baseStyles.securityIcon,
   visuallyHidden: baseStyles.visuallyHidden
 } as const;
 

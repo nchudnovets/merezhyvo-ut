@@ -39,6 +39,7 @@ import {
   sanitizeSettingsPayload
 } from './lib/shortcuts';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
+import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
@@ -786,6 +787,31 @@ registerPasswordsIpc(ipcMain);
 app.whenReady().then(() => {
   // installPermissionHandlers();
   // installGeoHandlers();
+  try {
+    session.defaultSession.setCertificateVerifyProc((req, callback) => {
+      try {
+        // eslint-disable-next-line no-console
+        console.warn('[certs] verify', {
+          host: req.hostname,
+          errorCode: req.errorCode,
+          verificationResult: req.verificationResult
+        });
+      } catch {
+        // noop
+      }
+      if (req.errorCode === 0) {
+        callback(0);
+      } else {
+        callback(req.errorCode);
+      }
+    });
+  } catch (err) {
+    try {
+      console.error('[certs] setCertificateVerifyProc failed', err);
+    } catch {
+      /* noop */
+    }
+  }
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);
@@ -828,6 +854,10 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   windows.setupSelectFileInterceptor(contents);
   if (typeof contents.getType === 'function' && contents.getType() === 'webview') {
     links.attachLinkPolicy(contents);
+    attachCertificateTracking(contents);
+  }
+  if (typeof contents.getType !== 'function') {
+    attachCertificateTracking(contents);
   }
   
   contents.on('context-menu', (event, params) => {
@@ -1075,6 +1105,23 @@ ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePa
   } catch {
     // noop
   }
+});
+
+ipcMain.handle('merezhyvo:certs:get', (_event, payload) => {
+  const wcIdRaw = payload && typeof payload === 'object' ? (payload as { wcId?: unknown }).wcId : undefined;
+  const wcId = typeof wcIdRaw === 'number' ? wcIdRaw : Number(wcIdRaw);
+  if (!Number.isFinite(wcId)) {
+    return { state: 'unknown', updatedAt: Date.now() };
+  }
+  return getCertificateInfo(wcId);
+});
+
+ipcMain.handle('merezhyvo:certs:continue', (_event, payload) => {
+  const wcIdRaw = payload && typeof payload === 'object' ? (payload as { wcId?: unknown }).wcId : undefined;
+  const wcId = typeof wcIdRaw === 'number' ? wcIdRaw : Number(wcIdRaw);
+  if (!Number.isFinite(wcId)) return { ok: false, error: 'Invalid webContents id' };
+  const ok = allowCertificate(wcId);
+  return ok ? { ok: true } : { ok: false, error: 'No pending certificate decision' };
 });
 
 ipcMain.handle('merezhyvo:session:load', async () => {

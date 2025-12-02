@@ -30,6 +30,7 @@ interface AddressBarProps {
   inputFocused?: boolean;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
+  securityState?: 'ok' | 'warn';
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -49,7 +50,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   showTabsButton = true,
   inputFocused = false,
   suggestions = [],
-  onSelectSuggestion
+  onSelectSuggestion,
+  securityState = 'ok'
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -60,7 +62,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
     ...(paddingRight ? { paddingRight } : {}),
-    ...{WebkitTouchCallout: 'none'}
+    ...(mode === 'mobile' ? { paddingLeft: 60 } : { paddingLeft: 34 }),
+    ...{ WebkitTouchCallout: 'none' }
   };
   const baseInputFont =
     (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
@@ -126,37 +129,60 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const openTabsLabel = t('address.openTabs', { count: tabCount });
   return (
     <form onSubmit={onSubmit} style={toolbarStyles.form}>
-      <div style={toolbarStyles.addressField}>
-          <input
-            ref={inputRef}
-            id="address-input"
-            type="text"
-            value={value}
-            onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
-            onPointerDown={(event: PointerEvent<HTMLInputElement>) => {
-              pointerDownTsRef.current = Date.now();
-              onPointerDown(event);
-            }}
-            onContextMenu={(event: MouseEvent<HTMLInputElement>) => {
-              if (mode === 'mobile') {
-                const delta = Date.now() - pointerDownTsRef.current;
-                if (delta < 500) {
-                  event.preventDefault();
-                  event.stopPropagation();
-                  return;
-                }
+      <div style={{ ...toolbarStyles.addressField, position: 'relative' }}>
+        <span
+          aria-hidden="true"
+          style={{
+            position: 'absolute',
+            left: mode === 'mobile' ? 18 : 12,
+            top: '50%',
+            transform: 'translateY(-50%)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            color: securityState === 'ok' ? '#ffffff' : '#ef4444'
+          }}
+        >
+          <svg
+            viewBox="0 0 24 24"
+            width={mode === 'mobile' ? 32 : 18}
+            height={mode === 'mobile' ? 32 : 18}
+            fill="currentColor"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
+          </svg>
+        </span>
+        <input
+          ref={inputRef}
+          id="address-input"
+          type="text"
+          value={value}
+          onChange={(event: ChangeEvent<HTMLInputElement>) => onChange(event.target.value)}
+          onPointerDown={(event: PointerEvent<HTMLInputElement>) => {
+            pointerDownTsRef.current = Date.now();
+            onPointerDown(event);
+          }}
+          onContextMenu={(event: MouseEvent<HTMLInputElement>) => {
+            if (mode === 'mobile') {
+              const delta = Date.now() - pointerDownTsRef.current;
+              if (delta < 500) {
+                event.preventDefault();
+                event.stopPropagation();
+                return;
               }
-            }}
-            onFocus={onFocus}
-            onBlur={onBlur}
-            inputMode="url"
-            autoCapitalize="none"
-            autoCorrect="off"
-            spellCheck="false"
-            placeholder={t('address.placeholder')}
-            style={inputStyle}
+            }
+          }}
+          onFocus={onFocus}
+          onBlur={onBlur}
+          inputMode="url"
+          autoCapitalize="none"
+          autoCorrect="off"
+          spellCheck="false"
+          placeholder={t('address.placeholder')}
+          style={inputStyle}
         />
-        {showIndicator && (
+      {showIndicator && (
           <button
             type="button"
             aria-label={indicatorLabel}

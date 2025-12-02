@@ -378,3 +378,21 @@ export interface ZoomState {
   max: number;
   step: number;
 }
+
+export type CertificateState = 'unknown' | 'ok' | 'missing' | 'invalid';
+
+export interface CertificateInfo {
+  state: CertificateState;
+  url?: string | null;
+  host?: string | null;
+  error?: string | null;
+  certificate?: {
+    subjectName?: string;
+    issuerName?: string;
+    serialNumber?: string;
+    validStart?: number;
+    validExpiry?: number;
+    fingerprint?: string;
+  } | null;
+  updatedAt: number;
+}

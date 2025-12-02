@@ -519,6 +519,29 @@ const exposeApi: MerezhyvoAPI = {
     getPath: (faviconId: string) =>
       ipcRenderer.invoke('merezhyvo:favicons:get-path', faviconId ?? '') as Promise<string | null>
   },
+  certificates: {
+    getStatus: (wcId: number) => ipcRenderer.invoke('merezhyvo:certs:get', { wcId }),
+    continue: (wcId: number) => ipcRenderer.invoke('merezhyvo:certs:continue', { wcId }),
+    onUpdate: (handler) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'merezhyvo:certs:update';
+      const listener = (_event: IpcRendererEvent, payload: any) => {
+        try {
+          handler(payload);
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    }
+  },
   passwords: {
     status: () => ipcRenderer.invoke('merezhyvo:pw:status') as Promise<PasswordStatus>,
     unlock: (master: string, durationMinutes?: number) =>

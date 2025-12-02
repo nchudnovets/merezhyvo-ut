@@ -151,6 +151,13 @@ export const styles = {
     height: '18px',
     display: 'block'
   },
+  securityIcon: {
+    width: '18px',
+    height: '18px',
+    display: 'block',
+    marginRight: '10px',
+    flexShrink: 0
+  },
   visuallyHidden: {
     position: 'absolute',
     width: 1,
@@ -227,7 +234,7 @@ export const styles = {
     color: '#e2e8f0',
     background: 'radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9))',
     textAlign: 'center',
-    zIndex: 6
+    zIndex: 30
   },
   webviewErrorOverlayMobile: {
     gap: 'clamp(20px, 3vh, 32px)',

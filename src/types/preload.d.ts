@@ -36,7 +36,8 @@ import type {
   PasswordCaptureAction,
   PasswordCaptureActionResult,
   PasswordStatus,
-  DownloadsSettings
+  DownloadsSettings,
+  CertificateInfo
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -162,6 +163,12 @@ export interface FileDialogResponsePayload {
   paths: string[] | null;
 }
 
+export interface MerezhyvoCertificatesApi {
+  getStatus(wcId: number): Promise<CertificateInfo>;
+  continue(wcId: number): Promise<{ ok: boolean; error?: string }>;
+  onUpdate(handler: (payload: { wcId: number; info: CertificateInfo }) => void): MerezhyvoUnsubscribe;
+}
+
 export interface MerezhyvoFileDialogApi {
   list(payload?: { path?: string; filters?: string[] }): Promise<FileDialogListing>;
   readFile(payload: { path: string }): Promise<string>;
@@ -252,6 +259,7 @@ export interface MerezhyvoAPI {
   history: MerezhyvoHistoryApi;
   bookmarks: MerezhyvoBookmarksApi;
   fileDialog: MerezhyvoFileDialogApi;
+  certificates: MerezhyvoCertificatesApi;
   permissions: {
     onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void;
     decide(payload: { id: string; allow: boolean; remember: boolean; persist?: Partial<Record<'camera' | 'microphone' | 'geolocation' | 'notifications', 'allow' | 'deny'>> }): void;

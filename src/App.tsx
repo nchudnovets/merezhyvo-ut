@@ -52,7 +52,8 @@ import type {
   MessengerSettings,
   PasswordStatus,
   PasswordPromptPayload,
-  PasswordCaptureAction
+  PasswordCaptureAction,
+  CertificateInfo
 } from './types/models';
 import type { MerezhyvoAboutInfo } from './types/preload';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
@@ -292,6 +293,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const inputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
   const webviewReadyRef = useRef<boolean>(false);
+  const activeWcIdRef = useRef<number | null>(null);
   const { t } = useI18n();
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
@@ -364,6 +366,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     'hidden' | 'active' | 'completed' | 'error'
   >('hidden');
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
+  const [certStatus, setCertStatus] = useState<CertificateInfo | null>(null);
+  const certBypassRef = useRef<Set<string>>(new Set());
+  const certStatusRef = useRef<CertificateInfo | null>(null);
+  const blockingCertRef = useRef<CertificateInfo | null>(null);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
   const bookmarksCacheRef = useRef<
@@ -773,6 +779,21 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     injectEnterToMain,
     injectArrowToMain,
   } = React.useMemo(() => makeMainInjects(), []);
+
+  const getWebContentsIdSafe = useCallback((view?: WebviewTag | null): number | null => {
+    if (!view || typeof view.getWebContentsId !== 'function') return null;
+    try {
+      const id = view.getWebContentsId();
+      return typeof id === 'number' && Number.isFinite(id) ? id : null;
+    } catch {
+      return null;
+    }
+  }, []);
+
+  const getActiveWebContentsId = useCallback((): number | null => {
+    const view = getActiveWebview();
+    return getWebContentsIdSafe(view);
+  }, [getActiveWebview, getWebContentsIdSafe]);
 
   useEffect(() => {
   let cancelled = false;
@@ -1204,6 +1225,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       ignoreUrlChangeRef.current = false;
       lastFailedUrlRef.current = null;
       setPageError(null);
+      const currentCert = certStatusRef.current;
+      const isBlockingCert =
+        currentCert && (currentCert.state === 'invalid' || currentCert.state === 'missing');
+      if (!isBlockingCert) {
+        setCertStatus(null);
+      }
+      if (activeIdRef.current) {
+        certBypassRef.current.delete(activeIdRef.current);
+      }
       webviewReadyRef.current = false;
       setWebviewReady(false);
       if (mode === 'mobile') {
@@ -1392,6 +1422,126 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [mode, zoomLevel]);
 
+  const refreshCertStatus = useCallback(
+    async (wcId: number | null) => {
+      if (!wcId) {
+        return;
+      }
+      try {
+        const next = await window.merezhyvo?.certificates?.getStatus?.(wcId);
+        if (wcId !== activeWcIdRef.current) return;
+        const current = certStatusRef.current;
+        if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
+          return;
+        }
+        setCertStatus(next ?? null);
+        certStatusRef.current = next ?? null;
+        if (next && (next.state === 'invalid' || next.state === 'missing')) {
+          blockingCertRef.current = next;
+        } else if (next && next.state === 'ok') {
+          blockingCertRef.current = null;
+        }
+        if (next?.state === 'ok') {
+          const activeTabId = activeIdRef.current;
+          if (activeTabId) {
+            certBypassRef.current.delete(activeTabId);
+          }
+        }
+      } catch {
+        if (wcId === activeWcIdRef.current && !(certStatusRef.current && (certStatusRef.current.state === 'invalid' || certStatusRef.current.state === 'missing'))) {
+          setCertStatus(null);
+          certStatusRef.current = null;
+        }
+      }
+    },
+    []
+  );
+
+  useEffect(() => {
+    const off = window.merezhyvo?.certificates?.onUpdate?.((payload) => {
+      if (!payload) return;
+      const { wcId, info, webContentsId } = payload as {
+        wcId?: number;
+        webContentsId?: number;
+        info?: CertificateInfo;
+      };
+      const id = typeof webContentsId === 'number' ? webContentsId : wcId;
+      const next = info ?? (payload as any);
+      try {
+        // eslint-disable-next-line no-console
+        console.log('[cert debug] update', { id, next });
+      } catch {}
+      const isActiveMatch = (() => {
+        if (!id || !activeIdRef.current) return false;
+        const entry = tabViewsRef.current.get(activeIdRef.current);
+        const wc = getWebContentsIdSafe(entry?.view);
+        if (wc && wc === id) {
+          activeWcIdRef.current = wc;
+          return true;
+        }
+        return id === activeWcIdRef.current;
+      })();
+      if (id && isActiveMatch) {
+        const current = certStatusRef.current;
+        if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
+          return;
+        }
+        setCertStatus(next ?? null);
+        certStatusRef.current = next ?? null;
+        if (next?.state === 'invalid' || next?.state === 'missing') {
+          const activeTabId = activeIdRef.current;
+          if (activeTabId) {
+            updateMetaAction(activeTabId, { isLoading: false });
+          }
+          setStatus('error');
+          setWebviewReady(false);
+        }
+        if (next?.state === 'ok') {
+          const activeTabId = activeIdRef.current;
+          if (activeTabId) {
+            certBypassRef.current.delete(activeTabId);
+          }
+        }
+      }
+    });
+    return () => {
+      if (typeof off === 'function') {
+        try { off(); } catch {}
+      }
+    };
+  }, []);
+
+  const certCandidate = certStatus ?? blockingCertRef.current;
+  const certWarning =
+    certCandidate &&
+    (certCandidate.state === 'invalid' || certCandidate.state === 'missing') &&
+    !certBypassRef.current.has(activeId ?? '');
+  const securityState = certWarning ? 'warn' : 'ok';
+
+  useEffect(() => {
+    certStatusRef.current = certStatus;
+    if (certStatus && (certStatus.state === 'invalid' || certStatus.state === 'missing')) {
+      blockingCertRef.current = certStatus;
+    }
+    if (certStatus && certStatus.state === 'ok') {
+      blockingCertRef.current = null;
+    }
+  }, [certStatus]);
+
+  useEffect(() => {
+    try {
+      // eslint-disable-next-line no-console
+      console.log('[cert debug] render state', {
+        activeId,
+        certStatus,
+        bypassed: activeId ? certBypassRef.current.has(activeId) : false,
+        certWarning
+      });
+    } catch {
+      // noop
+    }
+  }, [activeId, certStatus, certWarning]);
+
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
   }, []);
@@ -1445,8 +1595,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (activeIdRef.current === tab.id) {
         webviewHandleRef.current = entry.handle;
         webviewRef.current = entry.view;
+        activeWcIdRef.current = getWebContentsIdSafe(entry.view);
         if (viewChanged) {
           setActiveViewRevision((rev) => rev + 1);
+          void refreshCertStatus(activeWcIdRef.current);
         }
       }
     };
@@ -1477,7 +1629,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     handleHostStatus,
     handleHostUrlChange,
     installShadowStyles,
-    setActiveViewRevision
+    setActiveViewRevision,
+    getWebContentsIdSafe,
+    refreshCertStatus
   ]);
 
   const loadUrlIntoView = useCallback((tab: Tab, entry?: TabViewEntry | null) => {
@@ -1542,6 +1696,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     applyActiveStyles(container, view);
     webviewHandleRef.current = entry.handle;
     webviewRef.current = view;
+    const wcId = getWebContentsIdSafe(view);
+    activeWcIdRef.current = wcId;
+    void refreshCertStatus(wcId);
     setActiveViewRevision((rev) => rev + 1);
     
     const current = (() => {
@@ -1567,7 +1724,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     mode,
     refreshNavigationState,
     setActiveViewRevision,
-    updateMetaAction
+    updateMetaAction,
+    getWebContentsIdSafe,
+    refreshCertStatus
   ]);
 
   const demoteTabView = useCallback((tab: Tab | null) => {
@@ -3019,6 +3178,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }
 
+  useEffect(() => {
+    const wcId = getActiveWebContentsId();
+    activeWcIdRef.current = wcId;
+    void refreshCertStatus(wcId);
+  }, [activeId, activeViewRevision, getActiveWebContentsId, refreshCertStatus]);
+
   const handleCleanCloseTab = useCallback(async (id: string) => {
     if (!id) return false;
     const tab = tabs.find((item) => item.id === id) ?? null;
@@ -3103,7 +3268,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         </div>
       )
       : null;
-  const webviewVisibility = status === 'error' ? 'hidden' : 'visible';
+  const webviewVisibility = status === 'error' || certWarning ? 'hidden' : 'visible';
 
   const errorOverlay = pageError && status === 'error' ? (
     <div
@@ -3156,6 +3321,129 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       >
         {t('webview.error.retry')}
       </button>
+    </div>
+  ) : null;
+
+  const formatDate = (value?: number | null) => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return '';
+    return new Date(value).toLocaleString();
+  };
+
+  const displayCert = certStatus ?? blockingCertRef.current;
+  const certOverlay = certWarning && displayCert ? (
+    <div
+      style={{
+        ...styles.webviewErrorOverlay,
+        ...(mode === 'mobile' ? styles.webviewErrorOverlayMobile : null),
+        pointerEvents: 'auto'
+      }}
+      role="alert"
+      aria-live="assertive"
+    >
+      <div
+        style={{
+          ...styles.webviewErrorTitle,
+          ...(mode === 'mobile' ? styles.webviewErrorTitleMobile : null)
+        }}
+      >
+        {displayCert.state === 'missing' ? t('cert.title.missing') : t('cert.title.invalid')}
+      </div>
+      <div
+        style={{
+          ...styles.webviewErrorSubtitle,
+          ...(mode === 'mobile' ? styles.webviewErrorSubtitleMobile : null)
+        }}
+      >
+        {displayCert.error
+          ? displayCert.error
+          : displayCert.state === 'missing'
+          ? t('cert.desc.missing')
+          : t('cert.desc.invalid')}
+      </div>
+      {displayCert.url && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '10px 12px',
+            borderRadius: '10px',
+            background: 'rgba(148,163,184,0.08)',
+            color: '#e2e8f0',
+            maxWidth: mode === 'mobile' ? '92vw' : '520px',
+            fontSize: mode === 'mobile' ? '26px' : '13px',
+            wordBreak: 'break-all'
+          }}
+        >
+          {displayCert.url}
+        </div>
+      )}
+      {displayCert.certificate && (
+        <div
+          style={{
+            marginTop: '10px',
+            padding: '12px',
+            borderRadius: '12px',
+            border: '1px solid rgba(148,163,184,0.35)',
+            background: 'rgba(15,23,42,0.6)',
+            textAlign: 'left',
+            maxWidth: mode === 'mobile' ? '92vw' : '520px',
+            fontSize: mode === 'mobile' ? '28px' : '13px',
+            lineHeight: 1.5
+          }}
+        >
+          <div><strong>{t('cert.details.issuer')} </strong>{displayCert.certificate.issuerName || '—'}</div>
+          <div><strong>{t('cert.details.subject')} </strong>{displayCert.certificate.subjectName || '—'}</div>
+          <div><strong>{t('cert.details.serial')} </strong>{displayCert.certificate.serialNumber || '—'}</div>
+          <div><strong>{t('cert.details.validFrom')} </strong>{formatDate(displayCert.certificate.validStart)}</div>
+          <div><strong>{t('cert.details.validTo')} </strong>{formatDate(displayCert.certificate.validExpiry)}</div>
+          <div><strong>{t('cert.details.fingerprint')} </strong>{displayCert.certificate.fingerprint || '—'}</div>
+        </div>
+      )}
+      <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap', justifyContent: 'center' }}>
+        <button
+          type="button"
+          onClick={() => {
+            if (activeId) closeTabAction(activeId);
+          }}
+          style={{
+            ...styles.webviewErrorButton,
+            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null),
+            borderColor: '#ef4444',
+            backgroundColor: 'rgba(239,68,68,0.15)'
+          }}
+        >
+          {t('cert.actions.cancel')}
+        </button>
+        <button
+          type="button"
+          onClick={async () => {
+            if (!activeId) return;
+            certBypassRef.current.add(activeId);
+            blockingCertRef.current = null;
+            const wcId = activeWcIdRef.current;
+            if (certStatus.state === 'invalid' && wcId) {
+              try {
+                const result = await window.merezhyvo?.certificates?.continue?.(wcId);
+                // eslint-disable-next-line no-console
+                console.log('[cert debug] proceed clicked', { wcId, result });
+              } catch {
+                // ignore
+              }
+              setStatus('loading');
+              setWebviewReady(false);
+              return;
+            }
+            setCertStatus(null);
+            setStatus('loading');
+            setWebviewReady(false);
+          }}
+          style={{
+            ...styles.webviewErrorButton,
+            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null)
+          }}
+        >
+          {t('cert.actions.proceed')}
+        </button>
+      </div>
     </div>
   ) : null;
 
@@ -3383,6 +3671,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               toolbarRef={toolbarRef}
               suggestions={urlSuggestions}
               onSelectSuggestion={handleSuggestionSelect}
+              securityState={securityState}
             />
           )}
 
@@ -3547,10 +3836,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           />
           {errorOverlay}
           {serviceContent && (
-            <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
-              {serviceContent}
-            </div>
-          )}
+        <div style={SERVICE_OVERLAY_STYLE} className="service-scroll">
+          {serviceContent}
+        </div>
+      )}
+          {certOverlay}
         {/* </div> */}
       </div>
     </div>
