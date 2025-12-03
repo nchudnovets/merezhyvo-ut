@@ -37,7 +37,9 @@ import type {
   PasswordCaptureActionResult,
   PasswordStatus,
   DownloadsSettings,
-  CertificateInfo
+  CertificateInfo,
+  HttpsMode,
+  SslException
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -218,6 +220,12 @@ export interface MerezhyvoAPI {
     messenger: {
       get(): Promise<MessengerSettings>;
       update(order: MessengerSettings['order']): Promise<MessengerSettings>;
+    };
+    https: {
+      get(): Promise<{ httpsMode: HttpsMode; sslExceptions: SslException[] }>;
+      setMode(mode: HttpsMode): Promise<{ ok?: boolean; httpsMode?: HttpsMode; error?: string }>;
+      addException(payload: { host: string; errorType: string }): Promise<{ ok?: boolean; sslExceptions?: SslException[]; error?: string }>;
+      removeException(payload: { host: string; errorType: string }): Promise<{ ok?: boolean; sslExceptions?: SslException[]; error?: string }>;
     };
   };
   ui: {

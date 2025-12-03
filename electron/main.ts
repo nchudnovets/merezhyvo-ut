@@ -36,7 +36,9 @@ import {
   writeSettingsState,
   sanitizeDownloadsSettings,
   sanitizeUiSettings,
-  sanitizeSettingsPayload
+  sanitizeSettingsPayload,
+  sanitizeHttpsMode,
+  sanitizeSslExceptions
 } from './lib/shortcuts';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
@@ -1195,6 +1197,94 @@ ipcMain.handle('merezhyvo:downloads:settings:get', async () => {
       return sanitizeDownloadsSettings(payload);
     }
   });
+
+ipcMain.handle('merezhyvo:settings:https:get', async () => {
+  try {
+    const state = await readSettingsState();
+    return {
+      httpsMode: sanitizeHttpsMode(state.httpsMode),
+      sslExceptions: sanitizeSslExceptions(state.sslExceptions)
+    };
+  } catch (err) {
+    console.error('[merezhyvo] https settings load failed', err);
+    return {
+      httpsMode: sanitizeHttpsMode(null),
+      sslExceptions: sanitizeSslExceptions(null)
+    };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:https:set-mode', async (_event, payload: unknown) => {
+  const mode =
+    typeof payload === 'object' && payload && typeof (payload as { mode?: unknown }).mode !== 'undefined'
+      ? sanitizeHttpsMode((payload as { mode?: unknown }).mode)
+      : sanitizeHttpsMode(payload);
+  try {
+    const next = await writeSettingsState({ httpsMode: mode });
+    return { ok: true, httpsMode: sanitizeHttpsMode(next.httpsMode) };
+  } catch (err) {
+    console.error('[merezhyvo] https mode update failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:https:add-exception', async (_event, payload: unknown) => {
+  const hostRaw =
+    typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
+      ? (payload as { host?: string }).host
+      : '';
+  const errorTypeRaw =
+    typeof payload === 'object' && payload && typeof (payload as { errorType?: unknown }).errorType === 'string'
+      ? (payload as { errorType?: string }).errorType
+      : '';
+  const host = hostRaw.trim().toLowerCase();
+  const errorType = errorTypeRaw.trim();
+  if (!host || !errorType) {
+    return { ok: false, error: 'Invalid exception payload' };
+  }
+  try {
+    const state = await readSettingsState();
+    const current = sanitizeSslExceptions(state.sslExceptions);
+    const key = `${host}__${errorType}`;
+    const nextList = [...current];
+    if (!current.find((item) => `${item.host}__${item.errorType}` === key)) {
+      nextList.push({ host, errorType });
+    }
+    const nextState = await writeSettingsState({ sslExceptions: nextList });
+    return { ok: true, sslExceptions: sanitizeSslExceptions(nextState.sslExceptions) };
+  } catch (err) {
+    console.error('[merezhyvo] add ssl exception failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:https:remove-exception', async (_event, payload: unknown) => {
+  const hostRaw =
+    typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
+      ? (payload as { host?: string }).host
+      : '';
+  const errorTypeRaw =
+    typeof payload === 'object' && payload && typeof (payload as { errorType?: unknown }).errorType === 'string'
+      ? (payload as { errorType?: string }).errorType
+      : '';
+  const host = hostRaw.trim().toLowerCase();
+  const errorType = errorTypeRaw.trim();
+  if (!host || !errorType) {
+    return { ok: false, error: 'Invalid exception payload' };
+  }
+  try {
+    const state = await readSettingsState();
+    const current = sanitizeSslExceptions(state.sslExceptions);
+    const nextList = current.filter(
+      (item) => !(item.host === host && item.errorType === errorType)
+    );
+    const nextState = await writeSettingsState({ sslExceptions: nextList });
+    return { ok: true, sslExceptions: sanitizeSslExceptions(nextState.sslExceptions) };
+  } catch (err) {
+    console.error('[merezhyvo] remove ssl exception failed', err);
+    return { ok: false, error: String(err) };
+  }
+});
 
 ipcMain.handle('merezhyvo:ui:getScale', async () => {
   try {

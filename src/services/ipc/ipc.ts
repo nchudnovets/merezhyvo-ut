@@ -6,7 +6,9 @@ import type {
   TorConfigResult,
   Unsubscribe,
   MessengerSettings,
-  KeyboardSettings
+  KeyboardSettings,
+  HttpsMode,
+  SslException
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 import { DEFAULT_LOCALE } from '../../i18n/locales';
@@ -108,6 +110,59 @@ export const ipc = {
           console.error('settings.messenger.update failed', err);
           return sanitizeMessengerSettings({ order });
         }
+      }
+    },
+    https: {
+      async get(): Promise<{ httpsMode: HttpsMode; sslExceptions: SslException[] }> {
+        try {
+          const res = await getApi()?.settings?.https?.get?.();
+          if (res && typeof res === 'object') {
+            const mode = (res as { httpsMode?: unknown }).httpsMode === 'preferred' ? 'preferred' : 'strict';
+            const exceptions = Array.isArray((res as { sslExceptions?: unknown }).sslExceptions)
+              ? ((res as { sslExceptions: unknown }).sslExceptions as SslException[])
+              : [];
+            return { httpsMode: mode, sslExceptions: exceptions };
+          }
+        } catch (err) {
+          console.error('settings.https.get failed', err);
+        }
+        return { httpsMode: 'strict', sslExceptions: [] };
+      },
+      async setMode(mode: HttpsMode): Promise<{ ok?: boolean; httpsMode?: HttpsMode; error?: string }> {
+        try {
+          const res = await getApi()?.settings?.https?.setMode?.(mode);
+          if (res && typeof res === 'object') {
+            return res as { ok?: boolean; httpsMode?: HttpsMode; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.https.setMode failed', err);
+          return { ok: false, error: String(err) };
+        }
+        return { ok: false, error: 'Operation not supported.' };
+      },
+      async addException(payload: { host: string; errorType: string }) {
+        try {
+          const res = await getApi()?.settings?.https?.addException?.(payload);
+          if (res && typeof res === 'object') {
+            return res as { ok?: boolean; sslExceptions?: SslException[]; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.https.addException failed', err);
+          return { ok: false, error: String(err) };
+        }
+        return { ok: false, error: 'Operation not supported.' };
+      },
+      async removeException(payload: { host: string; errorType: string }) {
+        try {
+          const res = await getApi()?.settings?.https?.removeException?.(payload);
+          if (res && typeof res === 'object') {
+            return res as { ok?: boolean; sslExceptions?: SslException[]; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.https.removeException failed', err);
+          return { ok: false, error: String(err) };
+        }
+        return { ok: false, error: 'Operation not supported.' };
       }
     },
   },

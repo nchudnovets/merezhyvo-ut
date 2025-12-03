@@ -12,7 +12,7 @@ import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 import { INTERNAL_BASE_FOLDER } from './internal-paths';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 3;
+export const SETTINGS_SCHEMA = 4;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -34,6 +34,13 @@ export type UISettings = {
   language: string;
 };
 
+export type HttpsMode = 'strict' | 'preferred';
+
+export type SslException = {
+  host: string;
+  errorType: string;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -41,6 +48,8 @@ export type SettingsState = {
   messenger: MessengerSettings;
   downloads: DownloadsSettings;
   ui: UISettings;
+  httpsMode: HttpsMode;
+  sslExceptions: SslException[];
   permissions?: unknown;
 };
 
@@ -51,6 +60,8 @@ type SettingsLike = {
   messenger?: unknown;
   downloads?: unknown;
   ui?: unknown;
+  httpsMode?: unknown;
+  sslExceptions?: unknown;
   permissions?: unknown;
 };
 
@@ -129,6 +140,9 @@ const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
   order: [...DEFAULT_MESSENGER_ORDER]
 };
 
+const DEFAULT_HTTPS_MODE: HttpsMode = 'strict';
+const DEFAULT_SSL_EXCEPTIONS: SslException[] = [];
+
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
   keyboard: { ...DEFAULT_KEYBOARD_SETTINGS },
@@ -137,7 +151,9 @@ export const createDefaultSettingsState = (): SettingsState => ({
   ,
   downloads: { ...DEFAULT_DOWNLOADS_SETTINGS }
   ,
-  ui: { ...DEFAULT_UI_SETTINGS }
+  ui: { ...DEFAULT_UI_SETTINGS },
+  httpsMode: DEFAULT_HTTPS_MODE,
+  sslExceptions: [...DEFAULT_SSL_EXCEPTIONS]
 });
 
 const coerceScale = (value: number): number => {
@@ -166,6 +182,39 @@ export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {
   return { defaultDir, concurrent: concurrent as 1 | 2 | 3 };
 };
 
+export const sanitizeHttpsMode = (raw: unknown): HttpsMode => {
+  if (raw === 'preferred') return 'preferred';
+  if (raw === 'strict') return 'strict';
+  if (typeof raw === 'string') {
+    const lowered = raw.toLowerCase();
+    if (lowered === 'preferred') return 'preferred';
+    if (lowered === 'strict') return 'strict';
+  }
+  return DEFAULT_HTTPS_MODE;
+};
+
+export const sanitizeSslExceptions = (raw: unknown): SslException[] => {
+  if (!Array.isArray(raw)) return [...DEFAULT_SSL_EXCEPTIONS];
+  const normalized = raw
+    .map((entry) => {
+      if (!entry || typeof entry !== 'object') return null;
+      const obj = entry as Record<string, unknown>;
+      const host = isNonEmptyString(obj.host) ? obj.host.trim().toLowerCase() : null;
+      const errorType = isNonEmptyString(obj.errorType) ? obj.errorType.trim() : null;
+      if (!host || !errorType) return null;
+      return { host, errorType };
+    })
+    .filter((item): item is SslException => Boolean(item));
+  const dedup = new Map<string, SslException>();
+  for (const item of normalized) {
+    const key = `${item.host}__${item.errorType}`;
+    if (!dedup.has(key)) {
+      dedup.set(key, item);
+    }
+  }
+  return Array.from(dedup.values());
+};
+
 export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const source = (typeof payload === 'object' && payload !== null)
     ? (payload as SettingsLike)
@@ -180,6 +229,8 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
       : undefined;
   const downloads = sanitizeDownloadsSettings(source.downloads);
   const ui = sanitizeUiSettings(source.ui);
+  const httpsMode = sanitizeHttpsMode(source.httpsMode);
+  const sslExceptions = sanitizeSslExceptions(source.sslExceptions);
 
   return {
     schema: SETTINGS_SCHEMA,
@@ -188,6 +239,8 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     messenger,
     downloads,
     ui,
+    httpsMode,
+    sslExceptions,
     ...(permissions ? { permissions } : {})
   };
 };

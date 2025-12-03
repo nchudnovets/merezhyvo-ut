@@ -176,6 +176,13 @@ export interface DownloadsSettings {
   concurrent: 1 | 2 | 3;
 }
 
+export type HttpsMode = 'strict' | 'preferred';
+
+export interface SslException {
+  host: string;
+  errorType: string;
+}
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -183,6 +190,8 @@ export interface SettingsState {
   messenger: MessengerSettings;
   downloads: DownloadsSettings;
   ui: UISettings;
+  httpsMode: HttpsMode;
+  sslExceptions: SslException[];
 }
 
 export interface PasswordEntryMeta {

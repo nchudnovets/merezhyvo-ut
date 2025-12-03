@@ -44,6 +44,8 @@ interface AddressBarProps {
   } | null;
   securityOpen?: boolean;
   onToggleSecurity?: () => void;
+  certExceptionAllowed?: boolean;
+  onToggleCertException?: (next: boolean) => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -67,7 +69,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   securityState = 'ok',
   securityInfo = null,
   securityOpen = false,
-  onToggleSecurity
+  onToggleSecurity,
+  certExceptionAllowed = false,
+  onToggleCertException
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -230,6 +234,25 @@ const AddressBar: React.FC<AddressBarProps> = ({
                   <div><strong>{t('cert.details.fingerprint')} </strong>{securityInfo.fingerprint}</div>
                 ) : null}
               </div>
+            ) : null}
+            {securityInfo && securityState === 'warn' ? (
+              <label
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 12 : 8,
+                  marginTop: mode === 'mobile' ? 12 : 8,
+                  fontSize: mode === 'mobile' ? '30px' : '14px'
+                }}
+              >
+                <input
+                  type="checkbox"
+                  checked={certExceptionAllowed}
+                  onChange={(e) => onToggleCertException?.(e.target.checked)}
+                  style={{ width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
+                />
+                <span>{t('cert.actions.allowSite')}</span>
+              </label>
             ) : null}
           </div>
         )}

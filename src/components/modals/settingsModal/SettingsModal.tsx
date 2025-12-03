@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Mode, MessengerDefinition, MessengerId } from '../../../types/models';
+import type { Mode, MessengerDefinition, MessengerId, HttpsMode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
@@ -15,6 +15,7 @@ import DownloadSettingsSection from './DownloadSettingsSection';
 import UiScaleSetting from './UiScaleSetting';
 import LanguageSettings from './LanguageSettings';
 import { useI18n } from '../../../i18n/I18nProvider';
+import SecuritySettings from './SecuritySettings';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -49,6 +50,8 @@ interface SettingsModalProps {
   onUiScaleChange: (value: number) => void;
   onUiScaleReset: () => void;
   onOpenTorLink: () => void;
+  httpsMode: HttpsMode;
+  onHttpsModeChange: (mode: HttpsMode) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -83,7 +86,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   uiScale,
   onUiScaleChange,
   onUiScaleReset,
-  onOpenTorLink
+  onOpenTorLink,
+  httpsMode,
+  onHttpsModeChange
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -199,6 +204,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torConfigSaving={torConfigSaving}
                 torConfigFeedback={torConfigFeedback}
                 onTorKeepChange={onTorKeepChange}
+              />
+            }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title={t('settings.section.privacy')}
+            expandedDefault={false}
+            body={
+              <SecuritySettings
+                mode={mode}
+                httpsMode={httpsMode}
+                onChange={onHttpsModeChange}
               />
             }
           />

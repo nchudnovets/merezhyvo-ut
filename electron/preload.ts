@@ -30,7 +30,9 @@ import type {
   PasswordImportFormat,
   PasswordChangeMasterResult,
   PasswordStatus,
-  CertificateInfo
+  CertificateInfo,
+  HttpsMode,
+  SslException
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
@@ -258,12 +260,14 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return {
-          schema: 2,
+          schema: 4,
           tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null),
           downloads: { defaultDir: '', concurrent: 2 },
-          ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE }
+          ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE },
+          httpsMode: 'strict',
+          sslExceptions: []
         };
       }
     },
@@ -318,6 +322,55 @@ const exposeApi: MerezhyvoAPI = {
         } catch (err) {
           console.error('[merezhyvo] settings.messenger.update failed', err);
           return sanitizeMessengerSettings({ order });
+        }
+      }
+    },
+    https: {
+      get: async (): Promise<{ httpsMode: HttpsMode; sslExceptions: SslException[] }> => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:https:get');
+          const mode =
+            result && typeof result === 'object' && typeof (result as { httpsMode?: unknown }).httpsMode !== 'undefined'
+              ? (result as { httpsMode?: unknown }).httpsMode
+              : undefined;
+          const exceptions =
+            result && typeof result === 'object' && Array.isArray((result as { sslExceptions?: unknown }).sslExceptions)
+              ? (result as { sslExceptions: unknown }).sslExceptions
+              : undefined;
+          return {
+            httpsMode: mode === 'preferred' ? 'preferred' : 'strict',
+            sslExceptions: Array.isArray(exceptions) ? (exceptions as SslException[]) : []
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.https.get failed', err);
+          return { httpsMode: 'strict', sslExceptions: [] };
+        }
+      },
+      setMode: async (mode: HttpsMode) => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:https:set-mode', { mode });
+          return result as { ok?: boolean; httpsMode?: HttpsMode; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.https.setMode failed', err);
+          return { ok: false, error: String(err) };
+        }
+      },
+      addException: async (payload: { host: string; errorType: string }) => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:https:add-exception', payload ?? {});
+          return result as { ok?: boolean; sslExceptions?: SslException[]; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.https.addException failed', err);
+          return { ok: false, error: String(err) };
+        }
+      },
+      removeException: async (payload: { host: string; errorType: string }) => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:https:remove-exception', payload ?? {});
+          return result as { ok?: boolean; sslExceptions?: SslException[]; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.https.removeException failed', err);
+          return { ok: false, error: String(err) };
         }
       }
     }

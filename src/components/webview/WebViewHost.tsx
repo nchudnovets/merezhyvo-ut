@@ -45,6 +45,13 @@ export type WebViewHostProps = {
   onStatus: (state: StatusState) => void;
   onUrlChange: (url: string) => void;
   onDomReady?: () => void;
+  onNavigationStart?: (payload: { url: string; isInPage: boolean }) => void;
+  onNavigationError?: (payload: {
+    errorCode: number;
+    errorDescription: string;
+    validatedURL: string;
+    isMainFrame: boolean;
+  }) => void;
   className?: string;
   style?: CSSProperties;
 };
@@ -54,6 +61,8 @@ type Callbacks = {
   onStatus: WebViewHostProps['onStatus'];
   onUrlChange: WebViewHostProps['onUrlChange'];
   onDomReady?: WebViewHostProps['onDomReady'];
+  onNavigationStart?: WebViewHostProps['onNavigationStart'];
+  onNavigationError?: WebViewHostProps['onNavigationError'];
 };
 
 type ListenerCapable = {
@@ -131,6 +140,8 @@ const WebViewHost = forwardRef(function WebViewHost(
     onStatus,
     onUrlChange,
     onDomReady,
+    onNavigationStart,
+    onNavigationError,
     className,
     style
   }: WebViewHostProps,
@@ -141,15 +152,17 @@ const WebViewHost = forwardRef(function WebViewHost(
     onCanGo,
     onStatus,
     onUrlChange,
-    onDomReady
+    onDomReady,
+    onNavigationStart,
+    onNavigationError
   });
   const lastFailedRef = useRef(false);
   const initialUrlAppliedRef = useRef(false);
   const zoomRef = useRef(zoom);
 
   useEffect(() => {
-    callbacksRef.current = { onCanGo, onStatus, onUrlChange, onDomReady };
-  }, [onCanGo, onStatus, onUrlChange, onDomReady]);
+    callbacksRef.current = { onCanGo, onStatus, onUrlChange, onDomReady, onNavigationStart, onNavigationError };
+  }, [onCanGo, onStatus, onUrlChange, onDomReady, onNavigationStart, onNavigationError]);
 
   const emitNavigationState = useCallback(() => {
     const node = webviewRef.current;
@@ -338,6 +351,10 @@ const WebViewHost = forwardRef(function WebViewHost(
       if (nav?.isMainFrame && !nav.isInPlace) {
         lastFailedRef.current = false;
         callbacksRef.current.onStatus('loading');
+        callbacksRef.current.onNavigationStart?.({
+          url: typeof nav.url === 'string' ? nav.url : '',
+          isInPage: Boolean(nav.isInPlace)
+        });
       }
     };
 
@@ -354,10 +371,21 @@ const WebViewHost = forwardRef(function WebViewHost(
     };
 
     const handleDidFail: EventListener = (event) => {
-      const nav = event as unknown as { isMainFrame?: boolean };
+      const nav = event as unknown as {
+        isMainFrame?: boolean;
+        errorCode?: number;
+        errorDescription?: string;
+        validatedURL?: string;
+      };
       if (nav?.isMainFrame === false) return;
       lastFailedRef.current = true;
       callbacksRef.current.onStatus('error');
+      callbacksRef.current.onNavigationError?.({
+        errorCode: typeof nav.errorCode === 'number' ? nav.errorCode : 0,
+        errorDescription: typeof nav.errorDescription === 'string' ? nav.errorDescription : '',
+        validatedURL: typeof nav.validatedURL === 'string' ? nav.validatedURL : '',
+        isMainFrame: nav?.isMainFrame !== false
+      });
     };
 
     const handleDomReady: EventListener = () => {

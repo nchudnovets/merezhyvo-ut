@@ -53,7 +53,9 @@ import type {
   PasswordStatus,
   PasswordPromptPayload,
   PasswordCaptureAction,
-  CertificateInfo
+  CertificateInfo,
+  HttpsMode,
+  SslException
 } from './types/models';
 import type { MerezhyvoAboutInfo } from './types/preload';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
@@ -286,6 +288,105 @@ const normalizeAddress = (value: string): string => {
   }
 };
 
+const normalizeNavigationTarget = (
+  value: string
+): { targetUrl: string; originalUrl: string; upgradedFromHttp: boolean } => {
+  const fallback = { targetUrl: DEFAULT_URL, originalUrl: DEFAULT_URL, upgradedFromHttp: false };
+  if (!value || !value.trim()) return fallback;
+  const trimmed = value.trim();
+  const hasScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
+  if (hasScheme) {
+    if (trimmed.toLowerCase().startsWith('http://')) {
+      return {
+        targetUrl: trimmed.replace(/^http:/i, 'https:'),
+        originalUrl: trimmed,
+        upgradedFromHttp: true
+      };
+    }
+    return { targetUrl: trimmed, originalUrl: trimmed, upgradedFromHttp: false };
+  }
+
+  if (trimmed.includes(' ')) {
+    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
+  }
+  if (!trimmed.includes('.') && trimmed.toLowerCase() !== 'localhost') {
+    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
+  }
+
+  try {
+    const httpsCandidate = new URL(`https://${trimmed}`);
+    return {
+      targetUrl: httpsCandidate.href,
+      originalUrl: `http://${trimmed}`,
+      upgradedFromHttp: true
+    };
+  } catch {
+    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
+    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
+  }
+};
+
+const HTTP_ERROR_TYPE = 'HTTP_NOT_SECURE';
+
+const isLikelyCertError = (code?: number, description?: string): boolean => {
+  if (typeof code === 'number') {
+    if (code === -150 /* ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN */) return true;
+    if (code <= -200 && code >= -299) return true;
+  }
+  if (typeof description === 'string' && description) {
+    const upper = description.toUpperCase();
+    if (
+      upper.includes('CERT') ||
+      upper.includes('SSL') ||
+      upper.includes('INSECURE_RESPONSE') ||
+      upper.includes('CERTIFICATE_TRANSPARENCY') ||
+      upper.includes('HPKP') ||
+      upper.includes('PINNED_KEY')
+    ) {
+      return true;
+    }
+  }
+  return false;
+};
+
+const normalizeHost = (url?: string | null): string | null => {
+  try {
+    const parsed = url ? new URL(url) : null;
+    return parsed?.hostname ? parsed.hostname.toLowerCase() : null;
+  } catch {
+    return null;
+  }
+};
+
+const deriveErrorType = (cert: CertificateInfo | null): string | null => {
+  if (!cert) return null;
+  if (cert.state === 'missing') return HTTP_ERROR_TYPE;
+  if (cert.state === 'invalid') return cert.error ?? 'CERT_ERROR';
+  return null;
+};
+
+const toHttpUrl = (original: string, fallback: string): string => {
+  const tryUrl = (value: string): string | null => {
+    try {
+      const parsed = new URL(value);
+      parsed.protocol = 'http:';
+      return parsed.toString();
+    } catch {
+      return null;
+    }
+  };
+  if (original && original.toLowerCase().startsWith('http://')) {
+    return original;
+  }
+  const fromOriginal = tryUrl(original);
+  if (fromOriginal) return fromOriginal;
+  const fromFallback = tryUrl(fallback);
+  if (fromFallback) return fromFallback;
+  return '';
+};
+
 const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasStartParam }) => {
   const webviewHandleRef = useRef<WebViewHandle | null>(null);
   const webviewRef = useRef<WebviewTag | null>(null);
@@ -367,9 +468,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   >('hidden');
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
   const [certStatus, setCertStatus] = useState<CertificateInfo | null>(null);
+  const [displayCert, setDisplayCert] = useState<CertificateInfo | null>(null);
+  const [rememberExceptionChecked, setRememberExceptionChecked] = useState<boolean>(false);
+  const [httpsMode, setHttpsMode] = useState<HttpsMode>('strict');
+  const [sslExceptions, setSslExceptions] = useState<SslException[]>([]);
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
   const blockingCertRef = useRef<CertificateInfo | null>(null);
+  const httpsModeRef = useRef<HttpsMode>('strict');
+  const sslExceptionsRef = useRef<SslException[]>([]);
+  const navigationStateRef = useRef<
+    Map<string, { originalUrl: string; upgradedFromHttp: boolean; triedHttpFallback: boolean }>
+  >(new Map());
+  const allowHttpOnceRef = useRef<Set<string>>(new Set());
+  const autoContinuedCertRef = useRef<Set<number>>(new Set());
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
@@ -406,6 +518,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     messengerSettingsRef.current = messengerSettingsState;
   }, [messengerSettingsState]);
 
+  useEffect(() => {
+    httpsModeRef.current = httpsMode;
+  }, [httpsMode]);
+
+  useEffect(() => {
+    sslExceptionsRef.current = Array.isArray(sslExceptions) ? sslExceptions : [];
+  }, [sslExceptions]);
+
   const availableLayouts = useMemo(
     () => new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]),
     []
@@ -418,6 +538,29 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     );
     return filtered.length ? filtered : (['en'] as LayoutId[]);
   }, [availableLayouts]);
+
+  const hasSslException = useCallback((host: string | null | undefined, errorType: string | null | undefined): boolean => {
+    if (!host || !errorType) return false;
+    const normalizedHost = host.toLowerCase();
+    return sslExceptionsRef.current.some(
+      (item) => item.host === normalizedHost && item.errorType === errorType
+    );
+  }, []);
+
+
+  const shouldBlockCert = useCallback((candidate: CertificateInfo | null): boolean => {
+    if (!candidate) return false;
+    const errorType = deriveErrorType(candidate);
+    const host = candidate.host || normalizeHost(candidate.url);
+    if (candidate.state === 'invalid') {
+      return !hasSslException(host, errorType);
+    }
+    if (candidate.state === 'missing') {
+      if (httpsModeRef.current === 'preferred') return false;
+      return !hasSslException(host, errorType);
+    }
+    return false;
+  }, [hasSslException]);
 
   const pickDefault = useCallback((def: unknown, enabled: LayoutId[]): LayoutId => {
     if (
@@ -621,6 +764,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [downloadsConcurrent, downloadsSaving, setGlobalToast]);
 
+  const handleHttpsModeChange = useCallback(
+    async (modeValue: HttpsMode) => {
+      const normalized = modeValue === 'preferred' ? 'preferred' : 'strict';
+      setHttpsMode(normalized);
+      try {
+        const res = await ipc.settings.https.setMode(normalized);
+        const nextMode = res && typeof res === 'object' && (res as { httpsMode?: unknown }).httpsMode === 'preferred'
+          ? 'preferred'
+          : 'strict';
+        setHttpsMode(nextMode);
+      } catch (err) {
+        console.error('[merezhyvo] https mode update failed', err);
+        showGlobalToast('Failed to update HTTPS mode.');
+      }
+    },
+    [showGlobalToast]
+  );
+
   const UI_SCALE_STEP = 0.05;
   const applyUiScale = useCallback(async (raw: number) => {
     const rounded = Math.round(raw / UI_SCALE_STEP) * UI_SCALE_STEP;
@@ -735,6 +896,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
         );
         setUiScale(state.ui?.scale ?? 1);
+        setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
+        setSslExceptions(Array.isArray(state.sslExceptions) ? state.sslExceptions : []);
       } catch {
         if (!cancelled) {
           setTorKeepEnabled(false);
@@ -742,6 +905,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setDownloadsDefaultDir('');
           setDownloadsConcurrent(2);
           setUiScale(1);
+          setHttpsMode('strict');
+          setSslExceptions([]);
         }
       }
     };
@@ -1212,6 +1377,127 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [destroyTabView, updateMetaAction, updatePowerBlocker, isYouTubeTab]);
 
+  const forceNavigateTab = useCallback((tabId: string, targetUrl: string) => {
+    if (!tabId || !targetUrl) return;
+    const trimmed = targetUrl.trim();
+    if (!trimmed) return;
+    const entry = tabViewsRef.current.get(tabId);
+    if (!entry) return;
+    lastLoadedRef.current = { id: tabId, url: trimmed };
+    updateMetaAction(tabId, { url: trimmed, isLoading: true });
+    if (entry.handle) {
+      entry.handle.loadURL(trimmed);
+    } else if (entry.view) {
+      try {
+        entry.view.loadURL(trimmed);
+      } catch {
+        try { entry.view.setAttribute('src', trimmed); } catch {}
+      }
+    }
+    if (activeIdRef.current === tabId) {
+      setStatus('loading');
+      webviewReadyRef.current = false;
+      setWebviewReady(false);
+    }
+  }, [updateMetaAction]);
+
+  const handleNavigationStart = useCallback((tabId: string, payload: { url: string; isInPage: boolean }) => {
+    if (!tabId || !payload || payload.isInPage) return;
+    setDisplayCert(null);
+    setCertStatus(null);
+    certStatusRef.current = null;
+    blockingCertRef.current = null;
+    const url = payload.url || '';
+    const protocol = (() => {
+      try { return new URL(url).protocol; } catch { return ''; }
+    })();
+    if (protocol === 'http:') {
+      const host = normalizeHost(url);
+      const placeholder: CertificateInfo = {
+        state: 'missing',
+        url,
+        host,
+        error: HTTP_ERROR_TYPE,
+        updatedAt: Date.now()
+      };
+      blockingCertRef.current = placeholder;
+      setDisplayCert(placeholder);
+      certStatusRef.current = placeholder;
+      setCertStatus(placeholder);
+      if (httpsModeRef.current === 'strict' && !hasSslException(host, HTTP_ERROR_TYPE)) {
+        setStatus('error');
+        setWebviewReady(false);
+      }
+    }
+    const existing = navigationStateRef.current.get(tabId);
+    if (
+      existing?.upgradedFromHttp &&
+      existing.originalUrl &&
+      !existing.triedHttpFallback &&
+      protocol === 'https:' &&
+      existing.originalUrl.replace(/^http:/i, 'https:') === url
+    ) {
+      return;
+    }
+    if (protocol === 'http:') {
+      if (allowHttpOnceRef.current.has(tabId)) {
+        allowHttpOnceRef.current.delete(tabId);
+        navigationStateRef.current.set(tabId, {
+          originalUrl: url,
+          upgradedFromHttp: false,
+          triedHttpFallback: existing?.triedHttpFallback ?? false
+        });
+        return;
+      }
+      const upgraded = url.replace(/^http:/i, 'https:');
+      navigationStateRef.current.set(tabId, { originalUrl: url, upgradedFromHttp: true, triedHttpFallback: false });
+      forceNavigateTab(tabId, upgraded);
+      return;
+    }
+
+    navigationStateRef.current.set(tabId, {
+      originalUrl: url,
+      upgradedFromHttp: existing?.upgradedFromHttp ?? false,
+      triedHttpFallback: existing?.triedHttpFallback ?? false
+    });
+  }, [forceNavigateTab]);
+
+  const handleNavigationError = useCallback(
+    (tabId: string, payload: { errorCode: number; errorDescription: string; validatedURL: string; isMainFrame: boolean }) => {
+      if (!tabId || !payload?.isMainFrame) return;
+      if (isLikelyCertError(payload.errorCode, payload.errorDescription)) return;
+      const meta = navigationStateRef.current.get(tabId);
+      const validatedUrl = payload.validatedURL || '';
+      const originalUrl = meta?.originalUrl || validatedUrl;
+      const upgradedFromHttp = meta?.upgradedFromHttp ?? originalUrl.toLowerCase().startsWith('http://');
+      const triedFallback = meta?.triedHttpFallback ?? false;
+      const protocol = (() => {
+        try { return new URL(validatedUrl || originalUrl).protocol; } catch { return ''; }
+      })();
+      if (!upgradedFromHttp) return;
+      if (protocol && protocol !== 'https:') return;
+      if (triedFallback) return;
+
+      const host = normalizeHost(originalUrl) ?? normalizeHost(validatedUrl);
+      const hasException = hasSslException(host, HTTP_ERROR_TYPE);
+      const fallbackUrl = toHttpUrl(originalUrl, validatedUrl);
+      if (!fallbackUrl) return;
+
+      const mode = httpsModeRef.current;
+      const shouldAutoFallback = mode === 'preferred' || hasException;
+      allowHttpOnceRef.current.add(tabId);
+      navigationStateRef.current.set(tabId, {
+        originalUrl,
+        upgradedFromHttp: true,
+        triedHttpFallback: true
+      });
+      if (shouldAutoFallback || mode === 'strict') {
+        forceNavigateTab(tabId, fallbackUrl);
+      }
+    },
+    [forceNavigateTab, hasSslException]
+  );
+
   const handleHostCanGo = useCallback((tabId: string, state?: NavigationState | null) => {
     if (activeIdRef.current !== tabId) return;
     setCanGoBack(!!state?.back);
@@ -1227,10 +1513,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       lastFailedUrlRef.current = null;
       setPageError(null);
       const currentCert = certStatusRef.current;
-      const isBlockingCert =
-        currentCert && (currentCert.state === 'invalid' || currentCert.state === 'missing');
+      const isBlockingCert = currentCert ? shouldBlockCert(currentCert) : false;
       if (!isBlockingCert) {
         setCertStatus(null);
+        if (currentCert?.state === 'ok') {
+          blockingCertRef.current = null;
+        }
       }
       if (activeIdRef.current) {
         certBypassRef.current.delete(activeIdRef.current);
@@ -1263,7 +1551,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
-  }, [refreshNavigationState, updateMetaAction, inputValue, mode]);
+  }, [refreshNavigationState, updateMetaAction, inputValue, mode, shouldBlockCert]);
 
   const handleHostUrlChange = useCallback((tabId: string, nextUrl: string) => {
     if (!nextUrl) return;
@@ -1289,6 +1577,29 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       return;
     }
     const cleanUrl = nextUrl.trim();
+    try {
+      const proto = new URL(cleanUrl).protocol;
+      if (proto === 'http:') {
+        const host = normalizeHost(cleanUrl);
+        const placeholder: CertificateInfo = {
+          state: 'missing',
+          url: cleanUrl,
+          host,
+          error: HTTP_ERROR_TYPE,
+          updatedAt: Date.now()
+        };
+        blockingCertRef.current = placeholder;
+        certStatusRef.current = placeholder;
+        setCertStatus(placeholder);
+        setDisplayCert(placeholder);
+        if (httpsModeRef.current === 'strict' && !hasSslException(host, HTTP_ERROR_TYPE)) {
+          setStatus('error');
+          setWebviewReady(false);
+        }
+      }
+    } catch {
+      // ignore URL parse errors
+    }
     updateMetaAction(tabId, {
       url: cleanUrl,
       discarded: false,
@@ -1445,16 +1756,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
         setCertStatus(next ?? null);
         certStatusRef.current = next ?? null;
+        let nextBlocking: CertificateInfo | null = blockingCertRef.current ?? null;
         if (next && (next.state === 'invalid' || next.state === 'missing')) {
-          blockingCertRef.current = next;
+          nextBlocking = next;
         } else if (next && next.state === 'ok') {
-          blockingCertRef.current = null;
+          nextBlocking = null;
           const activeTabIdCurrent = activeIdRef.current;
           if (activeTabIdCurrent) {
             certBypassRef.current.delete(activeTabIdCurrent);
           }
         }
-      } catch {
+        blockingCertRef.current = nextBlocking;
+        setDisplayCert(nextBlocking ?? next ?? null);
+  } catch {
         if (wcId === activeWcIdRef.current && !(certStatusRef.current && (certStatusRef.current.state === 'invalid' || certStatusRef.current.state === 'missing'))) {
           setCertStatus(null);
           certStatusRef.current = null;
@@ -1462,6 +1776,46 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
     },
     []
+  );
+
+  const upsertSslException = useCallback(
+    async (host: string | null | undefined, errorType: string | null | undefined, enabled: boolean) => {
+      const normalizedHost = host ? host.toLowerCase() : '';
+      if (!normalizedHost || !errorType) return;
+      if (enabled) {
+        setSslExceptions((prev) => {
+          if (prev.some((item) => item.host === normalizedHost && item.errorType === errorType)) {
+            return prev;
+          }
+          return [...prev, { host: normalizedHost, errorType }];
+        });
+        try {
+          const res = await ipc.settings.https.addException({ host: normalizedHost, errorType });
+          if (res && typeof res === 'object' && Array.isArray((res as { sslExceptions?: unknown }).sslExceptions)) {
+            setSslExceptions((res as { sslExceptions: SslException[] }).sslExceptions);
+          }
+        } catch (err) {
+          console.error('[merezhyvo] add ssl exception failed', err);
+          showGlobalToast('Failed to save exception.');
+        }
+      } else {
+        setSslExceptions((prev) => prev.filter((item) => !(item.host === normalizedHost && item.errorType === errorType)));
+        try {
+          const res = await ipc.settings.https.removeException({ host: normalizedHost, errorType });
+          if (res && typeof res === 'object' && Array.isArray((res as { sslExceptions?: unknown }).sslExceptions)) {
+            setSslExceptions((res as { sslExceptions: SslException[] }).sslExceptions);
+          }
+        } catch (err) {
+          console.error('[merezhyvo] remove ssl exception failed', err);
+          showGlobalToast('Failed to update exception.');
+        }
+      }
+      const wcId = activeWcIdRef.current;
+      if (wcId) {
+        void refreshCertStatus(wcId);
+      }
+    },
+    [showGlobalToast, refreshCertStatus]
   );
 
   useEffect(() => {
@@ -1501,10 +1855,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
         const activeTabId = activeIdRef.current;
         const bypassed = activeTabId ? certBypassRef.current.has(activeTabId) : false;
+        const hadBlocking =
+          (current?.state === 'invalid' || current?.state === 'missing') ||
+          (blockingCertRef.current?.state === 'invalid' || blockingCertRef.current?.state === 'missing');
+        const bypassedByException = hadBlocking && !shouldBlockCert(current ?? blockingCertRef.current ?? next ?? null);
         const shouldIgnoreOk =
-          bypassed &&
+          (bypassed || bypassedByException) &&
           next?.state === 'ok' &&
-          (current?.state === 'invalid' || current?.state === 'missing' || blockingCertRef.current);
+          hadBlocking;
         const nextState =
           shouldIgnoreOk
             ? current ?? blockingCertRef.current ?? next ?? null
@@ -1513,18 +1871,29 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
         setCertStatus(safeNextState);
         certStatusRef.current = safeNextState;
+        let nextBlocking: CertificateInfo | null = blockingCertRef.current ?? null;
         if (safeNextState && (safeNextState.state === 'invalid' || safeNextState.state === 'missing')) {
-          blockingCertRef.current = safeNextState;
+          nextBlocking = safeNextState;
         } else if (safeNextState && safeNextState.state === 'ok' && !shouldIgnoreOk) {
-          blockingCertRef.current = null;
+          nextBlocking = null;
         }
+        blockingCertRef.current = nextBlocking;
+        setDisplayCert(nextBlocking ?? safeNextState ?? null);
         if (safeNextState?.state === 'invalid' || safeNextState?.state === 'missing') {
           const currentActiveTabId = activeIdRef.current;
+          const blockNow = shouldBlockCert(safeNextState);
+          const bypass = currentActiveTabId ? certBypassRef.current.has(currentActiveTabId) : false;
           if (currentActiveTabId) {
             updateMetaAction(currentActiveTabId, { isLoading: false });
           }
-          setStatus('error');
-          setWebviewReady(false);
+          if (blockNow && !bypass) {
+            setStatus('error');
+            setWebviewReady(false);
+          } else {
+            setStatus('ready');
+            webviewReadyRef.current = true;
+            setWebviewReady(true);
+          }
         }
         if (next?.state === 'ok' && !shouldIgnoreOk) {
           const activeTabIdCurrent = activeIdRef.current;
@@ -1539,41 +1908,101 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try { off(); } catch {}
       }
     };
-  }, [getWebContentsIdSafe, updateMetaAction]);
+  }, [getWebContentsIdSafe, updateMetaAction, shouldBlockCert]);
 
-  const certCandidate = certStatus ?? blockingCertRef.current;
+  const blockingActive =
+    blockingCertRef.current &&
+    (blockingCertRef.current.state === 'invalid' || blockingCertRef.current.state === 'missing')
+      ? blockingCertRef.current
+      : null;
+  const certCandidate =
+    blockingActive ? blockingActive : certStatus ?? blockingCertRef.current;
+  const certBlock = certCandidate ? shouldBlockCert(certCandidate) : false;
+  const displayCertEffective =
+    blockingActive ?? displayCert ?? certStatus ?? blockingCertRef.current ?? null;
+  const certHost = displayCertEffective?.host ?? normalizeHost(displayCertEffective?.url);
+  const certErrorType = deriveErrorType(displayCertEffective ?? null);
+  const certExceptionAllowed = hasSslException(certHost, certErrorType);
   const certWarning =
     certCandidate &&
     (certCandidate.state === 'invalid' || certCandidate.state === 'missing') &&
+    certBlock &&
     !certBypassRef.current.has(activeId ?? '');
   const securityState =
-    certCandidate && (certCandidate.state === 'invalid' || certCandidate.state === 'missing')
+    displayCertEffective && (displayCertEffective.state === 'invalid' || displayCertEffective.state === 'missing')
       ? 'warn'
       : 'ok';
   const securityInfo = useMemo(() => {
-    if (!certCandidate) return null;
+    if (!displayCertEffective) return null;
     return {
-      state: certCandidate.state,
-      url: certCandidate.url ?? null,
-      host: certCandidate.host ?? null,
-      error: certCandidate.error ?? null,
-      issuer: certCandidate.certificate?.issuerName ?? null,
-      subject: certCandidate.certificate?.subjectName ?? null,
-      validFrom: certCandidate.certificate?.validStart ?? null,
-      validTo: certCandidate.certificate?.validExpiry ?? null,
-      fingerprint: certCandidate.certificate?.fingerprint ?? null
+      state: displayCertEffective.state,
+      url: displayCertEffective.url ?? null,
+      host: displayCertEffective.host ?? null,
+      error: displayCertEffective.error ?? null,
+      issuer: displayCertEffective.certificate?.issuerName ?? null,
+      subject: displayCertEffective.certificate?.subjectName ?? null,
+      validFrom: displayCertEffective.certificate?.validStart ?? null,
+      validTo: displayCertEffective.certificate?.validExpiry ?? null,
+      fingerprint: displayCertEffective.certificate?.fingerprint ?? null
     };
-  }, [certCandidate]);
+  }, [displayCertEffective]);
+
+  const handleToggleCertException = useCallback(
+    (nextValue: boolean) => {
+      if (!displayCertEffective) return;
+      void upsertSslException(certHost, certErrorType, nextValue);
+    },
+    [displayCertEffective, certHost, certErrorType, upsertSslException]
+  );
 
   useEffect(() => {
     certStatusRef.current = certStatus;
     if (certStatus && (certStatus.state === 'invalid' || certStatus.state === 'missing')) {
       blockingCertRef.current = certStatus;
+      return;
     }
     if (certStatus && certStatus.state === 'ok') {
-      blockingCertRef.current = null;
+      const blocking = blockingCertRef.current;
+      const blockingIsProblem = blocking && (blocking.state === 'invalid' || blocking.state === 'missing');
+      const sameHost =
+        blocking?.host && certStatus.host
+          ? blocking.host === certStatus.host
+          : false;
+      if (blockingIsProblem && sameHost) {
+        // keep previous blocking info so the shield stays red for this host
+        return;
+      }
+      if (!blockingIsProblem) {
+        blockingCertRef.current = null;
+      }
     }
   }, [certStatus]);
+
+  useEffect(() => {
+    if (!displayCert) {
+      const wcId = activeWcIdRef.current;
+      if (wcId) {
+        void refreshCertStatus(wcId);
+      }
+    }
+  }, [displayCert, refreshCertStatus]);
+
+  useEffect(() => {
+    const wcId = activeWcIdRef.current;
+    const candidate = certStatus ?? blockingCertRef.current;
+    if (!candidate || candidate.state !== 'invalid' || !wcId) return;
+    const block = shouldBlockCert(candidate);
+    if (!block) {
+      if (!autoContinuedCertRef.current.has(wcId)) {
+        autoContinuedCertRef.current.add(wcId);
+        void window.merezhyvo?.certificates?.continue?.(wcId).catch(() => {
+          autoContinuedCertRef.current.delete(wcId);
+        });
+      }
+    } else {
+      autoContinuedCertRef.current.delete(wcId);
+    }
+  }, [certStatus, shouldBlockCert]);
 
   useEffect(() => {
   }, [activeId, certStatus, certWarning]);
@@ -1588,6 +2017,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (isEditingRef.current) return;
     setInputValue(certCandidate.url);
   }, [certWarning, certCandidate]);
+
+  useEffect(() => {
+    if (!certWarning) {
+      setRememberExceptionChecked(false);
+    }
+  }, [certWarning]);
+
+  useEffect(() => {
+    const wcId = activeWcIdRef.current;
+    if (wcId) {
+      void refreshCertStatus(wcId);
+    }
+  }, [httpsMode, sslExceptions, refreshCertStatus]);
 
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
@@ -1661,6 +2103,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onStatus={(nextStatus) => handleHostStatus(tab.id, nextStatus)}
           onUrlChange={(url) => handleHostUrlChange(tab.id, url)}
           onDomReady={() => handleHostDomReady(tab.id)}
+          onNavigationStart={(payload) => handleNavigationStart(tab.id, payload)}
+          onNavigationError={(payload) => handleNavigationError(tab.id, payload)}
           style={{ width: '100%', height: '100%' }}
         />
       );
@@ -1678,7 +2122,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     installShadowStyles,
     setActiveViewRevision,
     getWebContentsIdSafe,
-    refreshCertStatus
+    refreshCertStatus,
+    handleNavigationStart,
+    handleNavigationError
   ]);
 
   const loadUrlIntoView = useCallback((tab: Tab, entry?: TabViewEntry | null) => {
@@ -2554,13 +3000,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         ? handle.getWebView()
         : getActiveWebview();
       if (!handle && !view) return;
-      const target = normalizeAddress(raw);
+      const normalized = normalizeNavigationTarget(raw);
+      const target = normalizeAddress(normalized.targetUrl);
       setInputValue(target);
       setStatus('loading');
       webviewReadyRef.current = false;
       setWebviewReady(false);
       const activeIdCurrent = activeIdRef.current;
       if (activeIdCurrent) {
+        navigationStateRef.current.set(activeIdCurrent, {
+          originalUrl: normalized.originalUrl,
+          upgradedFromHttp: normalized.upgradedFromHttp,
+          triedHttpFallback: false
+        });
+        allowHttpOnceRef.current.delete(activeIdCurrent);
         navigateActiveAction(target);
         lastLoadedRef.current = { id: activeIdCurrent, url: target };
       }
@@ -3376,8 +3829,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return new Date(value).toLocaleString();
   };
 
-  const displayCert = certStatus ?? blockingCertRef.current;
-  const certOverlay = certWarning && displayCert ? (
+  const overlayCert = displayCertEffective ?? certStatus ?? blockingCertRef.current;
+  const certOverlay = certWarning && overlayCert ? (
     <div
       style={{
         ...styles.webviewErrorOverlay,
@@ -3393,7 +3846,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           ...(mode === 'mobile' ? styles.webviewErrorTitleMobile : null)
         }}
       >
-        {displayCert.state === 'missing' ? t('cert.title.missing') : t('cert.title.invalid')}
+        {overlayCert.state === 'missing' ? t('cert.title.missing') : t('cert.title.invalid')}
       </div>
       <div
         style={{
@@ -3401,13 +3854,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           ...(mode === 'mobile' ? styles.webviewErrorSubtitleMobile : null)
         }}
       >
-        {displayCert.error
-          ? displayCert.error
-          : displayCert.state === 'missing'
+        {overlayCert.state === 'missing'
           ? t('cert.desc.missing')
-          : t('cert.desc.invalid')}
+          : overlayCert.error
+            ? overlayCert.error
+            : t('cert.desc.invalid')}
       </div>
-      {displayCert.url && (
+      {overlayCert.url && (
         <div
           style={{
             marginTop: '10px',
@@ -3420,10 +3873,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             wordBreak: 'break-all'
           }}
         >
-          {displayCert.url}
+          {overlayCert.url}
         </div>
       )}
-      {displayCert.certificate && (
+      {overlayCert.certificate && (
         <div
           className="service-scroll"
           style={{
@@ -3439,14 +3892,32 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             overflow: 'auto'
           }}
         >
-          <div><strong>{t('cert.details.issuer')} </strong>{displayCert.certificate.issuerName || '—'}</div>
-          <div><strong>{t('cert.details.subject')} </strong>{displayCert.certificate.subjectName || '—'}</div>
-          <div><strong>{t('cert.details.serial')} </strong>{displayCert.certificate.serialNumber || '—'}</div>
-          <div><strong>{t('cert.details.validFrom')} </strong>{formatDate(displayCert.certificate.validStart)}</div>
-          <div><strong>{t('cert.details.validTo')} </strong>{formatDate(displayCert.certificate.validExpiry)}</div>
-          <div><strong>{t('cert.details.fingerprint')} </strong>{displayCert.certificate.fingerprint || '—'}</div>
+          <div><strong>{t('cert.details.issuer')} </strong>{overlayCert.certificate.issuerName || '—'}</div>
+          <div><strong>{t('cert.details.subject')} </strong>{overlayCert.certificate.subjectName || '—'}</div>
+          <div><strong>{t('cert.details.serial')} </strong>{overlayCert.certificate.serialNumber || '—'}</div>
+          <div><strong>{t('cert.details.validFrom')} </strong>{formatDate(overlayCert.certificate.validStart)}</div>
+          <div><strong>{t('cert.details.validTo')} </strong>{formatDate(overlayCert.certificate.validExpiry)}</div>
+          <div><strong>{t('cert.details.fingerprint')} </strong>{overlayCert.certificate.fingerprint || '—'}</div>
         </div>
       )}
+      <label
+        style={{
+          display: 'flex',
+          alignItems: 'center',
+          gap: mode === 'mobile' ? '16px' : '8px',
+          marginTop: '14px',
+          fontSize: mode === 'mobile' ? '35px' : '15px',
+          color: '#e2e8f0'
+        }}
+      >
+        <input
+          type="checkbox"
+          checked={rememberExceptionChecked}
+          onChange={(e) => setRememberExceptionChecked(e.target.checked)}
+          style={{ width: mode === 'mobile' ? 30 : 16, height: mode === 'mobile' ? 30 : 16 }}
+        />
+        <span>{t('cert.actions.remember')}</span>
+      </label>
       <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap', justifyContent: 'center' }}>
         <button
           type="button"
@@ -3466,6 +3937,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           type="button"
           onClick={async () => {
             if (!activeId) return;
+            if (rememberExceptionChecked && certHost && certErrorType) {
+              void upsertSslException(certHost, certErrorType, true);
+            }
             certBypassRef.current.add(activeId);
             // Keep blocking cert cached so the shield stays red after proceeding.
             // Only clear the overlay state.
@@ -3483,6 +3957,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             setCertStatus(null);
             setStatus('loading');
             setWebviewReady(false);
+            setRememberExceptionChecked(false);
           }}
           style={{
             ...styles.webviewErrorButton,
@@ -3725,6 +4200,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               securityInfo={securityInfo}
               securityOpen={securityPopoverOpen}
               onToggleSecurity={() => setSecurityPopoverOpen((prev) => !prev)}
+              certExceptionAllowed={certExceptionAllowed}
+              onToggleCertException={handleToggleCertException}
             />
           )}
 
@@ -3807,6 +4284,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onUiScaleChange={applyUiScale}
               onUiScaleReset={handleUiScaleReset}
               onOpenTorLink={handleOpenTorProjectLink}
+              httpsMode={httpsMode}
+              onHttpsModeChange={handleHttpsModeChange}
             />
           )}
 

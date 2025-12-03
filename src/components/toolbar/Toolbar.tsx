@@ -51,6 +51,8 @@ interface ToolbarProps {
   } | null;
   securityOpen?: boolean;
   onToggleSecurity?: () => void;
+  certExceptionAllowed?: boolean;
+  onToggleCertException?: (next: boolean) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -84,7 +86,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
   securityState = 'ok',
   securityInfo = null,
   securityOpen = false,
-  onToggleSecurity
+  onToggleSecurity,
+  certExceptionAllowed,
+  onToggleCertException
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -142,6 +146,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
       securityInfo={securityInfo}
       securityOpen={securityOpen}
       onToggleSecurity={onToggleSecurity}
+      certExceptionAllowed={certExceptionAllowed}
+      onToggleCertException={onToggleCertException}
     />
 
     {!compact && (

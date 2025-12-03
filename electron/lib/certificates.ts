@@ -44,6 +44,7 @@ import { BrowserWindow, type Certificate, type Event, type WebContents } from 'e
 import { DEFAULT_URL } from './windows';
 
 export type CertState = 'unknown' | 'ok' | 'missing' | 'invalid';
+export const HTTP_ERROR_TYPE = 'HTTP_NOT_SECURE';
 
 export type CertDetails = {
   state: CertState;
@@ -153,7 +154,7 @@ const resetForUrl = (wcId: number, url: string | null | undefined): void => {
       state,
       url: safeUrl,
       host: parsed.hostname || null,
-      error: null,
+      error: protocol === 'http:' ? HTTP_ERROR_TYPE : null,
       certificate: null
     });
   } catch {
