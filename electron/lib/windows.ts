@@ -914,6 +914,13 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       const target = navUrl?.trim();
       if (!target) return;
       try {
+        const parsed = new URL(target);
+        const protocol = parsed.protocol.toLowerCase();
+        if (protocol !== 'http:' && protocol !== 'https:') return;
+      } catch {
+        return;
+      }
+      try {
         await addVisit({
           url: target,
           origin: deriveOrigin(target),
