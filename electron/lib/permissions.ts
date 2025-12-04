@@ -294,33 +294,35 @@ export function installPermissionHandlers(): void {
   // Helps navigator.permissions.query reflect stored decisions
   if (typeof ses.setPermissionCheckHandler === 'function') {
     ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, _details) => {
-      const origin = requestingOrigin || 'null';
-      const map: Partial<Record<string, PermissionType | PermissionType[]>> = {
-        geolocation: 'geolocation',
-        notifications: 'notifications',
-        media: ['camera', 'microphone']
-      };
-      const types = map[permission];
-      if (!types) return false;
+      // temporary
+      return false;
+      // const origin = requestingOrigin || 'null';
+      // const map: Partial<Record<string, PermissionType | PermissionType[]>> = {
+      //   geolocation: 'geolocation',
+      //   notifications: 'notifications',
+      //   media: ['camera', 'microphone']
+      // };
+      // const types = map[permission];
+      // if (!types) return false;
 
-      try {
-        const pfile = path.join(app.getPath('userData'), 'permissions.json');
-        const st = (fs.existsSync(pfile)
-          ? JSON.parse(fs.readFileSync(pfile, 'utf8'))
-          : null) as unknown;
+      // try {
+      //   const pfile = path.join(app.getPath('userData'), 'permissions.json');
+      //   const st = (fs.existsSync(pfile)
+      //     ? JSON.parse(fs.readFileSync(pfile, 'utf8'))
+      //     : null) as unknown;
 
-        const ps = isPermissionsState(st) ? st : defaultPermissionsState();
-        const site = ps.sites[origin] ?? {};
-        const arr: PermissionType[] = Array.isArray(types) ? types : [types];
+      //   const ps = isPermissionsState(st) ? st : defaultPermissionsState();
+      //   const site = ps.sites[origin] ?? {};
+      //   const arr: PermissionType[] = Array.isArray(types) ? types : [types];
 
-        const savedForAll = arr.every((t) => site[t] === 'allow' || site[t] === 'deny');
-        if (savedForAll) return arr.every((t) => site[t] === 'allow');
+      //   const savedForAll = arr.every((t) => site[t] === 'allow' || site[t] === 'deny');
+      //   if (savedForAll) return arr.every((t) => site[t] === 'allow');
 
-        const allDefaultAllow = arr.every((t) => ps.defaults[t] === 'allow');
-        return allDefaultAllow;
-      } catch {
-        return false;
-      }
+      //   const allDefaultAllow = arr.every((t) => ps.defaults[t] === 'allow');
+      //   return allDefaultAllow;
+      // } catch {
+      //   return false;
+      // }
     });
   }
 }

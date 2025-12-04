@@ -54,6 +54,7 @@ const installWebrtcGuard = (): void => {
         store.originals = {
           RTCPeerConnection: root.RTCPeerConnection,
           webkitRTCPeerConnection: root.webkitRTCPeerConnection,
+          mozRTCPeerConnection: root.mozRTCPeerConnection,
           mediaDevices: nav && nav.mediaDevices,
           getUserMedia: nav && nav.mediaDevices && nav.mediaDevices.getUserMedia,
           legacyGetUserMedia: nav && nav.getUserMedia
@@ -66,28 +67,59 @@ const installWebrtcGuard = (): void => {
         const thrower = function() { throw err; };
         const rejector = function() { return Promise.reject(err); };
 
-        try { Object.defineProperty(root, 'RTCPeerConnection', { value: undefined, configurable: true }); } catch {}
-        try { Object.defineProperty(root, 'webkitRTCPeerConnection', { value: undefined, configurable: true }); } catch {}
+        // Жорстко підміняємо конструктори, щоб код сайту навіть не доходив до нативного WebRTC
+        try { root.RTCPeerConnection = thrower; } catch {}
+        try { root.webkitRTCPeerConnection = thrower; } catch {}
+        try { root.mozRTCPeerConnection = thrower; } catch {}
 
+        // Можна додатково "прибрати" допоміжні класи, якщо вони є
+        try { if (typeof root.RTCIceCandidate !== 'undefined') root.RTCIceCandidate = undefined; } catch {}
+        try { if (typeof root.RTCSessionDescription !== 'undefined') root.RTCSessionDescription = undefined; } catch {}
+
+        // Блокуємо mediaDevices.getUserMedia
         try {
           if (root.navigator) {
             const base = (store.originals && store.originals.mediaDevices) || root.navigator.mediaDevices || {};
             const wrapper = Object.create(base || {});
-            try { Object.defineProperty(wrapper, 'getUserMedia', { value: rejector, configurable: true, writable: true }); }
-            catch { try { wrapper.getUserMedia = rejector; } catch {} }
-            try { Object.defineProperty(root.navigator, 'mediaDevices', { value: wrapper, configurable: true }); }
-            catch { try { root.navigator.mediaDevices = wrapper; } catch {} }
+            try { wrapper.getUserMedia = rejector; } catch {}
+            try {
+              Object.defineProperty(wrapper, 'getUserMedia', {
+                value: rejector,
+                configurable: true,
+                writable: true
+              });
+            } catch {}
+            try {
+              Object.defineProperty(root.navigator, 'mediaDevices', {
+                value: wrapper,
+                configurable: true,
+                writable: true
+              });
+            } catch {
+              try { root.navigator.mediaDevices = wrapper; } catch {}
+            }
           }
         } catch {}
 
+        // Старе navigator.getUserMedia
         try {
           if (root.navigator) {
             const hadLegacy = typeof (store.originals && store.originals.legacyGetUserMedia) !== 'undefined';
             if (hadLegacy || typeof root.navigator.getUserMedia === 'function') {
-              Object.defineProperty(root.navigator, 'getUserMedia', { value: thrower, configurable: true });
+              try {
+                root.navigator.getUserMedia = thrower;
+              } catch {}
+              try {
+                Object.defineProperty(root.navigator, 'getUserMedia', {
+                  value: thrower,
+                  configurable: true,
+                  writable: true
+                });
+              } catch {}
             }
           }
         } catch {}
+
         store.disabled = true;
       }
 
@@ -96,27 +128,44 @@ const installWebrtcGuard = (): void => {
         const nav = root.navigator;
         if (!orig) { store.disabled = false; return; }
 
+        // Повертаємо конструктори як було
         try {
           if (typeof orig.RTCPeerConnection !== 'undefined') {
-            Object.defineProperty(root, 'RTCPeerConnection', { value: orig.RTCPeerConnection, configurable: true });
+            root.RTCPeerConnection = orig.RTCPeerConnection;
           } else {
             delete root.RTCPeerConnection;
           }
         } catch {}
         try {
           if (typeof orig.webkitRTCPeerConnection !== 'undefined') {
-            Object.defineProperty(root, 'webkitRTCPeerConnection', { value: orig.webkitRTCPeerConnection, configurable: true });
+            root.webkitRTCPeerConnection = orig.webkitRTCPeerConnection;
           } else {
             delete root.webkitRTCPeerConnection;
           }
         } catch {}
+        try {
+          if (typeof orig.mozRTCPeerConnection !== 'undefined') {
+            root.mozRTCPeerConnection = orig.mozRTCPeerConnection;
+          } else {
+            delete root.mozRTCPeerConnection;
+          }
+        } catch {}
 
+        // Відновлюємо mediaDevices / getUserMedia
         try {
           if (nav) {
             if (typeof orig.mediaDevices !== 'undefined') {
-              Object.defineProperty(nav, 'mediaDevices', { value: orig.mediaDevices, configurable: true });
+              try {
+                Object.defineProperty(nav, 'mediaDevices', {
+                  value: orig.mediaDevices,
+                  configurable: true,
+                  writable: true
+                });
+              } catch {
+                nav.mediaDevices = orig.mediaDevices;
+              }
             } else {
-              delete nav.mediaDevices;
+              try { delete nav.mediaDevices; } catch {}
             }
           }
         } catch {}
@@ -124,9 +173,18 @@ const installWebrtcGuard = (): void => {
         try {
           if (nav) {
             if (typeof orig.legacyGetUserMedia !== 'undefined') {
-              Object.defineProperty(nav, 'getUserMedia', { value: orig.legacyGetUserMedia, configurable: true });
+              try {
+                nav.getUserMedia = orig.legacyGetUserMedia;
+              } catch {}
+              try {
+                Object.defineProperty(nav, 'getUserMedia', {
+                  value: orig.legacyGetUserMedia,
+                  configurable: true,
+                  writable: true
+                });
+              } catch {}
             } else if (typeof nav.getUserMedia !== 'undefined') {
-              delete nav.getUserMedia;
+              try { delete nav.getUserMedia; } catch {}
             }
           }
         } catch {}
@@ -189,6 +247,7 @@ ipcRenderer.on('merezhyvo:webrtc:updatePolicy', (_event, payload: WebrtcPolicyPa
     // ignore
   }
 });
+
 
 /** -------------------------------
  *  Geolocation bridge (preload)
