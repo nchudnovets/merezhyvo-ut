@@ -55,7 +55,8 @@ import type {
   PasswordCaptureAction,
   CertificateInfo,
   HttpsMode,
-  SslException
+  SslException,
+  WebrtcMode
 } from './types/models';
 import type { MerezhyvoAboutInfo } from './types/preload';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
@@ -472,6 +473,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [rememberExceptionChecked, setRememberExceptionChecked] = useState<boolean>(false);
   const [httpsMode, setHttpsMode] = useState<HttpsMode>('strict');
   const [sslExceptions, setSslExceptions] = useState<SslException[]>([]);
+  const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
   const blockingCertRef = useRef<CertificateInfo | null>(null);
@@ -782,6 +784,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [showGlobalToast]
   );
 
+  const handleWebrtcModeChange = useCallback(
+    async (modeValue: WebrtcMode) => {
+      const normalized: WebrtcMode =
+        modeValue === 'always_off' || modeValue === 'off_with_tor' ? modeValue : 'always_on';
+      setWebrtcMode(normalized);
+      try {
+        const res = await ipc.settings.webrtc.setMode(normalized);
+        const next =
+          res && typeof res === 'object' && typeof (res as { mode?: unknown }).mode === 'string'
+            ? (res as { mode: WebrtcMode }).mode
+            : normalized;
+        setWebrtcMode(next === 'always_off' || next === 'off_with_tor' ? next : 'always_on');
+      } catch (err) {
+        console.error('[merezhyvo] webrtc mode update failed', err);
+        showGlobalToast('Failed to update WebRTC mode.');
+      }
+    },
+    [showGlobalToast]
+  );
+
   const UI_SCALE_STEP = 0.05;
   const applyUiScale = useCallback(async (raw: number) => {
     const rounded = Math.round(raw / UI_SCALE_STEP) * UI_SCALE_STEP;
@@ -898,6 +920,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setUiScale(state.ui?.scale ?? 1);
         setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
         setSslExceptions(Array.isArray(state.sslExceptions) ? state.sslExceptions : []);
+        const wm = state.webrtcMode;
+        setWebrtcMode(
+          wm === 'always_off' || wm === 'off_with_tor'
+            ? wm
+            : 'always_on'
+        );
       } catch {
         if (!cancelled) {
           setTorKeepEnabled(false);
@@ -907,6 +935,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setUiScale(1);
           setHttpsMode('strict');
           setSslExceptions([]);
+          setWebrtcMode('always_on');
         }
       }
     };
@@ -4286,6 +4315,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenTorLink={handleOpenTorProjectLink}
               httpsMode={httpsMode}
               onHttpsModeChange={handleHttpsModeChange}
+              webrtcMode={webrtcMode}
+              onWebrtcModeChange={handleWebrtcModeChange}
             />
           )}
 

@@ -183,6 +183,8 @@ export interface SslException {
   errorType: string;
 }
 
+export type WebrtcMode = 'always_on' | 'always_off' | 'off_with_tor';
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -192,6 +194,7 @@ export interface SettingsState {
   ui: UISettings;
   httpsMode: HttpsMode;
   sslExceptions: SslException[];
+  webrtcMode: WebrtcMode;
 }
 
 export interface PasswordEntryMeta {

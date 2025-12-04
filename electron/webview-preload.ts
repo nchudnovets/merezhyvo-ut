@@ -32,6 +32,165 @@ try {
 } catch {}
 
 /** -------------------------------
+ *  WebRTC policy enforcement
+ *  ------------------------------- */
+
+type WebrtcPolicyPayload = {
+  enabled?: boolean;
+};
+
+const WEBRTC_DISABLE_MESSAGE = 'WebRTC is disabled by browser policy';
+
+const installWebrtcGuard = (): void => {
+  const code = `
+    (() => {
+      const root = window;
+      const store = root.__mzrRtcState || (root.__mzrRtcState = { originals: null, disabled: false });
+      const message = ${JSON.stringify(WEBRTC_DISABLE_MESSAGE)};
+
+      function capture() {
+        if (store.originals) return;
+        const nav = root.navigator;
+        store.originals = {
+          RTCPeerConnection: root.RTCPeerConnection,
+          webkitRTCPeerConnection: root.webkitRTCPeerConnection,
+          mediaDevices: nav && nav.mediaDevices,
+          getUserMedia: nav && nav.mediaDevices && nav.mediaDevices.getUserMedia,
+          legacyGetUserMedia: nav && nav.getUserMedia
+        };
+      }
+
+      function disableRtc() {
+        capture();
+        const err = new Error(message);
+        const thrower = function() { throw err; };
+        const rejector = function() { return Promise.reject(err); };
+
+        try { Object.defineProperty(root, 'RTCPeerConnection', { value: undefined, configurable: true }); } catch {}
+        try { Object.defineProperty(root, 'webkitRTCPeerConnection', { value: undefined, configurable: true }); } catch {}
+
+        try {
+          if (root.navigator) {
+            const base = (store.originals && store.originals.mediaDevices) || root.navigator.mediaDevices || {};
+            const wrapper = Object.create(base || {});
+            try { Object.defineProperty(wrapper, 'getUserMedia', { value: rejector, configurable: true, writable: true }); }
+            catch { try { wrapper.getUserMedia = rejector; } catch {} }
+            try { Object.defineProperty(root.navigator, 'mediaDevices', { value: wrapper, configurable: true }); }
+            catch { try { root.navigator.mediaDevices = wrapper; } catch {} }
+          }
+        } catch {}
+
+        try {
+          if (root.navigator) {
+            const hadLegacy = typeof (store.originals && store.originals.legacyGetUserMedia) !== 'undefined';
+            if (hadLegacy || typeof root.navigator.getUserMedia === 'function') {
+              Object.defineProperty(root.navigator, 'getUserMedia', { value: thrower, configurable: true });
+            }
+          }
+        } catch {}
+        store.disabled = true;
+      }
+
+      function enableRtc() {
+        const orig = store.originals;
+        const nav = root.navigator;
+        if (!orig) { store.disabled = false; return; }
+
+        try {
+          if (typeof orig.RTCPeerConnection !== 'undefined') {
+            Object.defineProperty(root, 'RTCPeerConnection', { value: orig.RTCPeerConnection, configurable: true });
+          } else {
+            delete root.RTCPeerConnection;
+          }
+        } catch {}
+        try {
+          if (typeof orig.webkitRTCPeerConnection !== 'undefined') {
+            Object.defineProperty(root, 'webkitRTCPeerConnection', { value: orig.webkitRTCPeerConnection, configurable: true });
+          } else {
+            delete root.webkitRTCPeerConnection;
+          }
+        } catch {}
+
+        try {
+          if (nav) {
+            if (typeof orig.mediaDevices !== 'undefined') {
+              Object.defineProperty(nav, 'mediaDevices', { value: orig.mediaDevices, configurable: true });
+            } else {
+              delete nav.mediaDevices;
+            }
+          }
+        } catch {}
+
+        try {
+          if (nav) {
+            if (typeof orig.legacyGetUserMedia !== 'undefined') {
+              Object.defineProperty(nav, 'getUserMedia', { value: orig.legacyGetUserMedia, configurable: true });
+            } else if (typeof nav.getUserMedia !== 'undefined') {
+              delete nav.getUserMedia;
+            }
+          }
+        } catch {}
+
+        store.disabled = false;
+      }
+
+      root.__mzrApplyWebrtcPolicy = function(enabled) {
+        if (enabled) { enableRtc(); return true; }
+        disableRtc(); return false;
+      };
+    })();
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+const applyWebrtcPolicy = (enabled: boolean): void => {
+  const code = `
+    try {
+      if (typeof window.__mzrApplyWebrtcPolicy === 'function') {
+        window.__mzrApplyWebrtcPolicy(${enabled ? 'true' : 'false'});
+      }
+    } catch {}
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+installWebrtcGuard();
+
+const getInitialWebrtcPolicy = (): boolean => {
+  try {
+    const payload = ipcRenderer.sendSync('merezhyvo:webrtc:getEffectiveSync') as WebrtcPolicyPayload | undefined;
+    if (payload && typeof payload === 'object' && typeof payload.enabled === 'boolean') {
+      return payload.enabled;
+    }
+  } catch {
+    // ignore
+  }
+  return true;
+};
+
+let webrtcEnabled = getInitialWebrtcPolicy();
+applyWebrtcPolicy(webrtcEnabled);
+
+ipcRenderer.on('merezhyvo:webrtc:updatePolicy', (_event, payload: WebrtcPolicyPayload) => {
+  try {
+    const enabled = payload && typeof payload.enabled === 'boolean' ? payload.enabled : true;
+    if (enabled === webrtcEnabled) return;
+    webrtcEnabled = enabled;
+    applyWebrtcPolicy(enabled);
+  } catch {
+    // ignore
+  }
+});
+
+/** -------------------------------
  *  Geolocation bridge (preload)
  *  ------------------------------- */
 

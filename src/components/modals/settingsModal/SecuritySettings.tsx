@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Mode, HttpsMode } from '../../../types/models';
+import type { Mode, HttpsMode, WebrtcMode } from '../../../types/models';
 import { settingsModalStyles as styles } from './settingsModalStyles';
 import { useI18n } from '../../../i18n/I18nProvider';
 
@@ -7,6 +7,8 @@ type SecuritySettingsProps = {
   mode: Mode;
   httpsMode: HttpsMode;
   onChange: (mode: HttpsMode) => void;
+  webrtcMode: WebrtcMode;
+  onWebrtcChange: (mode: WebrtcMode) => void;
 };
 
 const radioStyle = (mode: Mode): React.CSSProperties => ({
@@ -20,7 +22,7 @@ const radioStyle = (mode: Mode): React.CSSProperties => ({
   cursor: 'pointer'
 });
 
-const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, onChange }) => {
+const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, onChange, webrtcMode, onWebrtcChange }) => {
   const { t } = useI18n();
 
   return (
@@ -65,6 +67,62 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
             </div>
             <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.https.preferredDesc')}
+            </div>
+          </div>
+        </label>
+      </div>
+      <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 12 : 8 }}>
+        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+          {t('settings.webrtc.label')}
+        </div>
+        <label style={radioStyle(mode)}>
+          <input
+            type="radio"
+            name="webrtc-mode"
+            checked={webrtcMode === 'always_on'}
+            onChange={() => onWebrtcChange('always_on')}
+            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
+          />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.webrtc.on')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.webrtc.onDesc')}
+            </div>
+          </div>
+        </label>
+        <label style={radioStyle(mode)}>
+          <input
+            type="radio"
+            name="webrtc-mode"
+            checked={webrtcMode === 'always_off'}
+            onChange={() => onWebrtcChange('always_off')}
+            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
+          />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.webrtc.off')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.webrtc.offDesc')}
+            </div>
+          </div>
+        </label>
+        <label style={radioStyle(mode)}>
+          <input
+            type="radio"
+            name="webrtc-mode"
+            checked={webrtcMode === 'off_with_tor'}
+            onChange={() => onWebrtcChange('off_with_tor')}
+            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
+          />
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.webrtc.offWithTor')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.webrtc.offWithTorDesc')}
             </div>
           </div>
         </label>

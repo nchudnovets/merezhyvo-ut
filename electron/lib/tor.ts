@@ -10,6 +10,7 @@ import {
   getMainWindow,
   getOrCreateMainWindow
 } from './windows';
+import { broadcastWebrtcPolicy } from './webrtc-policy';
 
 import type { BrowserWindow as TBrowserWindow, IpcMain, IpcMainInvokeEvent, Session } from 'electron';
 import type { ChildProcess } from 'child_process';
@@ -32,6 +33,8 @@ type StartOptions = {
 let torChild: ChildProcess | null = null;
 let torState: TorState = { enabled: false, starting: false, reason: null };
 
+export const getTorState = (): TorState => ({ ...torState });
+
 /** Send current tor state to a window (or main window if not provided). */
 export function sendTorState(win?: TBrowserWindow | null): void {
   const target: TBrowserWindow | null | undefined = win || getMainWindow?.();
@@ -45,6 +48,7 @@ export function sendTorState(win?: TBrowserWindow | null): void {
       // noop
     }
   }
+  void broadcastWebrtcPolicy();
 }
 
 /** Try to resolve bundled tor binary inside the click package. */

@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Mode, MessengerDefinition, MessengerId, HttpsMode } from '../../../types/models';
+import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
@@ -52,6 +52,8 @@ interface SettingsModalProps {
   onOpenTorLink: () => void;
   httpsMode: HttpsMode;
   onHttpsModeChange: (mode: HttpsMode) => void;
+  webrtcMode: WebrtcMode;
+  onWebrtcModeChange: (mode: WebrtcMode) => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -88,7 +90,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUiScaleReset,
   onOpenTorLink,
   httpsMode,
-  onHttpsModeChange
+  onHttpsModeChange,
+  webrtcMode,
+  onWebrtcModeChange
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -217,6 +221,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 mode={mode}
                 httpsMode={httpsMode}
                 onChange={onHttpsModeChange}
+                webrtcMode={webrtcMode}
+                onWebrtcChange={onWebrtcModeChange}
               />
             }
           />

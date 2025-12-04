@@ -39,7 +39,8 @@ import type {
   DownloadsSettings,
   CertificateInfo,
   HttpsMode,
-  SslException
+  SslException,
+  WebrtcMode
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -226,6 +227,10 @@ export interface MerezhyvoAPI {
       setMode(mode: HttpsMode): Promise<{ ok?: boolean; httpsMode?: HttpsMode; error?: string }>;
       addException(payload: { host: string; errorType: string }): Promise<{ ok?: boolean; sslExceptions?: SslException[]; error?: string }>;
       removeException(payload: { host: string; errorType: string }): Promise<{ ok?: boolean; sslExceptions?: SslException[]; error?: string }>;
+    };
+    webrtc: {
+      get(): Promise<{ mode: WebrtcMode }>;
+      setMode(mode: WebrtcMode): Promise<{ ok?: boolean; mode?: WebrtcMode; error?: string }>;
     };
   };
   ui: {

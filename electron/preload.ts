@@ -32,7 +32,8 @@ import type {
   PasswordStatus,
   CertificateInfo,
   HttpsMode,
-  SslException
+  SslException,
+  WebrtcMode
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
@@ -260,14 +261,15 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return {
-          schema: 4,
+          schema: 5,
           tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null),
           downloads: { defaultDir: '', concurrent: 2 },
           ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE },
           httpsMode: 'strict',
-          sslExceptions: []
+          sslExceptions: [],
+          webrtcMode: 'always_on'
         };
       }
     },
@@ -370,6 +372,30 @@ const exposeApi: MerezhyvoAPI = {
           return result as { ok?: boolean; sslExceptions?: SslException[]; error?: string };
         } catch (err) {
           console.error('[merezhyvo] settings.https.removeException failed', err);
+          return { ok: false, error: String(err) };
+        }
+      }
+    },
+    webrtc: {
+      get: async (): Promise<{ mode: WebrtcMode }> => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:webrtc:get');
+          const mode =
+            result && typeof result === 'object' && typeof (result as { mode?: unknown }).mode === 'string'
+              ? (result as { mode: WebrtcMode }).mode
+              : 'always_on';
+          return { mode };
+        } catch (err) {
+          console.error('[merezhyvo] settings.webrtc.get failed', err);
+          return { mode: 'always_on' };
+        }
+      },
+      setMode: async (mode: WebrtcMode) => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:webrtc:set-mode', { mode });
+          return result as { ok?: boolean; mode?: WebrtcMode; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.webrtc.setMode failed', err);
           return { ok: false, error: String(err) };
         }
       }

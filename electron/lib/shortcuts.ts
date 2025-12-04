@@ -12,7 +12,7 @@ import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 import { INTERNAL_BASE_FOLDER } from './internal-paths';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 4;
+export const SETTINGS_SCHEMA = 5;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -41,6 +41,8 @@ export type SslException = {
   errorType: string;
 };
 
+export type WebrtcMode = 'always_on' | 'always_off' | 'off_with_tor';
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -50,6 +52,7 @@ export type SettingsState = {
   ui: UISettings;
   httpsMode: HttpsMode;
   sslExceptions: SslException[];
+  webrtcMode: WebrtcMode;
   permissions?: unknown;
 };
 
@@ -62,6 +65,7 @@ type SettingsLike = {
   ui?: unknown;
   httpsMode?: unknown;
   sslExceptions?: unknown;
+  webrtcMode?: unknown;
   permissions?: unknown;
 };
 
@@ -142,6 +146,7 @@ const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
 
 const DEFAULT_HTTPS_MODE: HttpsMode = 'strict';
 const DEFAULT_SSL_EXCEPTIONS: SslException[] = [];
+const DEFAULT_WEBRTC_MODE: WebrtcMode = 'always_on';
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -153,7 +158,8 @@ export const createDefaultSettingsState = (): SettingsState => ({
   ,
   ui: { ...DEFAULT_UI_SETTINGS },
   httpsMode: DEFAULT_HTTPS_MODE,
-  sslExceptions: [...DEFAULT_SSL_EXCEPTIONS]
+  sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
+  webrtcMode: DEFAULT_WEBRTC_MODE
 });
 
 const coerceScale = (value: number): number => {
@@ -231,6 +237,9 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
   const sslExceptions = sanitizeSslExceptions(source.sslExceptions);
+  const wm = typeof source.webrtcMode === 'string' ? source.webrtcMode : null;
+  const webrtcMode: WebrtcMode =
+    wm === 'always_off' || wm === 'off_with_tor' ? wm : 'always_on';
 
   return {
     schema: SETTINGS_SCHEMA,
@@ -241,6 +250,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     ui,
     httpsMode,
     sslExceptions,
+    webrtcMode,
     ...(permissions ? { permissions } : {})
   };
 };

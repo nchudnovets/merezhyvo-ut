@@ -38,7 +38,8 @@ import {
   sanitizeUiSettings,
   sanitizeSettingsPayload,
   sanitizeHttpsMode,
-  sanitizeSslExceptions
+  sanitizeSslExceptions,
+  type WebrtcMode
 } from './lib/shortcuts';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
@@ -55,6 +56,12 @@ import { registerFileDialogIpc } from './lib/file-dialog-ipc';
 import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
+import {
+  broadcastWebrtcPolicy,
+  getEffectiveWebrtcPolicy,
+  getEffectiveWebrtcPolicySync,
+  setWebrtcMode
+} from './lib/webrtc-policy';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
 
@@ -1352,6 +1359,34 @@ ipcMain.handle('merezhyvo:ui:setLanguage', async (_event, payload: unknown) => {
   } catch (err) {
     console.error('[merezhyvo] ui language update failed', err);
     return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:webrtc:get', async () => {
+  const policy = await getEffectiveWebrtcPolicy();
+  return { mode: policy.mode, enabled: policy.enabled, torEnabled: policy.torEnabled };
+});
+
+ipcMain.handle('merezhyvo:settings:webrtc:set-mode', async (_event, payload: unknown) => {
+  const modeRaw =
+    typeof payload === 'object' && payload && typeof (payload as { mode?: unknown }).mode !== 'undefined'
+      ? (payload as { mode?: unknown }).mode
+      : payload;
+  const normalized: WebrtcMode =
+    modeRaw === 'always_off' || modeRaw === 'off_with_tor' ? (modeRaw as WebrtcMode) : 'always_on';
+  try {
+    const next = await setWebrtcMode(normalized);
+    return { ok: true, mode: next };
+  } catch (err) {
+    return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.on('merezhyvo:webrtc:getEffectiveSync', (event) => {
+  try {
+    event.returnValue = getEffectiveWebrtcPolicySync();
+  } catch {
+    event.returnValue = { mode: 'always_on', enabled: true, torEnabled: false };
   }
 });
 

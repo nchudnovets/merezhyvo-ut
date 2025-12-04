@@ -8,7 +8,8 @@ import type {
   MessengerSettings,
   KeyboardSettings,
   HttpsMode,
-  SslException
+  SslException,
+  WebrtcMode
 } from '../../types/models';
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 import { DEFAULT_LOCALE } from '../../i18n/locales';
@@ -160,6 +161,34 @@ export const ipc = {
           }
         } catch (err) {
           console.error('settings.https.removeException failed', err);
+          return { ok: false, error: String(err) };
+        }
+        return { ok: false, error: 'Operation not supported.' };
+      }
+    },
+    webrtc: {
+      async get(): Promise<{ mode: WebrtcMode }> {
+        try {
+          const res = await getApi()?.settings?.webrtc?.get?.();
+          if (res && typeof res === 'object') {
+            const mode = (res as { mode?: unknown }).mode === 'always_off' || (res as { mode?: unknown }).mode === 'off_with_tor'
+              ? (res as { mode: WebrtcMode }).mode
+              : 'always_on';
+            return { mode };
+          }
+        } catch (err) {
+          console.error('settings.webrtc.get failed', err);
+        }
+        return { mode: 'always_on' };
+      },
+      async setMode(mode: WebrtcMode): Promise<{ ok?: boolean; mode?: WebrtcMode; error?: string }> {
+        try {
+          const res = await getApi()?.settings?.webrtc?.setMode?.(mode);
+          if (res && typeof res === 'object') {
+            return res as { ok?: boolean; mode?: WebrtcMode; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.webrtc.setMode failed', err);
           return { ok: false, error: String(err) };
         }
         return { ok: false, error: 'Operation not supported.' };
