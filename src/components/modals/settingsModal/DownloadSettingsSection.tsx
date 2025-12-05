@@ -28,6 +28,8 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   const labelFontSize = mode === 'mobile' ? '41px' : '16px';
   const valueFontSize = mode === 'mobile' ? '39px' : '14px';
   const buttonMinHeight = mode === 'mobile' ? 48 : 36;
+  const saveButtonHeight = mode === 'mobile' ? 'clamp(72px, 10vw, 92px)' : 40;
+  const saveButtonFontSize = mode === 'mobile' ? 'clamp(30px, 4.5vw, 36px)' : 15;
   const concurrencyValues: Array<1 | 2 | 3> = [1, 2, 3];
   const sectionStyle: CSSProperties = {
     display: 'flex',
@@ -73,11 +75,19 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     fontSize: labelFontSize
   });
   const saveButtonStyle: CSSProperties = {
-    ...buttonStyle,
+    minHeight: saveButtonHeight as unknown as number,
+    height: saveButtonHeight as unknown as number,
     alignSelf: 'flex-start',
     opacity: saving ? 0.6 : 1,
     cursor: saving ? 'not-allowed' : 'pointer',
-    width: '100%'
+    width: '100%',
+    borderRadius: mode === 'mobile' ? '24px' : '12px',
+    border: 'none',
+    background: 'rgba(37, 99, 235, 0.92)',
+    color: '#f8fafc',
+    fontWeight: 700,
+    fontSize: saveButtonFontSize,
+    padding: mode === 'mobile' ? '0 clamp(40px, 6vw, 58px)' : '0 18px',
   };
 
   const noteFontSize = mode === 'mobile' ? '38px' : '15px';
@@ -118,7 +128,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     alignSelf: 'flex-start'
   };
 
-  const defaultFolderLabel = t('settings.downloads.defaultFolder');
+  // const defaultFolderLabel = t('settings.downloads.defaultFolder');
   const concurrentLabel = t('settings.downloads.concurrent');
   const saveLabel = saving ? t('settings.downloads.saving') : t('settings.downloads.save');
   return (
@@ -135,7 +145,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
           </button>
         </div>
       </div>
-      <div>
+      {/* <div>  //temorary hidden since it doesn't work yet
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
           {defaultFolderLabel}
         </div>
@@ -145,7 +155,7 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
             {t('settings.downloads.choose')}
           </button>
         </div>
-      </div>
+      </div> */}
       <div>
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
           {concurrentLabel}
@@ -163,7 +173,15 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
           ))}
         </div>
       </div>
-      <button type="button" style={saveButtonStyle} onClick={onSave} disabled={!defaultDir || saving}>
+      <button
+        type="button"
+        style={{
+          ...saveButtonStyle,
+          marginTop: mode === 'mobile' ? 20 : 10
+        }}
+        onClick={onSave}
+        disabled={!defaultDir || saving}
+      >
         {saveLabel}
       </button>
     </div>
