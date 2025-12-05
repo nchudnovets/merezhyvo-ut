@@ -66,8 +66,8 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     minHeight: buttonMinHeight,
     padding: '8px 12px',
     borderRadius: '999px',
-    border: value === concurrent ? '1px solid #10b981' : '1px solid rgba(255, 255, 255, 0.4)',
-    background: value === concurrent ? '#10b981' : 'transparent',
+    border: value === concurrent ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(255, 255, 255, 0.4)',
+    background: value === concurrent ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
     color: '#fff',
     cursor: 'pointer',
     fontSize: labelFontSize
@@ -76,7 +76,8 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     ...buttonStyle,
     alignSelf: 'flex-start',
     opacity: saving ? 0.6 : 1,
-    cursor: saving ? 'not-allowed' : 'pointer'
+    cursor: saving ? 'not-allowed' : 'pointer',
+    width: '100%'
   };
 
   const noteFontSize = mode === 'mobile' ? '38px' : '15px';

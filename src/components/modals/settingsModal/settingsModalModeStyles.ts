@@ -185,7 +185,8 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsAboutButton: {
       fontSize: 'clamp(32px, 4.5vw, 38px)',
-      padding: 'clamp(18px, 3.5vw, 26px) clamp(32px, 5vw, 40px)'
+      padding: 'clamp(18px, 3.5vw, 26px) clamp(32px, 5vw, 40px)',
+      margin: '30px auto',
     },
     scaleContainer: {
       padding: 'clamp(32px, 4.5vw, 40px)',

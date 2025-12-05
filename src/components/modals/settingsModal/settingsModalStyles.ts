@@ -293,9 +293,9 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     gap: '8px',
     padding: '16px 18px',
-    borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    backgroundColor: 'rgba(17, 24, 39, 0.65)'
+    // borderRadius: '16px',
+    // border: '1px solid rgba(148, 163, 184, 0.2)',
+    // backgroundColor: 'rgba(17, 24, 39, 0.65)'
   },
   aboutName: {
     margin: 0,
@@ -315,7 +315,6 @@ export const settingsModalStyles: StyleRecord = {
     lineHeight: 1.4
   },
   aboutButton: {
-    marginTop: '8px',
     alignSelf: 'flex-start',
     border: '1px solid rgba(59, 130, 246, 0.6)',
     background: 'rgba(37, 99, 235, 0.15)',
@@ -323,7 +322,9 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: '12px',
     padding: '8px 16px',
     cursor: 'pointer',
-    fontSize: '13px'
+    fontSize: '13px',
+    margin: '20px auto',
+    width: '50%'
   },
   scaleContainer: {
     display: 'flex',
@@ -474,9 +475,6 @@ export const settingsModalStyles: StyleRecord = {
     justifyContent: 'space-between',
     gap: '12px',
     padding: '12px 16px',
-    borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(17, 24, 39, 0.6)'
   },
   messengerInfo: {
     flex: '1 1 auto',

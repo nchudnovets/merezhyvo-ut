@@ -195,7 +195,8 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
           }}>
             <button type="button" onClick={onSave} style={{
               ...baseStyles.modalButton,
-              minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+              // minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+              width: '100%',
               height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
               borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
               padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',

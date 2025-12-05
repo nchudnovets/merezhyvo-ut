@@ -34,7 +34,10 @@ const TorSettings: React.FC<TorSettingsProps> = ({
   return (
     <>
       <div style={styles.torInfoRow}>
-        <span style={styles.torInfoLabel}>{t('tor.status.label')}</span>
+        <span style={{
+          ...styles.torInfoLabel,
+          ...modeStyles.settingsTorInputLabel || {}
+        }}>{t('tor.status.label')}</span>
         <span
           style={{
             ...styles.torInfoValue,
@@ -46,7 +49,10 @@ const TorSettings: React.FC<TorSettingsProps> = ({
         </span>
       </div>
       <div style={styles.torInfoRow}>
-        <span style={styles.torInfoLabel}>{t('tor.ip.label')}</span>
+        <span style={{
+          ...styles.torInfoLabel,
+          ...modeStyles.settingsTorInputLabel || {}
+        }}>{t('tor.ip.label')}</span>
         <span
           style={{
             ...styles.torInfoValue,
