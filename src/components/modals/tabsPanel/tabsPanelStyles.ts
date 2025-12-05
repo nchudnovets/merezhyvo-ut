@@ -18,31 +18,33 @@ export const tabsPanelStyles: StyleRecord = {
     maxHeight: 'min(620px, 90vh)',
     borderRadius: '28px',
     border: '1px solid rgba(59, 130, 246, 0.35)',
-    background: 'rgba(11, 15, 28, 0.96)',
+    background: 'rgba(15, 23, 42, 0.96)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.6)',
     display: 'flex',
     flexDirection: 'column',
     padding: '24px',
-    gap: '20px'
+    gap: '15px',
+    position: 'relative'
   },
   containerMobile: {
     width: '100%',
     height: '93vh',
     borderRadius: '28px',
     border: '1px solid rgba(59, 130, 246, 0.35)',
-    background: 'rgba(11, 15, 28, 0.98)',
+    background: 'rgba(15, 23, 42, 0.96)',
     boxShadow: '0 -18px 50px rgba(2, 6, 23, 0.65)',
     display: 'flex',
     flexDirection: 'column',
     padding: 'calc(2vh) calc(4vw)',
     gap: 'calc(2vh)',
-    boxSizing: 'border-box'
+    boxSizing: 'border-box',
+    position: 'relative'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '16px'
+    gap: '16px',
   },
   headerTitleRow: {
     display: 'flex',
@@ -59,7 +61,7 @@ export const tabsPanelStyles: StyleRecord = {
     borderRadius: '12px',
     border: '1px solid rgba(148, 163, 184, 0.42)',
     padding: '6px 12px',
-    background: 'rgba(37, 99, 235, 0.18)',
+    background: 'rgba(17, 24, 39, 0.6)',
     color: '#f8fafc',
     fontSize: '13px',
     fontWeight: 600,
@@ -88,21 +90,28 @@ export const tabsPanelStyles: StyleRecord = {
     cursor: 'pointer'
   },
   newTabButtonMobile: {
-    height: 'clamp(105px, 13.5vh, 144px)',
-    borderRadius: '24px',
-    border: '1px solid rgba(59, 130, 246, 0.45)',
-    background: 'rgba(37, 99, 235, 0.22)',
-    color: '#f8fafc',
-    fontSize: 'clamp(39px, 5.7vw, 51px)',
-    fontWeight: 600,
-    cursor: 'pointer'
+    position: 'absolute',
+    right: '24px',
+    bottom: '24px',
+    width: '105px',
+    height: '105px',
+    borderRadius: '50%',
+    background: '#295CFD',
+    border: '1px solid rgba(37, 99, 235, 0.6)',
+    color: '#fff',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    cursor: 'pointer',
+    boxShadow: '0 12px 30px rgba(18, 44, 120, 0.45)'
   },
   controlRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '8px',
     width: '100%',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    marginBottom: '10px'
   },
   searchInput: {
     flex: 1,
@@ -148,10 +157,11 @@ export const tabsPanelStyles: StyleRecord = {
   },
   sectionTitle: {
     margin: 0,
-    fontSize: '12px',
+    fontSize: '15px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#94a3b8'
+    color: '#94a3b8',
+    marginTop: '10px'
   },
   list: {
     listStyle: 'none',
@@ -185,8 +195,8 @@ export const tabsPanelStyles: StyleRecord = {
     minWidth: 0
   },
   faviconWrap: {
-    width: '20px',
-    height: '20px',
+    width: '30px',
+    height: '30px',
     borderRadius: '6px',
     backgroundColor: 'rgba(148, 163, 184, 0.18)',
     display: 'flex',

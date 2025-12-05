@@ -4217,6 +4217,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur}
               onOpenTabsPanel={openTabsPanel}
+              onNewTab={handleNewTab}
               onToggleTor={handleToggleTor}
               onOpenSettings={openSettingsModal}
               onEnterMessengerMode={handleEnterMessengerMode}

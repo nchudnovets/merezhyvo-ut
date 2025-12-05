@@ -24,6 +24,7 @@ interface AddressBarProps {
   onFocus: (event: FocusEvent<HTMLInputElement>) => void;
   onBlur: (event: FocusEvent<HTMLInputElement>) => void;
   onOpenTabsPanel: () => void;
+  onNewTab: () => void;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
   showTabsButton?: boolean;
@@ -60,6 +61,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onFocus,
   onBlur,
   onOpenTabsPanel,
+  onNewTab,
   downloadIndicatorState,
   onDownloadIndicatorClick,
   showTabsButton = true,
@@ -357,6 +359,46 @@ const AddressBar: React.FC<AddressBarProps> = ({
           </ul>
         )}
       </div>
+      {showTabsButton && mode !== 'mobile' && (
+        <button
+          type="button"
+          aria-label={t('tabs.newTab')}
+          title={t('tabs.newTab')}
+          onClick={onNewTab}
+          style={{
+            ...toolbarStyles.tabsButton,
+            ...(toolbarModeStyles[mode].tabsButton || {}),
+            width: 36,
+            minWidth: 36,
+            height: 36,
+            borderRadius: 12,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            padding: 0,
+            marginRight: 6
+          }}
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width="68%"
+            height="68%"
+            aria-hidden="true"
+            focusable="false"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="1.5"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              d="M8 3v10M3 8h10"
+            />
+          </svg>
+        </button>
+      )}
+
       {showTabsButton && (
         <button
           type="button"

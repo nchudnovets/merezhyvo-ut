@@ -44,7 +44,7 @@ export const styles = {
   form: {
     display: 'flex',
     alignItems: 'center',
-    gap: '12px',
+    gap: '10px',
     flex: 1,
     margin: 0
   },

@@ -393,30 +393,32 @@ const TabRow = memo(({
             </span>
           )}
         </span>
-        <span style={styles.tabTexts}>
-          <span
-            style={{
-              ...styles.tabTitle,
-              ...(modeStyles.tabTitle || {})
-            }}
-          >
-            {displayTitle(tab)}
+        {((!actionsExpanded && mode === 'mobile') || mode !== 'mobile') && (
+          <span style={styles.tabTexts}>
+            <span
+              style={{
+                ...styles.tabTitle,
+                ...(modeStyles.tabTitle || {})
+              }}
+            >
+              {displayTitle(tab)}
+            </span>
+            {(() => {
+              const subtitle = displaySubtitle(tab);
+              if (!subtitle) return null;
+              return (
+                <span
+                  style={{
+                    ...styles.tabSubtitle,
+                    ...(modeStyles.tabSubtitle || {})
+                  }}
+                >
+                  {subtitle}
+                </span>
+              );
+            })()}
           </span>
-          {(() => {
-            const subtitle = displaySubtitle(tab);
-            if (!subtitle) return null;
-            return (
-              <span
-                style={{
-                  ...styles.tabSubtitle,
-                  ...(modeStyles.tabSubtitle || {})
-                }}
-              >
-                {subtitle}
-              </span>
-            );
-          })()}
-        </span>
+        )}
       </span>
         <span
           style={{
@@ -492,8 +494,8 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     [onCleanClose, t]
   );
 
-  const newTabButtonStyle =
-    mode === 'mobile' ? styles.newTabButtonMobile : styles.newTabButton;
+  // const newTabButtonStyle =
+  //   mode === 'mobile' ? styles.newTabButtonMobile : styles.newTabButton;
   const controlRowStyle = {
     ...styles.controlRow,
     ...(modeStyles.controlRow || {})
@@ -645,76 +647,6 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             ✕
           </button>
         </div>
-        <div
-          style={{
-            ...styles.headerButtons,
-            ...(modeStyles.headerButtons || {}),
-            ...{
-                  width: mode === 'mobile' ? '80%' : '90%',
-                  justifyContent: 'space-between'
-                }
-          }}
-        >
-          <button
-            type="button"
-            style={{
-              ...styles.headerButton,
-              ...(modeStyles.headerButton || {}),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px'
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenBookmarks();
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              width={mode === 'mobile' ? '54' : '16'}
-              height={mode === 'mobile' ? '54' : '16'}
-              viewBox="0 0 24 24"
-              fill="#ffffff"
-              style={{ flexShrink: 0 }}
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M12 2.5l2.9 5.88 6.5.95-4.7 4.57 1.1 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.7-4.57 6.5-.95L12 2.5z" />
-            </svg>
-            {t('tabs.openBookmarks')}
-          </button>
-          <button
-            type="button"
-            style={{
-              ...styles.headerButton,
-              ...(modeStyles.headerButton || {}),
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              gap: '6px',
-              ...{width: '48%'}
-            }}
-            onClick={(event) => {
-              event.stopPropagation();
-              onOpenHistory();
-            }}
-          >
-            <svg
-              aria-hidden="true"
-              focusable="false"
-              width={mode === 'mobile' ? '54' : '16'}
-              height={mode === 'mobile' ? '54' : '16'}
-              viewBox="0 0 24 24"
-              fill="#ffffff"
-              style={{ flexShrink: 0 }}
-              xmlns="http://www.w3.org/2000/svg"
-            >
-              <path d="M6 3h12v4.5L14 12l4 4.5V21H6v-4.5L10 12 6 7.5zM8 5v1.9L12 12l-4 5.1V19h8v-1.9L12 12l4-5.1V5H8z" />
-            </svg>
-            {t('tabs.openHistory')}
-          </button>
-        </div>
 
         {feedbackMessage && (
           <div
@@ -741,30 +673,76 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
               style={searchInputStyle}
             />
           ) : (
-            <button
-              type="button"
+            <div
               style={{
-                ...newTabButtonStyle,
-                ...(modeStyles.newTabButton || {})
+                ...styles.headerButtons,
+                ...(modeStyles.headerButtons || {}),
+                ...{
+                      width: mode === 'mobile' ? 'calc(100% - 130px)' : '88%',
+                      justifyContent: 'space-between'
+                    }
               }}
-              onClick={onNewTab}
             >
-              <svg
-                viewBox="0 0 16 16"
-                style={{ ...styles.tabIcon, ...(modeStyles.tabIcon || {}) }}
-                xmlns="http://www.w3.org/2000/svg"
+              <button
+                type="button"
+                style={{
+                  ...styles.headerButton,
+                  ...(modeStyles.headerButton || {}),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px'
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenBookmarks();
+                }}
               >
-                <path
-                  fill="none"
-                  stroke="currentColor"
-                  strokeWidth="1.5"
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                  d="M8 3v10M3 8h10"
-                />
-              </svg>
-              <span>{t('tabs.newTab')}</span>
-            </button>
+                <svg
+                  aria-hidden="true"
+                  focusable="false"
+                  width={mode === 'mobile' ? '54' : '16'}
+                  height={mode === 'mobile' ? '54' : '16'}
+                  viewBox="0 0 24 24"
+                  fill="#ffffff"
+                  style={{ flexShrink: 0 }}
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M12 2.5l2.9 5.88 6.5.95-4.7 4.57 1.1 6.46L12 17.77l-5.8 3.05 1.1-6.46-4.7-4.57 6.5-.95L12 2.5z" />
+                </svg>
+                {t('tabs.openBookmarks')}
+              </button>
+              <button
+                type="button"
+                style={{
+                  ...styles.headerButton,
+                  ...(modeStyles.headerButton || {}),
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  gap: '6px',
+                  ...{width: '48%'}
+                }}
+                onClick={(event) => {
+                  event.stopPropagation();
+                  onOpenHistory();
+                }}
+              >
+                <svg
+                  aria-hidden="true"
+                  focusable="false"
+                  width={mode === 'mobile' ? '54' : '16'}
+                  height={mode === 'mobile' ? '54' : '16'}
+                  viewBox="0 0 24 24"
+                  fill="#ffffff"
+                  style={{ flexShrink: 0 }}
+                  xmlns="http://www.w3.org/2000/svg"
+                >
+                  <path d="M6 3h12v4.5L14 12l4 4.5V21H6v-4.5L10 12 6 7.5zM8 5v1.9L12 12l-4 5.1V19h8v-1.9L12 12l4-5.1V5H8z" />
+                </svg>
+                {t('tabs.openHistory')}
+              </button>
+            </div>
           )}
           <button
             type="button"
@@ -815,11 +793,12 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
 
         <div
           className="tabs-modal-body"
-        style={{
-          ...styles.body,
-          ...(modeStyles.tabsPanelBody || {})
-        }}
-       >
+          style={{
+            ...styles.body,
+            ...(modeStyles.tabsPanelBody || {}),
+            ...(mode === 'mobile' ? { paddingBottom: 120 } : {})
+          }}
+        >
           {showActive && activeTab && (
             <div style={styles.section}>
               <div style={styles.list}>
@@ -900,6 +879,32 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
             </div>
           )}
         </div>
+        {mode === 'mobile' && (
+          <button
+            type="button"
+            aria-label={t('tabs.newTab')}
+            style={styles.newTabButtonMobile}
+            onClick={onNewTab}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width="60%"
+              height="60%"
+              aria-hidden="true"
+              focusable="false"
+              xmlns="http://www.w3.org/2000/svg"
+            >
+              <path
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.8"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                d="M8 3v10M3 8h10"
+              />
+            </svg>
+          </button>
+        )}
       </div>
     </div>
   );

@@ -29,6 +29,7 @@ interface ToolbarProps {
   onInputFocus: (event: FocusEvent<HTMLInputElement>) => void;
   onInputBlur: (event: FocusEvent<HTMLInputElement>) => void;
   onOpenTabsPanel: () => void;
+  onNewTab: () => void;
   onToggleTor: () => void;
   onOpenSettings: () => void;
   onEnterMessengerMode: () => void;
@@ -75,6 +76,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onInputFocus,
   onInputBlur,
   onOpenTabsPanel,
+  onNewTab,
   onToggleTor,
   onOpenSettings,
   onEnterMessengerMode,
@@ -136,6 +138,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onFocus={onInputFocus}
       onBlur={onInputBlur}
       onOpenTabsPanel={onOpenTabsPanel}
+      onNewTab={onNewTab}
       downloadIndicatorState={downloadIndicatorState}
       onDownloadIndicatorClick={onDownloadIndicatorClick}
       showTabsButton={!compact}
