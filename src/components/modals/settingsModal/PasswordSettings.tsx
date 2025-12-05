@@ -204,36 +204,61 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
 
   return (
     <div style={styles.passwordSettings}>
-      <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.saveAndFill')}</span>
-        <input
-          type="checkbox"
-          checked={settings?.saveAndFill ?? false}
-          disabled={!settings || saving}
-          onChange={() => handleToggle('saveAndFill')}
-          style={toggleInputStyle}
-        />
-      </label>
-      <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.offerToSave')}</span>
-        <input
-          type="checkbox"
-          checked={settings?.offerToSave ?? false}
-          disabled={!settings || saving}
-          onChange={() => handleToggle('offerToSave')}
-          style={toggleInputStyle}
-        />
-      </label>
-      <label style={toggleRowStyle}>
-        <span style={toggleLabelStyle}>{t('passwordSettings.toggle.disallowHttp')}</span>
-        <input
-          type="checkbox"
-          checked={settings?.disallowHttp ?? false}
-          disabled={!settings || saving}
-          onChange={() => handleToggle('disallowHttp')}
-          style={toggleInputStyle}
-        />
-      </label>
+      {([
+        { field: 'saveAndFill', label: t('passwordSettings.toggle.saveAndFill') },
+        { field: 'offerToSave', label: t('passwordSettings.toggle.offerToSave') },
+        { field: 'disallowHttp', label: t('passwordSettings.toggle.disallowHttp') }
+      ] as const).map(({ field, label }) => {
+        const checked = settings?.[field] ?? false;
+        const size = isMobile ? 38 : 18;
+        return (
+          <label key={field} style={{ ...toggleRowStyle, alignItems: 'center', gap: 10 }}>
+            <span style={toggleLabelStyle}>{label}</span>
+            <span style={{ position: 'relative', width: size, height: size, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+              <input
+                type="checkbox"
+                checked={checked}
+                disabled={!settings || saving}
+                onChange={() => handleToggle(field)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  margin: 0,
+                  opacity: 0,
+                  cursor: !settings || saving ? 'not-allowed' : 'pointer'
+                }}
+              />
+              {checked && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: size,
+                    height: size,
+                    borderRadius: 6,
+                    border: '1px solid #295EFA',
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <svg
+                    viewBox="0 0 16 16"
+                    width={size * 0.8}
+                    height={size * 0.8}
+                    fill="none"
+                    stroke="#295EFA"
+                    strokeWidth={isMobile ? 4 : 3}
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M3 8.5 6.5 12 13 4" />
+                  </svg>
+                </span>
+              )}
+            </span>
+          </label>
+        );
+      })}
       <div style={rowStyle}>
         <span style={toggleLabelStyle}>{t('passwordSettings.label.autoLock')}</span>
         <select

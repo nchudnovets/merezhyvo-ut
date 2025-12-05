@@ -152,12 +152,53 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                 ...styles.keyboardLayoutRow,
                 ...(modeStyles.settingsKeyboardLayoutRow || {})
               }}>
-                <input
-                  type="checkbox"
-                  checked={enabled.includes(layoutId)}
-                  onChange={() => toggle(layoutId)}
-                  style={modeStyles.settingsKeyboardInput}
-                />
+                {(() => {
+                  const size = mode === 'mobile' ? 48 : 18;
+                  const checked = enabled.includes(layoutId);
+                  return (
+                    <span style={{ position: 'relative', width: size, height: size, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+                      <input
+                        type="checkbox"
+                        checked={checked}
+                        onChange={() => toggle(layoutId)}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          margin: 0,
+                          opacity: 0,
+                          cursor: 'pointer'
+                        }}
+                      />
+                      {checked && (
+                        <span
+                          aria-hidden="true"
+                          style={{
+                            width: size,
+                            height: size,
+                            borderRadius: 6,
+                            border: '1px solid #295EFA',
+                            display: 'inline-flex',
+                            alignItems: 'center',
+                            justifyContent: 'center'
+                          }}
+                        >
+                          <svg
+                            viewBox="0 0 16 16"
+                            width={size * 0.8}
+                            height={size * 0.8}
+                            fill="none"
+                            stroke="#295EFA"
+                            strokeWidth={mode === 'mobile' ? 4 : 3}
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                          >
+                            <path d="M3 8.5 6.5 12 13 4" />
+                          </svg>
+                        </span>
+                      )}
+                    </span>
+                  );
+                })()}
                 <span style={{
                   ...styles.keyboardLayoutCode,
                   ...(modeStyles.settingsKeyboardLayoutCode || {})
@@ -170,18 +211,51 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                 }}>
                   {layoutId}
                 </span>
-                <span style={{ marginInlineStart: 'auto' }}>
+                <span style={{ marginInlineStart: 'auto', display: 'inline-flex', alignItems: 'center' }}>
                   <label style={{
                     ...styles.keyboardRadioLabel,
-                    ...(modeStyles.settingsKeyboardRadioLabel || {})
+                    ...(modeStyles.settingsKeyboardRadioLabel || {}),
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    gap: 6
                   }}>
-                    <input
-                      type="radio"
-                      name="keyboard-default"
-                      checked={preferred === layoutId}
-                      onChange={() => setDefault(layoutId)}
-                      style={modeStyles.settingsKeyboardInput}
-                    />
+                    {(() => {
+                      const radioSize = mode === 'mobile' ? 48 : 18;
+                      return (
+                        <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+                          <input
+                            type="radio"
+                            name="keyboard-default"
+                            checked={preferred === layoutId}
+                            onChange={() => setDefault(layoutId)}
+                            style={{
+                              position: 'absolute',
+                              inset: 0,
+                              margin: 0,
+                              opacity: 0,
+                              cursor: 'pointer'
+                            }}
+                          />
+                          {preferred === layoutId && (
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                width: radioSize,
+                                height: radioSize,
+                                borderRadius: 8,
+                                display: 'inline-flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                            >
+                              <svg viewBox="0 0 16 16" width={radioSize * 0.85} height={radioSize * 0.85} fill="none" stroke="#295EFA" strokeWidth={mode === 'mobile' ? 3.5 : 3} strokeLinecap="round" strokeLinejoin="round">
+                                <path d="M3 8.5 6.5 12 13 4" />
+                              </svg>
+                            </span>
+                          )}
+                        </span>
+                      );
+                    })()}
                     <span>{t('settings.keyboard.default')}</span>
                   </label>
                 </span>
@@ -195,7 +269,6 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
           }}>
             <button type="button" onClick={onSave} style={{
               ...baseStyles.modalButton,
-              // minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
               width: '100%',
               height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
               borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,

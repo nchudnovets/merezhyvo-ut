@@ -146,21 +146,24 @@ export const settingsModalStyles: StyleRecord = {
     textAlign: 'center',
     fontWeight: 600,
     fontSize: '15px',
-    color: '#f8fafc'
+    color: '#f8fafc',
+    cursor: 'pointer'
   },
   keyboardLayoutId: {
     color: '#cbd5f5',
     opacity: 0.85,
-    fontSize: '13px',
+    fontSize: '15px',
     fontVariantNumeric: 'tabular-nums',
-    letterSpacing: '0.04em'
+    letterSpacing: '0.04em',
+    cursor: 'pointer'
   },
   keyboardRadioLabel: {
     display: 'inline-flex',
     alignItems: 'center',
     gap: '8px',
-    fontSize: '13px',
-    color: '#cbd5f5'
+    fontSize: '15px',
+    color: '#cbd5f5',
+    cursor: 'pointer'
   },
   keyboardActions: {
     display: 'flex',
@@ -446,7 +449,8 @@ export const settingsModalStyles: StyleRecord = {
     fontSize: '13px',
     fontWeight: 600,
     color: '#f8fafc',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    marginLeft: '7px'
   },
   torKeepLabelDisabled: {
     color: '#64748b',

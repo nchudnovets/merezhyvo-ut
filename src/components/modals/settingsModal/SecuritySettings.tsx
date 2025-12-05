@@ -22,6 +22,56 @@ const radioStyle = (mode: Mode): React.CSSProperties => ({
 
 const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, onChange, webrtcMode, onWebrtcChange }) => {
   const { t } = useI18n();
+  const radioSize = mode === 'mobile' ? 40 : 18;
+
+  const renderRadioControl = (checked: boolean, name: string, onSelect: () => void): JSX.Element => (
+    <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
+      <input
+        type="radio"
+        name={name}
+        checked={checked}
+        onChange={onSelect}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          opacity: 0,
+          margin: 0,
+          cursor: 'pointer'
+        }}
+      />
+      {checked && (
+        <span
+          aria-hidden="true"
+          style={{
+            width: radioSize,
+            height: radioSize,
+            borderRadius: 10,
+            display: 'inline-flex',
+            alignItems: 'center',
+            justifyContent: 'center'
+          }}
+        >
+          <svg
+            viewBox="0 0 16 16"
+            width={radioSize * 0.9}
+            height={radioSize * 0.9}
+            aria-hidden="true"
+            focusable="false"
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              d="M3 8.5 6.5 12 13 4"
+              fill="none"
+              stroke="#295EFA"
+              strokeWidth={mode === 'mobile' ? 4 : 3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            />
+          </svg>
+        </span>
+      )}
+    </span>
+  );
 
   return (
     <div style={{...styles.block, ...{borderTop: 'none'}}}>
@@ -34,13 +84,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
       </div>
       <div style={styles.blockBody}>
         <label style={radioStyle(mode)}>
-          <input
-            type="radio"
-            name="https-mode"
-            checked={httpsMode === 'strict'}
-            onChange={() => onChange('strict')}
-            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
-          />
+          {renderRadioControl(httpsMode === 'strict', 'https-mode', () => onChange('strict'))}
           <div>
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.https.strict')}
@@ -51,13 +95,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
           </div>
         </label>
         <label style={radioStyle(mode)}>
-          <input
-            type="radio"
-            name="https-mode"
-            checked={httpsMode === 'preferred'}
-            onChange={() => onChange('preferred')}
-            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
-          />
+          {renderRadioControl(httpsMode === 'preferred', 'https-mode', () => onChange('preferred'))}
           <div>
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.https.preferred')}
@@ -73,13 +111,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
           {t('settings.webrtc.label')}
         </div>
         <label style={radioStyle(mode)}>
-          <input
-            type="radio"
-            name="webrtc-mode"
-            checked={webrtcMode === 'always_on'}
-            onChange={() => onWebrtcChange('always_on')}
-            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
-          />
+          {renderRadioControl(webrtcMode === 'always_on', 'webrtc-mode', () => onWebrtcChange('always_on'))}
           <div>
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.on')}
@@ -90,13 +122,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
           </div>
         </label>
         <label style={radioStyle(mode)}>
-          <input
-            type="radio"
-            name="webrtc-mode"
-            checked={webrtcMode === 'always_off'}
-            onChange={() => onWebrtcChange('always_off')}
-            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
-          />
+          {renderRadioControl(webrtcMode === 'always_off', 'webrtc-mode', () => onWebrtcChange('always_off'))}
           <div>
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.off')}
@@ -107,13 +133,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
           </div>
         </label>
         <label style={radioStyle(mode)}>
-          <input
-            type="radio"
-            name="webrtc-mode"
-            checked={webrtcMode === 'off_with_tor'}
-            onChange={() => onWebrtcChange('off_with_tor')}
-            style={{ marginTop: mode === 'mobile' ? 8 : 4, width: mode === 'mobile' ? 50 : 16, height: mode === 'mobile' ? 50 : 16 }}
-          />
+          {renderRadioControl(webrtcMode === 'off_with_tor', 'webrtc-mode', () => onWebrtcChange('off_with_tor'))}
           <div>
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.offWithTor')}

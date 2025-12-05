@@ -247,7 +247,8 @@ export const settingsModalModeStyles: ModeStyleMap = {
       height: 'clamp(54px, 8vw, 66px)'
     },
     settingsTorKeepLabel: {
-      fontSize: 'clamp(33px, 4.8vw, 42px)'
+      fontSize: 'clamp(33px, 4.8vw, 42px)',
+      marginLeft: '15px'
     },
     settingsKeyboardToggleButton: {
       width: 'clamp(65px, 12vw, 108px)',

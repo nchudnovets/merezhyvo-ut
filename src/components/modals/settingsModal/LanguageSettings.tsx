@@ -34,6 +34,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
+  const radioSize = mode === 'mobile' ? 42 : 18;
 
   return (
     <div>
@@ -75,14 +76,39 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
                 ...(modeStyles.settingsKeyboardLayoutRow || {})
             }}
           >
-            <input
-              type="radio"
-              name="ui-language"
-              value={locale.id}
-              checked={selected === locale.id}
-              onChange={() => setSelected(locale.id)}
-              style={modeStyles.settingsKeyboardInput}
-            />
+            <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
+              <input
+                type="radio"
+                name="ui-language"
+                value={locale.id}
+                checked={selected === locale.id}
+                onChange={() => setSelected(locale.id)}
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  margin: 0,
+                  opacity: 0,
+                  cursor: 'pointer'
+                }}
+              />
+              {selected === locale.id && (
+                <span
+                  aria-hidden="true"
+                  style={{
+                    width: radioSize,
+                    height: radioSize,
+                    borderRadius: 10,
+                    display: 'inline-flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
+                  }}
+                >
+                  <svg viewBox="0 0 16 16" width={radioSize * 0.9} height={radioSize * 0.9} fill="none" stroke="#295EFA" strokeWidth={mode === 'mobile' ? 4 : 3} strokeLinecap="round" strokeLinejoin="round">
+                    <path d="M3 8.5 6.5 12 13 4" />
+                  </svg>
+                </span>
+              )}
+            </span>
             <span>{locale.label}</span>
             <span style={{ opacity: 0.65, marginLeft: 'auto' }}>{locale.nativeLabel}</span>
           </label>
