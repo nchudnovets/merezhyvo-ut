@@ -44,7 +44,10 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({
       ...styles.block,
       ...(modeStyles.settingsBlock || {})
     }}>
-      <div style={styles.blockHeader}>
+      <div
+        style={styles.blockHeader}
+        onClick={() => setExpanded((value) => !value)}
+        >
         <h3
           style={{
             ...styles.blockTitle,
@@ -61,7 +64,6 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({
         >
           <button
             type="button"
-            onClick={() => setExpanded((value) => !value)}
             style={{
               ...styles.blockToggleButton,
               ...(modeStyles.settingsBlockToggleButton || {})

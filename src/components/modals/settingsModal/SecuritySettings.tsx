@@ -15,9 +15,7 @@ const radioStyle = (mode: Mode): React.CSSProperties => ({
   display: 'flex',
   alignItems: 'flex-start',
   gap: mode === 'mobile' ? 16 : 10,
-  padding: mode === 'mobile' ? '14px 12px' : '10px 10px',
-  borderRadius: 12,
-  border: '1px solid rgba(148,163,184,0.35)',
+  padding: mode === 'mobile' ? '28px 20px' : '15px 10px',
   background: 'rgba(15,23,42,0.55)',
   cursor: 'pointer'
 });
@@ -26,10 +24,9 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
   const { t } = useI18n();
 
   return (
-    <div style={styles.block}>
+    <div style={{...styles.block, ...{borderTop: 'none'}}}>
       <div style={styles.blockHeader}>
         <div>
-          {/* <div style={styles.blockTitle}>{t('settings.section.privacy')}</div> */}
           <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
             {t('settings.https.label')}
           </div>

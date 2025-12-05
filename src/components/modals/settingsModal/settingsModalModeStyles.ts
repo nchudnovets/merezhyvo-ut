@@ -104,36 +104,12 @@ export const settingsModalModeStyles: ModeStyleMap = {
       alignItems: 'flex-start',
       gap: '24px'
     },
-    // settingsToggleLabel: {
-    //   fontSize: 'clamp(38px, 5.8vw, 44px)'
-    // },
-    // settingsToggle: {
-    //   width: '35px',
-    //   height: '35px'
-    // },
-    // settingsSelect: {
-    //   fontSize: 'clamp(35px, 5.4vw, 40px)',
-    //   padding: '12px 18px'
-    // },
-    // settingsButton: {
-    //   minHeight: 'clamp(74px, 10vw, 90px)',
-    //   fontSize: 'clamp(33px, 5vw, 40px)',
-    //   padding: '0 clamp(30px, 5vw, 42px)',
-    //   borderRadius: '24px'
-    // },
-    // settingsLinkRow: {
-    //   marginTop: '18px'
-    // },
-    // settingsLinkButton: {
-    //   fontSize: '38px'
-    // }
   },
   mobile: {
     settingsModalTitle: {
       fontSize: 'clamp(54px, 7vw, 66px)'
     },
     settingsBlock: {
-      borderRadius: '30px',
       padding: 'clamp(36px, 5vw, 48px)',
       gap: 'clamp(30px, 4.8vw, 36px)'
     },
@@ -143,7 +119,6 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsBlockToggleButton: {
       width: 'clamp(65px, 12vw, 108px)',
       height: 'clamp(84px, 12vw, 108px)',
-      borderRadius: '28px',
       fontSize: 'clamp(42px, 6vw, 52px)'
     },
     settingsBlockTitle: {
@@ -290,9 +265,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
       paddingRight: 'clamp(18px, 3vw, 26px)'
     },
     settingsKeyboardLayoutRow: {
-      gap: 'clamp(22px, 3.6vw, 32px)',
+      gap: '20px',
       padding: 'clamp(32px, 4.8vw, 40px)',
-      borderRadius: '32px',
+      // borderRadius: '32px',
       fontSize: '38px'
     },
     settingsKeyboardLayoutCode: {

@@ -57,11 +57,11 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
         {t('settings.language.description')}
       </p>
       <div
-        className="settings-keyboard-scroll"
+        className="service-scroll"
         style={{
           display: 'flex',
           flexDirection: 'column',
-          gap: '25px',
+          gap: '10px',
           marginBottom: '25px',
           maxHeight: '520px',
           overflow: 'auto'
@@ -102,7 +102,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
           style={{
             ...baseStyles.modalButton,
             ...baseStyles.modalButtonPrimary,
-            minWidth: mode === 'mobile' ? 'clamp(210px, 32vw, 280px)' : 120,
+            width: '100%',
             height: mode === 'mobile' ? 'clamp(72px, 10vw, 92px)' : 40,
             borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
             padding: mode === 'mobile' ? '0 clamp(40px, 6vw, 58px)' : '0 18px',

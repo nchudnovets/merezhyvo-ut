@@ -21,8 +21,6 @@ export const settingsModalStyles: StyleRecord = {
   },
   containerMobile: {
     width: '100%',
-    // height: '100vh',
-    // minHeight: '100vh',
     borderRadius: '24px',
     border: '1px solid rgba(148, 163, 184, 0.25)',
     backgroundColor: 'rgba(15, 23, 42, 0.98)',
@@ -48,7 +46,6 @@ export const settingsModalStyles: StyleRecord = {
   sections: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '24px',
     flex: 1,
     minHeight: 0,
     overflowY: 'auto',
@@ -58,17 +55,16 @@ export const settingsModalStyles: StyleRecord = {
     display: 'flex',
     flexDirection: 'column',
     gap: '18px',
-    padding: '18px 15px',
-    borderRadius: '18px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(10, 16, 28, 0.85)',
+    padding: '28px 15px',
+    borderTop: '1px solid rgba(148, 163, 184, 0.25)',
     position: 'relative'
   },
   blockHeader: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    gap: '16px'
+    gap: '16px',
+    cursor: 'pointer'
   },
   blockHeaderActions: {
     display: 'flex',
@@ -83,16 +79,16 @@ export const settingsModalStyles: StyleRecord = {
     color: '#cbd5f5'
   },
   blockToggleButton: {
-    border: '1px solid rgba(148, 163, 184, 0.35)',
     background: 'rgba(15, 23, 42, 0.65)',
     color: '#cbd5f5',
     width: '36px',
     height: '36px',
-    borderRadius: '12px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    boxShadow: 'none',
+    border: 'none'
   },
   blockBody: {
     display: 'flex',
@@ -137,11 +133,8 @@ export const settingsModalStyles: StyleRecord = {
     display: 'grid',
     gridTemplateColumns: 'auto auto 1fr auto',
     alignItems: 'center',
-    gap: '12px',
+    gap: '8px',
     padding: '12px 16px',
-    borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(17, 24, 39, 0.6)'
   },
   keyboardHeaderActions: {
     display: 'flex',
@@ -337,9 +330,6 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     gap: '12px',
     padding: '16px 18px',
-    borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    backgroundColor: 'rgba(17, 24, 39, 0.65)'
   },
   scaleRow: {
     display: 'flex',
