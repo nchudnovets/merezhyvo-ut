@@ -33,7 +33,7 @@ export const tabsPanelModeStyles: ModeStyleMap = {
       gap: 'clamp(24px, 4vh, 36px)'
     },
     tabsSectionTitle: {
-      fontSize: '35px',
+      fontSize: '38px',
       marginTop: '20px'
     },
     tabRow: {
