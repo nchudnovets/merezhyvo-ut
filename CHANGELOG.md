@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.4.3 - 2025-12-06
+## Added
+- pull to reload the page
+- in-app certificate validation with certificate validity indicator, warning screen, and a certificate info popover
+- HTTPS Strict or Preferred modes
+- WebRTC blocking modes (always blocked/always allowed/blocked when Tor is enabled)
+- some UI improvements
+
+## Changed
+- Electron/Chromium engine updated (Chromium 142.0.7444.177)
+
+----
+
+## 0.4.2.1 - 2025-11-30
+a page specific keyboard issue fixed
+
+----
+
 ## 0.4.2 — 2025-11-30
 
 ### Added
