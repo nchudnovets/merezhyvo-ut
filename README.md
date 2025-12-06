@@ -32,118 +32,66 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
 ## Features (current MVP)
 
-### Ubuntu Touch–first design
+- **Ubuntu Touch–first & confined**
 
-*   Runs as a **confined** UT app.
-    
-*   Plays nicely with the UT sandbox and AppArmor policy.
-    
-*   File access is intentionally limited to internal app folders.
-    
+  - Designed specifically for Ubuntu Touch 24.04 (Lomiri), running as a confined app.
 
-### Convergent UI (phone & desktop)
-
-*   UI designed for mobile screens but works well in convergence mode with external display, keyboard and mouse.
-    
-*   **UI scaling** option to change the size of browser chrome (toolbar, tabs, controls) independently from page zoom, so you can tune it to your particular screen and DPI.
+  - Plays nicely with the sandbox/AppArmor model; file access is limited to internal app folders.
 
 
-### Localization
+- **Convergent UI (phone & desktop)**
 
-*   App UI is available in multiple languages:
+  - Single-window layout optimised for phones and convergence mode with external display, keyboard and mouse.
 
-    *   English
-
-    *   Ukrainian
-
-    *   French
-
-    *   German
-
-    *   Polish
-
-*   More translations can be added over time based on user feedback.
-    
-
-### Tor integration (optional)
-
-*   Bundles the **Tor** binary as part of the app (downloaded from a Debian package during build and cached in `resources/tor/`).
-    
-*   Single toggle in the UI to route traffic through Tor.
-    
-*   Automatic Tor check tab when Tor is enabled, with an option to start Tor on browser launch ("Keep Tor enabled").
-    
-*   Tor version and license are displayed in the **About** / **Licenses** sections.
-    
-
-> Note: Merezhyvo uses Tor as an optional connection layer, but it is **not** the official Tor Browser and does **not** implement all of Tor Browser's fingerprinting protections.
+  - Adjustable UI scaling: change the size of toolbar, tabs and controls independently from page zoom.
 
 
-### Bookmarks and password manager
+- **Privacy & security controls**
 
-*   Simple bookmark system:
-    
-    *   one root tree, search and basic filtering;
-        
-    *   import/export using the standard Netscape bookmark HTML format (Chrome/Firefox compatible).
-        
-*   Basic password manager:
-    
-    *   local storage only;
-        
-    *   protected with a master password.
+  - No tracking, analytics or telemetry; all browsing data stays inside the app sandbox.
+
+  - In-app certificate validation with a security indicator, warning screen and certificate info popover.
+
+  - Configurable HTTPS mode (Strict / Preferred).
+
+  - WebRTC privacy modes (Always allowed / Always blocked / Blocked when Tor is enabled).
 
 
-### Tab search & smart address bar
+- **Optional Tor integration**
 
-*   **Search across open tabs** – quickly find a tab by typing part of its title or URL.
+  - Built-in Tor binary, with a simple toggle to route traffic through Tor.
 
-*   **Address bar suggestions** – as you type in the URL bar, Merezhyvo searches your history and bookmarks and shows a list of previously visited or saved sites.
+  - Optional “keep Tor enabled” behaviour and a Tor-check tab when you turn it on.
 
-        
 
-### Predictable downloads & safe uploads
+- **Bookmarks, passwords & search**
 
-To respect confinement and keep the model simple, the browser uses two dedicated folders inside the app sandbox:
+  - Simple bookmarks manager with search and Netscape HTML import/export.
 
-*   **Downloads:**
-    
-    *   all HTTP/HTTPS downloads go to:
-        
-        *   `~/.local/share/merezhyvo.naz.r/mDownloads`
-            
-    *   the system file dialog is skipped for downloads.
-        
-    *   You can create a symlink from your regular `Downloads` folder to this path for easier access from the file manager.
-        
-*   **Uploads / imports:**
-    
-    *   file pickers (imports/exports, `<input type="file">`, etc.) are pinned to:
-        
-        *   `~/.local/share/merezhyvo.naz.r/mDocuments`
-            
-    *   a message explains this restriction and shows a one-liner command to create a convenient symlink.
-        
+  - Local-only password manager protected by a master password.
 
-Both folders are created automatically on first start if they do not exist.
+  - Built-in autofill flows credentials directly from storage into forms (without using the system clipboard).
 
-### Integrated on-screen keyboard (OSK)
+  - Search across open tabs and smart address bar suggestions from history and bookmarks.
 
-*   Custom on-screen keyboard tailored for the browser (based on `react-simple-keyboard`).
-    
-*   **12 languages/layouts** supported (including `en`, `uk`, `de`, `pl`, `es`, `it`, `pt`, `fr`, `tr`, `nl`, `ro`, `ar`).
-    
-*   Features:
-    
-    *   long-press alternates (e.g. `ó, ö, ô, ñ, ä, ß, ₴, ğ, ş` ...);
-        
-    *   two symbol pages (`1/2`);
-        
-    *   tap **Shift** for one uppercase; long-press **Shift** for Caps Lock;
-        
-    *   language switch cycles enabled layouts; current layout label is shown on the **Space** key.
-        
-*   All keyboard settings are managed in **Settings → Keyboard**.
+
+- **Predictable downloads & safe uploads**
+
+  - Dedicated sandboxed folders for downloads (`mDownloads`) and uploads (`mDocuments`) under `~/.local/share/merezhyvo.naz.r/`.
+
+  - Compatible with symlinks from your usual `Downloads` / documents directories.
+
+
+- **Integrated on-screen keyboard**
+
+  - Custom OSK tailored for the browser with multiple layouts (including `en`, `uk`, `de`, `pl`, `fr`, `es`, `it`, `pt`, `tr`, `nl`, `ro`, `ar`).
+
+  - Long-press alternates, symbol pages, Caps Lock via long-press Shift and layout switching managed in **Settings → Keyboard**.
+
+
+- **Localization**
+
+  - UI available in English, Ukrainian, French, German and Polish (more languages can be added over time).
     
 
 - - -
@@ -172,19 +120,6 @@ electron/ # Electron main process and preload
   preload.ts # exposes window.merezhyvo.\* to the renderer
 
   lib/ # main-process helpers (settings, Tor, geo, etc.)
-
-
-resources/
-
-  app.asar # packaged renderer
-
-  ut/location\_once.qml # UT-specific QML snippet
-
-  tor/tor # embedded Tor binary (copied at build time)
-
-  tor/LICENSE # Tor license
-
-  tor/version.txt # Tor version used in this build
 
 
 resources/
@@ -326,20 +261,28 @@ Internal settings are stored in a JSON file under the user's `~/.config` directo
 ## Privacy
 
 *   No tracking, no analytics, no telemetry.
-    
+
 *   No calls to third-party analytics or crash reporting services.
-    
+
 *   All browsing data (history, bookmarks, passwords) stays inside the app sandbox on the device.
-    
+
+*   HTTPS-only / HTTPS-preferred modes with in-app certificate validation and clear security indicators.
+
+*   WebRTC can be fully disabled, or automatically disabled when Tor is enabled, to reduce IP-leak surface.
+
+*   Built-in password autofill never uses the system clipboard: credentials are sent directly from encrypted storage into page forms and only live in memory long enough to fill the fields.
+
 
 Tor support can improve privacy by routing traffic through the Tor network, but:
 
-*   Merezhyvo is **not** the official Tor Browser.
-    
-*   It does **not** include all Tor Browser hardening and fingerprinting protection.
-    
 
-For sensitive use, please follow the Tor Project's recommendations and combine Tor with good security practices.
+*   Merezhyvo is **not** the official Tor Browser.
+
+*   It does **not** include all Tor Browser hardening and fingerprinting protection.
+
+
+For sensitive use, please follow the Tor Project’s recommendations and combine Tor with good security practices.
+
 
 - - -
 
