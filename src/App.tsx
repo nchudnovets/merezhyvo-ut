@@ -483,14 +483,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const navigationStateRef = useRef<
     Map<string, { originalUrl: string; upgradedFromHttp: boolean; triedHttpFallback: boolean }>
   >(new Map());
-  const debugCertLog = useCallback((label: string, data?: Record<string, unknown>) => {
-    try {
-      // eslint-disable-next-line no-console
-      console.log(`[cert-debug] ${label}`, JSON.stringify(data) ?? {});
-    } catch {
-      // noop
-    }
-  }, []);
   const allowHttpOnceRef = useRef<Set<string>>(new Set());
   const autoContinuedCertRef = useRef<Set<number>>(new Set());
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
@@ -564,26 +556,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const errorType = deriveErrorType(candidate);
     const host = candidate.host || normalizeHost(candidate.url);
     const hasException = hasSslException(host, errorType);
-    const result = (() => {
-      if (candidate.state === 'invalid') {
-        return !hasException;
-      }
-      if (candidate.state === 'missing') {
-        if (httpsModeRef.current === 'preferred') return false;
-        return !hasException;
-      }
-      return false;
-    })();
-    debugCertLog('should-block', {
-      state: candidate.state,
-      host: host ?? null,
-      errorType,
-      hasException,
-      httpsMode: httpsModeRef.current,
-      result
-    });
-    return result;
-  }, [hasSslException, debugCertLog]);
+    if (candidate.state === 'invalid') {
+      return !hasException;
+    }
+    if (candidate.state === 'missing') {
+      if (httpsModeRef.current === 'preferred') return false;
+      return !hasException;
+    }
+    return false;
+  }, [hasSslException]);
 
   const pickDefault = useCallback((def: unknown, enabled: LayoutId[]): LayoutId => {
     if (
@@ -1510,7 +1491,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       upgradedFromHttp: existing?.upgradedFromHttp ?? false,
       triedHttpFallback: existing?.triedHttpFallback ?? false
     });
-  }, [forceNavigateTab]);
+  }, [forceNavigateTab, hasSslException]);
 
   const handleNavigationError = useCallback(
     (tabId: string, payload: { errorCode: number; errorDescription: string; validatedURL: string; isMainFrame: boolean }) => {
@@ -1659,7 +1640,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setInputValue(cleanUrl);
       lastLoadedRef.current = { id: tabId, url: cleanUrl };
     }
-  }, [updateMetaAction]);
+  }, [updateMetaAction, hasSslException]);
 
   const handleHostDomReady = useCallback((tabId: string) => {
     const entry = tabViewsRef.current.get(tabId);
@@ -1899,31 +1880,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         return id === activeWcIdRef.current;
       })();
       const hostFromNext = normalizeHost(next?.host ?? next?.url);
-      const blockingRefState = blockingCertRef.current?.state ?? null;
       const blockingRefHost = blockingCertRef.current?.host ?? normalizeHost(blockingCertRef.current?.url);
       const currentHost = certStatusRef.current?.host ?? normalizeHost(certStatusRef.current?.url);
       const activeHost = normalizeHost(activeTabRef.current?.url);
       const lookupHost = hostFromNext ?? blockingRefHost ?? currentHost ?? activeHost;
-      const storedInvalid = lookupHost ? storedInvalidCertRef.current.get(lookupHost) ?? null : null;
-      debugCertLog('pre-next', {
-        wcId: wcIdCandidate,
-        activeWcId: activeWcIdRef.current,
-        activeMatch: isActiveMatch,
-        nextState: next?.state ?? null,
-        nextHost: hostFromNext ?? null,
-        currentState: certStatusRef.current?.state ?? null,
-        currentHost,
-        blockingState: blockingRefState,
-        blockingHost: blockingRefHost,
-        storedInvalidState: storedInvalid?.state ?? null
-      });
-      debugCertLog('update', {
-        wcId: wcIdCandidate,
-        activeWcId: activeWcIdRef.current,
-        host: hostFromNext,
-        state: next?.state,
-        activeMatch: isActiveMatch
-      });
       if (wcIdCandidate && isActiveMatch) {
         const current = certStatusRef.current;
         const blockingPrev = blockingCertRef.current;
@@ -1964,16 +1924,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         if (safeNextState && !safeNextState.host && safeHost) {
           safeNextState = { ...safeNextState, host: safeHost };
         }
-        debugCertLog('next-state', {
-          safeState: safeNextState?.state,
-          safeHost,
-          bypassed,
-          bypassedByException,
-          hadBlocking,
-          shouldIgnoreOk,
-          forceKeepBlocking,
-          storedInvalidState: storedInvalid?.state ?? null
-        });
 
         setCertStatus(safeNextState);
         certStatusRef.current = safeNextState;
@@ -1990,13 +1940,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             (bypassed || hasSslException(blockingPrevHost, blockingErrorType)) &&
             (!safeHost || !blockingPrevHost || blockingPrevHost === safeHost);
           if (preserveBlocking && blockingPrev) {
-            debugCertLog('keep-blocking-on-ok', {
-              blockingHost: blockingPrevHost ?? null,
-              blockingState: blockingPrev.state,
-              safeHost,
-              bypassed,
-              hasException: hasSslException(blockingPrevHost, blockingErrorType)
-            });
             nextBlocking = blockingPrev;
             setCertStatus(blockingPrev);
             certStatusRef.current = blockingPrev;
@@ -2011,12 +1954,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               hasSslException(safeHost, storedErrorType) &&
               (!blockingPrevHost || blockingPrevHost === safeHost);
             if (keepStored) {
-              debugCertLog('keep-stored-on-ok', {
-                host: safeHost,
-                storedState: stored.state,
-                storedErrorType,
-                hasException: hasSslException(safeHost, storedErrorType)
-              });
               nextBlocking = stored;
               setCertStatus(stored);
               certStatusRef.current = stored;
@@ -2056,7 +1993,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try { off(); } catch {}
       }
     };
-  }, [getWebContentsIdSafe, updateMetaAction, shouldBlockCert]);
+  }, [getWebContentsIdSafe, updateMetaAction, shouldBlockCert, hasSslException]);
 
   const blockingActive =
     blockingCertRef.current &&
@@ -2123,53 +2060,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [displayCertEffective]);
 
-  useEffect(() => {
-    debugCertLog('render-state', {
-      displayHost: certHost ?? null,
-      displayState: displayCertEffective?.state ?? null,
-      candidateState: certCandidate?.state ?? null,
-      certStatus: certStatus?.state ?? null,
-      certBlock,
-      certWarning,
-      exceptionAllowed: certExceptionAllowed,
-      errorType: certErrorType,
-      activeTab: activeId ?? null,
-      bypassed: activeId ? certBypassRef.current.has(activeId) : false,
-      source: blockingActive
-        ? 'blocking'
-        : displayCert
-          ? 'display'
-          : certStatus
-            ? 'status'
-            : blockingCertRef.current
-              ? 'blockingRef'
-              : 'none'
-    });
-  }, [
-    activeId,
-    certBlock,
-    certCandidate,
-    certErrorType,
-    certExceptionAllowed,
-    certHost,
-    certStatus,
-    certWarning,
-    displayCert,
-    displayCertEffective,
-    blockingActive,
-    debugCertLog
-  ]);
-
-  useEffect(() => {
-    if (!certExceptionAllowed) return;
-    debugCertLog('exception-allowed', {
-      host: certHost ?? null,
-      errorType: certErrorType,
-      displayState: displayCertEffective?.state ?? null,
-      securityState
-    });
-  }, [certExceptionAllowed, certHost, certErrorType, displayCertEffective, securityState, debugCertLog]);
-
   const handleToggleCertException = useCallback(
     (nextValue: boolean) => {
       if (!displayCertEffective) return;
@@ -2225,9 +2115,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       autoContinuedCertRef.current.delete(wcId);
     }
   }, [certStatus, shouldBlockCert]);
-
-  useEffect(() => {
-  }, [activeId, certStatus, certWarning]);
 
   useEffect(() => {
     setSecurityPopoverOpen(false);
@@ -2321,12 +2208,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           initialUrl={initialUrl}
           mode={modeOverride}
           zoom={zoomOverride}
-          onCanGo={(state) => handleHostCanGo(tab.id, state)}
-          onStatus={(nextStatus) => handleHostStatus(tab.id, nextStatus)}
-          onUrlChange={(url) => handleHostUrlChange(tab.id, url)}
+          onCanGo={(state: NavigationState | null) => handleHostCanGo(tab.id, state)}
+          onStatus={(nextStatus: StatusState) => handleHostStatus(tab.id, nextStatus)}
+          onUrlChange={(url: string) => handleHostUrlChange(tab.id, url)}
           onDomReady={() => handleHostDomReady(tab.id)}
-          onNavigationStart={(payload) => handleNavigationStart(tab.id, payload)}
-          onNavigationError={(payload) => handleNavigationError(tab.id, payload)}
+          onNavigationStart={(payload: { url: string; isInPage: boolean }) => handleNavigationStart(tab.id, payload)}
+          onNavigationError={(payload: { errorCode: number; errorDescription: string; validatedURL: string; isMainFrame: boolean }) =>
+            handleNavigationError(tab.id, payload)}
           style={{ width: '100%', height: '100%' }}
         />
       );
@@ -3445,7 +3333,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       // If all entries share the same origin but the bare origin is missing, prepend it.
       if (combined.length > 0) {
         try {
-          const first = new URL(combined[0].url);
+          const firstEntry = combined[0];
+          if (!firstEntry) {
+            return;
+          }
+          const first = new URL(firstEntry.url);
           const baseOrigin = first.origin;
           const allSameOrigin = combined.every((item) => {
             try {
@@ -4135,7 +4027,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         <input
           type="checkbox"
           checked={rememberExceptionChecked}
-          onChange={(e) => setRememberExceptionChecked(e.target.checked)}
+          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRememberExceptionChecked(e.target.checked)}
           style={{ width: mode === 'mobile' ? 30 : 16, height: mode === 'mobile' ? 30 : 16 }}
         />
         <span>{t('cert.actions.remember')}</span>
@@ -4166,7 +4058,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             // Keep blocking cert cached so the shield stays red after proceeding.
             // Only clear the overlay state.
             const wcId = activeWcIdRef.current;
-            if (certStatus.state === 'invalid' && wcId) {
+            if (certStatus?.state === 'invalid' && wcId) {
               try {
                 await window.merezhyvo?.certificates?.continue?.(wcId);
               } catch {
@@ -4405,7 +4297,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onForward={handleForward}
               onReload={handleReload}
               onSubmit={handleSubmit}
-              onInputChange={(value) => setInputValue(value)}
+              onInputChange={(value: string) => setInputValue(value)}
               onInputPointerDown={handleInputPointerDown}
               onInputFocus={handleInputFocus}
               onInputBlur={handleInputBlur}

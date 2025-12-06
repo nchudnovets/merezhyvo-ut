@@ -21,7 +21,7 @@
     "emitDeclarationOnly": false,
     "skipLibCheck": true,
 
-    "types": ["node", "electron"],
+    "types": ["node", "electron", "react"],
     "forceConsistentCasingInFileNames": true,
     "resolveJsonModule": true,
     "isolatedModules": true,
