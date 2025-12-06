@@ -477,11 +477,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
   const blockingCertRef = useRef<CertificateInfo | null>(null);
+  const storedInvalidCertRef = useRef<Map<string, CertificateInfo>>(new Map());
   const httpsModeRef = useRef<HttpsMode>('strict');
   const sslExceptionsRef = useRef<SslException[]>([]);
   const navigationStateRef = useRef<
     Map<string, { originalUrl: string; upgradedFromHttp: boolean; triedHttpFallback: boolean }>
   >(new Map());
+  const debugCertLog = useCallback((label: string, data?: Record<string, unknown>) => {
+    try {
+      // eslint-disable-next-line no-console
+      console.log(`[cert-debug] ${label}`, JSON.stringify(data) ?? {});
+    } catch {
+      // noop
+    }
+  }, []);
   const allowHttpOnceRef = useRef<Set<string>>(new Set());
   const autoContinuedCertRef = useRef<Set<number>>(new Set());
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
@@ -554,15 +563,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!candidate) return false;
     const errorType = deriveErrorType(candidate);
     const host = candidate.host || normalizeHost(candidate.url);
-    if (candidate.state === 'invalid') {
-      return !hasSslException(host, errorType);
-    }
-    if (candidate.state === 'missing') {
-      if (httpsModeRef.current === 'preferred') return false;
-      return !hasSslException(host, errorType);
-    }
-    return false;
-  }, [hasSslException]);
+    const hasException = hasSslException(host, errorType);
+    const result = (() => {
+      if (candidate.state === 'invalid') {
+        return !hasException;
+      }
+      if (candidate.state === 'missing') {
+        if (httpsModeRef.current === 'preferred') return false;
+        return !hasException;
+      }
+      return false;
+    })();
+    debugCertLog('should-block', {
+      state: candidate.state,
+      host: host ?? null,
+      errorType,
+      hasException,
+      httpsMode: httpsModeRef.current,
+      result
+    });
+    return result;
+  }, [hasSslException, debugCertLog]);
 
   const pickDefault = useCallback((def: unknown, enabled: LayoutId[]): LayoutId => {
     if (
@@ -1877,8 +1898,41 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
         return id === activeWcIdRef.current;
       })();
+      const hostFromNext = normalizeHost(next?.host ?? next?.url);
+      const blockingRefState = blockingCertRef.current?.state ?? null;
+      const blockingRefHost = blockingCertRef.current?.host ?? normalizeHost(blockingCertRef.current?.url);
+      const currentHost = certStatusRef.current?.host ?? normalizeHost(certStatusRef.current?.url);
+      const activeHost = normalizeHost(activeTabRef.current?.url);
+      const lookupHost = hostFromNext ?? blockingRefHost ?? currentHost ?? activeHost;
+      const storedInvalid = lookupHost ? storedInvalidCertRef.current.get(lookupHost) ?? null : null;
+      debugCertLog('pre-next', {
+        wcId: wcIdCandidate,
+        activeWcId: activeWcIdRef.current,
+        activeMatch: isActiveMatch,
+        nextState: next?.state ?? null,
+        nextHost: hostFromNext ?? null,
+        currentState: certStatusRef.current?.state ?? null,
+        currentHost,
+        blockingState: blockingRefState,
+        blockingHost: blockingRefHost,
+        storedInvalidState: storedInvalid?.state ?? null
+      });
+      debugCertLog('update', {
+        wcId: wcIdCandidate,
+        activeWcId: activeWcIdRef.current,
+        host: hostFromNext,
+        state: next?.state,
+        activeMatch: isActiveMatch
+      });
       if (wcIdCandidate && isActiveMatch) {
         const current = certStatusRef.current;
+        const blockingPrev = blockingCertRef.current;
+        const blockingPrevHost = blockingPrev?.host ?? normalizeHost(blockingPrev?.url);
+        const blockingPrevIsProblem =
+          blockingPrev && (blockingPrev.state === 'invalid' || blockingPrev.state === 'missing');
+        const storedInvalid = lookupHost ? storedInvalidCertRef.current.get(lookupHost) ?? null : null;
+        const storedInvalidIsProblem =
+          storedInvalid && (storedInvalid.state === 'invalid' || storedInvalid.state === 'missing');
         if ((!next || next.state === 'unknown') && current && (current.state === 'invalid' || current.state === 'missing')) {
           return;
         }
@@ -1886,25 +1940,90 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const bypassed = activeTabId ? certBypassRef.current.has(activeTabId) : false;
         const hadBlocking =
           (current?.state === 'invalid' || current?.state === 'missing') ||
-          (blockingCertRef.current?.state === 'invalid' || blockingCertRef.current?.state === 'missing');
-        const bypassedByException = hadBlocking && !shouldBlockCert(current ?? blockingCertRef.current ?? next ?? null);
+          blockingPrevIsProblem ||
+          storedInvalidIsProblem;
+        const bypassedByException = hadBlocking && !shouldBlockCert(current ?? blockingPrev ?? storedInvalid ?? next ?? null);
         const shouldIgnoreOk =
           (bypassed || bypassedByException) &&
           next?.state === 'ok' &&
           hadBlocking;
+        const forceKeepBlocking =
+          next?.state === 'ok' &&
+          ((blockingPrevIsProblem &&
+            blockingPrevHost &&
+            hasSslException(blockingPrevHost, deriveErrorType(blockingPrev ?? null))) ||
+            (storedInvalidIsProblem &&
+              lookupHost &&
+              hasSslException(lookupHost, deriveErrorType(storedInvalid ?? null))));
         const nextState =
-          shouldIgnoreOk
-            ? current ?? blockingCertRef.current ?? next ?? null
+          shouldIgnoreOk || forceKeepBlocking
+            ? storedInvalid ?? blockingPrev ?? current ?? next ?? null
             : next ?? null;
-        const safeNextState: CertificateInfo | null = nextState ?? null;
+        let safeNextState: CertificateInfo | null = nextState ?? null;
+        const safeHost = safeNextState?.host ?? normalizeHost(safeNextState?.url) ?? lookupHost ?? null;
+        if (safeNextState && !safeNextState.host && safeHost) {
+          safeNextState = { ...safeNextState, host: safeHost };
+        }
+        debugCertLog('next-state', {
+          safeState: safeNextState?.state,
+          safeHost,
+          bypassed,
+          bypassedByException,
+          hadBlocking,
+          shouldIgnoreOk,
+          forceKeepBlocking,
+          storedInvalidState: storedInvalid?.state ?? null
+        });
 
         setCertStatus(safeNextState);
         certStatusRef.current = safeNextState;
-        let nextBlocking: CertificateInfo | null = blockingCertRef.current ?? null;
+        let nextBlocking: CertificateInfo | null = blockingPrev ?? storedInvalid ?? null;
         if (safeNextState && (safeNextState.state === 'invalid' || safeNextState.state === 'missing')) {
           nextBlocking = safeNextState;
-        } else if (safeNextState && safeNextState.state === 'ok' && !shouldIgnoreOk) {
-          nextBlocking = null;
+          if (safeHost) {
+            storedInvalidCertRef.current.set(safeHost, safeNextState);
+          }
+        } else if (safeNextState && safeNextState.state === 'ok' && !shouldIgnoreOk && !forceKeepBlocking) {
+          const blockingErrorType = deriveErrorType(blockingPrev ?? null);
+          const preserveBlocking =
+            blockingPrevIsProblem &&
+            (bypassed || hasSslException(blockingPrevHost, blockingErrorType)) &&
+            (!safeHost || !blockingPrevHost || blockingPrevHost === safeHost);
+          if (preserveBlocking && blockingPrev) {
+            debugCertLog('keep-blocking-on-ok', {
+              blockingHost: blockingPrevHost ?? null,
+              blockingState: blockingPrev.state,
+              safeHost,
+              bypassed,
+              hasException: hasSslException(blockingPrevHost, blockingErrorType)
+            });
+            nextBlocking = blockingPrev;
+            setCertStatus(blockingPrev);
+            certStatusRef.current = blockingPrev;
+          } else {
+            nextBlocking = null;
+          }
+          if (safeHost) {
+            const stored = storedInvalidCertRef.current.get(safeHost);
+            const storedErrorType = deriveErrorType(stored ?? null);
+            const keepStored =
+              stored &&
+              hasSslException(safeHost, storedErrorType) &&
+              (!blockingPrevHost || blockingPrevHost === safeHost);
+            if (keepStored) {
+              debugCertLog('keep-stored-on-ok', {
+                host: safeHost,
+                storedState: stored.state,
+                storedErrorType,
+                hasException: hasSslException(safeHost, storedErrorType)
+              });
+              nextBlocking = stored;
+              setCertStatus(stored);
+              certStatusRef.current = stored;
+            } else {
+              storedInvalidCertRef.current.delete(safeHost);
+            }
+          }
         }
         blockingCertRef.current = nextBlocking;
         setDisplayCert(nextBlocking ?? safeNextState ?? null);
@@ -1944,14 +2063,42 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     (blockingCertRef.current.state === 'invalid' || blockingCertRef.current.state === 'missing')
       ? blockingCertRef.current
       : null;
+  const storedInvalidForDisplay = (() => {
+    const host =
+      blockingActive?.host ??
+      displayCert?.host ??
+      certStatus?.host ??
+      normalizeHost(displayCert?.url ?? certStatus?.url) ??
+      normalizeHost(activeTabRef.current?.url);
+    return host ? storedInvalidCertRef.current.get(host) ?? null : null;
+  })();
+  let displayCertEffective =
+    blockingActive ??
+    storedInvalidForDisplay ??
+    displayCert ??
+    blockingCertRef.current ??
+    certStatus ??
+    null;
+  const certHost =
+    displayCertEffective?.host ??
+    storedInvalidForDisplay?.host ??
+    normalizeHost(displayCertEffective?.url ?? storedInvalidForDisplay?.url) ??
+    normalizeHost(activeTabRef.current?.url);
+  const certErrorType = deriveErrorType(displayCertEffective ?? storedInvalidForDisplay ?? null);
   const certCandidate =
-    blockingActive ? blockingActive : certStatus ?? blockingCertRef.current;
+    blockingActive ? blockingActive : displayCertEffective ?? certStatus ?? blockingCertRef.current;
   const certBlock = certCandidate ? shouldBlockCert(certCandidate) : false;
-  const displayCertEffective =
-    blockingActive ?? displayCert ?? certStatus ?? blockingCertRef.current ?? null;
-  const certHost = displayCertEffective?.host ?? normalizeHost(displayCertEffective?.url);
-  const certErrorType = deriveErrorType(displayCertEffective ?? null);
   const certExceptionAllowed = hasSslException(certHost, certErrorType);
+  if (certExceptionAllowed && (!displayCertEffective || displayCertEffective.state === 'ok')) {
+    const fallback: CertificateInfo = {
+      state: 'invalid',
+      host: certHost ?? null,
+      url: displayCertEffective?.url ?? activeTabRef.current?.url ?? null,
+      error: certErrorType ?? null,
+      updatedAt: Date.now()
+    };
+    displayCertEffective = fallback;
+  }
   const certWarning =
     certCandidate &&
     (certCandidate.state === 'invalid' || certCandidate.state === 'missing') &&
@@ -1976,6 +2123,53 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [displayCertEffective]);
 
+  useEffect(() => {
+    debugCertLog('render-state', {
+      displayHost: certHost ?? null,
+      displayState: displayCertEffective?.state ?? null,
+      candidateState: certCandidate?.state ?? null,
+      certStatus: certStatus?.state ?? null,
+      certBlock,
+      certWarning,
+      exceptionAllowed: certExceptionAllowed,
+      errorType: certErrorType,
+      activeTab: activeId ?? null,
+      bypassed: activeId ? certBypassRef.current.has(activeId) : false,
+      source: blockingActive
+        ? 'blocking'
+        : displayCert
+          ? 'display'
+          : certStatus
+            ? 'status'
+            : blockingCertRef.current
+              ? 'blockingRef'
+              : 'none'
+    });
+  }, [
+    activeId,
+    certBlock,
+    certCandidate,
+    certErrorType,
+    certExceptionAllowed,
+    certHost,
+    certStatus,
+    certWarning,
+    displayCert,
+    displayCertEffective,
+    blockingActive,
+    debugCertLog
+  ]);
+
+  useEffect(() => {
+    if (!certExceptionAllowed) return;
+    debugCertLog('exception-allowed', {
+      host: certHost ?? null,
+      errorType: certErrorType,
+      displayState: displayCertEffective?.state ?? null,
+      securityState
+    });
+  }, [certExceptionAllowed, certHost, certErrorType, displayCertEffective, securityState, debugCertLog]);
+
   const handleToggleCertException = useCallback(
     (nextValue: boolean) => {
       if (!displayCertEffective) return;
@@ -1993,11 +2187,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (certStatus && certStatus.state === 'ok') {
       const blocking = blockingCertRef.current;
       const blockingIsProblem = blocking && (blocking.state === 'invalid' || blocking.state === 'missing');
-      const sameHost =
-        blocking?.host && certStatus.host
-          ? blocking.host === certStatus.host
-          : false;
-      if (blockingIsProblem && sameHost) {
+      const statusHost = certStatus.host ?? normalizeHost(certStatus.url);
+      const blockingHost = blocking?.host ?? normalizeHost(blocking?.url);
+      const sameHost = blockingHost && statusHost ? blockingHost === statusHost : false;
+      if (blockingIsProblem && (sameHost || !statusHost)) {
         // keep previous blocking info so the shield stays red for this host
         return;
       }
