@@ -100,8 +100,9 @@ const TorSettings: React.FC<TorSettingsProps> = ({
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 999,
-                backgroundColor: torKeepEnabledDraft ? '#94a3b8' : '#94a3b8',
-                transition: 'background-color 160ms ease, opacity 160ms ease'
+                backgroundColor: torKeepEnabledDraft ? '#2563ebeb' : 'transparent',
+                border: `1px solid ${torKeepEnabledDraft ? '#ACB2B7' : '#ACB2B7'}`,
+                transition: 'background-color 160ms ease, opacity 160ms ease, border-color 160ms ease'
               }}
             />
             <span
@@ -113,7 +114,7 @@ const TorSettings: React.FC<TorSettingsProps> = ({
                 width: mode === 'mobile' ? 32 : 16,
                 height: mode === 'mobile' ? 32 : 16,
                 borderRadius: '50%',
-                backgroundColor: torKeepEnabledDraft ? '#2563ebeb' : '#ffffff',
+                backgroundColor: torKeepEnabledDraft ? '#ffffff' : '#ACB2B7',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
                 transition: 'left 160ms ease'
               }}

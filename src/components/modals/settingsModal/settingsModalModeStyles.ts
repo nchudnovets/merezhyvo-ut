@@ -430,7 +430,8 @@ export const settingsModalModeStyles: ModeStyleMap = {
       minHeight: 'clamp(74px, 10vw, 90px)',
       fontSize: 'clamp(33px, 5vw, 40px)',
       padding: '0 clamp(30px, 5vw, 42px)',
-      borderRadius: '24px'
+      borderRadius: '24px',
+      width: '100%'
     },
     settingsLinkRow: {
       marginTop: '28px'

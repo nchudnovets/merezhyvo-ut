@@ -824,10 +824,12 @@ export const settingsModalStyles: StyleRecord = {
   settingsButton: {
     border: '1px solid rgba(148, 163, 184, 0.35)',
     borderRadius: '12px',
-    background: 'rgba(15, 23, 42, 0.7)',
+    background: '#2563ebeb',
     color: '#f8fafc',
     padding: '8px 16px',
-    cursor: 'pointer'
+    cursor: 'pointer',
+    width: '60%',
+    margin: '0 auto'
   },
   settingsLinkButton: {
     border: 'none',

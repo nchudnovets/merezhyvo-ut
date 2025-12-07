@@ -179,9 +179,6 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   const toggleLabelStyle = isMobile && modeStyles.settingsToggleLabel
     ? { ...styles.settingsToggleLabel, ...modeStyles.settingsToggleLabel }
     : styles.settingsToggleLabel;
-  const toggleInputStyle = isMobile && modeStyles.settingsToggle
-    ? { ...styles.settingsToggle, ...modeStyles.settingsToggle }
-    : styles.settingsToggle;
   const rowStyle = isMobile && modeStyles.settingsRow
     ? { ...styles.settingsRow, ...modeStyles.settingsRow }
     : styles.settingsRow;
@@ -210,11 +207,23 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         { field: 'disallowHttp', label: t('passwordSettings.toggle.disallowHttp') }
       ] as const).map(({ field, label }) => {
         const checked = settings?.[field] ?? false;
-        const size = isMobile ? 38 : 18;
+        const trackWidth = isMobile ? 74 : 48;
+        const trackHeight = isMobile ? 40 : 20;
+        const knobSize = isMobile ? 32 : 16;
+        const knobTop = isMobile ? 4 : 2;
+        const knobLeft = checked ? (isMobile ? 36 : 26) : (isMobile ? 4 : 2);
         return (
           <label key={field} style={{ ...toggleRowStyle, alignItems: 'center', gap: 10 }}>
             <span style={toggleLabelStyle}>{label}</span>
-            <span style={{ position: 'relative', width: size, height: size, flexShrink: 0, display: 'inline-flex', alignItems: 'center' }}>
+            <span
+              style={{
+                position: 'relative',
+                width: trackWidth,
+                height: trackHeight,
+                flexShrink: 0,
+                display: 'inline-block'
+              }}
+            >
               <input
                 type="checkbox"
                 checked={checked}
@@ -225,36 +234,35 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
                   inset: 0,
                   margin: 0,
                   opacity: 0,
-                  cursor: !settings || saving ? 'not-allowed' : 'pointer'
+                  cursor: !settings || saving ? 'not-allowed' : 'pointer',
+                  zIndex: 2
                 }}
               />
-              {checked && (
-                <span
-                  aria-hidden="true"
-                  style={{
-                    width: size,
-                    height: size,
-                    borderRadius: 6,
-                    border: '1px solid #2563ebeb',
-                    display: 'inline-flex',
-                    alignItems: 'center',
-                    justifyContent: 'center'
-                  }}
-                >
-                  <svg
-                    viewBox="0 0 16 16"
-                    width={size * 0.8}
-                    height={size * 0.8}
-                    fill="none"
-                    stroke="#2563ebeb"
-                    strokeWidth={isMobile ? 4 : 3}
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                  >
-                    <path d="M3 8.5 6.5 12 13 4" />
-                  </svg>
-                </span>
-              )}
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: 999,
+                  backgroundColor: checked ? '#2563ebeb' : 'transparent',
+                  border: `1px solid #ACB2B7`,
+                  transition: 'background-color 160ms ease, border-color 160ms ease'
+                }}
+              />
+              <span
+                aria-hidden="true"
+                style={{
+                  position: 'absolute',
+                  top: knobTop,
+                  left: knobLeft,
+                  width: knobSize,
+                  height: knobSize,
+                  borderRadius: '50%',
+                  backgroundColor: checked ? '#ffffff' : '#ACB2B7',
+                  boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                  transition: 'left 160ms ease'
+                }}
+              />
             </span>
           </label>
         );
@@ -328,7 +336,29 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           }}
           role="status"
         >
-          {status}
+          {status === t('passwordSettings.status.locked') ? (
+            <>
+              <svg
+                width={isMobile ? 38 : 18}
+                height={isMobile ? 38 : 18}
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                aria-hidden="true"
+                focusable="false"
+                style={{ marginRight: 8, verticalAlign: 'text-bottom' }}
+              >
+                <rect x="3" y="11" width="18" height="11" rx="2" />
+                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+              </svg>
+              {status}
+            </>
+          ) : (
+            status
+          )}
         </p>
       )}
       <ChangeMasterPasswordModal
