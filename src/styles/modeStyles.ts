@@ -6,7 +6,7 @@ type ModeStyleMap = Partial<Record<string, CSSProperties>>;
 export const modeStyles: Record<Mode, ModeStyleMap> = {
   desktop: {
     toolbarBtnRegular: { width: '40px', height: '40px' },
-    toolbarBtnIcn: { width: '18px', height: '18px' },
+    toolbarBtnIcn: { width: '25px', height: '25px' },
     toolbarBtnDesktopOnly: {},
     searchInput: { fontSize: '14px', height: '36px', paddingRight: '56px' },
     makeAppBtn: { width: '36px', height: '26px' },

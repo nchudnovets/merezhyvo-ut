@@ -31,7 +31,7 @@ export const styles = {
     height: '42px',
     borderRadius: '14px',
     border: 'none',
-    backgroundColor: '#1c2333',
+    backgroundColor: 'transparent',
     color: '#f8fafc',
     fontSize: '18px',
     display: 'flex',
@@ -84,9 +84,9 @@ export const styles = {
     flex: 1,
     width: '100%',
     height: '36px',
-    borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#0f1729',
+    borderRadius: '10px',
+    border: '1px solid #3E4D6A',
+    backgroundColor: '#213e6dff',
     color: '#f8fafc',
     padding: '0 26px 0 14px',
     outline: 'none'
@@ -95,9 +95,8 @@ export const styles = {
     position: 'relative',
     width: '42px',
     height: '42px',
-    borderRadius: '14px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#1c2333',
+    border: 'none',
+    backgroundColor: 'transparent',
     color: '#f8fafc',
     display: 'flex',
     alignItems: 'center',
@@ -114,8 +113,8 @@ export const styles = {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    width: '24px',
-    height: '24px',
+    width: '26px',
+    height: '26px',
     borderRadius: '8px',
     border: '1px solid rgba(148, 163, 184, 0.45)',
     backgroundColor: 'rgba(59, 130, 246, 0.16)',
@@ -124,7 +123,7 @@ export const styles = {
     flexShrink: 0
   },
   tabsButtonCount: {
-    fontSize: '12px',
+    fontSize: '14px',
     fontWeight: 600,
     lineHeight: 1
   },
@@ -132,8 +131,8 @@ export const styles = {
     height: '42px',
     width: '42px',
     borderRadius: '14px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#1c2333',
+    border: 'none',
+    backgroundColor: 'transparent',
     color: '#f8fafc',
     display: 'flex',
     alignItems: 'center',
@@ -147,8 +146,8 @@ export const styles = {
     transition: 'background-color 0.2s ease, color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
   },
   settingsButtonIcon: {
-    width: '18px',
-    height: '18px',
+    width: '25px',
+    height: '25px',
     display: 'block'
   },
   securityIcon: {

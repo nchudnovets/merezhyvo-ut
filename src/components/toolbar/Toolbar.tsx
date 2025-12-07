@@ -162,8 +162,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
         style={{
           ...toolbarStyles.navButton,
           ...(modeStyles.toolbarBtnRegular ?? {}),
-          border: torEnabled ? '1px solid #2563eb' : '1px solid rgba(148,163,184,.35)',
-          backgroundColor: torEnabled ? '#259cebff' : '#1c2333'
+          border: torEnabled ? '1px solid #2563eb' : 'none',
+          backgroundColor: torEnabled ? '#259cebff' : 'transparent'
         }}
       >
         <svg

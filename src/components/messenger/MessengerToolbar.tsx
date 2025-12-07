@@ -1,7 +1,8 @@
 import React, { type Ref } from 'react';
 import type { MessengerDefinition, MessengerId, Mode } from '../../types/models';
 import { messengerToolbarStyles, messengerToolbarModeStyles } from './messengerToolbarStyles';
-import { MessengerIcon, BrowserIcon } from './MessengerIcon';
+import { MessengerIcon } from './MessengerIcon';
+import { useI18n } from '../../i18n/I18nProvider';
 
 interface MessengerToolbarProps {
   mode: Mode;
@@ -23,6 +24,7 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
 }) => {
   const base = messengerToolbarStyles;
   const modeStyles = messengerToolbarModeStyles[mode] || {};
+  const { t } = useI18n();
 
   if (!messengers.length) {
     return (
@@ -41,8 +43,25 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
             ...(modeStyles.exitButton || {})
           }}
         >
-          <BrowserIcon size={modeStyles.icon?.width} />
-          <span style={{ ...base.label, ...(modeStyles.label || {}) }}>Browser</span>
+          <span style={{ ...base.label, ...(modeStyles.label || {}) }}>
+            {t('messenger.toolbar.back')}
+          </span>
+          <span style={{ ...base.icon, marginLeft: 6 }}>
+            <svg
+              width={modeStyles.icon?.width ?? 18}
+              height={modeStyles.icon?.height ?? 18}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </span>
         </button>
       </div>
     );
@@ -72,20 +91,35 @@ export const MessengerToolbar: React.FC<MessengerToolbarProps> = ({
             </button>
           );
         })}
+        <button
+          type="button"
+          onClick={onExit}
+          style={{
+            ...base.exitButton,
+            ...(modeStyles.exitButton || {})
+          }}
+        >
+          <span style={{ ...base.label, ...(modeStyles.label || {}) }}>
+            {t('messenger.toolbar.back')}
+          </span>
+          <span style={{ ...base.icon, marginLeft: 6 }}>
+            <svg
+              width={modeStyles.icon?.width ?? 18}
+              height={modeStyles.icon?.height ?? 18}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <path d="M9 18l6-6-6-6" />
+            </svg>
+          </span>
+        </button>
       </div>
-      <button
-        type="button"
-        onClick={onExit}
-        style={{
-          ...base.exitButton,
-          ...(modeStyles.exitButton || {})
-        }}
-      >
-        <span style={base.icon}>
-          <BrowserIcon size={modeStyles.icon?.width} />
-        </span>
-        <span style={{ ...base.label, ...(modeStyles.label || {}) }}>Browser</span>
-      </button>
     </div>
   );
 };

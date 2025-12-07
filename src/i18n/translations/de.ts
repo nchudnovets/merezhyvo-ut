@@ -291,6 +291,7 @@ const de = {
   'passwordSettings.button.lockNow': 'Jetzt sperren',
   'passwordSettings.button.unlock': 'Entsperren',
   'passwordSettings.button.manage': 'Passwörter verwalten…',
+  'messenger.toolbar.back': 'Zurück',
   'passwords.page.title': 'Passwörter',
   'passwords.page.search.placeholder': 'Websites und Benutzernamen suchen…',
   'passwords.page.loading': 'Passwörter werden geladen…',

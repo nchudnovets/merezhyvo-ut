@@ -89,9 +89,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   };
   const baseInputFont =
     (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
-    (mode === 'mobile' ? '36px' : '14px');
+    (mode === 'mobile' ? '36px' : '15px');
   const baseFontSize = typeof baseInputFont === 'number' ? `${baseInputFont}px` : baseInputFont;
-  const secondaryFontSize = mode === 'mobile' ? '28px' : '12px';
+  const secondaryFontSize = mode === 'mobile' ? '28px' : '14px';
 
   const suggestionsStyle: CSSProperties = {
     position: 'absolute',
@@ -99,9 +99,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
     left: 0,
     right: 0,
     width: '100%',
-    backgroundColor: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    borderRadius: '12px',
+    backgroundColor: '#213e6dff',
+    border: '1px solid #3E4D6A',
+    borderRadius: '8px',
     boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
     padding: 0,
     margin: 0,
@@ -197,7 +197,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
               minWidth: '360px',
               padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
               borderRadius: '12px',
-              background: 'rgba(5,7,15,0.97)',
+              background: '#121826',
               border: '1px solid rgba(148,163,184,0.35)',
               boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
               color: '#e2e8f0',
@@ -371,7 +371,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
             width: 36,
             minWidth: 36,
             height: 36,
-            borderRadius: 12,
+            // borderRadius: 12,
+            border: 'none',
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',

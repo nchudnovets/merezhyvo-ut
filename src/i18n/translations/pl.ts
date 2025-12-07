@@ -284,6 +284,7 @@ const pl = {
   'passwordSettings.button.lockNow': 'Zablokuj teraz',
   'passwordSettings.button.unlock': 'Odblokuj',
   'passwordSettings.button.manage': 'Zarządzaj hasłami…',
+  'messenger.toolbar.back': 'Wstecz',
   'passwords.page.title': 'Hasła',
   'passwords.page.search.placeholder': 'Szukaj witryn i nazw użytkowników…',
   'passwords.page.loading': 'Ładowanie haseł…',

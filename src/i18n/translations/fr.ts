@@ -291,6 +291,7 @@ const fr = {
   'passwordSettings.button.lockNow': 'Verrouiller maintenant',
   'passwordSettings.button.unlock': 'Déverrouiller',
   'passwordSettings.button.manage': 'Gérer les mots de passe…',
+  'messenger.toolbar.back': 'Retour',
   'passwords.page.title': 'Mots de passe',
   'passwords.page.search.placeholder': 'Rechercher sites et identifiants…',
   'passwords.page.loading': 'Chargement des mots de passe…',

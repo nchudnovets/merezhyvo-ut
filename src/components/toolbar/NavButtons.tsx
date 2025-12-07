@@ -57,34 +57,34 @@ const NavButtons: React.FC<NavButtonsProps> = ({
         </button>
       )}
 
-          <button
-            type="button"
-            aria-label={t('nav.forward')}
-        disabled={!canGoForward}
-      onClick={onForward}
-      style={{
-        ...toolbarStyles.navButton,
-        ...(modeStyles.toolbarBtnRegular ?? {}),
-        ...(modeStyles.toolbarBtnDesktopOnly ?? {}),
-        ...(canGoForward ? {} : toolbarStyles.navButtonDisabled)
-      }}
-      className="btn-regular"
-    >
-      <svg
-        viewBox="0 0 16 16"
-        style={{ ...toolbarStyles.navIcon, ...(modeStyles.toolbarBtnIcn ?? {}) }}
-        xmlns="http://www.w3.org/2000/svg"
-      >
-        <path
-          fill="none"
-          stroke="currentColor"
-          strokeLinecap="round"
-          strokeLinejoin="round"
-          strokeWidth="1.5"
-          d="M3 8h8M7.5 4.5L11 8l-3.5 3.5"
-        />
-      </svg>
-    </button>
+        <button
+          type="button"
+          aria-label={t('nav.forward')}
+          disabled={!canGoForward}
+          onClick={onForward}
+          style={{
+            ...toolbarStyles.navButton,
+            ...(modeStyles.toolbarBtnRegular ?? {}),
+            ...(modeStyles.toolbarBtnDesktopOnly ?? {}),
+            ...(canGoForward ? {} : toolbarStyles.navButtonDisabled)
+          }}
+          className="btn-regular"
+        >
+          <svg
+            viewBox="0 0 16 16"
+            style={{ ...toolbarStyles.navIcon, ...(modeStyles.toolbarBtnIcn ?? {}) }}
+            xmlns="http://www.w3.org/2000/svg"
+          >
+            <path
+              fill="none"
+              stroke="currentColor"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth="1.5"
+              d="M3 8h8M7.5 4.5L11 8l-3.5 3.5"
+            />
+          </svg>
+        </button>
       {!isMobile && (
         <button
           type="button"

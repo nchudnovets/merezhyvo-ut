@@ -387,6 +387,7 @@ const uk = {
   'passwordSettings.button.lockNow': 'Заблокувати зараз',
   'passwordSettings.button.unlock': 'Розблокувати',
   'passwordSettings.button.manage': 'Керувати паролями…',
+  'messenger.toolbar.back': 'Назад',
   'ctx.downloadLink': 'Завантажити посилання',
   'ctx.openLinkNewTab': 'Відкрити посилання у новій вкладці',
   'ctx.copyLink': 'Копіювати адресу посилання',

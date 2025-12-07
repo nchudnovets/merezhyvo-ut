@@ -370,6 +370,7 @@ const en = {
   'passwordSettings.button.lockNow': 'Lock now',
   'passwordSettings.button.unlock': 'Unlock',
   'passwordSettings.button.manage': 'Manage passwords…',
+  'messenger.toolbar.back': 'Back',
   'ctx.downloadLink': 'Download link',
   'ctx.openLinkNewTab': 'Open link in new tab',
   'ctx.copyLink': 'Copy link address',
