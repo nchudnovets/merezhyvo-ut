@@ -5,22 +5,18 @@ import { useI18n } from '../../../i18n/I18nProvider';
 
 export type DownloadSettingsSectionProps = {
   mode: Mode;
-  defaultDir: string;
   concurrent: 1 | 2 | 3;
   saving: boolean;
   onConcurrentChange: (value: 1 | 2 | 3) => void;
-  onSave: () => void;
   onCopyCommand: () => void;
   command: string;
 };
 
 const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   mode,
-  defaultDir,
   concurrent,
   saving,
   onConcurrentChange,
-  onSave,
   onCopyCommand,
   command
 }) => {
@@ -28,8 +24,6 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
   const labelFontSize = mode === 'mobile' ? '41px' : '16px';
   const valueFontSize = mode === 'mobile' ? '39px' : '14px';
   const buttonMinHeight = mode === 'mobile' ? 48 : 36;
-  const saveButtonHeight = mode === 'mobile' ? 'clamp(72px, 10vw, 92px)' : 40;
-  const saveButtonFontSize = mode === 'mobile' ? 'clamp(30px, 4.5vw, 36px)' : 15;
   const concurrencyValues: Array<1 | 2 | 3> = [1, 2, 3];
   const sectionStyle: CSSProperties = {
     display: 'flex',
@@ -63,33 +57,27 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     cursor: 'not-allowed',
     fontSize: labelFontSize
   };
-  const radioButton = (value: 1 | 2 | 3): CSSProperties => ({
-    minWidth: 48,
+  const radioContainer: CSSProperties = {
+    display: 'flex',
+    width: mode === 'mobile' ? '100%' : '60%',
+    maxWidth: '100%',
+    borderRadius: mode === 'mobile' ? 20 : 10,
+    overflow: 'hidden',
+    border: '1px solid rgba(255, 255, 255, 0.25)',
+    background: 'rgba(255,255,255,0.06)'
+  };
+  const radioButton = (value: 1 | 2 | 3, index: number): CSSProperties => ({
+    flex: 1,
     minHeight: buttonMinHeight,
-    padding: '8px 12px',
-    borderRadius: '999px',
-    border: value === concurrent ? '1px solid rgba(59, 130, 246, 0.2)' : '1px solid rgba(255, 255, 255, 0.4)',
-    background: value === concurrent ? 'rgba(59, 130, 246, 0.2)' : 'transparent',
+    padding: mode === 'mobile' ? '14px 12px' : '10px 12px',
+    border: 'none',
+    borderLeft: index === 0 ? 'none' : '1px solid rgba(255,255,255,0.2)',
+    background: value === concurrent ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
     color: '#fff',
     cursor: 'pointer',
-    fontSize: labelFontSize
+    fontSize: labelFontSize,
+    fontWeight: 600
   });
-  const saveButtonStyle: CSSProperties = {
-    minHeight: saveButtonHeight as unknown as number,
-    height: saveButtonHeight as unknown as number,
-    alignSelf: 'flex-start',
-    opacity: saving ? 0.6 : 1,
-    cursor: saving ? 'not-allowed' : 'pointer',
-    width: '100%',
-    borderRadius: mode === 'mobile' ? '24px' : '12px',
-    border: 'none',
-    background: 'rgba(37, 99, 235, 0.92)',
-    color: '#f8fafc',
-    fontWeight: 700,
-    fontSize: saveButtonFontSize,
-    padding: mode === 'mobile' ? '0 clamp(40px, 6vw, 58px)' : '0 18px',
-  };
-
   const noteFontSize = mode === 'mobile' ? '38px' : '15px';
   const noteStyle: CSSProperties = {
     fontSize: noteFontSize,
@@ -112,9 +100,11 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     display: 'flex',
     flexDirection: 'column',
     gap: '10px',
-    marginTop: '6px'
+    marginTop: '6px',
+    alignItems: 'flex-end'
   };
   const commandTextStyle: CSSProperties = {
+    alignSelf: 'stretch',
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     whiteSpace: 'nowrap'
@@ -125,12 +115,14 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
     padding: '8px 14px',
     cursor: 'pointer',
     fontSize: mode === 'mobile' ? '36px' : '14px',
-    alignSelf: 'flex-start'
+    alignSelf: 'flex-end',
+    display: 'inline-flex',
+    alignItems: 'center',
+    gap: mode === 'mobile' ? 12 : 8
   };
 
   // const defaultFolderLabel = t('settings.downloads.defaultFolder');
   const concurrentLabel = t('settings.downloads.concurrent');
-  const saveLabel = saving ? t('settings.downloads.saving') : t('settings.downloads.save');
   return (
     <div style={sectionStyle}>
       <div style={noteStyle}>
@@ -141,6 +133,21 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
         <div style={commandWrapperStyle}>
           <span style={{ ...commandTextStyle, fontSize: noteFontSize }}>{command}</span>
           <button type="button" style={commandButtonStyle} onClick={onCopyCommand}>
+            <svg
+              width={mode === 'mobile' ? 30 : 18}
+              height={mode === 'mobile' ? 30 : 18}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+              focusable="false"
+            >
+              <rect x="9" y="9" width="13" height="13" rx="2" ry="2" />
+              <path d="M5 15H4a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h9a2 2 0 0 1 2 2v1" />
+            </svg>
             {t('settings.downloads.copy')}
           </button>
         </div>
@@ -160,30 +167,22 @@ const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
         <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
           {concurrentLabel}
         </div>
-        <div style={{ display: 'flex', gap: '10px', flexWrap: 'wrap' }}>
-          {concurrencyValues.map((value) => (
-            <button
-              key={`concurrent-${value}`}
-              type="button"
-              style={radioButton(value)}
-              onClick={() => onConcurrentChange(value)}
-            >
-              {value}
-            </button>
-          ))}
+        <div style={{ display: 'flex', justifyContent: mode === 'mobile' ? 'stretch' : 'center' }}>
+          <div style={radioContainer}>
+            {concurrencyValues.map((value, index) => (
+              <button
+                key={`concurrent-${value}`}
+                type="button"
+                style={radioButton(value, index)}
+                onClick={() => onConcurrentChange(value)}
+                disabled={saving}
+              >
+                {value}
+              </button>
+            ))}
+          </div>
         </div>
       </div>
-      <button
-        type="button"
-        style={{
-          ...saveButtonStyle,
-          marginTop: mode === 'mobile' ? 20 : 10
-        }}
-        onClick={onSave}
-        disabled={!defaultDir || saving}
-      >
-        {saveLabel}
-      </button>
     </div>
   );
 };

@@ -117,8 +117,8 @@ export const settingsModalModeStyles: ModeStyleMap = {
       gap: 'clamp(22px, 3.5vw, 30px)'
     },
     settingsBlockToggleButton: {
-      width: 'clamp(65px, 12vw, 108px)',
-      height: 'clamp(84px, 12vw, 108px)',
+      width: '80px',
+      height: '80px',
       fontSize: 'clamp(42px, 6vw, 52px)'
     },
     settingsBlockTitle: {
@@ -197,16 +197,15 @@ export const settingsModalModeStyles: ModeStyleMap = {
       gap: 'clamp(16px, 2.5vw, 22px)'
     },
     scaleLabel: {
-      fontSize: '38px'
+      fontSize: '40px'
     },
     scaleValue: {
-      fontSize: '38px'
+      fontSize: '40px'
     },
     scaleRange: {
-      margin: '0 clamp(6px, 1vw, 10px)'
     },
     scaleHelper: {
-      fontSize: '18px'
+      fontSize: '34px'
     },
     scaleButtons: {
       gap: 'clamp(16px, 3vw, 24px)'

@@ -62,7 +62,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
             <path
               d="M3 8.5 6.5 12 13 4"
               fill="none"
-              stroke="#295EFA"
+              stroke="#2563ebeb"
               strokeWidth={mode === 'mobile' ? 4 : 3}
               strokeLinecap="round"
               strokeLinejoin="round"

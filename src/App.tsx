@@ -447,7 +447,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
   const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
   const [kbLayout, setKbLayout] = useState<LayoutId>('en');
-  const [downloadsDefaultDir, setDownloadsDefaultDir] = useState<string>('');
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
@@ -747,26 +746,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setIsHtmlFullscreen(false);
     }
   }, [activeId]);
-  const handleDownloadsConcurrentChange = useCallback((value: 1 | 2 | 3) => {
-    const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
-    setDownloadsConcurrent(clamped);
-  }, []);
-
-  const handleSaveDownloadSettings = useCallback(async () => {
-    if (downloadsSaving) return;
-    setDownloadsSaving(true);
-    try {
-      await window.merezhyvo?.downloads?.settings.set?.({
-        concurrent: downloadsConcurrent
-      });
-      setGlobalToast('Download settings saved.');
-    } catch (err) {
-      console.error('[merezhyvo] downloads settings save failed', err);
-      setGlobalToast('Failed to save download settings.');
-    } finally {
-      setDownloadsSaving(false);
-    }
-  }, [downloadsConcurrent, downloadsSaving, setGlobalToast]);
+  const handleDownloadsConcurrentChange = useCallback(
+    async (value: 1 | 2 | 3) => {
+      const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
+      setDownloadsConcurrent(clamped);
+      if (downloadsSaving) return;
+      setDownloadsSaving(true);
+      try {
+        await window.merezhyvo?.downloads?.settings.set?.({
+          concurrent: clamped
+        });
+        showGlobalToast(t('settings.downloads.saved'));
+      } catch (err) {
+        console.error('[merezhyvo] downloads settings save failed', err);
+        showGlobalToast(t('settings.downloads.saveError'));
+      } finally {
+        setDownloadsSaving(false);
+      }
+    },
+    [downloadsSaving, showGlobalToast, t]
+  );
 
   const handleHttpsModeChange = useCallback(
     async (modeValue: HttpsMode) => {
@@ -914,8 +913,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const keepEnabled = Boolean(state.tor?.keepEnabled);
         setTorKeepEnabled(keepEnabled);
         setTorKeepEnabledDraft(keepEnabled);
-        const downloads = state.downloads ?? { defaultDir: '', concurrent: 2 };
-        setDownloadsDefaultDir(downloads.defaultDir ?? '');
+        const downloads = state.downloads ?? { concurrent: 2 };
         setDownloadsConcurrent(
           downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
         );
@@ -932,7 +930,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         if (!cancelled) {
           setTorKeepEnabled(false);
           setTorKeepEnabledDraft(false);
-          setDownloadsDefaultDir('');
           setDownloadsConcurrent(2);
           setUiScale(1);
           setHttpsMode('strict');
@@ -4388,11 +4385,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               scrollToSection={settingsScrollTarget}
               onScrollSectionHandled={() => setSettingsScrollTarget(null)}
               onOpenLicenses={openLicensesFromSettings}
-              downloadsDefaultDir={downloadsDefaultDir}
               downloadsConcurrent={downloadsConcurrent}
               downloadsSaving={downloadsSaving}
               onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
-              onDownloadsSave={handleSaveDownloadSettings}
               onCopyDownloadsCommand={handleCopyDownloadsCommand}
               downloadsCommand={downloadsCommand}
               uiScale={uiScale}

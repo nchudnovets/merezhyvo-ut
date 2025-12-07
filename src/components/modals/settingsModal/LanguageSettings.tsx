@@ -4,7 +4,6 @@ import { useI18n } from '../../../i18n/I18nProvider';
 import type { Mode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
-import { styles as baseStyles } from '../../../styles/styles';
 
 type LanguageSettingsProps = {
   mode: Mode;
@@ -14,23 +13,27 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
   const { language, setLanguage, availableLocales, t } = useI18n();
   const [selected, setSelected] = useState(language);
   const [saving, setSaving] = useState(false);
-  const [savedAt, setSavedAt] = useState(0);
 
   useEffect(() => {
     setSelected(language);
   }, [language]);
 
-  const handleSave = useCallback(async () => {
-    if (!selected || selected === language) return;
-    setSaving(true);
-    const result = await ipc.ui.setLanguage(selected);
-    setSaving(false);
-    if (result?.ok) {
-      await setLanguage(selected);
-      setSavedAt(Date.now());
-      window.setTimeout(() => setSavedAt(0), 1800);
-    }
-  }, [language, selected, setLanguage]);
+  const handleSelect = useCallback(
+    async (localeId: string) => {
+      setSelected(localeId);
+      if (localeId === language) return;
+      setSaving(true);
+      try {
+        const result = await ipc.ui.setLanguage(localeId);
+        if (result?.ok) {
+          await setLanguage(localeId);
+        }
+      } finally {
+        setSaving(false);
+      }
+    },
+    [language, setLanguage]
+  );
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -38,17 +41,6 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
 
   return (
     <div>
-      {savedAt > 0 && (
-        <span
-          aria-live="polite"
-          style={{
-            ...styles.keyboardSavedPill,
-            ...(modeStyles.settingsKeyboardSavedPill || {})
-          }}
-        >
-          {t('settings.language.saved')}
-        </span>
-      )}
       <p
         style={{
           ...styles.settingsMessage,
@@ -82,7 +74,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
                 name="ui-language"
                 value={locale.id}
                 checked={selected === locale.id}
-                onChange={() => setSelected(locale.id)}
+                onChange={() => void handleSelect(locale.id)}
                 style={{
                   position: 'absolute',
                   inset: 0,
@@ -103,7 +95,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
                     justifyContent: 'center'
                   }}
                 >
-                  <svg viewBox="0 0 16 16" width={radioSize * 0.9} height={radioSize * 0.9} fill="none" stroke="#295EFA" strokeWidth={mode === 'mobile' ? 4 : 3} strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 16 16" width={radioSize * 0.9} height={radioSize * 0.9} fill="none" stroke="#2563ebeb" strokeWidth={mode === 'mobile' ? 4 : 3} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 8.5 6.5 12 13 4" />
                   </svg>
                 </span>
@@ -122,22 +114,6 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
           marginTop: '4px'
         }}
       >
-        <button
-          type="button"
-          onClick={handleSave}
-          style={{
-            ...baseStyles.modalButton,
-            ...baseStyles.modalButtonPrimary,
-            width: '100%',
-            height: mode === 'mobile' ? 'clamp(72px, 10vw, 92px)' : 40,
-            borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-            padding: mode === 'mobile' ? '0 clamp(40px, 6vw, 58px)' : '0 18px',
-            fontSize: mode === 'mobile' ? 'clamp(30px, 4.5vw, 36px)' : 15
-          }}
-          disabled={saving || selected === language}
-        >
-          {saving ? t('settings.language.saving') : t('settings.language.save')}
-        </button>
         {saving && (
           <span
             style={{

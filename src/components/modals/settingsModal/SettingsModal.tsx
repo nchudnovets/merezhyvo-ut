@@ -39,11 +39,9 @@ interface SettingsModalProps {
   messengerOrderSaving: boolean;
   messengerOrderMessage: string;
   onMessengerMove: (id: MessengerId, direction: 'up' | 'down') => void;
-  downloadsDefaultDir: string;
   downloadsConcurrent: 1 | 2 | 3;
   downloadsSaving: boolean;
   onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
-  onDownloadsSave: () => void;
   onCopyDownloadsCommand: () => void;
   downloadsCommand: string;
   uiScale: number;
@@ -78,11 +76,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   messengerOrderMessage,
   onMessengerMove
   ,
-  downloadsDefaultDir,
   downloadsConcurrent,
   downloadsSaving,
   onDownloadsConcurrentChange,
-  onDownloadsSave,
   onCopyDownloadsCommand,
   downloadsCommand,
   uiScale,
@@ -273,11 +269,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               body={
                 <DownloadSettingsSection
                   mode={mode}
-                  defaultDir={downloadsDefaultDir}
                   concurrent={downloadsConcurrent}
                   saving={downloadsSaving}
                   onConcurrentChange={onDownloadsConcurrentChange}
-                  onSave={onDownloadsSave}
                   onCopyCommand={onCopyDownloadsCommand}
                   command={downloadsCommand}
                 />

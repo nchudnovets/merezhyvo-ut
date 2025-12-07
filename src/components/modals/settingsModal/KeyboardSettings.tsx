@@ -8,7 +8,6 @@ import { ipc } from '../../../services/ipc/ipc';
 import { LANGUAGE_LAYOUT_IDS, humanLabel } from '../../keyboard/layouts';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
-import { styles as baseStyles } from '../../../styles/styles';
 import type { Mode } from '../../../types/models';
 import { useI18n } from '../../../i18n/I18nProvider';
 
@@ -27,7 +26,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
   const [loading, setLoading] = useState<boolean>(true);
   const [enabled, setEnabled] = useState<string[]>(['en']);
   const [preferred, setPreferred] = useState<string>('en');
-  const [savedAt, setSavedAt] = useState<number>(0);
+  const [saving, setSaving] = useState<boolean>(false);
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -82,6 +81,24 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
     return () => window.removeEventListener('mzr-osk-settings-changed', handleChange as EventListener);
   }, []);
 
+  const persistSettings = useCallback(
+    async (nextEnabled: string[], nextPreferred: string) => {
+      const normalizedDefault = nextEnabled.includes(nextPreferred) ? nextPreferred : nextEnabled[0] ?? 'en';
+      const payload: KeyboardSettingsState = {
+        enabledLayouts: nextEnabled,
+        defaultLayout: normalizedDefault
+      };
+      setSaving(true);
+      try {
+        await ipc.settings.keyboard.update(payload);
+        window.dispatchEvent(new CustomEvent('mzr-osk-settings-changed', { detail: payload }));
+      } finally {
+        setSaving(false);
+      }
+    },
+    []
+  );
+
   const toggle = useCallback(
     (id: string) => {
       setEnabled((prev) => {
@@ -89,44 +106,29 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
         if (next.length === 0) {
           next = ['en'];
         }
-        if (!next.includes(preferred)) {
-          setPreferred(next[0] ?? 'en');
-        }
+        const nextPreferred = next.includes(preferred) ? preferred : next[0] ?? 'en';
+        setPreferred(nextPreferred);
+        void persistSettings(next, nextPreferred);
         return next;
       });
     },
-    [preferred]
+    [preferred, persistSettings]
   );
 
-  const setDefault = useCallback((id: string) => {
-    setPreferred(id);
-    setEnabled((prev) => (prev.includes(id) ? prev : [...prev, id]));
-  }, []);
-
-  const onSave = useCallback(async () => {
-    const normalizedDefault = enabled.includes(preferred) ? preferred : enabled[0] ?? 'en';
-    const payload: KeyboardSettingsState = {
-      enabledLayouts: enabled,
-      defaultLayout: normalizedDefault
-    };
-
-    await ipc.settings.keyboard.update(payload);
-    window.dispatchEvent(new CustomEvent('mzr-osk-settings-changed', { detail: payload }));
-
-    setSavedAt(Date.now());
-    window.setTimeout(() => setSavedAt(0), 1600);
-  }, [enabled, preferred]);
+  const setDefault = useCallback(
+    (id: string) => {
+      setPreferred(id);
+      setEnabled((prev) => {
+        const next = prev.includes(id) ? prev : [...prev, id];
+        void persistSettings(next, id);
+        return next;
+      });
+    },
+    [persistSettings]
+  );
 
   return (
     <div>
-      {!loading && savedAt > 0 && (
-        <span aria-live="polite" style={{
-          ...styles.keyboardSavedPill,
-          ...(modeStyles.settingsKeyboardSavedPill || {})
-        }}>
-          {t('settings.language.saved')}
-        </span>
-      )}
       {loading ? (
         <span
           style={{
@@ -176,7 +178,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                             width: size,
                             height: size,
                             borderRadius: 6,
-                            border: '1px solid #295EFA',
+                            border: '1px solid #2563ebeb',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -187,7 +189,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                             width={size * 0.8}
                             height={size * 0.8}
                             fill="none"
-                            stroke="#295EFA"
+                            stroke="#2563ebeb"
                             strokeWidth={mode === 'mobile' ? 4 : 3}
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -248,7 +250,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                                 justifyContent: 'center'
                               }}
                             >
-                              <svg viewBox="0 0 16 16" width={radioSize * 0.85} height={radioSize * 0.85} fill="none" stroke="#295EFA" strokeWidth={mode === 'mobile' ? 3.5 : 3} strokeLinecap="round" strokeLinejoin="round">
+                              <svg viewBox="0 0 16 16" width={radioSize * 0.85} height={radioSize * 0.85} fill="none" stroke="#2563ebeb" strokeWidth={mode === 'mobile' ? 3.5 : 3} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M3 8.5 6.5 12 13 4" />
                               </svg>
                             </span>
@@ -263,22 +265,18 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
             ))}
           </div>
 
-          <div style={{
-            ...styles.keyboardActions,
-            ...(modeStyles.settingsKeyboardActions || {})
-          }}>
-            <button type="button" onClick={onSave} style={{
-              ...baseStyles.modalButton,
-              width: '100%',
-              height: mode === 'mobile' ? 'clamp(74px, 10.5vw, 96px)' : 42,
-              borderRadius: mode === 'mobile' ? '24px' : baseStyles.modalButton.borderRadius,
-              padding: mode === 'mobile' ? '0 clamp(42px, 6vw, 60px)' : '0 18px',
-              fontSize: mode === 'mobile' ? 'clamp(30px, 4.6vw, 36px)' : 15,
-              ...baseStyles.modalButtonPrimary
-            }}>
-              {t('settings.language.save')}
-            </button>
-          </div>
+          {saving && (
+            <span
+              style={{
+                ...styles.loading,
+                ...(modeStyles.settingsLoading || {}),
+                marginTop: 12,
+                display: 'inline-block'
+              }}
+            >
+              {t('settings.language.saving')}
+            </span>
+          )}
         </>
       )}
     </div>

@@ -71,7 +71,15 @@ const TorSettings: React.FC<TorSettingsProps> = ({
             gap: 10
           }}
         >
-          <span style={{ position: 'relative', width: mode === 'mobile' ? 32 : 18, height: mode === 'mobile' ? 32 : 18, flexShrink: 0 }}>
+          <span
+            style={{
+              position: 'relative',
+              width: mode === 'mobile' ? 74 : 48,
+              height: mode === 'mobile' ? 40 : 20,
+              flexShrink: 0,
+              display: 'inline-block'
+            }}
+          >
             <input
               type="checkbox"
               checked={torKeepEnabledDraft}
@@ -82,36 +90,34 @@ const TorSettings: React.FC<TorSettingsProps> = ({
                 inset: 0,
                 margin: 0,
                 opacity: 0,
-                cursor: torConfigSaving ? 'not-allowed' : 'pointer'
+                cursor: torConfigSaving ? 'not-allowed' : 'pointer',
+                zIndex: 2
               }}
             />
             <span
               aria-hidden="true"
               style={{
-                width: mode === 'mobile' ? 36 : 18,
-                height: mode === 'mobile' ? 36 : 18,
-                borderRadius: 6,
-                border: torKeepEnabledDraft ? '1px solid #295EFA' : '1px solid rgba(148,163,184,0.6)',
-                display: 'inline-flex',
-                alignItems: 'center',
-                justifyContent: 'center'
+                position: 'absolute',
+                inset: 0,
+                borderRadius: 999,
+                backgroundColor: torKeepEnabledDraft ? '#94a3b8' : '#94a3b8',
+                transition: 'background-color 160ms ease, opacity 160ms ease'
               }}
-            >
-              {torKeepEnabledDraft && (
-                <svg
-                  viewBox="0 0 16 16"
-                  width={mode === 'mobile' ? 26 : 12}
-                  height={mode === 'mobile' ? 26 : 12}
-                  fill="none"
-                  stroke="#295EFA"
-                  strokeWidth={mode === 'mobile' ? 4 : 3}
-                  strokeLinecap="round"
-                  strokeLinejoin="round"
-                >
-                  <path d="M3 8.5 6.5 12 13 4" />
-                </svg>
-              )}
-            </span>
+            />
+            <span
+              aria-hidden="true"
+              style={{
+                position: 'absolute',
+                top: mode === 'mobile' ? 4 : 2,
+                left: torKeepEnabledDraft ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+                width: mode === 'mobile' ? 32 : 16,
+                height: mode === 'mobile' ? 32 : 16,
+                borderRadius: '50%',
+                backgroundColor: torKeepEnabledDraft ? '#2563ebeb' : '#ffffff',
+                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                transition: 'left 160ms ease'
+              }}
+            />
           </span>
           <span
             style={{

@@ -81,8 +81,8 @@ export const settingsModalStyles: StyleRecord = {
   blockToggleButton: {
     background: 'rgba(15, 23, 42, 0.65)',
     color: '#cbd5f5',
-    width: '36px',
-    height: '36px',
+    width: '30px',
+    height: '30px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -360,7 +360,8 @@ export const settingsModalStyles: StyleRecord = {
   },
   scaleButtons: {
     display: 'flex',
-    gap: '12px'
+    gap: '12px',
+    justifyContent: 'center'
   },
   scaleButton: {
     border: '1px solid rgba(148, 163, 184, 0.45)',
@@ -446,7 +447,7 @@ export const settingsModalStyles: StyleRecord = {
     accentColor: '#2563eb'
   },
   torKeepLabel: {
-    fontSize: '13px',
+    fontSize: '16px',
     fontWeight: 600,
     color: '#f8fafc',
     cursor: 'pointer',

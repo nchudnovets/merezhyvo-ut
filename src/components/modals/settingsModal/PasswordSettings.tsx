@@ -235,7 +235,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
                     width: size,
                     height: size,
                     borderRadius: 6,
-                    border: '1px solid #295EFA',
+                    border: '1px solid #2563ebeb',
                     display: 'inline-flex',
                     alignItems: 'center',
                     justifyContent: 'center'
@@ -246,7 +246,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
                     width={size * 0.8}
                     height={size * 0.8}
                     fill="none"
-                    stroke="#295EFA"
+                    stroke="#2563ebeb"
                     strokeWidth={isMobile ? 4 : 3}
                     strokeLinecap="round"
                     strokeLinejoin="round"
