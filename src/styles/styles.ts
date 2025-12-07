@@ -117,7 +117,7 @@ export const styles = {
     height: '26px',
     borderRadius: '8px',
     border: '1px solid rgba(148, 163, 184, 0.45)',
-    backgroundColor: 'rgba(59, 130, 246, 0.16)',
+    backgroundColor: 'rgb(33, 62, 109)',
     color: '#f8fafc',
     boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.18)',
     flexShrink: 0

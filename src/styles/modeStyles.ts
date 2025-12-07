@@ -76,8 +76,8 @@ export const modeStyles: Record<Mode, ModeStyleMap> = {
       fontSize: 'clamp(30px, 4.8vw, 38px)'
     },
     settingsButtonIcon: {
-      width: 'clamp(36px, 5vw, 48px)',
-      height: 'clamp(36px, 5vw, 48px)'
+      width: '55px',
+      height: '55px'
     }
   }
 };

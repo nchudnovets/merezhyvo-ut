@@ -183,8 +183,8 @@ export const tabsPanelStyles: StyleRecord = {
     transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
   },
   tabRowActive: {
-    borderColor: 'rgba(59, 130, 246, 0.65)',
-    backgroundColor: 'rgba(37, 99, 235, 0.2)',
+    borderColor: 'rgb(62, 77, 106)',
+    backgroundColor: 'rgb(33, 62, 109)',
     boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.25)'
   },
   tabInfo: {

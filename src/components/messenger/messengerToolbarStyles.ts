@@ -34,14 +34,13 @@ export const messengerToolbarStyles = {
     borderLeft: 'none',
     borderTop: 'none',
     borderBottom: 'none',
-    backgroundColor: '#1c2333',
+    backgroundColor: 'transparent',
     color: '#f8fafc',
     padding: '8px 14px',
     minHeight: '44px',
     minWidth: '0',
     flex: '1 1 0',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
   } satisfies CSSProperties,
   buttonActive: {
     backgroundColor: '#2563eb',
@@ -68,11 +67,10 @@ export const messengerToolbarStyles = {
     minHeight: '44px',
     padding: '8px 16px',
     border: 'none',
-    backgroundColor: '#1c2333',
+    backgroundColor: 'transparent',
     color: '#f8fafc',
     cursor: 'pointer',
     flexShrink: 0,
-    transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
   } satisfies CSSProperties,
   exitButtonActive: {
     backgroundColor: '#1f2937',
@@ -99,9 +97,6 @@ export const messengerToolbarModeStyles: Record<Mode, MessengerToolbarModeStyles
     container: {
       padding: '6px 10px',
       gap: '8px'
-    },
-    list: {
-      gap: '6px'
     },
     button: {
       padding: '6px 10px',
