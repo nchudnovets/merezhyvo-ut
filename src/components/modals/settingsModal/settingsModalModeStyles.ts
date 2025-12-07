@@ -57,7 +57,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsMessengerRow: {},
     settingsMessengerActionButton: {},
     settingsMessengerActionIcn: {
-      width: '20px'
+      width: '25px'
     },
     settingsMessengerName: {},
     settingsMessengerUrl: {},
