@@ -270,7 +270,7 @@ const exposeApi: MerezhyvoAPI = {
           httpsMode: 'strict',
           sslExceptions: [],
           webrtcMode: 'always_on',
-          privacy: { cookies: { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } } }
+          privacy: { cookies: { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } } }
         };
       }
     },
@@ -283,7 +283,7 @@ const exposeApi: MerezhyvoAPI = {
           };
         } catch (err) {
           console.error('[merezhyvo] settings.cookies.get failed', err);
-          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+          return { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } };
         }
       },
       setBlock: async (blockThirdParty: boolean) => {
@@ -305,7 +305,7 @@ const exposeApi: MerezhyvoAPI = {
           };
         } catch (err) {
           console.error('[merezhyvo] settings.cookies.setException failed', err);
-          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+          return { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } };
         }
       },
       listExceptions: async () => {
@@ -324,7 +324,7 @@ const exposeApi: MerezhyvoAPI = {
           };
         } catch (err) {
           console.error('[merezhyvo] settings.cookies.clearExceptions failed', err);
-          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+          return { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } };
         }
       }
     },

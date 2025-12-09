@@ -37,7 +37,9 @@ const en = {
   'settings.cookies.title': 'Cookies & site data',
   'settings.cookies.blockThirdParty': 'Block third-party cookies (recommended)',
   'settings.cookies.helper':
-    'Cookies from embedded third-party content (trackers, ads, etc.) are blocked by default.',
+    'Cookies from embedded third-party content (trackers, ads, etc.) can be blocked.',
+  'settings.cookies.warning':
+    'Heads up: This may break logins on some sites. You can allow third-party cookies per site if needed.',
   'settings.cookies.manageLink': 'Manage security exceptions…',
   'settings.title': 'Settings',
   'settings.close': 'Close settings dialog',

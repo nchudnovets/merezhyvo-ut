@@ -14,7 +14,7 @@ export const registerCookieSettingsIPC = (): void => {
   ipcMain.handle('merezhyvo:settings:cookies:set-block', async (_event, payload: unknown) => {
     const enabled = typeof (payload as { blockThirdParty?: unknown })?.blockThirdParty === 'boolean'
       ? (payload as { blockThirdParty: boolean }).blockThirdParty
-      : true;
+      : false;
     return setBlockThirdParty(enabled);
   });
   ipcMain.handle('merezhyvo:settings:cookies:set-exception', async (_event, payload: unknown) => {

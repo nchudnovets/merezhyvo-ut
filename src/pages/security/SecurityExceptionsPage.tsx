@@ -9,7 +9,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode }) => {
   const { t } = useI18n();
   const [loading, setLoading] = useState<boolean>(true);
   const [exceptions, setExceptions] = useState<Record<string, boolean>>({});
-  const [blockThirdParty, setBlockThirdParty] = useState<boolean>(true);
+  const [blockThirdParty, setBlockThirdParty] = useState<boolean>(false);
   const [sslExceptions, setSslExceptions] = useState<SslException[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showConfirmSsl, setShowConfirmSsl] = useState(false);
@@ -27,7 +27,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode }) => {
           // ignore
         }
       } else {
-        setBlockThirdParty(true);
+        setBlockThirdParty(false);
         setExceptions({});
       }
       const httpsState = await window.merezhyvo?.settings?.https?.get?.();
@@ -46,7 +46,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode }) => {
         // ignore
       }
     } catch {
-      setBlockThirdParty(true);
+      setBlockThirdParty(false);
       setExceptions({});
       setSslExceptions([]);
     } finally {

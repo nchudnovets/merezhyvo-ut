@@ -159,7 +159,7 @@ const DEFAULT_HTTPS_MODE: HttpsMode = 'strict';
 const DEFAULT_SSL_EXCEPTIONS: SslException[] = [];
 const DEFAULT_WEBRTC_MODE: WebrtcMode = 'always_on';
 const DEFAULT_COOKIE_PRIVACY: CookiePrivacySettings = {
-  blockThirdParty: true,
+  blockThirdParty: false,
   exceptions: { thirdPartyAllow: {} }
 };
 

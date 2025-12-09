@@ -469,7 +469,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
   const prevBrowserTabIdRef = useRef<string | null>(null);
   const [cookiePrivacy, setCookiePrivacy] = useState<CookiePrivacySettings>({
-    blockThirdParty: true,
+    blockThirdParty: false,
     exceptions: { thirdPartyAllow: {} }
   });
   const refreshCookiePrivacy = useCallback(async () => {
@@ -998,7 +998,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             : 'always_on'
         );
         const cookies = state.privacy?.cookies;
-        const thirdPartyBlock = typeof cookies?.blockThirdParty === 'boolean' ? cookies.blockThirdParty : true;
+        const thirdPartyBlock = typeof cookies?.blockThirdParty === 'boolean' ? cookies.blockThirdParty : false;
         const exceptions = cookies?.exceptions?.thirdPartyAllow ?? {};
         setCookiePrivacy({ blockThirdParty: thirdPartyBlock, exceptions: { thirdPartyAllow: { ...exceptions } } });
       } catch {
@@ -1010,7 +1010,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setHttpsMode('strict');
           setSslExceptions([]);
           setWebrtcMode('always_on');
-          setCookiePrivacy({ blockThirdParty: true, exceptions: { thirdPartyAllow: {} } });
+          setCookiePrivacy({ blockThirdParty: false, exceptions: { thirdPartyAllow: {} } });
         }
       }
     };

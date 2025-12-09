@@ -37,7 +37,9 @@ const fr = {
   'settings.cookies.title': 'Cookies et données de site',
   'settings.cookies.blockThirdParty': 'Bloquer les cookies tiers (recommandé)',
   'settings.cookies.helper':
-    'Les cookies du contenu tiers intégré (trackers, pubs, etc.) sont bloqués par défaut.',
+    'Les cookies du contenu tiers intégré (trackers, pubs, etc.) peuvent être bloqués.',
+  'settings.cookies.warning':
+    'Attention : cela peut créer des problèmes de connexion sur certains sites. Vous pouvez désactiver cette option au cas par cas.',
   'settings.cookies.manageLink': 'Gérer les exceptions de sécurité…',
   'settings.messenger.arrange': 'Organisez les messageries pour ajuster leur ordre dans la barre.',
   'settings.messenger.empty': 'Aucune messagerie disponible.',

@@ -10,7 +10,7 @@ type Policy = {
 const stateCache: {
   policy: Policy;
 } = {
-  policy: { blockThirdParty: true, exceptions: {} }
+  policy: { blockThirdParty: false, exceptions: {} }
 };
 
 const normalizeHost = (host: string | null | undefined): string | null => {

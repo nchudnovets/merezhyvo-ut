@@ -53,7 +53,7 @@ export async function getCookiePrivacyState(): Promise<CookiePrivacyState> {
   const settings = await readSettingsState();
   const cookies = settings.privacy?.cookies;
   return {
-    blockThirdParty: cookies?.blockThirdParty ?? true,
+    blockThirdParty: cookies?.blockThirdParty ?? false,
     exceptions: {
       thirdPartyAllow: { ...(cookies?.exceptions?.thirdPartyAllow ?? {}) }
     }
@@ -62,7 +62,7 @@ export async function getCookiePrivacyState(): Promise<CookiePrivacyState> {
 
 export async function setBlockThirdParty(enabled: boolean): Promise<CookiePrivacyState> {
   const settings = await readSettingsState();
-  const cookies = settings.privacy?.cookies ?? { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+  const cookies = settings.privacy?.cookies ?? { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } };
   const next = {
     ...cookies,
     blockThirdParty: Boolean(enabled),
@@ -99,13 +99,6 @@ export async function setThirdPartyException(host: string | null | undefined, al
     await writeSettingsState({ privacy: { cookies: next } });
   } catch {
     // best-effort
-  }
-  if (normalizedHost && !allow) {
-    try {
-      await clearCookiesForHost(normalizedHost);
-    } catch {
-      // best-effort
-    }
   }
   return next;
 }

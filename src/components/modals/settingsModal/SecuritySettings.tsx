@@ -221,6 +221,9 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.cookies.helper')}
             </div>
+            <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '36px' : '13px', marginTop: mode === 'mobile' ? 6 : 4 }}>
+              {t('settings.cookies.warning')}
+            </div>
           </div>
         </label>
         <button

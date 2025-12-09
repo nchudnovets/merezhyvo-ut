@@ -37,7 +37,9 @@ const pl = {
   'settings.cookies.title': 'Ciasteczka i dane witryn',
   'settings.cookies.blockThirdParty': 'Blokuj ciasteczka stron trzecich (zalecane)',
   'settings.cookies.helper':
-    'Ciasteczka z osadzonych treści stron trzecich (trackery, reklamy itp.) są domyślnie blokowane.',
+    'Ciasteczka z osadzonej zawartości stron trzecich (trackery, reklamy itp.) można blokować.',
+  'settings.cookies.warning':
+    'Uwaga! Może to powodować problemy z logowaniem na niektórych stronach. Dla takich stron możesz wyłączyć tę opcję osobno.',
   'settings.cookies.manageLink': 'Zarządzaj wyjątkami bezpieczeństwa…',
   'settings.messenger.arrange': 'Ułóż komunikatory, aby zmienić ich kolejność na pasku.',
   'settings.messenger.empty': 'Brak dostępnych komunikatorów.',

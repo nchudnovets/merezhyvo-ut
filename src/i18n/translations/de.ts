@@ -37,7 +37,9 @@ const de = {
   'settings.cookies.title': 'Cookies & Website-Daten',
   'settings.cookies.blockThirdParty': 'Drittanbieter-Cookies blockieren (empfohlen)',
   'settings.cookies.helper':
-    'Cookies von eingebetteten Drittanbietern (Tracker, Werbung usw.) werden standardmäßig blockiert.',
+    'Cookies von eingebetteten Drittanbietern (Tracker, Werbung usw.) können blockiert werden.',
+  'settings.cookies.warning':
+    'Achtung: Das kann bei manchen Websites Login-Probleme verursachen. Für solche Seiten kannst du diese Option gezielt deaktivieren.',
   'settings.cookies.manageLink': 'Sicherheitsausnahmen verwalten…',
   'settings.messenger.arrange': 'Ordne Messenger, um ihre Reihenfolge in der Leiste anzupassen.',
   'settings.messenger.empty': 'Keine Messenger verfügbar.',
