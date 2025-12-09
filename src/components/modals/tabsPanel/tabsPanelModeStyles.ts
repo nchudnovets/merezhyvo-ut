@@ -38,7 +38,6 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     },
     tabRow: {
       padding: '30px',
-      borderRadius: '28px'
     },
     tabFaviconWrap: {
       width: 'clamp(66px, 10vw, 84px)',

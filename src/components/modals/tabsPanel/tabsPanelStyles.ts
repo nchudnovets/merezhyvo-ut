@@ -169,18 +169,14 @@ export const tabsPanelStyles: StyleRecord = {
     margin: 0,
     display: 'flex',
     flexDirection: 'column',
-    gap: '8px'
   },
   tabRow: {
     display: 'flex',
     alignItems: 'center',
     gap: '12px',
-    padding: '10px 14px',
-    borderRadius: '14px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    backgroundColor: 'rgba(17, 24, 39, 0.6)',
+    padding: '20px 14px',
+    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
     cursor: 'pointer',
-    transition: 'background-color 0.2s ease, border-color 0.2s ease, box-shadow 0.2s ease'
   },
   tabRowActive: {
     borderColor: 'rgb(62, 77, 106)',
@@ -245,8 +241,8 @@ export const tabsPanelStyles: StyleRecord = {
     width: '32px',
     height: '32px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
+    border: 'none',
+    background: 'transparent',
     color: '#cbd5f5',
     display: 'flex',
     alignItems: 'center',

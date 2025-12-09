@@ -72,8 +72,7 @@ const TabRow = memo(({
     ...baseButtonStyle
   };
   const toggleButtonStyle = {
-    ...baseButtonStyle,
-    ...(actionsExpanded ? styles.tabIconButtonActive : null)
+    ...baseButtonStyle
   };
   const cleanButtonStyle = {
     ...baseButtonStyle
