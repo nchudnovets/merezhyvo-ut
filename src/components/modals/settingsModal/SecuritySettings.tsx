@@ -9,6 +9,9 @@ type SecuritySettingsProps = {
   onChange: (mode: HttpsMode) => void;
   webrtcMode: WebrtcMode;
   onWebrtcChange: (mode: WebrtcMode) => void;
+  cookiesBlockThirdParty: boolean;
+  onCookieBlockChange: (block: boolean) => void;
+  onOpenSecurityExceptions: () => void;
 };
 
 const radioStyle = (mode: Mode): React.CSSProperties => ({
@@ -20,9 +23,21 @@ const radioStyle = (mode: Mode): React.CSSProperties => ({
   cursor: 'pointer'
 });
 
-const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, onChange, webrtcMode, onWebrtcChange }) => {
+const SecuritySettings: React.FC<SecuritySettingsProps> = ({
+  mode,
+  httpsMode,
+  onChange,
+  webrtcMode,
+  onWebrtcChange,
+  cookiesBlockThirdParty,
+  onCookieBlockChange,
+  onOpenSecurityExceptions
+}) => {
   const { t } = useI18n();
   const radioSize = mode === 'mobile' ? 40 : 18;
+  const toggleTrackWidth = mode === 'mobile' ? 74 : 48;
+  const toggleTrackHeight = mode === 'mobile' ? 40 : 20;
+  const toggleThumbSize = mode === 'mobile' ? 32 : 16;
 
   const renderRadioControl = (checked: boolean, name: string, onSelect: () => void): JSX.Element => (
     <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
@@ -70,6 +85,49 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
           </svg>
         </span>
       )}
+    </span>
+  );
+
+  const renderToggle = (checked: boolean, onChangeChecked: (value: boolean) => void): JSX.Element => (
+    <span style={{ position: 'relative', width: toggleTrackWidth, height: toggleTrackHeight, flexShrink: 0, display: 'inline-block' }}>
+      <input
+        type="checkbox"
+        checked={checked}
+        onChange={(event) => onChangeChecked(event.target.checked)}
+        style={{
+          position: 'absolute',
+          inset: 0,
+          margin: 0,
+          opacity: 0,
+          cursor: 'pointer',
+          zIndex: 2
+        }}
+      />
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          inset: 0,
+          borderRadius: 999,
+          backgroundColor: checked ? '#2563ebeb' : 'transparent',
+          border: `1px solid #ACB2B7`,
+          transition: 'background-color 160ms ease, border-color 160ms ease'
+        }}
+      />
+      <span
+        aria-hidden="true"
+        style={{
+          position: 'absolute',
+          top: mode === 'mobile' ? 4 : 2,
+          left: checked ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+          width: toggleThumbSize,
+          height: toggleThumbSize,
+          borderRadius: '50%',
+          backgroundColor: checked ? '#ffffff' : '#ACB2B7',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+          transition: 'left 160ms ease'
+        }}
+      />
     </span>
   );
 
@@ -143,6 +201,45 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({ mode, httpsMode, on
             </div>
           </div>
         </label>
+      </div>
+      <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 12 : 8 }}>
+        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+          {t('settings.cookies.title')}
+        </div>
+        <label
+          style={{
+            ...radioStyle(mode),
+            alignItems: 'center',
+            gap: mode === 'mobile' ? 18 : 12
+          }}
+        >
+          {renderToggle(cookiesBlockThirdParty, onCookieBlockChange)}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.cookies.blockThirdParty')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.cookies.helper')}
+            </div>
+          </div>
+        </label>
+        <button
+          type="button"
+          onClick={onOpenSecurityExceptions}
+          style={{
+            marginTop: mode === 'mobile' ? 14 : 12,
+            alignSelf: 'flex-start',
+            padding: 0,
+            background: 'transparent',
+            border: 'none',
+            color: '#93c5fd',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+            fontSize: mode === 'mobile' ? '32px' : '14px'
+          }}
+        >
+          {t('settings.cookies.manageLink')}
+        </button>
       </div>
     </div>
   );

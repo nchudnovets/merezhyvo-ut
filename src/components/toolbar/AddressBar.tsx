@@ -31,7 +31,7 @@ interface AddressBarProps {
   inputFocused?: boolean;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
-  securityState?: 'ok' | 'warn';
+  securityState?: 'ok' | 'warn' | 'notice';
   securityInfo?: {
     state: string;
     url?: string | null;
@@ -47,6 +47,12 @@ interface AddressBarProps {
   onToggleSecurity?: () => void;
   certExceptionAllowed?: boolean;
   onToggleCertException?: (next: boolean) => void;
+  cookiePolicy?: {
+    blockThirdParty: boolean;
+    exceptionAllowed: boolean;
+    host: string | null;
+  };
+  onToggleCookieException?: (next: boolean) => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -73,7 +79,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   securityOpen = false,
   onToggleSecurity,
   certExceptionAllowed = false,
-  onToggleCertException
+  onToggleCertException,
+  cookiePolicy,
+  onToggleCookieException
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -147,6 +155,18 @@ const AddressBar: React.FC<AddressBarProps> = ({
     height: indicatorSize,
     right: mode === 'mobile' ? '20px' : '10px'
   };
+  const [securityView, setSecurityView] = React.useState<'root' | 'connection' | 'cookies'>('root');
+  React.useEffect(() => {
+    if (!securityOpen) {
+      setSecurityView('root');
+    }
+  }, [securityOpen]);
+  const securityColor =
+    securityState === 'warn'
+      ? '#ef4444'
+      : securityState === 'notice'
+      ? '#fbbf24'
+      : '#ffffff';
 
   const openTabsLabel = t('address.openTabs', { count: tabCount });
   return (
@@ -168,7 +188,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
             display: 'flex',
             alignItems: 'center',
             justifyContent: 'center',
-            color: securityState === 'ok' ? '#ffffff' : '#ef4444',
+            color: securityColor,
             background: 'transparent',
             border: 'none',
             padding: 0,
@@ -185,7 +205,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
             <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
           </svg>
         </button>
-        {securityOpen && securityInfo && (
+        {securityOpen && (
           <div
             className="service-scroll"
             style={{
@@ -193,7 +213,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
               top: mode === 'mobile' ? '110%' : '105%',
               left: mode === 'mobile' ? '0' : '0',
               right: mode === 'mobile' ? '-40%' : '50%',
-              maxWidth:'700px',
+              maxWidth: mode === 'mobile' ? '700px' : '460px',
               minWidth: '360px',
               padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
               borderRadius: '12px',
@@ -206,56 +226,300 @@ const AddressBar: React.FC<AddressBarProps> = ({
               overflow: 'auto'
             }}
           >
-            <div style={{ fontWeight: 700, marginBottom: mode === 'mobile' ? '10px' : '6px' }}>
-              {t('cert.info.title')}
-            </div>
-            <div style={{ marginBottom: '6px', color: securityState === 'ok' ? '#a7f3d0' : '#fca5a5' }}>
-              {securityState === 'ok' ? t('cert.info.status.ok') : t('cert.info.status.problem')}
-            </div>
-            {securityInfo.host || securityInfo.url ? (
-              <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
-                <div style={{ opacity: 0.8 }}>{t('cert.info.url')}</div>
-                <div style={{ wordBreak: 'break-all' }}>{securityInfo.url || securityInfo.host}</div>
+            {securityView === 'root' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 12 : 8 }}>
+                <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '16px' }}>
+                  {t('security.popup.title')}
+                </div>
+                <button
+                  type="button"
+                  onClick={() => setSecurityView('connection')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: mode === 'mobile' ? '18px 16px' : '12px 10px',
+                    borderRadius: 10,
+                    border: `1px solid ${securityState === 'warn' ? '#ef4444' : 'rgba(148,163,184,0.35)'}`,
+                    background: 'rgba(15,23,42,0.6)',
+                    color: securityState === 'warn' ? '#ef4444' : '#e2e8f0',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width={mode === 'mobile' ? 44 : 18}
+                      height={mode === 'mobile' ? 44 : 18}
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
+                    </svg>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '14px' }}>{t('security.popup.connection')}</div>
+                      <div style={{ opacity: 0.8, fontSize: mode === 'mobile' ? '33px' : '13px' }}>
+                        {securityState === 'warn' ? t('cert.info.status.problem') : t('cert.info.status.ok')}
+                      </div>
+                    </div>
+                  </div>
+                  <svg
+                    viewBox="0 0 16 16"
+                    width={mode === 'mobile' ? 28 : 14}
+                    height={mode === 'mobile' ? 28 : 14}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5.5 3 10 8l-4.5 5" />
+                  </svg>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setSecurityView('cookies')}
+                  style={{
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'space-between',
+                    gap: 12,
+                    padding: mode === 'mobile' ? '18px 16px' : '12px 10px',
+                    borderRadius: 10,
+                    border: `1px solid ${cookiePolicy?.exceptionAllowed ? '#fbbf24' : 'rgba(148,163,184,0.35)'}`,
+                    background: 'rgba(15,23,42,0.6)',
+                    color: cookiePolicy?.exceptionAllowed ? '#fbbf24' : '#e2e8f0',
+                    cursor: 'pointer'
+                  }}
+                >
+                  <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                    <svg
+                      viewBox="0 0 24 24"
+                      width={mode === 'mobile' ? 48 : 18}
+                      height={mode === 'mobile' ? 48 : 18}
+                      fill="currentColor"
+                      aria-hidden="true"
+                    >
+                      <path d="M12 2a10 10 0 1 0 10 10 4 4 0 0 1-4-4 4 4 0 0 1-4-4 10 10 0 0 0-2-.06Z" />
+                    </svg>
+                    <div style={{ textAlign: 'left' }}>
+                      <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '14px' }}>{t('security.popup.cookies')}</div>
+                      <div style={{ opacity: 0.8, fontSize: mode === 'mobile' ? '33px' : '13px' }}>
+                        {cookiePolicy?.blockThirdParty
+                          ? cookiePolicy?.exceptionAllowed
+                            ? t('security.cookies.status.allowedException')
+                            : t('security.cookies.status.blocked')
+                          : t('security.cookies.status.allowedGlobal')}
+                      </div>
+                    </div>
+                  </div>
+                  <svg
+                    viewBox="0 0 16 16"
+                    width={mode === 'mobile' ? 28 : 14}
+                    height={mode === 'mobile' ? 28 : 14}
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="1.5"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M5.5 3 10 8l-4.5 5" />
+                  </svg>
+                </button>
               </div>
-            ) : null}
-            {securityInfo.error ? (
-              <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
-                <div style={{ opacity: 0.8 }}>{t('cert.info.error')}</div>
-                <div>{securityInfo.error}</div>
+            )}
+
+            {securityView === 'connection' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 20 : 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityView('root')}
+                    aria-label={t('security.popup.back')}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(148,163,184,0.35)',
+                      color: '#e2e8f0',
+                      width: mode === 'mobile' ? 52 : 30,
+                      height: mode === 'mobile' ? 52 : 30,
+                      borderRadius: 8,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      width={mode === 'mobile' ? 24 : 14}
+                      height={mode === 'mobile' ? 24 : 14}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10 3.5 5.5 8 10 12.5" />
+                    </svg>
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '16px' }}>
+                    {t('security.popup.connection')}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '4px', color: securityState === 'warn' ? '#fca5a5' : '#a7f3d0' }}>
+                  {securityState === 'warn' ? t('cert.info.status.problem') : t('cert.info.status.ok')}
+                </div>
+                {(securityInfo?.host || securityInfo?.url) && (
+                  <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
+                    <div style={{ opacity: 0.8 }}>{t('cert.info.url')}</div>
+                    <div style={{ wordBreak: 'break-all' }}>{securityInfo?.url || securityInfo?.host}</div>
+                  </div>
+                )}
+                {securityInfo?.error && (
+                  <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
+                    <div style={{ opacity: 0.8 }}>{t('cert.info.error')}</div>
+                    <div>{securityInfo.error}</div>
+                  </div>
+                )}
+                {(securityInfo?.issuer || securityInfo?.subject || securityInfo?.fingerprint) && (
+                  <div style={{ display: 'grid', rowGap: '4px', lineHeight: 1.4 }}>
+                    {securityInfo?.issuer ? (
+                      <div><strong>{t('cert.details.issuer')} </strong>{securityInfo.issuer}</div>
+                    ) : null}
+                    {securityInfo?.subject ? (
+                      <div><strong>{t('cert.details.subject')} </strong>{securityInfo.subject}</div>
+                    ) : null}
+                    {securityInfo?.fingerprint ? (
+                      <div><strong>{t('cert.details.fingerprint')} </strong>{securityInfo.fingerprint}</div>
+                    ) : null}
+                  </div>
+                )}
+                {securityInfo && securityState === 'warn' ? (
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: mode === 'mobile' ? 12 : 8,
+                      marginTop: mode === 'mobile' ? 12 : 8,
+                      fontSize: mode === 'mobile' ? '30px' : '14px'
+                    }}
+                  >
+                    <input
+                      type="checkbox"
+                      checked={certExceptionAllowed}
+                      onChange={(e) => onToggleCertException?.(e.target.checked)}
+                      style={{ width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
+                    />
+                    <span>{t('cert.actions.allowSite')}</span>
+                  </label>
+                ) : null}
               </div>
-            ) : null}
-            {securityInfo.issuer || securityInfo.subject ? (
-              <div style={{ display: 'grid', rowGap: '4px', lineHeight: 1.4 }}>
-                {securityInfo.issuer ? (
-                  <div><strong>{t('cert.details.issuer')} </strong>{securityInfo.issuer}</div>
+            )}
+
+            {securityView === 'cookies' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 20 : 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityView('root')}
+                    aria-label={t('security.popup.back')}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(148,163,184,0.35)',
+                      color: '#e2e8f0',
+                      width: mode === 'mobile' ? 52 : 30,
+                      height: mode === 'mobile' ? 52 : 30,
+                      borderRadius: 8,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      width={mode === 'mobile' ? 24 : 14}
+                      height={mode === 'mobile' ? 24 : 14}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10 3.5 5.5 8 10 12.5" />
+                    </svg>
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '16px' }}>
+                    {t('security.popup.cookies')}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  {cookiePolicy?.blockThirdParty
+                    ? cookiePolicy.exceptionAllowed
+                      ? t('security.cookies.status.allowedException')
+                      : t('security.cookies.status.blocked')
+                    : t('security.cookies.status.allowedGlobal')}
+                </div>
+                {cookiePolicy?.blockThirdParty && cookiePolicy?.host ? (
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: mode === 'mobile' ? 20 : 10,
+                      marginTop: 6
+                    }}
+                  >
+                    <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={cookiePolicy.exceptionAllowed}
+                        onChange={(e) => onToggleCookieException?.(e.target.checked)}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          margin: 0,
+                          opacity: 0,
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          backgroundColor: cookiePolicy.exceptionAllowed ? '#2563ebeb' : 'transparent',
+                          border: '1px solid #ACB2B7',
+                          transition: 'background-color 160ms ease, border-color 160ms ease'
+                        }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          top: mode === 'mobile' ? 4 : 2,
+                          left: cookiePolicy.exceptionAllowed ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+                          width: mode === 'mobile' ? 32 : 16,
+                          height: mode === 'mobile' ? 32 : 16,
+                          borderRadius: '50%',
+                          backgroundColor: cookiePolicy.exceptionAllowed ? '#ffffff' : '#ACB2B7',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                          transition: 'left 160ms ease'
+                        }}
+                      />
+                    </span>
+                    <span style={{ fontWeight: 600 }}>
+                      {t('security.cookies.toggle')}
+                    </span>
+                  </label>
                 ) : null}
-                {securityInfo.subject ? (
-                  <div><strong>{t('cert.details.subject')} </strong>{securityInfo.subject}</div>
-                ) : null}
-                {securityInfo.fingerprint ? (
-                  <div><strong>{t('cert.details.fingerprint')} </strong>{securityInfo.fingerprint}</div>
-                ) : null}
+                <div style={{ opacity: 0.78, fontSize: mode === 'mobile' ? '32px' : '13px', lineHeight: 1.35 }}>
+                  {t('security.cookies.hint')}
+                </div>
               </div>
-            ) : null}
-            {securityInfo && securityState === 'warn' ? (
-              <label
-                style={{
-                  display: 'flex',
-                  alignItems: 'center',
-                  gap: mode === 'mobile' ? 12 : 8,
-                  marginTop: mode === 'mobile' ? 12 : 8,
-                  fontSize: mode === 'mobile' ? '30px' : '14px'
-                }}
-              >
-                <input
-                  type="checkbox"
-                  checked={certExceptionAllowed}
-                  onChange={(e) => onToggleCertException?.(e.target.checked)}
-                  style={{ width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
-                />
-                <span>{t('cert.actions.allowSite')}</span>
-              </label>
-            ) : null}
+            )}
           </div>
         )}
         <input

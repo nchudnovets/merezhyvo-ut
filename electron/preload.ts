@@ -261,7 +261,7 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return {
-          schema: 5,
+          schema: 6,
           tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null),
@@ -269,8 +269,63 @@ const exposeApi: MerezhyvoAPI = {
           ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE },
           httpsMode: 'strict',
           sslExceptions: [],
-          webrtcMode: 'always_on'
+          webrtcMode: 'always_on',
+          privacy: { cookies: { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } } }
         };
+      }
+    },
+    cookies: {
+      get: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:cookies:get')) as {
+            blockThirdParty: boolean;
+            exceptions: { thirdPartyAllow: Record<string, boolean> };
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.cookies.get failed', err);
+          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+        }
+      },
+      setBlock: async (blockThirdParty: boolean) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:cookies:set-block', { blockThirdParty })) as {
+            blockThirdParty: boolean;
+            exceptions: { thirdPartyAllow: Record<string, boolean> };
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.cookies.setBlock failed', err);
+          return { blockThirdParty, exceptions: { thirdPartyAllow: {} } };
+        }
+      },
+      setException: async (host: string, allow: boolean) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:cookies:set-exception', { host, allow })) as {
+            blockThirdParty: boolean;
+            exceptions: { thirdPartyAllow: Record<string, boolean> };
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.cookies.setException failed', err);
+          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+        }
+      },
+      listExceptions: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:cookies:list-exceptions')) as Record<string, boolean>;
+        } catch (err) {
+          console.error('[merezhyvo] settings.cookies.listExceptions failed', err);
+          return {};
+        }
+      },
+      clearExceptions: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:cookies:clear-exceptions')) as {
+            blockThirdParty: boolean;
+            exceptions: { thirdPartyAllow: Record<string, boolean> };
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.cookies.clearExceptions failed', err);
+          return { blockThirdParty: true, exceptions: { thirdPartyAllow: {} } };
+        }
       }
     },
     tor: {

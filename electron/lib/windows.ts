@@ -56,6 +56,7 @@ type FileDialogDetails = {
 };
 
 const autoCloseSkipIds = new Set<number>();
+const topLevelHostsByWc = new Map<number, string>();
 
 const DEFAULT_DOWNLOAD_BASENAME = 'download';
 
@@ -445,6 +446,46 @@ export function applyUserAgentForUrl(contents: WebContents | null | undefined, u
     // noop
   }
 }
+
+const pickHost = (raw: string | undefined): string | null => {
+  if (!raw) return null;
+  try {
+    return new URL(raw).hostname.toLowerCase();
+  } catch {
+    return null;
+  }
+};
+
+export const rememberTopLevelHost = (wcId: number | undefined | null, host: string | null | undefined): void => {
+  if (!wcId || !Number.isFinite(wcId)) return;
+  const normalized = pickHost(host ?? undefined);
+  if (normalized) {
+    topLevelHostsByWc.set(wcId, normalized);
+  }
+};
+
+export const forgetTopLevelHost = (wcId: number | undefined | null): void => {
+  if (!wcId || !Number.isFinite(wcId)) return;
+  topLevelHostsByWc.delete(wcId);
+};
+
+export const getTopLevelHostForRequest = (
+  details: { firstPartyURL?: string; resourceType?: string; url: string; webContentsId?: number; referrer?: string }
+): string | null => {
+  const wcId = details.webContentsId;
+  if (typeof wcId === 'number' && Number.isFinite(wcId)) {
+    const cached = topLevelHostsByWc.get(wcId);
+    if (cached) return cached;
+  }
+  const fromFirstParty = pickHost(details.firstPartyURL);
+  if (fromFirstParty) return fromFirstParty;
+  const fromReferrer = pickHost(details.referrer);
+  if (fromReferrer) return fromReferrer;
+  if (details.resourceType === 'mainFrame') {
+    return pickHost(details.url);
+  }
+  return null;
+};
 
 const refreshUserAgentMode = (): void => {
   const nextMode = userAgentOverride ?? currentMode ?? 'desktop';
@@ -871,6 +912,11 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     };
 
     const cleanup = () => {
+      try {
+        forgetTopLevelHost(contents.id);
+      } catch {
+        // ignore
+      }
       for (const { event, handler } of listeners) {
         try {
           contents.removeListener(event as never, handler as never);
@@ -887,7 +933,15 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     };
 
     register('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
-      if (isMainFrame) applyUserAgentForUrl(contents, navUrl);
+      if (isMainFrame) {
+        applyUserAgentForUrl(contents, navUrl);
+        rememberTopLevelHost(contents.id, navUrl);
+      }
+    });
+    register('did-navigate', (_evt, navUrl: string, httpResponseCode: number, httpStatusText: string) => {
+      if (navUrl) {
+        rememberTopLevelHost(contents.id, navUrl);
+      }
     });
 
     const deriveOrigin = (value: string): string | null => {
@@ -1086,7 +1140,10 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     if (input.type === 'mouseWheel' && (input.control || input.meta)) event.preventDefault();
   });
   typedWin.webContents.on('did-start-navigation', (_event, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
-    if (isMainFrame) applyUserAgentForUrl(typedWin.webContents, navUrl);
+    if (isMainFrame) {
+      applyUserAgentForUrl(typedWin.webContents, navUrl);
+      rememberTopLevelHost(typedWin.webContents.id, navUrl);
+    }
   });
 
   if (role === 'main') {

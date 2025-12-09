@@ -29,6 +29,7 @@ import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
 import LicensesPage from './pages/licenses/LicensesPage';
 import PasswordsPage from './pages/passwords/PasswordsPage';
+import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal, {
   type PasswordUnlockPayload
@@ -56,7 +57,8 @@ import type {
   CertificateInfo,
   HttpsMode,
   SslException,
-  WebrtcMode
+  WebrtcMode,
+  CookiePrivacySettings
 } from './types/models';
 import type { MerezhyvoAboutInfo } from './types/preload';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
@@ -117,6 +119,8 @@ type WebviewFaviconEvent = {
 };
 
 type KeyboardDirection = 'ArrowLeft' | 'ArrowRight';
+
+type SecurityIndicatorState = 'ok' | 'warn' | 'notice';
 
 type TabViewEntry = {
   container: HTMLDivElement;
@@ -361,6 +365,12 @@ const normalizeHost = (url?: string | null): string | null => {
   }
 };
 
+const isSubdomainOrSame = (host: string | null | undefined, root: string | null | undefined): boolean => {
+  if (!host || !root) return false;
+  if (host === root) return true;
+  return host.endsWith(`.${root}`);
+};
+
 const deriveErrorType = (cert: CertificateInfo | null): string | null => {
   if (!cert) return null;
   if (cert.state === 'missing') return HTTP_ERROR_TYPE;
@@ -458,6 +468,52 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
   const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
   const prevBrowserTabIdRef = useRef<string | null>(null);
+  const [cookiePrivacy, setCookiePrivacy] = useState<CookiePrivacySettings>({
+    blockThirdParty: true,
+    exceptions: { thirdPartyAllow: {} }
+  });
+  const refreshCookiePrivacy = useCallback(async () => {
+    try {
+      const next = await window.merezhyvo?.settings?.cookies?.get?.();
+      if (next) {
+        setCookiePrivacy(next as CookiePrivacySettings);
+      }
+    } catch (err) {
+      console.error('[merezhyvo] cookies.get failed', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      void refreshCookiePrivacy();
+    };
+    window.addEventListener('merezhyvo:cookies:updated', handler);
+    return () => {
+      window.removeEventListener('merezhyvo:cookies:updated', handler);
+    };
+  }, [refreshCookiePrivacy]);
+
+  const refreshHttpsSettings = useCallback(async () => {
+    try {
+      const next = await window.merezhyvo?.settings?.https?.get?.();
+      if (next) {
+        setHttpsMode(next.httpsMode === 'preferred' ? 'preferred' : 'strict');
+        setSslExceptions(Array.isArray(next.sslExceptions) ? next.sslExceptions : []);
+      }
+    } catch (err) {
+      console.error('[merezhyvo] https settings refresh failed', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const handler = () => {
+      void refreshHttpsSettings();
+    };
+    window.addEventListener('merezhyvo:https:updated', handler);
+    return () => {
+      window.removeEventListener('merezhyvo:https:updated', handler);
+    };
+  }, [refreshHttpsSettings]);
   const pendingMessengerTabIdRef = useRef<string | null>(null);
   const lastMessengerIdRef = useRef<MessengerId | null>(null);
   const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
@@ -805,6 +861,21 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [showGlobalToast]
   );
 
+  const handleCookieBlockChange = useCallback(
+    async (block: boolean) => {
+      try {
+        const next = await window.merezhyvo?.settings?.cookies?.setBlock?.(block);
+        if (next) {
+          setCookiePrivacy(next as CookiePrivacySettings);
+          window.dispatchEvent(new CustomEvent('merezhyvo:cookies:updated', { detail: next }));
+        }
+      } catch (err) {
+        console.error('[merezhyvo] cookie block update failed', err);
+      }
+    },
+    []
+  );
+
   const UI_SCALE_STEP = 0.05;
   const applyUiScale = useCallback(async (raw: number) => {
     const rounded = Math.round(raw / UI_SCALE_STEP) * UI_SCALE_STEP;
@@ -926,6 +997,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             ? wm
             : 'always_on'
         );
+        const cookies = state.privacy?.cookies;
+        const thirdPartyBlock = typeof cookies?.blockThirdParty === 'boolean' ? cookies.blockThirdParty : true;
+        const exceptions = cookies?.exceptions?.thirdPartyAllow ?? {};
+        setCookiePrivacy({ blockThirdParty: thirdPartyBlock, exceptions: { thirdPartyAllow: { ...exceptions } } });
       } catch {
         if (!cancelled) {
           setTorKeepEnabled(false);
@@ -935,6 +1010,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setHttpsMode('strict');
           setSslExceptions([]);
           setWebrtcMode('always_on');
+          setCookiePrivacy({ blockThirdParty: true, exceptions: { thirdPartyAllow: {} } });
         }
       }
     };
@@ -2038,10 +2114,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     (certCandidate.state === 'invalid' || certCandidate.state === 'missing') &&
     certBlock &&
     !certBypassRef.current.has(activeId ?? '');
-  const securityState =
+  const certProblem = Boolean(
     displayCertEffective && (displayCertEffective.state === 'invalid' || displayCertEffective.state === 'missing')
-      ? 'warn'
-      : 'ok';
+  );
+  const activeSecurityHost = certHost ?? normalizeHost(activeTab?.url);
+  const cookieExceptionsMap = cookiePrivacy.exceptions?.thirdPartyAllow ?? {};
+  const hasCookieException =
+    Boolean(cookiePrivacy.blockThirdParty) &&
+    Boolean(activeSecurityHost) &&
+    ((activeSecurityHost && cookieExceptionsMap[activeSecurityHost]) ||
+      Object.keys(cookieExceptionsMap).some(
+        (key) => key && activeSecurityHost && isSubdomainOrSame(activeSecurityHost, key)
+      ));
+  const securityState: SecurityIndicatorState = certProblem ? 'warn' : hasCookieException ? 'notice' : 'ok';
+  const siteCookiePolicy = useMemo(
+    () => ({
+      blockThirdParty: cookiePrivacy.blockThirdParty,
+      exceptionAllowed: hasCookieException,
+      host: activeSecurityHost ?? null
+    }),
+    [cookiePrivacy.blockThirdParty, hasCookieException, activeSecurityHost]
+  );
   const securityInfo = useMemo(() => {
     if (!displayCertEffective) return null;
     return {
@@ -3208,6 +3301,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [getActiveWebview, getActiveWebviewHandle, reloadActiveAction]);
 
+  const handleToggleCookieException = useCallback(
+    async (allow: boolean) => {
+      const host = activeSecurityHost;
+      if (!host) return;
+      try {
+        const next = await window.merezhyvo?.settings?.cookies?.setException?.(host, allow);
+        if (next) {
+          setCookiePrivacy(next as CookiePrivacySettings);
+          window.dispatchEvent(new CustomEvent('merezhyvo:cookies:updated', { detail: next }));
+        }
+        handleReload();
+      } catch (err) {
+        console.error('[merezhyvo] cookie exception toggle failed', err);
+      }
+    },
+    [activeSecurityHost, handleReload]
+  );
+
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'url';
   }, []);
@@ -3720,6 +3831,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openLicensesPage();
   }, [closeSettingsModal, openLicensesPage]);
+  const openSecurityExceptionsFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://security-exceptions');
+  }, [closeSettingsModal, openInNewTab]);
 
   const closeUnlockModal = useCallback(() => {
     setShowUnlockModal(false);
@@ -3773,9 +3888,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isHistoryService = serviceUrl.startsWith('mzr://history');
   const isPasswordsService = serviceUrl.startsWith('mzr://passwords');
   const isLicensesService = serviceUrl.startsWith('mzr://licenses');
+  const isSecurityExceptionsService = serviceUrl.startsWith('mzr://security-exceptions');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService);
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -3786,6 +3902,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       serviceContent = <PasswordsPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
     } else if (isLicensesService) {
       serviceContent = <LicensesPage mode={mode} />;
+    } else if (isSecurityExceptionsService) {
+      serviceContent = (
+        <SecurityExceptionsPage
+          mode={mode}
+          openInTab={openInActiveTab}
+          openInNewTab={openInNewTab}
+        />
+      );
     }
   }
 
@@ -4314,6 +4438,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onToggleSecurity={() => setSecurityPopoverOpen((prev) => !prev)}
               certExceptionAllowed={certExceptionAllowed}
               onToggleCertException={handleToggleCertException}
+              cookiePolicy={siteCookiePolicy}
+              onToggleCookieException={handleToggleCookieException}
             />
           )}
 
@@ -4398,6 +4524,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onHttpsModeChange={handleHttpsModeChange}
               webrtcMode={webrtcMode}
               onWebrtcModeChange={handleWebrtcModeChange}
+              cookiesBlockThirdParty={cookiePrivacy.blockThirdParty}
+              onCookieBlockChange={handleCookieBlockChange}
+              onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
             />
           )}
 

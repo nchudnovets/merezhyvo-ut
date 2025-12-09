@@ -52,6 +52,9 @@ interface SettingsModalProps {
   onHttpsModeChange: (mode: HttpsMode) => void;
   webrtcMode: WebrtcMode;
   onWebrtcModeChange: (mode: WebrtcMode) => void;
+  cookiesBlockThirdParty: boolean;
+  onCookieBlockChange: (block: boolean) => void;
+  onOpenSecurityExceptions: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -88,7 +91,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   httpsMode,
   onHttpsModeChange,
   webrtcMode,
-  onWebrtcModeChange
+  onWebrtcModeChange,
+  cookiesBlockThirdParty,
+  onCookieBlockChange,
+  onOpenSecurityExceptions
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -219,6 +225,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={onHttpsModeChange}
                 webrtcMode={webrtcMode}
                 onWebrtcChange={onWebrtcModeChange}
+                cookiesBlockThirdParty={cookiesBlockThirdParty}
+                onCookieBlockChange={onCookieBlockChange}
+                onOpenSecurityExceptions={onOpenSecurityExceptions}
               />
             }
           />

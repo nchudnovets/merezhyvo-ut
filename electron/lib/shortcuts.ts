@@ -12,7 +12,7 @@ import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 import { INTERNAL_BASE_FOLDER } from './internal-paths';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 5;
+export const SETTINGS_SCHEMA = 6;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -43,6 +43,13 @@ export type SslException = {
 
 export type WebrtcMode = 'always_on' | 'always_off' | 'off_with_tor';
 
+export type CookiePrivacySettings = {
+  blockThirdParty: boolean;
+  exceptions: {
+    thirdPartyAllow: Record<string, boolean>;
+  };
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -54,6 +61,9 @@ export type SettingsState = {
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
   permissions?: unknown;
+  privacy?: {
+    cookies?: CookiePrivacySettings;
+  };
 };
 
 type SettingsLike = {
@@ -66,6 +76,7 @@ type SettingsLike = {
   httpsMode?: unknown;
   sslExceptions?: unknown;
   webrtcMode?: unknown;
+  privacy?: unknown;
   permissions?: unknown;
 };
 
@@ -147,6 +158,10 @@ const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
 const DEFAULT_HTTPS_MODE: HttpsMode = 'strict';
 const DEFAULT_SSL_EXCEPTIONS: SslException[] = [];
 const DEFAULT_WEBRTC_MODE: WebrtcMode = 'always_on';
+const DEFAULT_COOKIE_PRIVACY: CookiePrivacySettings = {
+  blockThirdParty: true,
+  exceptions: { thirdPartyAllow: {} }
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -159,7 +174,8 @@ export const createDefaultSettingsState = (): SettingsState => ({
   ui: { ...DEFAULT_UI_SETTINGS },
   httpsMode: DEFAULT_HTTPS_MODE,
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
-  webrtcMode: DEFAULT_WEBRTC_MODE
+  webrtcMode: DEFAULT_WEBRTC_MODE,
+  privacy: { cookies: { ...DEFAULT_COOKIE_PRIVACY, exceptions: { thirdPartyAllow: {} } } }
 });
 
 const coerceScale = (value: number): number => {
@@ -199,6 +215,25 @@ export const sanitizeHttpsMode = (raw: unknown): HttpsMode => {
   return DEFAULT_HTTPS_MODE;
 };
 
+export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<CookiePrivacySettings> : {};
+  const blockThirdParty = typeof source.blockThirdParty === 'boolean' ? source.blockThirdParty : DEFAULT_COOKIE_PRIVACY.blockThirdParty;
+  const exceptionsRaw = (source.exceptions && typeof source.exceptions === 'object') ? source.exceptions : {};
+  const thirdPartyAllow = (exceptionsRaw as { thirdPartyAllow?: unknown }).thirdPartyAllow;
+  const map: Record<string, boolean> = {};
+  if (thirdPartyAllow && typeof thirdPartyAllow === 'object') {
+    for (const [key, val] of Object.entries(thirdPartyAllow as Record<string, unknown>)) {
+      if (typeof val === 'boolean' && typeof key === 'string' && key.trim()) {
+        map[key.toLowerCase()] = val;
+      }
+    }
+  }
+  return {
+    blockThirdParty,
+    exceptions: { thirdPartyAllow: map }
+  };
+};
+
 export const sanitizeSslExceptions = (raw: unknown): SslException[] => {
   if (!Array.isArray(raw)) return [...DEFAULT_SSL_EXCEPTIONS];
   const normalized = raw
@@ -233,6 +268,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     typeof source.permissions === 'object' && source.permissions !== null
       ? source.permissions
       : undefined;
+  const privacyCookies = sanitizeCookiePrivacy((source.privacy as { cookies?: unknown } | undefined)?.cookies);
   const downloads = sanitizeDownloadsSettings(source.downloads);
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
@@ -251,7 +287,8 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     httpsMode,
     sslExceptions,
     webrtcMode,
-    ...(permissions ? { permissions } : {})
+    ...(permissions ? { permissions } : {}),
+    privacy: { cookies: privacyCookies }
   };
 };
 

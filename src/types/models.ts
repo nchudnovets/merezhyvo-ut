@@ -185,6 +185,13 @@ export interface SslException {
 
 export type WebrtcMode = 'always_on' | 'always_off' | 'off_with_tor';
 
+export type CookiePrivacySettings = {
+  blockThirdParty: boolean;
+  exceptions: {
+    thirdPartyAllow: Record<string, boolean>;
+  };
+};
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -195,6 +202,9 @@ export interface SettingsState {
   httpsMode: HttpsMode;
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
+  privacy?: {
+    cookies?: CookiePrivacySettings;
+  };
 }
 
 export interface PasswordEntryMeta {

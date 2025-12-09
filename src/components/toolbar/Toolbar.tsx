@@ -38,7 +38,7 @@ interface ToolbarProps {
   toolbarRef?: RefObject<HTMLDivElement>;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
-  securityState?: 'ok' | 'warn';
+  securityState?: 'ok' | 'warn' | 'notice';
   securityInfo?: {
     state: string;
     url?: string | null;
@@ -54,6 +54,12 @@ interface ToolbarProps {
   onToggleSecurity?: () => void;
   certExceptionAllowed?: boolean;
   onToggleCertException?: (next: boolean) => void;
+  cookiePolicy?: {
+    blockThirdParty: boolean;
+    exceptionAllowed: boolean;
+    host: string | null;
+  };
+  onToggleCookieException?: (next: boolean) => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -90,7 +96,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
   securityOpen = false,
   onToggleSecurity,
   certExceptionAllowed,
-  onToggleCertException
+  onToggleCertException,
+  cookiePolicy,
+  onToggleCookieException
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -151,6 +159,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onToggleSecurity={onToggleSecurity}
       certExceptionAllowed={certExceptionAllowed}
       onToggleCertException={onToggleCertException}
+      cookiePolicy={cookiePolicy}
+      onToggleCookieException={onToggleCookieException}
     />
 
     {!compact && (

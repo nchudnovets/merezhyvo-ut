@@ -62,6 +62,8 @@ import {
   getEffectiveWebrtcPolicySync,
   setWebrtcMode
 } from './lib/webrtc-policy';
+import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
+import { installCookiePolicy } from './lib/cookie-policy';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
 
@@ -806,6 +808,7 @@ registerHistoryIpc(ipcMain);
 registerBookmarksIpc(ipcMain);
 registerFaviconsIpc(ipcMain);
 registerFileDialogIpc(ipcMain);
+registerCookieSettingsIPC();
 registerPasswordsIpc(ipcMain);
 
 app.whenReady().then(() => {
@@ -814,6 +817,7 @@ app.whenReady().then(() => {
   const initialMode = resolveMode();
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);
+  installCookiePolicy(session.defaultSession);
   windows.createMainWindow();
 
   screen.on('display-added', () => windows.rebalanceMainWindow());

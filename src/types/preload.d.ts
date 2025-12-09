@@ -189,6 +189,11 @@ export interface MerezhyvoFaviconsApi {
 
 export type MerezhyvoSettingsState = SettingsState;
 
+export type CookiePrivacyState = {
+  blockThirdParty: boolean;
+  exceptions: { thirdPartyAllow: Record<string, boolean> };
+};
+
 export interface MerezhyvoAPI {
   appInfo?: MerezhyvoAppInfo;
   about: {
@@ -211,6 +216,13 @@ export interface MerezhyvoAPI {
   };
   settings: {
     load(): Promise<MerezhyvoSettingsState>;
+    cookies: {
+      get(): Promise<CookiePrivacyState>;
+      setBlock(blockThirdParty: boolean): Promise<CookiePrivacyState>;
+      setException(host: string, allow: boolean): Promise<CookiePrivacyState>;
+      listExceptions(): Promise<Record<string, boolean>>;
+      clearExceptions(): Promise<CookiePrivacyState>;
+    };
     tor: {
       setKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult>;
     };
