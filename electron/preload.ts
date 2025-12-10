@@ -454,6 +454,48 @@ const exposeApi: MerezhyvoAPI = {
           return { ok: false, error: String(err) };
         }
       }
+    },
+    siteData: {
+      list: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:siteData:list')) as Array<{ host: string; hasCookiesOrSiteData: boolean }>;
+        } catch (err) {
+          console.error('[merezhyvo] siteData.list failed', err);
+          return [];
+        }
+      },
+      clearCookiesForSite: async (host: string) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:siteData:clearCookiesForSite', { host })) as { ok?: boolean; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] siteData.clearCookiesForSite failed', err);
+          return { ok: false, error: String(err) };
+        }
+      },
+      clearStorageForSite: async (host: string) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:siteData:clearStorageForSite', { host })) as { ok?: boolean; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] siteData.clearStorageForSite failed', err);
+          return { ok: false, error: String(err) };
+        }
+      },
+      clearHistoryForSite: async (host: string) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:siteData:clearHistoryForSite', { host })) as { ok?: boolean; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] siteData.clearHistoryForSite failed', err);
+          return { ok: false, error: String(err) };
+        }
+      },
+      clearGlobal: async (opts: { cookiesAndSiteData?: boolean; cache?: boolean; history?: boolean }) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:siteData:clearGlobal', opts ?? {})) as { ok?: boolean; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] siteData.clearGlobal failed', err);
+          return { ok: false, error: String(err) };
+        }
+      }
     }
   },
 

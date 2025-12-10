@@ -53,6 +53,7 @@ interface AddressBarProps {
     host: string | null;
   };
   onToggleCookieException?: (next: boolean) => void;
+  onOpenSiteData?: (host?: string | null) => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -81,7 +82,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   certExceptionAllowed = false,
   onToggleCertException,
   cookiePolicy,
-  onToggleCookieException
+  onToggleCookieException,
+  onOpenSiteData
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -92,7 +94,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
     ...(paddingRight ? { paddingRight } : {}),
-    ...(mode === 'mobile' ? { paddingLeft: 60 } : { paddingLeft: 34 }),
+    ...(mode === 'mobile' ? { paddingLeft: 80 } : { paddingLeft: 34 }),
     ...{ WebkitTouchCallout: 'none' }
   };
   const baseInputFont =
@@ -197,8 +199,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
         >
           <svg
             viewBox="0 0 24 24"
-            width={mode === 'mobile' ? 50 : 18}
-            height={mode === 'mobile' ? 50 : 18}
+            width={mode === 'mobile' ? 60 : 18}
+            height={mode === 'mobile' ? 60 : 18}
             fill="currentColor"
             xmlns="http://www.w3.org/2000/svg"
           >
@@ -518,6 +520,23 @@ const AddressBar: React.FC<AddressBarProps> = ({
                 <div style={{ opacity: 0.78, fontSize: mode === 'mobile' ? '32px' : '13px', lineHeight: 1.35 }}>
                   {t('security.cookies.hint')}
                 </div>
+                <button
+                  type="button"
+                  onClick={() => onOpenSiteData?.(cookiePolicy?.host ?? null)}
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: mode === 'mobile' ? 10 : 8,
+                    padding: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#93c5fd',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: mode === 'mobile' ? '35px' : '13px'
+                  }}
+                >
+                  {t('siteData.manageLink')}
+                </button>
               </div>
             )}
           </div>

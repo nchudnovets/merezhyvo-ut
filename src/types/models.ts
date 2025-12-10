@@ -418,3 +418,10 @@ export interface CertificateInfo {
   } | null;
   updatedAt: number;
 }
+
+export interface SiteDataEntry {
+  host: string;
+  hasCookies: boolean;
+  hasSiteStorage: boolean;
+  hasHistory: boolean;
+}

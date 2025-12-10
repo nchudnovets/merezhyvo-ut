@@ -55,6 +55,7 @@ import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { registerFileDialogIpc } from './lib/file-dialog-ipc';
 import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
+import { registerSiteDataIpc } from './lib/site-data-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 import {
   broadcastWebrtcPolicy,
@@ -810,6 +811,7 @@ registerFaviconsIpc(ipcMain);
 registerFileDialogIpc(ipcMain);
 registerCookieSettingsIPC();
 registerPasswordsIpc(ipcMain);
+registerSiteDataIpc();
 
 app.whenReady().then(() => {
   // installPermissionHandlers();

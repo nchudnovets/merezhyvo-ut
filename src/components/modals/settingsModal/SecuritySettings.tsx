@@ -12,6 +12,7 @@ type SecuritySettingsProps = {
   cookiesBlockThirdParty: boolean;
   onCookieBlockChange: (block: boolean) => void;
   onOpenSecurityExceptions: () => void;
+  onOpenSiteData: () => void;
 };
 
 const radioStyle = (mode: Mode): React.CSSProperties => ({
@@ -31,7 +32,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   onWebrtcChange,
   cookiesBlockThirdParty,
   onCookieBlockChange,
-  onOpenSecurityExceptions
+  onOpenSecurityExceptions,
+  onOpenSiteData
 }) => {
   const { t } = useI18n();
   const radioSize = mode === 'mobile' ? 40 : 18;
@@ -238,10 +240,27 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             color: '#93c5fd',
             cursor: 'pointer',
             textDecoration: 'underline',
-            fontSize: mode === 'mobile' ? '32px' : '14px'
+            fontSize: mode === 'mobile' ? '35px' : '14px'
           }}
         >
           {t('settings.cookies.manageLink')}
+        </button>
+        <button
+          type="button"
+          onClick={onOpenSiteData}
+          style={{
+            marginTop: mode === 'mobile' ? 12 : 10,
+            alignSelf: 'flex-start',
+            padding: 0,
+            background: 'transparent',
+            border: 'none',
+            color: '#93c5fd',
+            cursor: 'pointer',
+            textDecoration: 'underline',
+          fontSize: mode === 'mobile' ? '35px' : '14px'
+        }}
+      >
+          {t('settings.cookies.manageSiteDataList')}
         </button>
       </div>
     </div>

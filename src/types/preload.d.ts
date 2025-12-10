@@ -244,6 +244,13 @@ export interface MerezhyvoAPI {
       get(): Promise<{ mode: WebrtcMode }>;
       setMode(mode: WebrtcMode): Promise<{ ok?: boolean; mode?: WebrtcMode; error?: string }>;
     };
+    siteData: {
+      list(): Promise<{ host: string; hasCookies: boolean; hasSiteStorage: boolean; hasHistory: boolean }[]>;
+      clearCookiesForSite(host: string): Promise<{ ok?: boolean; error?: string }>;
+      clearStorageForSite(host: string): Promise<{ ok?: boolean; error?: string }>;
+      clearHistoryForSite(host: string): Promise<{ ok?: boolean; error?: string }>;
+      clearGlobal(opts: { cookiesAndSiteData?: boolean; cache?: boolean; history?: boolean }): Promise<{ ok?: boolean; error?: string }>;
+    };
   };
   ui: {
     get(): Promise<MerezhyvoUISettings>;

@@ -182,6 +182,26 @@ const writeEntries = async (entries: VisitRecord[]): Promise<void> => {
   await writeAtomic(HISTORY_FILE, content);
 };
 
+export const listHistoryHosts = async (): Promise<Set<string>> => {
+  const entries = await loadEntries();
+  const hosts = new Set<string>();
+  for (const entry of entries) {
+    const candidates: Array<string | null | undefined> = [entry.origin, entry.url];
+    for (const candidate of candidates) {
+      if (!candidate) continue;
+      try {
+        const parsed = new URL(candidate);
+        if (parsed.hostname) {
+          hosts.add(parsed.hostname.toLowerCase());
+        }
+      } catch {
+        // ignore parse errors
+      }
+    }
+  }
+  return hosts;
+};
+
 const matchTarget = (entry: VisitRecord, target: string): boolean => {
   if (entry.id === target) return true;
   const normalized = normalizeUrl(target);

@@ -30,6 +30,7 @@ import HistoryPage from './pages/history/HistoryPage';
 import LicensesPage from './pages/licenses/LicensesPage';
 import PasswordsPage from './pages/passwords/PasswordsPage';
 import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
+import SiteDataPage from './pages/siteData/SiteDataPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal, {
   type PasswordUnlockPayload
@@ -3817,10 +3818,32 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openLicensesPage();
   }, [closeSettingsModal, openLicensesPage]);
+  const normalizeSiteDataHost = useCallback((host?: string | null) => {
+    if (!host) return '';
+    let safe = host.trim().toLowerCase();
+    if (!safe) return '';
+    if (safe.toLowerCase().startsWith('www.') && safe.length > 4) {
+      safe = safe.slice(4);
+    }
+    return safe;
+  }, []);
   const openSecurityExceptionsFromSettings = useCallback(() => {
     closeSettingsModal();
     openInNewTab('mzr://security-exceptions');
   }, [closeSettingsModal, openInNewTab]);
+  const openSiteDataFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://site-data');
+  }, [closeSettingsModal, openInNewTab]);
+  const openSiteDataPage = useCallback(
+    (host?: string | null) => {
+      const targetHost = normalizeSiteDataHost(host);
+      const url = targetHost ? `mzr://site-data?host=${encodeURIComponent(targetHost)}` : 'mzr://site-data';
+      openInActiveTab(url);
+      setSecurityPopoverOpen(false);
+    },
+    [normalizeSiteDataHost, openInActiveTab]
+  );
 
   const closeUnlockModal = useCallback(() => {
     setShowUnlockModal(false);
@@ -3875,9 +3898,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isPasswordsService = serviceUrl.startsWith('mzr://passwords');
   const isLicensesService = serviceUrl.startsWith('mzr://licenses');
   const isSecurityExceptionsService = serviceUrl.startsWith('mzr://security-exceptions');
+  const isSiteDataService = serviceUrl.startsWith('mzr://site-data');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService);
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -3894,6 +3918,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           mode={mode}
           openInTab={openInActiveTab}
           openInNewTab={openInNewTab}
+          serviceUrl={activeTab?.url}
+        />
+      );
+    } else if (isSiteDataService) {
+      serviceContent = (
+        <SiteDataPage
+          mode={mode}
+          openInTab={openInActiveTab}
+          openInNewTab={openInNewTab}
+          serviceUrl={activeTab?.url}
         />
       );
     }
@@ -4426,6 +4460,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onToggleCertException={handleToggleCertException}
               cookiePolicy={siteCookiePolicy}
               onToggleCookieException={handleToggleCookieException}
+              onOpenSiteData={openSiteDataPage}
             />
           )}
 
@@ -4513,6 +4548,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               cookiesBlockThirdParty={cookiePrivacy.blockThirdParty}
               onCookieBlockChange={handleCookieBlockChange}
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
+              onOpenSiteData={openSiteDataFromSettings}
             />
           )}
 
