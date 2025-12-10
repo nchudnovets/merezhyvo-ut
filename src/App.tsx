@@ -153,10 +153,10 @@ const WEBVIEW_BASE_CSS = `
   }
   ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
   input, textarea, [contenteditable='true'] {
-    caret-color: #60a5fa !important;
+    caret-color: #121826; !important;
   }
   :root {
-    --mzr-caret-accent: #22d3ee;
+    --mzr-caret-accent: #121826;
     --mzr-focus-ring:   #60a5fa;
     --mzr-sel-bg:       rgba(34,211,238,.28);
     --mzr-sel-fg:       #0b1020;
@@ -170,7 +170,7 @@ const WEBVIEW_BASE_CSS = `
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --mzr-caret-accent: #7dd3fc;
+      --mzr-caret-accent: #121826;
       --mzr-sel-bg:       rgba(125,211,252,.3);
       --mzr-sel-fg:       #0a0f1f;
       --mzr-focus-ring:   #93c5fd;
@@ -178,7 +178,7 @@ const WEBVIEW_BASE_CSS = `
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --mzr-caret-accent: #0ea5e9;
+      --mzr-caret-accent: #121826;
       --mzr-sel-bg:       rgba(14,165,233,.25);
       --mzr-sel-fg:       #0b1020;
       --mzr-focus-ring:   #3b82f6;
@@ -203,20 +203,6 @@ const WEBVIEW_BASE_CSS = `
   ::-moz-selection {
     background: var(--mzr-sel-bg) !important;
     color: var(--mzr-sel-fg) !important;
-  }
-
-  input[type="text"]:focus-visible,
-  input[type="search"]:focus-visible,
-  input[type="url"]:focus-visible,
-  input[type="email"]:focus-visible,
-  input[type="tel"]:focus-visible,
-  input[type="password"]:focus-visible,
-  textarea:focus-visible,
-  [contenteditable=""]:focus-visible,
-  [contenteditable="true"]:focus-visible {
-    outline: 2px solid var(--mzr-focus-ring) !important;
-    outline-offset: 2px !important;
-    box-shadow: 0 0 0 2px color-mix(in srgb, var(--mzr-focus-ring) 35%, transparent) !important;
   }
 `;
 
