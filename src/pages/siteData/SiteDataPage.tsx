@@ -325,38 +325,43 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
             </svg>
           </button>
           {globalExpanded && (
-            <div style={{ padding: mode === 'mobile' ? '0 18px 18px' : '0 14px 14px', display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div style={{
+              padding: mode === 'mobile' ? '0 18px 18px' : '0 14px 14px',
+              display: 'flex',
+              flexDirection: 'column',
+              gap: mode === 'mobile' ? 27 : 14
+            }}>
               <div style={formatLabel(mode)}>{t('siteData.global.lead')}</div>
-              <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <label style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 <input
                   type="checkbox"
                   checked={globalFlags.cookiesAndSiteData}
                   onChange={() => toggleFlag('cookiesAndSiteData')}
-                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
+                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 36 : 16, height: mode === 'mobile' ? 36 : 16 }}
                 />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '15px' }}>{t('siteData.global.cookies')}</div>
                   <div style={formatLabel(mode)}>{t('siteData.global.cookiesDesc')}</div>
                 </div>
               </label>
-              <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <label style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 <input
                   type="checkbox"
                   checked={globalFlags.cache}
                   onChange={() => toggleFlag('cache')}
-                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
+                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 36 : 16, height: mode === 'mobile' ? 36 : 16 }}
                 />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '15px' }}>{t('siteData.global.cache')}</div>
                   <div style={formatLabel(mode)}>{t('siteData.global.cacheDesc')}</div>
                 </div>
               </label>
-              <label style={{ display: 'flex', gap: 12, alignItems: 'flex-start' }}>
+              <label style={{ display: 'flex', gap: 16, alignItems: 'flex-start' }}>
                 <input
                   type="checkbox"
                   checked={globalFlags.history}
                   onChange={() => toggleFlag('history')}
-                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 28 : 16, height: mode === 'mobile' ? 28 : 16 }}
+                  style={{ marginTop: mode === 'mobile' ? 10 : 4, width: mode === 'mobile' ? 36 : 16, height: mode === 'mobile' ? 36 : 16 }}
                 />
                 <div>
                   <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '15px' }}>{t('siteData.global.history')}</div>
