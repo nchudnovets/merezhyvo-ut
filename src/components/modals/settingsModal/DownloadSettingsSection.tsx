@@ -12,40 +12,22 @@ export type DownloadSettingsSectionProps = {
   command: string;
 };
 
-const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
-  mode,
-  concurrent,
-  saving,
-  onConcurrentChange,
-  onCopyCommand,
-  command
-}) => {
-  const { t } = useI18n();
-  const labelFontSize = mode === 'mobile' ? '41px' : '16px';
-  const valueFontSize = mode === 'mobile' ? '39px' : '14px';
-  const buttonMinHeight = mode === 'mobile' ? 48 : 36;
+  const DownloadSettingsSection: React.FC<DownloadSettingsSectionProps> = ({
+    mode,
+    concurrent,
+    saving,
+    onConcurrentChange,
+    onCopyCommand,
+    command
+  }) => {
+    const { t } = useI18n();
+    const labelFontSize = mode === 'mobile' ? '41px' : '16px';
+    const buttonMinHeight = mode === 'mobile' ? 48 : 36;
   const concurrencyValues: Array<1 | 2 | 3> = [1, 2, 3];
   const sectionStyle: CSSProperties = {
     display: 'flex',
     flexDirection: 'column',
     gap: '16px'
-  };
-  const rowStyle: CSSProperties = {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    gap: '12px',
-    flexWrap: 'wrap'
-  };
-  const pathStyle: CSSProperties = {
-    flex: 1,
-    minWidth: 0,
-    fontSize: valueFontSize,
-    color: '#f8fafc',
-    lineHeight: 1.25,
-    overflow: 'hidden',
-    textOverflow: 'ellipsis',
-    whiteSpace: 'nowrap'
   };
   const buttonStyle: CSSProperties = {
     minHeight: buttonMinHeight,

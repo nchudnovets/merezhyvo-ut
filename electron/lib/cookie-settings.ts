@@ -1,5 +1,4 @@
 import { readSettingsState, writeSettingsState, type CookiePrivacySettings } from './shortcuts';
-import { session } from 'electron';
 import { EventEmitter } from 'events';
 
 const emitter = new EventEmitter();
@@ -19,34 +18,6 @@ const normalizeHost = (host: string | null | undefined): string | null => {
   if (!host || typeof host !== 'string') return null;
   const trimmed = host.trim().toLowerCase();
   return trimmed || null;
-};
-
-const isSubdomainOrSame = (candidate: string, root: string): boolean => {
-  if (candidate === root) return true;
-  return candidate.endsWith(`.${root}`);
-};
-
-const clearCookiesForHost = async (host: string): Promise<void> => {
-  const sess = session.defaultSession;
-  if (!sess?.cookies) return;
-  const cookies = await sess.cookies.get({});
-  const tasks: Promise<void>[] = [];
-  for (const cookie of cookies) {
-    const rawDomain = cookie.domain || '';
-    const normalizedDomain = rawDomain.startsWith('.') ? rawDomain.slice(1).toLowerCase() : rawDomain.toLowerCase();
-    // Remove cookies for this host/subdomains AND any third-party cookies stored while exception was active.
-    // This is intentionally aggressive to avoid stale third-party cookies lingering after an exception is removed.
-    const scheme = cookie.secure ? 'https' : 'http';
-    const path = cookie.path || '/';
-    const targetHost = normalizedDomain || host;
-    const url = `${scheme}://${targetHost}${path.startsWith('/') ? path : `/${path}`}`;
-    try {
-      tasks.push(sess.cookies.remove(url, cookie.name));
-    } catch {
-      // ignore failed remove for individual cookie
-    }
-  }
-  await Promise.allSettled(tasks);
 };
 
 export async function getCookiePrivacyState(): Promise<CookiePrivacyState> {

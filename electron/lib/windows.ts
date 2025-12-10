@@ -938,7 +938,7 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
         rememberTopLevelHost(contents.id, navUrl);
       }
     });
-    register('did-navigate', (_evt, navUrl: string, httpResponseCode: number, httpStatusText: string) => {
+    register('did-navigate', (_evt, navUrl: string, _httpResponseCode: number, _httpStatusText: string) => {
       if (navUrl) {
         rememberTopLevelHost(contents.id, navUrl);
       }

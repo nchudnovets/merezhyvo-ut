@@ -506,7 +506,6 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
               overflow: 'hidden' 
             }}>
               {visibleList.map((entry, idx) => {
-                const confirming = confirmingHost === entry.host || confirmingHost?.startsWith(`${entry.host}-`);
                 return (
                   <div
                     key={entry.host}

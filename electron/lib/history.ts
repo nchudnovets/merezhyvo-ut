@@ -305,10 +305,11 @@ export const query = async (options: HistoryQueryOptions = {}): Promise<HistoryQ
 
     const limit = Math.max(1, Math.min(1024, options.limit ?? DEFAULT_QUERY_LIMIT));
     const startIndex = Math.max(0, Math.min(entries.length, options.cursor ?? 0));
-    const filtered: VisitRecord[] = [];
-    let lastKept: VisitRecord | null = null;
-    for (let i = startIndex; i < entries.length; i += 1) {
-      const entry = entries[i];
+  const filtered: VisitRecord[] = [];
+  let lastKept: VisitRecord | null = null;
+  for (let i = startIndex; i < entries.length; i += 1) {
+    const entry = entries[i];
+    if (!entry) continue;
       if (!matchesFilters(entry, options)) continue;
       const isDuplicate =
         lastKept &&

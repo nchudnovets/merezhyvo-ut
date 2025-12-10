@@ -454,16 +454,21 @@ const exposeApi: MerezhyvoAPI = {
           return { ok: false, error: String(err) };
         }
       }
-    },
-    siteData: {
-      list: async () => {
-        try {
-          return (await ipcRenderer.invoke('merezhyvo:siteData:list')) as Array<{ host: string; hasCookiesOrSiteData: boolean }>;
-        } catch (err) {
-          console.error('[merezhyvo] siteData.list failed', err);
-          return [];
-        }
       },
+      siteData: {
+        list: async () => {
+          try {
+            return (await ipcRenderer.invoke('merezhyvo:siteData:list')) as Array<{
+              host: string;
+              hasCookies: boolean;
+              hasSiteStorage: boolean;
+              hasHistory: boolean;
+            }>;
+          } catch (err) {
+            console.error('[merezhyvo] siteData.list failed', err);
+            return [];
+          }
+        },
       clearCookiesForSite: async (host: string) => {
         try {
           return (await ipcRenderer.invoke('merezhyvo:siteData:clearCookiesForSite', { host })) as { ok?: boolean; error?: string };

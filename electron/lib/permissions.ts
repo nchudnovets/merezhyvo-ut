@@ -1,10 +1,4 @@
-import {
-  app,
-  ipcMain,
-  session,
-  type WebContents,
-  type Event as ElectronEvent
-} from 'electron';
+import { ipcMain, session, type WebContents, type Event as ElectronEvent } from 'electron';
 import {
   type PermissionType,
   getPermissionsState,
@@ -16,8 +10,6 @@ import {
   type PermissionsState,
   updateDefaultPermissions
 } from './permissions-settings';
-import fs from 'fs';
-import path from 'path';
 
 /**
  * NOTE:
@@ -293,7 +285,7 @@ export function installPermissionHandlers(): void {
 
   // Helps navigator.permissions.query reflect stored decisions
   if (typeof ses.setPermissionCheckHandler === 'function') {
-    ses.setPermissionCheckHandler((_wc, permission, requestingOrigin, _details) => {
+    ses.setPermissionCheckHandler((_wc, _permission, _requestingOrigin, _details) => {
       // temporary
       return false;
       // const origin = requestingOrigin || 'null';

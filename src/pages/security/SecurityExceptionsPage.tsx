@@ -1,5 +1,5 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
-import type { Mode, SslException } from '../../types/models';
+import type { SslException } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
 import { useI18n } from '../../i18n/I18nProvider';
 

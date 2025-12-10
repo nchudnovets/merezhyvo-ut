@@ -50,7 +50,7 @@ export const listSiteDataEntries = async (): Promise<SiteDataEntry[]> => {
     for (const sess of sessions) {
       const cookies = await sess.cookies.get({});
       for (const cookie of cookies) {
-        const domain = normalizeHost(cookie.domain || cookie.host);
+        const domain = normalizeHost(cookie.domain);
         if (domain) {
           const prev = map.get(domain) ?? { hasCookies: false, hasSiteStorage: false, hasHistory: false };
           map.set(domain, { ...prev, hasCookies: true, hasSiteStorage: true });
@@ -78,7 +78,6 @@ export const clearCookiesForHost = async (host: string): Promise<void> => {
   const sessions = getAllSessions();
   const hostVariants = new Set<string>([normalized]);
   hostVariants.add(`www.${normalized}`);
-  const origins = Array.from(hostVariants).flatMap((h) => [`https://${h}`, `http://${h}`]);
 
   const removalTasks: Promise<unknown>[] = [];
   for (const sess of sessions) {
@@ -89,7 +88,7 @@ export const clearCookiesForHost = async (host: string): Promise<void> => {
           const cookies = await sess.cookies.get({});
           const tasks: Promise<unknown>[] = [];
           for (const cookie of cookies) {
-            const domain = normalizeHost(cookie.domain || cookie.host);
+            const domain = normalizeHost(cookie.domain);
             if (!domain) continue;
             if (domain === normalized || domain.endsWith(`.${normalized}`) || normalized.endsWith(`.${domain}`)) {
               const scheme = cookie.secure ? 'https' : 'http';
@@ -135,7 +134,8 @@ export const clearSiteStorageForHost = async (host: string): Promise<void> => {
   const sessions = getAllSessions();
   const hostVariants = new Set<string>([normalized, `www.${normalized}`]);
   const origins = Array.from(hostVariants).flatMap((h) => [`https://${h}`, `http://${h}`]);
-  const storages: Parameters<Electron.Session['clearStorageData']>[0]['storages'] = [
+  type ClearStorageOpts = NonNullable<Parameters<Electron.Session['clearStorageData']>[0]>;
+  const storages: ClearStorageOpts['storages'] = [
     'filesystem',
     'indexdb',
     'localstorage',
@@ -164,7 +164,8 @@ export const clearSiteDataGlobal = async (opts: {
   history?: boolean;
 }): Promise<void> => {
   const sessions = getAllSessions();
-  const storages: Parameters<Electron.Session['clearStorageData']>[0]['storages'] = [
+  type ClearStorageOpts = NonNullable<Parameters<Electron.Session['clearStorageData']>[0]>;
+  const storages: ClearStorageOpts['storages'] = [
     'cookies',
     'filesystem',
     'indexdb',

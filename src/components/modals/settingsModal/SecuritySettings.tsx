@@ -41,7 +41,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   const toggleTrackHeight = mode === 'mobile' ? 40 : 20;
   const toggleThumbSize = mode === 'mobile' ? 32 : 16;
 
-  const renderRadioControl = (checked: boolean, name: string, onSelect: () => void): JSX.Element => (
+  const renderRadioControl = (checked: boolean, name: string, onSelect: () => void): React.ReactElement => (
     <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
       <input
         type="radio"
@@ -90,7 +90,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
     </span>
   );
 
-  const renderToggle = (checked: boolean, onChangeChecked: (value: boolean) => void): JSX.Element => (
+  const renderToggle = (checked: boolean, onChangeChecked: (value: boolean) => void): React.ReactElement => (
     <span style={{ position: 'relative', width: toggleTrackWidth, height: toggleTrackHeight, flexShrink: 0, display: 'inline-block' }}>
       <input
         type="checkbox"

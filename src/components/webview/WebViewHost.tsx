@@ -384,7 +384,7 @@ const WebViewHost = forwardRef(function WebViewHost(
         errorCode: typeof nav.errorCode === 'number' ? nav.errorCode : 0,
         errorDescription: typeof nav.errorDescription === 'string' ? nav.errorDescription : '',
         validatedURL: typeof nav.validatedURL === 'string' ? nav.validatedURL : '',
-        isMainFrame: nav?.isMainFrame !== false
+        isMainFrame: Boolean(nav?.isMainFrame ?? true)
       });
     };
 

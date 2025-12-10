@@ -57,12 +57,7 @@ import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDial
 import { getEntrySecret } from './lib/pw/vault';
 import { registerSiteDataIpc } from './lib/site-data-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
-import {
-  broadcastWebrtcPolicy,
-  getEffectiveWebrtcPolicy,
-  getEffectiveWebrtcPolicySync,
-  setWebrtcMode
-} from './lib/webrtc-policy';
+import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
 import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
 import { installCookiePolicy } from './lib/cookie-policy';
 // import { installPermissionHandlers } from './lib/permissions';
@@ -1242,13 +1237,13 @@ ipcMain.handle('merezhyvo:settings:https:set-mode', async (_event, payload: unkn
 });
 
 ipcMain.handle('merezhyvo:settings:https:add-exception', async (_event, payload: unknown) => {
-  const hostRaw =
+  const hostRaw: string =
     typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
-      ? (payload as { host?: string }).host
+      ? (payload as { host?: string }).host ?? ''
       : '';
-  const errorTypeRaw =
+  const errorTypeRaw: string =
     typeof payload === 'object' && payload && typeof (payload as { errorType?: unknown }).errorType === 'string'
-      ? (payload as { errorType?: string }).errorType
+      ? (payload as { errorType?: string }).errorType ?? ''
       : '';
   const host = hostRaw.trim().toLowerCase();
   const errorType = errorTypeRaw.trim();
@@ -1272,13 +1267,13 @@ ipcMain.handle('merezhyvo:settings:https:add-exception', async (_event, payload:
 });
 
 ipcMain.handle('merezhyvo:settings:https:remove-exception', async (_event, payload: unknown) => {
-  const hostRaw =
+  const hostRaw: string =
     typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
-      ? (payload as { host?: string }).host
+      ? (payload as { host?: string }).host ?? ''
       : '';
-  const errorTypeRaw =
+  const errorTypeRaw: string =
     typeof payload === 'object' && payload && typeof (payload as { errorType?: unknown }).errorType === 'string'
-      ? (payload as { errorType?: string }).errorType
+      ? (payload as { errorType?: string }).errorType ?? ''
       : '';
   const host = hostRaw.trim().toLowerCase();
   const errorType = errorTypeRaw.trim();

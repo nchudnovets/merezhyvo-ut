@@ -119,7 +119,8 @@ const hostFromRealm = (realm: string): string => {
     try {
       const stripped = realm.replace(/^https?:\/\//i, '');
       const hostPart = stripped.split('/')[0];
-      return hostPart.split(':')[0].toLowerCase();
+      if (!hostPart) return realm.toLowerCase();
+      return hostPart.split(':')[0]?.toLowerCase() ?? realm.toLowerCase();
     } catch {
       return realm.toLowerCase();
     }
