@@ -54,7 +54,7 @@ const uk = {
   'siteData.global.cacheDesc': 'Звільняє місце й може сповільнити сайти під час наступного візиту.',
   'siteData.global.history': 'Історія перегляду',
   'siteData.global.historyDesc': 'Відвідані сторінки та підказки в адресному рядку.',
-  'siteData.global.clearAction': 'Очистити дані',
+  'siteData.global.clearAction': 'Очистити пристрій',
   'siteData.global.clearing': 'Очищення…',
   'siteData.search': 'Пошук сайтів…',
   'siteData.empty': 'Немає даних сайтів.',

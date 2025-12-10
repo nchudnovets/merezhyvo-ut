@@ -54,7 +54,7 @@ const fr = {
   'siteData.global.cacheDesc': 'Libère de l’espace et peut ralentir certains sites lors de la prochaine visite.',
   'siteData.global.history': 'Historique de navigation',
   'siteData.global.historyDesc': 'Pages visitées et suggestions de la barre d’adresse.',
-  'siteData.global.clearAction': 'Effacer les données',
+  'siteData.global.clearAction': 'Nettoyer l’appareil',
   'siteData.global.clearing': 'Effacement…',
   'siteData.search': 'Rechercher des sites…',
   'siteData.empty': 'Aucune donnée de site trouvée.',

@@ -204,7 +204,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           </div>
         </label>
       </div>
-      <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 12 : 8 }}>
+      <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 8 }}>
         <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
           {t('settings.cookies.title')}
         </div>
@@ -212,7 +212,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           style={{
             ...radioStyle(mode),
             alignItems: 'center',
-            gap: mode === 'mobile' ? 18 : 12
+            gap: mode === 'mobile' ? 22 : 12
           }}
         >
           {renderToggle(cookiesBlockThirdParty, onCookieBlockChange)}
@@ -232,7 +232,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           type="button"
           onClick={onOpenSecurityExceptions}
           style={{
-            marginTop: mode === 'mobile' ? 14 : 12,
+            marginTop: mode === 'mobile' ? 20 : 12,
             alignSelf: 'flex-start',
             padding: 0,
             background: 'transparent',
@@ -249,7 +249,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           type="button"
           onClick={onOpenSiteData}
           style={{
-            marginTop: mode === 'mobile' ? 12 : 10,
+            marginTop: mode === 'mobile' ? 20 : 10,
             alignSelf: 'flex-start',
             padding: 0,
             background: 'transparent',

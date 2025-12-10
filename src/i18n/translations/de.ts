@@ -54,7 +54,7 @@ const de = {
   'siteData.global.cacheDesc': 'Spart Speicherplatz und kann Seiten beim nächsten Laden verlangsamen.',
   'siteData.global.history': 'Browserverlauf',
   'siteData.global.historyDesc': 'Besuchte Seiten und Adressleisten-Vorschläge.',
-  'siteData.global.clearAction': 'Daten löschen',
+  'siteData.global.clearAction': 'Gerät bereinigen',
   'siteData.global.clearing': 'Lösche…',
   'siteData.search': 'Websites durchsuchen…',
   'siteData.empty': 'Keine Website-Daten gefunden.',

@@ -46,13 +46,14 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
   const [visibleCount, setVisibleCount] = useState<number>(PAGE_SIZE);
   const [clearingHost, setClearingHost] = useState<string | null>(null);
   const [confirmingHost, setConfirmingHost] = useState<string | null>(null);
-  const [globalExpanded, setGlobalExpanded] = useState<boolean>(true);
+  const [globalExpanded, setGlobalExpanded] = useState<boolean>(!initialFilter);
   const [globalFlags, setGlobalFlags] = useState<ClearFlags>({
     cookiesAndSiteData: true,
     cache: true,
     history: false
   });
   const [clearingGlobal, setClearingGlobal] = useState<boolean>(false);
+  const [globalConfirming, setGlobalConfirming] = useState<boolean>(false);
   const [toast, setToast] = useState<string | null>(null);
   const [clearedCookiesHosts, setClearedCookiesHosts] = useState<Set<string>>(new Set());
   const [clearedStorageHosts, setClearedStorageHosts] = useState<Set<string>>(new Set());
@@ -246,6 +247,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
     const { cookiesAndSiteData, cache, history } = globalFlags;
     if (!cookiesAndSiteData && !cache && !history) return;
     setClearingGlobal(true);
+    setGlobalConfirming(false);
     try {
       const res = await window.merezhyvo?.settings?.siteData?.clearGlobal?.({
         cookiesAndSiteData,
@@ -268,6 +270,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
 
   const toggleFlag = (key: keyof ClearFlags) => {
     setGlobalFlags((prev) => ({ ...prev, [key]: !prev[key] }));
+    setGlobalConfirming(false);
   };
 
   const canClearGlobal = globalFlags.cache || globalFlags.cookiesAndSiteData || globalFlags.history;
@@ -286,11 +289,9 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
         color: '#e2e8f0'
       }}
     >
-      <div style={{ maxWidth: 1100, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
+      <div style={{ maxWidth: mode === 'mobile' ? 'none' : 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
         <div
           style={{
-            borderRadius: 16,
-            border: rowBorder,
             background: 'rgba(15,23,42,0.55)',
             overflow: 'hidden'
           }}
@@ -362,44 +363,73 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                   <div style={formatLabel(mode)}>{t('siteData.global.historyDesc')}</div>
                 </div>
               </label>
-              <div style={{ display: 'flex', gap: 10, justifyContent: 'flex-end', flexWrap: 'wrap', marginTop: 4 }}>
-                <button
-                  type="button"
-                  onClick={() =>
-                    setGlobalFlags({
-                      cookiesAndSiteData: true,
-                      cache: true,
-                      history: false
-                    })
-                  }
-                  style={{
-                    padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
-                    borderRadius: 10,
-                    border: rowBorder,
-                    background: 'rgba(30,41,59,0.7)',
-                    color: '#e2e8f0',
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('global.cancel')}
-                </button>
-                <button
-                  type="button"
-                  disabled={!canClearGlobal || clearingGlobal}
-                  onClick={handleGlobalClear}
-                  style={{
-                    padding: mode === 'mobile' ? '14px 18px' : '9px 14px',
-                    borderRadius: 10,
-                    border: 'none',
-                    background: canClearGlobal ? '#2563eb' : 'rgba(37,99,235,0.35)',
-                    color: '#fff',
-                    cursor: canClearGlobal ? 'pointer' : 'not-allowed',
-                    minWidth: 120,
-                    opacity: clearingGlobal ? 0.8 : 1
-                  }}
-                >
-                  {clearingGlobal ? t('siteData.global.clearing') : t('siteData.global.clearAction')}
-                </button>
+              <div style={{
+                display: 'flex',
+                gap: 10,
+                justifyContent: 'center',
+                flexWrap: 'wrap',
+                marginTop: mode === 'mobile' ? '20px' : '10px'
+              }}>
+                {globalConfirming ? (
+                  <>
+                    <button
+                      type="button"
+                      onClick={() => setGlobalConfirming(false)}
+                      style={{
+                        padding: mode === 'mobile' ? '14px 16px' : '9px 12px',
+                        borderRadius: 10,
+                        border: rowBorder,
+                        background: 'rgba(30,41,59,0.7)',
+                        color: '#e2e8f0',
+                        cursor: 'pointer',
+                        width: mode === 'mobile' ? '100%' : '60%',
+                        fontSize: mode === 'mobile' ? '36px' : '14px'
+                      }}
+                    >
+                      {t('global.cancel')}
+                    </button>
+                    <button
+                      type="button"
+                      disabled={!canClearGlobal || clearingGlobal}
+                      onClick={handleGlobalClear}
+                      style={{
+                        padding: mode === 'mobile' ? '14px 18px' : '9px 14px',
+                        borderRadius: 10,
+                        border: 'none',
+                        background: canClearGlobal ? '#2563eb' : 'rgba(37,99,235,0.35)',
+                        color: '#fff',
+                        cursor: canClearGlobal ? 'pointer' : 'not-allowed',
+                        width: mode === 'mobile' ? '100%' : '60%',
+                        opacity: clearingGlobal ? 0.8 : 1,
+                        fontSize: mode === 'mobile' ? '38px' : '15px',
+                      }}
+                    >
+                      {clearingGlobal ? t('siteData.global.clearing') : t('siteData.global.clearAction')}
+                    </button>
+                  </>
+                ) : (
+                  <button
+                    type="button"
+                    disabled={!canClearGlobal}
+                    onClick={() => {
+                      if (!canClearGlobal) return;
+                      setGlobalConfirming(true);
+                    }}
+                    style={{
+                      padding: mode === 'mobile' ? '14px 18px' : '9px 14px',
+                      borderRadius: 10,
+                      border: 'none',
+                      background: canClearGlobal ? '#2563eb' : 'rgba(37,99,235,0.35)',
+                      color: '#fff',
+                      cursor: canClearGlobal ? 'pointer' : 'not-allowed',
+                      width: mode === 'mobile' ? '100%' : '60%',
+                      opacity: clearingGlobal ? 0.8 : 1,
+                      fontSize: mode === 'mobile' ? '38px' : '15px',
+                    }}
+                  >
+                    {t('siteData.global.clearAction')}
+                  </button>
+                )}
               </div>
             </div>
           )}
@@ -407,8 +437,6 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
 
         <div
           style={{
-            borderRadius: 16,
-            border: rowBorder,
             background: 'rgba(15,23,42,0.45)',
             padding: mode === 'mobile' ? '16px 16px 10px' : '12px 12px 8px',
             display: 'flex',
@@ -430,7 +458,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                 border: '1px solid rgba(148,163,184,0.35)',
                 background: 'rgba(15,23,42,0.7)',
                 color: '#e2e8f0',
-                fontSize: mode === 'mobile' ? '34px' : '14px'
+                fontSize: mode === 'mobile' ? '36px' : '14px'
               }}
             />
             {query && (
@@ -443,7 +471,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                   border: rowBorder,
                   background: 'rgba(30,41,59,0.7)',
                   color: '#e2e8f0',
-                  cursor: 'pointer'
+                  cursor: 'pointer',
+                  fontSize: mode === 'mobile' ? '36px' : '14px'
                 }}
               >
                 {t('global.clear')}
@@ -473,7 +502,9 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
               {t('siteData.empty')}
             </div>
           ) : (
-            <div style={{ borderRadius: 12, border: rowBorder, overflow: 'hidden' }}>
+            <div style={{ 
+              overflow: 'hidden' 
+            }}>
               {visibleList.map((entry, idx) => {
                 const confirming = confirmingHost === entry.host || confirmingHost?.startsWith(`${entry.host}-`);
                 return (
@@ -481,14 +512,21 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                     key={entry.host}
                     style={{
                       display: 'grid',
-                      gridTemplateColumns: mode === 'mobile' ? '1fr' : '2fr 2fr',
+                      gridTemplateColumns: mode === 'mobile' ? '1fr' : '1fr 2fr',
                       alignItems: 'flex-start',
                       gap: 12,
                       padding: mode === 'mobile' ? '16px 16px' : '12px 12px',
                       borderBottom: idx === visibleList.length - 1 ? 'none' : rowBorder
                     }}
                   >
-                    <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px', wordBreak: 'break-word' }}>{entry.host}</div>
+                    <div style={{
+                      fontWeight: 700,
+                      fontSize: mode === 'mobile' ? '45px' : '15px',
+                      wordBreak: 'break-word',
+                      textAlign: mode === 'mobile' ? 'center' : 'left'
+                    }}>
+                      {entry.host}
+                    </div>
                     <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
                       <div
                         style={{
@@ -497,13 +535,12 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           gap: 10,
-                          border: rowBorder,
-                          borderRadius: 10,
+                          borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
                           background: 'rgba(15,23,42,0.45)'
                         }}
                       >
-                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>
+                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
                           {entry.hasCookies ? t('siteData.row.cookiesHas') : t('siteData.row.cookiesNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -518,7 +555,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   border: rowBorder,
                                   background: 'rgba(30,41,59,0.7)',
                                   color: '#e2e8f0',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('global.cancel')}
@@ -534,7 +572,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   background: '#ef4444',
                                   color: '#fff',
                                   cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1
+                                  opacity: clearingHost === entry.host ? 0.75 : 1,
+                                  fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('siteData.row.confirm')}
@@ -550,7 +589,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                 border: rowBorder,
                                 background: 'transparent',
                                 color: '#e2e8f0',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                fontSize: mode === 'mobile' ? '36px' : '14px'
                               }}
                             >
                               {t('siteData.row.clearCookies')}
@@ -566,13 +606,12 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           gap: 10,
-                          border: rowBorder,
-                          borderRadius: 10,
+                          borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
                           background: 'rgba(15,23,42,0.45)'
                         }}
                       >
-                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>
+                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
                           {entry.hasHistory ? t('siteData.row.historyHas') : t('siteData.row.historyNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -587,7 +626,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   border: rowBorder,
                                   background: 'rgba(30,41,59,0.7)',
                                   color: '#e2e8f0',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                  fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('global.cancel')}
@@ -603,7 +643,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   background: '#ef4444',
                                   color: '#fff',
                                   cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1
+                                  opacity: clearingHost === entry.host ? 0.75 : 1,
+                                  fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('siteData.row.confirm')}
@@ -619,7 +660,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                 border: rowBorder,
                                 background: 'transparent',
                                 color: '#e2e8f0',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                fontSize: mode === 'mobile' ? '36px' : '14px'
                               }}
                             >
                               {t('siteData.row.clearHistory')}
@@ -634,13 +676,12 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           alignItems: 'center',
                           justifyContent: 'space-between',
                           gap: 10,
-                          border: rowBorder,
-                          borderRadius: 10,
+                          borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
                           background: 'rgba(15,23,42,0.45)'
                         }}
                       >
-                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>
+                        <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
                           {entry.hasSiteStorage ? t('siteData.row.storageHas') : t('siteData.row.storageNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
@@ -655,7 +696,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   border: rowBorder,
                                   background: 'rgba(30,41,59,0.7)',
                                   color: '#e2e8f0',
-                                  cursor: 'pointer'
+                                  cursor: 'pointer',
+                                fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('global.cancel')}
@@ -671,7 +713,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                   background: '#ef4444',
                                   color: '#fff',
                                   cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1
+                                  opacity: clearingHost === entry.host ? 0.75 : 1,
+                                fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
                                 {t('siteData.row.confirm')}
@@ -687,7 +730,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                                 border: rowBorder,
                                 background: 'transparent',
                                 color: '#e2e8f0',
-                                cursor: 'pointer'
+                                cursor: 'pointer',
+                                fontSize: mode === 'mobile' ? '36px' : '14px'
                               }}
                             >
                               {t('siteData.row.clearStorage')}

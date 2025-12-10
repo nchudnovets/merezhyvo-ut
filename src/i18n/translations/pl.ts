@@ -54,7 +54,7 @@ const pl = {
   'siteData.global.cacheDesc': 'Zwolni miejsce i może spowolnić niektóre strony przy następnym otwarciu.',
   'siteData.global.history': 'Historia przeglądania',
   'siteData.global.historyDesc': 'Odwiedzone strony i podpowiedzi w pasku adresu.',
-  'siteData.global.clearAction': 'Wyczyść dane',
+  'siteData.global.clearAction': 'Wyczyść urządzenie',
   'siteData.global.clearing': 'Czyszczenie…',
   'siteData.search': 'Szukaj witryn…',
   'siteData.empty': 'Brak danych witryn.',

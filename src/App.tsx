@@ -3839,10 +3839,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     (host?: string | null) => {
       const targetHost = normalizeSiteDataHost(host);
       const url = targetHost ? `mzr://site-data?host=${encodeURIComponent(targetHost)}` : 'mzr://site-data';
-      openInActiveTab(url);
+      openInNewTab(url);
       setSecurityPopoverOpen(false);
     },
-    [normalizeSiteDataHost, openInActiveTab]
+    [normalizeSiteDataHost, openInNewTab]
   );
 
   const closeUnlockModal = useCallback(() => {

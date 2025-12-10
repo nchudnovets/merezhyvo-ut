@@ -54,7 +54,7 @@ const en = {
   'siteData.global.cacheDesc': 'Frees up space and may slow down some sites the next time you visit them.',
   'siteData.global.history': 'Browsing history',
   'siteData.global.historyDesc': 'Visited pages and address bar suggestions.',
-  'siteData.global.clearAction': 'Clear data',
+  'siteData.global.clearAction': 'Clear device',
   'siteData.global.clearing': 'Clearing…',
   'siteData.search': 'Search sites…',
   'siteData.empty': 'No site data found.',
