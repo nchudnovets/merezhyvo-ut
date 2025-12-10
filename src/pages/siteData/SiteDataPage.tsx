@@ -565,58 +565,59 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           {entry.hasCookies ? t('siteData.row.cookiesHas') : t('siteData.row.cookiesNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          {confirmingHost === `${entry.host}-cookies` ? (
-                            <>
+                          {entry.hasCookies &&
+                            (confirmingHost === `${entry.host}-cookies` ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingHost(null)}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
+                                    borderRadius: 10,
+                                    border: rowBorder,
+                                    background: 'rgba(30,41,59,0.7)',
+                                    color: '#e2e8f0',
+                                    cursor: 'pointer',
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('global.cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearCookies(entry.host)}
+                                  disabled={clearingHost === entry.host}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
+                                    borderRadius: 10,
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    opacity: clearingHost === entry.host ? 0.75 : 1,
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('siteData.row.confirm')}
+                                </button>
+                              </>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => setConfirmingHost(null)}
+                                onClick={() => setConfirmingHost(`${entry.host}-cookies`)}
                                 style={{
-                                  padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
+                                  padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
                                   borderRadius: 10,
                                   border: rowBorder,
-                                  background: 'rgba(30,41,59,0.7)',
+                                  background: 'transparent',
                                   color: '#e2e8f0',
                                   cursor: 'pointer',
                                   fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
-                                {t('global.cancel')}
+                                {t('siteData.row.clearCookies')}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleClearCookies(entry.host)}
-                                disabled={clearingHost === entry.host}
-                                style={{
-                                  padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
-                                  borderRadius: 10,
-                                  border: 'none',
-                                  background: '#ef4444',
-                                  color: '#fff',
-                                  cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1,
-                                  fontSize: mode === 'mobile' ? '36px' : '14px'
-                                }}
-                              >
-                                {t('siteData.row.confirm')}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmingHost(`${entry.host}-cookies`)}
-                              style={{
-                                padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
-                                borderRadius: 10,
-                                border: rowBorder,
-                                background: 'transparent',
-                                color: '#e2e8f0',
-                                cursor: 'pointer',
-                                fontSize: mode === 'mobile' ? '36px' : '14px'
-                              }}
-                            >
-                              {t('siteData.row.clearCookies')}
-                            </button>
-                          )}
+                            ))}
                         </div>
                       </div>
 
@@ -636,58 +637,59 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           {entry.hasHistory ? t('siteData.row.historyHas') : t('siteData.row.historyNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          {confirmingHost === `${entry.host}-history` ? (
-                            <>
+                          {entry.hasHistory &&
+                            (confirmingHost === `${entry.host}-history` ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingHost(null)}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
+                                    borderRadius: 10,
+                                    border: rowBorder,
+                                    background: 'rgba(30,41,59,0.7)',
+                                    color: '#e2e8f0',
+                                    cursor: 'pointer',
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('global.cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearHistory(entry.host)}
+                                  disabled={clearingHost === entry.host}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
+                                    borderRadius: 10,
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    opacity: clearingHost === entry.host ? 0.75 : 1,
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('siteData.row.confirm')}
+                                </button>
+                              </>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => setConfirmingHost(null)}
+                                onClick={() => setConfirmingHost(`${entry.host}-history`)}
                                 style={{
-                                  padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
+                                  padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
                                   borderRadius: 10,
                                   border: rowBorder,
-                                  background: 'rgba(30,41,59,0.7)',
+                                  background: 'transparent',
                                   color: '#e2e8f0',
                                   cursor: 'pointer',
                                   fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
-                                {t('global.cancel')}
+                                {t('siteData.row.clearHistory')}
                               </button>
-                              <button
-                                type="button"
-                                onClick={() => handleClearHistory(entry.host)}
-                                disabled={clearingHost === entry.host}
-                                style={{
-                                  padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
-                                  borderRadius: 10,
-                                  border: 'none',
-                                  background: '#ef4444',
-                                  color: '#fff',
-                                  cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1,
-                                  fontSize: mode === 'mobile' ? '36px' : '14px'
-                                }}
-                              >
-                                {t('siteData.row.confirm')}
-                              </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmingHost(`${entry.host}-history`)}
-                              style={{
-                                padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
-                                borderRadius: 10,
-                                border: rowBorder,
-                                background: 'transparent',
-                                color: '#e2e8f0',
-                                cursor: 'pointer',
-                                fontSize: mode === 'mobile' ? '36px' : '14px'
-                              }}
-                            >
-                              {t('siteData.row.clearHistory')}
-                            </button>
-                          )}
+                            ))}
                         </div>
                       </div>
                       <div
@@ -706,58 +708,59 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
                           {entry.hasSiteStorage ? t('siteData.row.storageHas') : t('siteData.row.storageNone')}
                         </div>
                         <div style={{ display: 'flex', gap: 8 }}>
-                          {confirmingHost === `${entry.host}-storage` ? (
-                            <>
+                          {entry.hasSiteStorage &&
+                            (confirmingHost === `${entry.host}-storage` ? (
+                              <>
+                                <button
+                                  type="button"
+                                  onClick={() => setConfirmingHost(null)}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
+                                    borderRadius: 10,
+                                    border: rowBorder,
+                                    background: 'rgba(30,41,59,0.7)',
+                                    color: '#e2e8f0',
+                                    cursor: 'pointer',
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('global.cancel')}
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleClearStorage(entry.host)}
+                                  disabled={clearingHost === entry.host}
+                                  style={{
+                                    padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
+                                    borderRadius: 10,
+                                    border: 'none',
+                                    background: '#ef4444',
+                                    color: '#fff',
+                                    cursor: 'pointer',
+                                    opacity: clearingHost === entry.host ? 0.75 : 1,
+                                    fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  }}
+                                >
+                                  {t('siteData.row.confirm')}
+                                </button>
+                              </>
+                            ) : (
                               <button
                                 type="button"
-                                onClick={() => setConfirmingHost(null)}
-                                style={{
-                                  padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
-                                  borderRadius: 10,
-                                  border: rowBorder,
-                                  background: 'rgba(30,41,59,0.7)',
-                                  color: '#e2e8f0',
-                                  cursor: 'pointer',
-                                fontSize: mode === 'mobile' ? '36px' : '14px'
-                                }}
-                              >
-                                {t('global.cancel')}
-                              </button>
-                              <button
-                                type="button"
-                                onClick={() => handleClearStorage(entry.host)}
-                                disabled={clearingHost === entry.host}
+                                onClick={() => setConfirmingHost(`${entry.host}-storage`)}
                                 style={{
                                   padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
                                   borderRadius: 10,
-                                  border: 'none',
-                                  background: '#ef4444',
-                                  color: '#fff',
+                                  border: rowBorder,
+                                  background: 'transparent',
+                                  color: '#e2e8f0',
                                   cursor: 'pointer',
-                                  opacity: clearingHost === entry.host ? 0.75 : 1,
-                                fontSize: mode === 'mobile' ? '36px' : '14px'
+                                  fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
                               >
-                                {t('siteData.row.confirm')}
+                                {t('siteData.row.clearStorage')}
                               </button>
-                            </>
-                          ) : (
-                            <button
-                              type="button"
-                              onClick={() => setConfirmingHost(`${entry.host}-storage`)}
-                              style={{
-                                padding: mode === 'mobile' ? '10px 14px' : '8px 12px',
-                                borderRadius: 10,
-                                border: rowBorder,
-                                background: 'transparent',
-                                color: '#e2e8f0',
-                                cursor: 'pointer',
-                                fontSize: mode === 'mobile' ? '36px' : '14px'
-                              }}
-                            >
-                              {t('siteData.row.clearStorage')}
-                            </button>
-                          )}
+                            ))}
                         </div>
                       </div>
                     </div>

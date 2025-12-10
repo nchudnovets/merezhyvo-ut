@@ -66,7 +66,7 @@ const fr = {
   'siteData.row.clearHistory': 'Effacer l’historique',
   'siteData.row.storageHas': 'Stockage de site présent',
   'siteData.row.storageNone': 'Aucun stockage de site enregistré',
-  'siteData.row.clearStorage': 'Effacer le stockage de site',
+  'siteData.row.clearStorage': 'Effacer les données',
   'siteData.row.confirm': 'Confirmer',
   'siteData.toast.cleared': 'Cookies effacés pour {host}',
   'siteData.toast.storageCleared': 'Stockage de site effacé pour {host}',

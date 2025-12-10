@@ -66,7 +66,7 @@ const uk = {
   'siteData.row.clearHistory': 'Очистити історію',
   'siteData.row.storageHas': 'Є дані сайту',
   'siteData.row.storageNone': 'Немає збережених даних сайту',
-  'siteData.row.clearStorage': 'Очистити дані сайту',
+  'siteData.row.clearStorage': 'Очистити дані',
   'siteData.row.confirm': 'Підтвердити',
   'siteData.toast.cleared': 'Куки для {host} очищено',
   'siteData.toast.storageCleared': 'Дані сайту для {host} очищено',

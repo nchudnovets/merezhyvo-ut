@@ -66,7 +66,7 @@ const de = {
   'siteData.row.clearHistory': 'Verlauf löschen',
   'siteData.row.storageHas': 'Websitedaten vorhanden',
   'siteData.row.storageNone': 'Keine Websitedaten gespeichert',
-  'siteData.row.clearStorage': 'Websitedaten löschen',
+  'siteData.row.clearStorage': 'Daten löschen',
   'siteData.row.confirm': 'Bestätigen',
   'siteData.toast.cleared': 'Cookies für {host} gelöscht',
   'siteData.toast.storageCleared': 'Website-Speicher für {host} gelöscht',
