@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 import { useSyncExternalStore } from 'react';
 import type { Tab, TabKind } from '../types/models';
 
-const DEFAULT_URL = 'https://duckduckgo.com';
+const DEFAULT_URL = 'https://start.duckduckgo.com';
 const SESSION_SCHEMA = 1;
 const SAVE_DEBOUNCE_MS = 750;
 const YT_HOST_PATTERNS = [/\.youtube\.com$/i, /^youtube\.com$/i, /^music\.youtube\.com$/i];

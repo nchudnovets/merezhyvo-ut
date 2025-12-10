@@ -30,7 +30,7 @@ import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
-export const DEFAULT_URL = 'https://duckduckgo.com';
+export const DEFAULT_URL = 'https://start.duckduckgo.com';
 export const MOBILE_USER_AGENT =
   'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
 export const DESKTOP_USER_AGENT =
