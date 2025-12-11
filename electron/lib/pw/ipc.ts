@@ -224,7 +224,7 @@ const processCapturePayload = (payload: CapturePayload, captureId?: string): voi
     }
   } else {
     // If vault locked but we already have an entry for this origin+username (matching by host), suppress prompt.
-    const entries = getEntriesMeta();
+    const entries = isVaultUnlocked() ? getEntriesMeta() : [];
     const sameRealm = entries.filter((entry) => hostsMatch(entry.signonRealm, payload.signonRealm));
     const sameUser = sameRealm.find(
       (entry) => normalizeUsername(entry.username) === payloadUsername
