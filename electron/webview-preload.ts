@@ -31,6 +31,87 @@ try {
   });
 } catch {}
 
+/**
+ * Ubuntu Touch touch feature polyfills.
+ *
+ * On some UT builds, Chromium reports no touch support:
+ *   navigator.maxTouchPoints === 0
+ *   "ontouchstart" in element === false
+ *
+ * This breaks touch-enabled sites that rely on feature detection
+ * (for example, earth.nullschool.net with D3 zoom/drag), so they
+ * never attach touch handlers and only react to mouse events.
+ *
+ * We patch the environment to advertise basic touch support:
+ * - override navigator.maxTouchPoints (if configurable) to a
+ *   positive value;
+ * - define ontouchstart on HTMLElement/SVGElement prototypes
+ *   so `"ontouchstart" in element` becomes true.
+ *
+ * This makes common touch-aware sites behave correctly on Ubuntu Touch
+ * without changing their code.
+ */
+
+const installTouchFeaturePolyfills = (): void => {
+  const code = `
+    (function () {
+      try {
+        try {
+          var nav = navigator;
+          var target = Object.getPrototypeOf(nav) || nav;
+          var desc = Object.getOwnPropertyDescriptor(target, "maxTouchPoints");
+          var current = nav.maxTouchPoints || 0;
+          if (current === 0 && (!desc || desc.configurable)) {
+            Object.defineProperty(target, "maxTouchPoints", {
+              configurable: true,
+              enumerable: true,
+              get: function () { return 5; }
+            });
+          }
+        } catch (e) {
+          console.warn("[mzr-touch] maxTouchPoints polyfill failed", e);
+        }
+
+        try {
+          var protos = [];
+          if (window.HTMLElement && HTMLElement.prototype) protos.push(HTMLElement.prototype);
+          if (window.SVGElement && SVGElement.prototype) protos.push(SVGElement.prototype);
+
+          for (var i = 0; i < protos.length; i++) {
+            var proto = protos[i];
+            var d = Object.getOwnPropertyDescriptor(proto, "ontouchstart");
+            if (!d) {
+              Object.defineProperty(proto, "ontouchstart", {
+                configurable: true,
+                enumerable: false,
+                get: function () { return null; },
+                set: function (_v) { /* no-op */ }
+              });
+            }
+          }
+        } catch (e) {
+          console.warn("[mzr-touch] ontouchstart polyfill failed", e);
+        }
+
+        console.log("[mzr-touch] feature polyfills installed",
+          "maxTouchPoints=", navigator.maxTouchPoints,
+          '"ontouchstart" in document.documentElement =',
+          ("ontouchstart" in document.documentElement)
+        );
+      } catch (e) {
+        console.warn("[mzr-touch] polyfills outer error", e);
+      }
+    })();
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+installTouchFeaturePolyfills();
+
 /** -------------------------------
  *  WebRTC policy enforcement
  *  ------------------------------- */
