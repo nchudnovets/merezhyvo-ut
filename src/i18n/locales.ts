@@ -10,7 +10,10 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
   { id: 'uk', label: 'Ukrainian', nativeLabel: 'Українська', direction: 'ltr' },
   { id: 'de', label: 'German', nativeLabel: 'Deutsch', direction: 'ltr' },
   { id: 'fr', label: 'French', nativeLabel: 'Français', direction: 'ltr' },
-  { id: 'pl', label: 'Polish', nativeLabel: 'Polski', direction: 'ltr' }
+  { id: 'pl', label: 'Polish', nativeLabel: 'Polski', direction: 'ltr' },
+  { id: 'es', label: 'Spanish', nativeLabel: 'Español', direction: 'ltr' },
+  { id: 'it', label: 'Italian', nativeLabel: 'Italiano', direction: 'ltr' },
+  { id: 'nl', label: 'Dutch', nativeLabel: 'Nederlands', direction: 'ltr' }
 ];
 
 export const DEFAULT_LOCALE = AVAILABLE_LOCALES[0]?.id ?? 'en';

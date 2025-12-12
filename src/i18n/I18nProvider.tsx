@@ -14,6 +14,9 @@ import ukTranslations from './translations/uk';
 import deTranslations from './translations/de';
 import frTranslations from './translations/fr';
 import plTranslations from './translations/pl';
+import esTranslations from './translations/es';
+import itTranslations from './translations/it';
+import nlTranslations from './translations/nl';
 
 type LocaleDictionary = Record<string, string>;
 
@@ -22,7 +25,10 @@ const localeLoaders: Record<string, () => Promise<LocaleDictionary>> = {
   uk: async () => ukTranslations,
   de: async () => deTranslations,
   fr: async () => frTranslations,
-  pl: async () => plTranslations
+  pl: async () => plTranslations,
+  es: async () => esTranslations,
+  it: async () => itTranslations,
+  nl: async () => nlTranslations
 };
 
 const interpolate = (
