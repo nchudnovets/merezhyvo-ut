@@ -203,6 +203,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
   // We keep a ref for compatibility; not used directly here
   const kbRef = useRef<unknown>(null);
   const containerRef = useRef<HTMLDivElement | null>(null);
+  const popupRef = useRef<HTMLDivElement | null>(null);
 
   // Long-press / pointer-state
   const holdTimer = useRef<number | null>(null);
@@ -535,10 +536,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
         holdTimer.current = window.setTimeout(() => {
           holdActivated.current = true;
           setActiveButton(null);
+          const viewportW = (typeof window !== 'undefined' ? window.innerWidth : 0) * inv;
+          const minX = 24;
+          const maxX = viewportW ? Math.max(minX, viewportW - 24) : undefined;
+          const rawX = Math.round((rect.left + rect.width / 2) * inv);
           setPopup({
             key: btn,
             alts,
-            x: Math.round((rect.left + rect.width / 2) * inv),
+            x: maxX ? Math.min(maxX, Math.max(minX, rawX)) : rawX,
             y: Math.round((rect.top - 10) * inv),
           });
         }, LONGPRESS_MS);
@@ -582,6 +587,18 @@ const KeyboardPane: React.FC<Props> = (p) => {
     },
     []
   );
+
+  useEffect(() => {
+    if (!popup) return;
+    const handleOutside = (e: PointerEvent) => {
+      if (popupRef.current && e.target instanceof Node && popupRef.current.contains(e.target)) {
+        return;
+      }
+      setPopup(null);
+    };
+    window.addEventListener('pointerdown', handleOutside, true);
+    return () => window.removeEventListener('pointerdown', handleOutside, true);
+  }, [popup]);
 
   if (!visible) return null;
 
@@ -641,7 +658,11 @@ const KeyboardPane: React.FC<Props> = (p) => {
       )}
 
       {popup && (
-        <div className="mzr-osk-popup" style={{ left: popup.x, top: popup.y }}>
+        <div
+          ref={popupRef}
+          className="mzr-osk-popup"
+          style={{ left: popup.x, top: popup.y }}
+        >
           {popup.alts.map((a) => (
             <button
               key={a}
