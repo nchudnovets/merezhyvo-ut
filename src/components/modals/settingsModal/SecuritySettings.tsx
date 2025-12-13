@@ -13,6 +13,7 @@ type SecuritySettingsProps = {
   onCookieBlockChange: (block: boolean) => void;
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
+  onOpenPrivacyInfo: () => void;
 };
 
 const radioStyle = (mode: Mode): React.CSSProperties => ({
@@ -33,7 +34,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   cookiesBlockThirdParty,
   onCookieBlockChange,
   onOpenSecurityExceptions,
-  onOpenSiteData
+  onOpenSiteData,
+  onOpenPrivacyInfo
 }) => {
   const { t } = useI18n();
   const radioSize = mode === 'mobile' ? 40 : 18;
@@ -247,24 +249,41 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
         </button>
         <button
           type="button"
-          onClick={onOpenSiteData}
-          style={{
-            marginTop: mode === 'mobile' ? 20 : 10,
-            alignSelf: 'flex-start',
-            padding: 0,
-            background: 'transparent',
-            border: 'none',
-            color: '#93c5fd',
-            cursor: 'pointer',
-            textDecoration: 'underline',
+        onClick={onOpenSiteData}
+        style={{
+          marginTop: mode === 'mobile' ? 20 : 10,
+          alignSelf: 'flex-start',
+          padding: 0,
+          background: 'transparent',
+          border: 'none',
+          color: '#93c5fd',
+          cursor: 'pointer',
+          textDecoration: 'underline',
           fontSize: mode === 'mobile' ? '35px' : '14px'
         }}
       >
-          {t('settings.cookies.manageSiteDataList')}
-        </button>
-      </div>
+        {t('settings.cookies.manageSiteDataList')}
+      </button>
+      <button
+        type="button"
+        onClick={onOpenPrivacyInfo}
+        style={{
+          marginTop: mode === 'mobile' ? 12 : 8,
+          alignSelf: 'flex-start',
+          padding: 0,
+          background: 'transparent',
+          border: 'none',
+          color: '#93c5fd',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          fontSize: mode === 'mobile' ? '35px' : '14px'
+        }}
+      >
+        {t('privacyInfo.link')}
+      </button>
     </div>
-  );
+  </div>
+);
 };
 
 export default SecuritySettings;

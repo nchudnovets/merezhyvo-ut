@@ -31,6 +31,7 @@ import LicensesPage from './pages/licenses/LicensesPage';
 import PasswordsPage from './pages/passwords/PasswordsPage';
 import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import SiteDataPage from './pages/siteData/SiteDataPage';
+import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal, {
   type PasswordUnlockPayload
@@ -3853,6 +3854,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openInNewTab('mzr://site-data');
   }, [closeSettingsModal, openInNewTab]);
+  const openPrivacyInfoFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://privacy-info');
+  }, [closeSettingsModal, openInNewTab]);
   const openSiteDataPage = useCallback(
     (host?: string | null) => {
       const targetHost = normalizeSiteDataHost(host);
@@ -3862,6 +3867,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     },
     [normalizeSiteDataHost, openInNewTab]
   );
+  const openPrivacyInfoFromPopover = useCallback(() => {
+    openInNewTab('mzr://privacy-info');
+    setSecurityPopoverOpen(false);
+  }, [openInNewTab]);
 
   const closeUnlockModal = useCallback(() => {
     setShowUnlockModal(false);
@@ -3917,9 +3926,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isLicensesService = serviceUrl.startsWith('mzr://licenses');
   const isSecurityExceptionsService = serviceUrl.startsWith('mzr://security-exceptions');
   const isSiteDataService = serviceUrl.startsWith('mzr://site-data');
+  const isPrivacyInfoService = serviceUrl.startsWith('mzr://privacy-info');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService);
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -3950,6 +3960,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           onClose={closeServicePage}
         />
       );
+    } else if (isPrivacyInfoService) {
+      serviceContent = <PrivacyInfoPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} serviceUrl={activeTab?.url} onClose={closeServicePage} />;
     }
   }
 
@@ -4481,6 +4493,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               cookiePolicy={siteCookiePolicy}
               onToggleCookieException={handleToggleCookieException}
               onOpenSiteData={openSiteDataPage}
+              onOpenPrivacyInfo={openPrivacyInfoFromPopover}
             />
           )}
 
@@ -4569,6 +4582,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onCookieBlockChange={handleCookieBlockChange}
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
               onOpenSiteData={openSiteDataFromSettings}
+              onOpenPrivacyInfo={openPrivacyInfoFromSettings}
             />
           )}
 

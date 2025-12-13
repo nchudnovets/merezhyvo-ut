@@ -58,6 +58,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
   const [clearedCookiesHosts, setClearedCookiesHosts] = useState<Set<string>>(new Set());
   const [clearedStorageHosts, setClearedStorageHosts] = useState<Set<string>>(new Set());
   const [clearedHistoryHosts, setClearedHistoryHosts] = useState<Set<string>>(new Set());
+  const [aboutExpanded, setAboutExpanded] = useState<boolean>(true);
 
   const scrollRef = useRef<HTMLDivElement | null>(null);
 
@@ -300,8 +301,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                 style={{
                   width: mode === 'mobile' ? 56 : 36,
                   height: mode === 'mobile' ? 56 : 36,
-                  borderRadius: 10,
-                  border: '1px solid rgba(148,163,184,0.35)',
+                  border: 'none',
                   background: 'rgba(15,23,42,0.6)',
                   color: '#e2e8f0',
                   display: 'inline-flex',
@@ -545,6 +545,51 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
               {toast}
             </div>
           )}
+
+          <div
+            style={{
+              background: 'rgba(15,23,42,0.5)',
+              overflow: 'hidden'
+            }}
+          >
+            <button
+              type="button"
+              onClick={() => setAboutExpanded((prev) => !prev)}
+              style={{
+                width: '100%',
+                padding: mode === 'mobile' ? '14px 16px' : '10px 12px',
+                background: 'transparent',
+                border: 'none',
+                color: '#e2e8f0',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                cursor: 'pointer'
+              }}
+            >
+              <span style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '15px' }}>{t('siteData.about.title')}</span>
+              <svg
+                viewBox="0 0 16 16"
+                width={mode === 'mobile' ? 32 : 16}
+                height={mode === 'mobile' ? 32 : 16}
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                style={{ transform: aboutExpanded ? 'rotate(90deg)' : 'rotate(0deg)', transition: 'transform 160ms ease' }}
+              >
+                <path d="m6 3 5 5-5 5" />
+              </svg>
+            </button>
+            {aboutExpanded && (
+              <div style={{ padding: mode === 'mobile' ? '0 16px 14px' : '0 12px 12px', color: 'rgba(226,232,240,0.85)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body1')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body2')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body3')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body4')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body5')}</div>
+              </div>
+            )}
+          </div>
 
           {loading ? (
             <div style={{ padding: 18, textAlign: 'center', fontSize: mode === 'mobile' ? '36px' : '15px' }}>{t('global.loading')}</div>

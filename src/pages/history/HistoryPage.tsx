@@ -310,8 +310,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
               style={{
                 width: mode === 'mobile' ? 56 : 36,
                 height: mode === 'mobile' ? 56 : 36,
-                borderRadius: 10,
-                border: '1px solid rgba(148,163,184,0.35)',
+                border: 'none',
                 background: 'rgba(15,23,42,0.6)',
                 color: '#e2e8f0',
                 display: 'inline-flex',

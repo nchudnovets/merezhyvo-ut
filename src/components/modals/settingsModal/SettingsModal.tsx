@@ -56,6 +56,7 @@ interface SettingsModalProps {
   onCookieBlockChange: (block: boolean) => void;
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
+  onOpenPrivacyInfo: () => void;
 }
 
 export const SettingsModal: React.FC<SettingsModalProps> = ({
@@ -96,7 +97,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   cookiesBlockThirdParty,
   onCookieBlockChange,
   onOpenSecurityExceptions,
-  onOpenSiteData
+  onOpenSiteData,
+  onOpenPrivacyInfo
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -231,6 +233,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onCookieBlockChange={onCookieBlockChange}
               onOpenSecurityExceptions={onOpenSecurityExceptions}
               onOpenSiteData={onOpenSiteData}
+              onOpenPrivacyInfo={onOpenPrivacyInfo}
             />
             }
           />

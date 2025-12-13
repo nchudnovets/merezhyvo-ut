@@ -61,6 +61,7 @@ interface ToolbarProps {
   };
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
+  onOpenPrivacyInfo?: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -100,7 +101,8 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToggleCertException,
   cookiePolicy,
   onToggleCookieException,
-  onOpenSiteData
+  onOpenSiteData,
+  onOpenPrivacyInfo
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -164,6 +166,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       cookiePolicy={cookiePolicy}
       onToggleCookieException={onToggleCookieException}
       onOpenSiteData={onOpenSiteData}
+      onOpenPrivacyInfo={onOpenPrivacyInfo}
     />
 
     {!compact && (

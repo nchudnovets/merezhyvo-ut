@@ -54,6 +54,7 @@ interface AddressBarProps {
   };
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
+  onOpenPrivacyInfo?: () => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -83,7 +84,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onToggleCertException,
   cookiePolicy,
   onToggleCookieException,
-  onOpenSiteData
+  onOpenSiteData,
+  onOpenPrivacyInfo
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -325,12 +327,29 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
-                  >
-                    <path d="M5.5 3 10 8l-4.5 5" />
-                  </svg>
-                </button>
-              </div>
-            )}
+                >
+                  <path d="M5.5 3 10 8l-4.5 5" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => onOpenPrivacyInfo?.()}
+                style={{
+                  alignSelf: 'flex-start',
+                  marginTop: mode === 'mobile' ? 4 : 2,
+                  padding: 0,
+                  background: 'transparent',
+                  border: 'none',
+                  color: '#93c5fd',
+                  cursor: 'pointer',
+                  textDecoration: 'underline',
+                  fontSize: mode === 'mobile' ? '35px' : '13px'
+                }}
+              >
+                {t('privacyInfo.link')}
+              </button>
+            </div>
+          )}
 
             {securityView === 'connection' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
