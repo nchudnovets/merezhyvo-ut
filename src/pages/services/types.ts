@@ -5,4 +5,5 @@ export type ServicePageProps = {
   openInTab: (url: string) => void;
   openInNewTab: (url: string) => void;
   serviceUrl?: string;
+  onClose?: () => void;
 };

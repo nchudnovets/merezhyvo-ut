@@ -60,9 +60,10 @@ const Viewer: React.FC<ViewerProps> = ({
 
 type LicensesPageProps = {
   mode: Mode;
+  onClose?: () => void;
 };
 
-const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
+const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
   const [appLicense, setAppLicense] = useState<LoadState>({
     text: null,
     error: null,
@@ -190,7 +191,35 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode }) => {
 
   return (
     <div style={mergeContainer()}>
-      <h2>{t('licenses.title')}</h2>
+      <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('global.close')}
+              style={{
+                width: mode === 'mobile' ? 56 : 36,
+                height: mode === 'mobile' ? 56 : 36,
+                borderRadius: 10,
+                border: '1px solid rgba(148,163,184,0.35)',
+                background: 'rgba(15,23,42,0.6)',
+                color: '#e2e8f0',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <svg width={mode === 'mobile' ? 50 : 18} height={mode === 'mobile' ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+          <h2>{t('licenses.title')}</h2>
+        </div>
+      </div>
       {viewerContent}
     </div>
   );

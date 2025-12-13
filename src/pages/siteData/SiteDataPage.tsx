@@ -36,7 +36,7 @@ const formatLabel = (mode: Mode): React.CSSProperties => ({
   color: 'rgba(226,232,240,0.75)'
 });
 
-const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
+const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose }) => {
   const { t } = useI18n();
   const initialFilter = parseHostFromUrl(serviceUrl);
   const [loading, setLoading] = useState<boolean>(true);
@@ -290,6 +290,35 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
       }}
     >
       <div style={{ maxWidth: mode === 'mobile' ? 'none' : 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t('global.close')}
+                style={{
+                  width: mode === 'mobile' ? 56 : 36,
+                  height: mode === 'mobile' ? 56 : 36,
+                  borderRadius: 10,
+                  border: '1px solid rgba(148,163,184,0.35)',
+                  background: 'rgba(15,23,42,0.6)',
+                  color: '#e2e8f0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg width={mode === 'mobile' ? 50 : 18} height={mode === 'mobile' ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+            <span style={{ fontSize: mode === 'mobile' ? '42px' : '18px', fontWeight: 800 }}>{t('siteData.global.title')}</span>
+          </div>
+        </div>
         <div
           style={{
             background: 'rgba(15,23,42,0.55)',
@@ -311,7 +340,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl }) => {
               cursor: 'pointer'
             }}
           >
-            <span style={{ fontWeight: 800, fontSize: mode === 'mobile' ? '44px' : '18px' }}>{t('siteData.global.title')}</span>
+            <span style={{ fontWeight: 800, fontSize: mode === 'mobile' ? '44px' : '18px' }}>{t('siteData.global.clearAction')}</span>
             <svg
               viewBox="0 0 16 16"
               width={mode === 'mobile' ? 32 : 16}

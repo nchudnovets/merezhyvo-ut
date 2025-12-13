@@ -101,7 +101,7 @@ const cloneForExport = (node: BookmarkNode): BookmarkNode => ({
 });
 
 
-const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
+const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, onClose }) => {
   const styles = bookmarksStyles;
   const modeStyles = bookmarksModeStyles[mode] || {};
   const { t } = useI18n();
@@ -894,9 +894,35 @@ const handleDeleteSelection = () => {
 
   return (
     <div style={{ ...styles.container, ...(modeStyles.container ?? {}) }}>
-      <header style={styles.hero}>
-        <h1 style={{ ...styles.heroTitle, ...(modeStyles.heroTitle ?? {}) }}>{t('bookmarks.title')}</h1>
-        <div style={styles.badgeGroup}>
+      <header style={{ ...styles.hero, gap: 12, alignItems: 'center' }}>
+        <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('global.close')}
+              style={{
+                width: mode === 'mobile' ? 56 : 36,
+                height: mode === 'mobile' ? 56 : 36,
+                borderRadius: 10,
+                border: '1px solid rgba(148,163,184,0.35)',
+                background: 'rgba(15,23,42,0.6)',
+                color: '#e2e8f0',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <svg width={mode === 'mobile' ? 50 : 18} height={mode === 'mobile' ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
+          )}
+          <h1 style={{ ...styles.heroTitle, ...(modeStyles.heroTitle ?? {}), marginLeft: mode === 'mobile' ? 10 : 0 }}>{t('bookmarks.title')}</h1>
+        </div>
+        <div style={{ ...styles.badgeGroup, gap: 8 }}>
           {selectionMode && (
             <span style={{...styles.feedback, ...modeStyles.feedback}}>
               {t('bookmarks.selected', { count: selectedIds.size })}

@@ -3818,6 +3818,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openLicensesPage();
   }, [closeSettingsModal, openLicensesPage]);
+  const closeServicePage = useCallback(() => {
+    if (!activeTab) return;
+    const currentId = activeTab.id;
+    const nonService = tabs.find(
+      (tab) =>
+        tab.id !== currentId &&
+        typeof tab.url === 'string' &&
+        !tab.url.toLowerCase().startsWith('mzr://')
+    );
+    if (nonService) {
+      activateTabAction(nonService.id);
+    } else {
+      newTabAction(DEFAULT_URL);
+    }
+    closeTabAction(currentId);
+    setSecurityPopoverOpen(false);
+    setShowTabsPanel(false);
+  }, [activeTab, tabs, activateTabAction, newTabAction, closeTabAction]);
   const normalizeSiteDataHost = useCallback((host?: string | null) => {
     if (!host) return '';
     let safe = host.trim().toLowerCase();
@@ -3905,13 +3923,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
-      serviceContent = <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+      serviceContent = <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
     } else if (isHistoryService) {
-      serviceContent = <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+      serviceContent = <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
     } else if (isPasswordsService) {
-      serviceContent = <PasswordsPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} />;
+      serviceContent = <PasswordsPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
     } else if (isLicensesService) {
-      serviceContent = <LicensesPage mode={mode} />;
+      serviceContent = <LicensesPage mode={mode} onClose={closeServicePage} />;
     } else if (isSecurityExceptionsService) {
       serviceContent = (
         <SecurityExceptionsPage
@@ -3919,6 +3937,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           openInTab={openInActiveTab}
           openInNewTab={openInNewTab}
           serviceUrl={activeTab?.url}
+          onClose={closeServicePage}
         />
       );
     } else if (isSiteDataService) {
@@ -3928,6 +3947,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           openInTab={openInActiveTab}
           openInNewTab={openInNewTab}
           serviceUrl={activeTab?.url}
+          onClose={closeServicePage}
         />
       );
     }

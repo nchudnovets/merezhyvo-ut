@@ -17,6 +17,7 @@ type PasswordsPageProps = {
   mode: Mode;
   openInTab: (url: string) => void;
   openInNewTab: (url: string) => void;
+  onClose?: () => void;
 };
 
 type ModalMode = 'add' | 'edit';
@@ -92,7 +93,7 @@ const formatTimestampFilename = (suffix: string) => {
   return `passwords-${now.getFullYear()}${pad(now.getMonth() + 1)}${pad(now.getDate())}-${pad(now.getHours())}${pad(now.getMinutes())}.${suffix}`;
 };
 
-const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
+const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose }) => {
   const isMobile = mode === 'mobile';
   const { t } = useI18n();
   const [entries, setEntries] = useState<PasswordEntryMeta[]>([]);
@@ -663,14 +664,40 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab }) => {
   return (
     <div style={pageStyle}>
       <div style={passwordsStyles.header}>
-        <h1
-          style={mergeStyle(
-            passwordsStyles.headerTitle,
-            isMobile ? passwordsStyles.headerTitleMobile : undefined
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+          {onClose && (
+            <button
+              type="button"
+              onClick={onClose}
+              aria-label={t('global.close')}
+              style={{
+                width: isMobile ? 56 : 36,
+                height: isMobile ? 56 : 36,
+                borderRadius: 10,
+                border: '1px solid rgba(148,163,184,0.35)',
+                background: 'rgba(15,23,42,0.6)',
+                color: '#e2e8f0',
+                display: 'inline-flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                cursor: 'pointer'
+              }}
+            >
+              <svg width={isMobile ? 50 : 18} height={isMobile ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                <line x1="18" y1="6" x2="6" y2="18" />
+                <line x1="6" y1="6" x2="18" y2="18" />
+              </svg>
+            </button>
           )}
-        >
-          {t('passwords.page.title')}
-        </h1>
+          <h1
+            style={mergeStyle(
+              passwordsStyles.headerTitle,
+              isMobile ? passwordsStyles.headerTitleMobile : undefined
+            )}
+          >
+            {t('passwords.page.title')}
+          </h1>
+        </div>
         <div style={passwordsStyles.headerActions}>
           <button
             type="button"

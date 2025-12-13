@@ -5,7 +5,7 @@ import { useI18n } from '../../i18n/I18nProvider';
 
 const rowBorder = '1px solid rgba(148,163,184,0.28)';
 
-const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode }) => {
+const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
   const { t } = useI18n();
   const [loading, setLoading] = useState<boolean>(true);
   const [exceptions, setExceptions] = useState<Record<string, boolean>>({});
@@ -181,19 +181,45 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode }) => {
       className="service-scroll"
     >
       <div style={{ maxWidth: 960, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
-        <div>
-          <div style={{ fontSize: mode === 'mobile' ? '46px' : '22px', fontWeight: 800 }}>
-            {t('securityExceptions.title')}
+        <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+            {onClose && (
+              <button
+                type="button"
+                onClick={onClose}
+                aria-label={t('global.close')}
+                style={{
+                  width: mode === 'mobile' ? 56 : 36,
+                  height: mode === 'mobile' ? 56 : 36,
+                  borderRadius: 10,
+                  border: '1px solid rgba(148,163,184,0.35)',
+                  background: 'rgba(15,23,42,0.6)',
+                  color: '#e2e8f0',
+                  display: 'inline-flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  cursor: 'pointer'
+                }}
+              >
+                <svg width={mode === 'mobile' ? 50 : 18} height={mode === 'mobile' ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+                  <line x1="18" y1="6" x2="6" y2="18" />
+                  <line x1="6" y1="6" x2="18" y2="18" />
+                </svg>
+              </button>
+            )}
+            <div style={{ fontSize: mode === 'mobile' ? '46px' : '22px', fontWeight: 800 }}>
+              {t('securityExceptions.title')}
+            </div>
           </div>
-          <p style={{ fontSize: mode === 'mobile' ? '38px' : '15px', opacity: 0.9, marginTop: 8, lineHeight: 1.5 }}>
-            {t('securityExceptions.description')}
-          </p>
-          {!blockThirdParty && (
-            <p style={{ fontSize: mode === 'mobile' ? '36px' : '14px', color: '#fbbf24', marginTop: 6 }}>
-              {t('securityExceptions.globalAllow')}
-            </p>
-          )}
         </div>
+        <p style={{ fontSize: mode === 'mobile' ? '38px' : '15px', opacity: 0.9, marginTop: mode === 'mobile' ? 12 : 8, lineHeight: 1.5 }}>
+          {t('securityExceptions.description')}
+        </p>
+        {!blockThirdParty && (
+          <p style={{ fontSize: mode === 'mobile' ? '36px' : '14px', color: '#fbbf24', marginTop: 6 }}>
+            {t('securityExceptions.globalAllow')}
+          </p>
+        )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
           <div style={{ position: 'relative' }}>
