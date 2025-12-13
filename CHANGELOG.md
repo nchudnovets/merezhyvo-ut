@@ -1,5 +1,22 @@
 # Changelog
 
+## 0.4.4 - 2025-12-13
+
+### Added
+- Third-party cookies blocking with a global setting and per-site exceptions.
+- New “Site data” internal page to inspect and clear cookies and stored data per site, with a global “Clear all data” option.
+- New “Privacy & Security – How this works” page explaining HTTPS modes, certificates, cookies, WebRTC and internal tools in plain language.
+- Improved touch support on Ubuntu Touch: fixed drag/rotation gestures on some canvas / map / D3-based sites (for example, earth.nullschool.net).
+- New UI translations: NL, ES, IT.
+
+### Changed
+- Security popover (shield icon) now also reflects per-site cookie exceptions and other non-default privacy/security settings.
+- Improved UX on internal security pages: added Close buttons and clearer explanations for “Manage security exceptions” and “Manage site data”.
+- Various UI polish and layout tweaks to make the interface more consistent and easier on the eyes.
+- Fixed some issues with accent letters on the on-screen keyboard.
+
+----
+
 ## 0.4.3 - 2025-12-06
 
 ## Added

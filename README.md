@@ -46,15 +46,41 @@ This repository contains the full source code and build scripts for the Ubuntu T
   - Adjustable UI scaling: change the size of toolbar, tabs and controls independently from page zoom.
 
 
-- **Privacy & security controls**
+- ### Privacy & security features
 
-  - No tracking, analytics or telemetry; all browsing data stays inside the app sandbox.
+*   **Certificate validation & shield indicator**
+    *   Merezhyvo validates HTTPS certificates in-app and shows a small shield icon before the URL.
+    *   White shield: everything looks normal for this site.
+    *   Yellow shield: you have added a custom privacy or security exception for this site.
+    *   Red shield: the connection is not secure (HTTP only, invalid/expired/revoked certificate, etc.).
+    *   Tapping the shield opens a popover with a short summary, certificate details, and links to manage site data or exceptions.
 
-  - In-app certificate validation with a security indicator, warning screen and certificate info popover.
+*   **Configurable HTTPS mode (Strict / Preferred)**
+    *   **Preferred**: Merezhyvo first tries to load a site via HTTPS; if that fails, it can fall back to HTTP.
+    *   **Strict**: Merezhyvo tries HTTPS first and shows a warning instead of silently falling back to HTTP when a secure version is not available.
+    *   You can override this with per-site exceptions if you really need to use a specific HTTP-only site.
 
-  - Configurable HTTPS mode (Strict / Preferred).
+*   **Third-party cookies control**
+    *   Global setting under **Settings → Privacy & Security** to block or allow third-party cookies.
+    *   Per-site exceptions: you can explicitly allow third-party cookies for individual sites that break without them (for example some logins or embedded widgets).
+    *   Exceptions are visible both on the internal **“Manage security exceptions”** page and in the shield popover for the current site.
 
-  - WebRTC privacy modes (Always allowed / Always blocked / Blocked when Tor is enabled).
+*   **WebRTC privacy modes**
+    *   WebRTC is a browser technology used for real-time audio/video and peer-to-peer connections.
+    *   Merezhyvo lets you choose between:
+        *   **Always allowed**,
+        *   **Always blocked**,
+        *   **Blocked when Tor is enabled**.
+    *   Blocking WebRTC can reduce some IP leak surface for privacy-sensitive use, but it is not a magic “anonymous mode”.
+
+*   **Site data management**
+    *   Internal **“Site data”** page where you can inspect and clear cookies and stored data per site.
+    *   Includes a global **“Clear all data”** option, plus per-site actions to remove cookies, site data, or both.
+    *   The same page is linked from the shield popover (“Manage site data”) with the current site pre-filtered.
+
+*   **Built-in explanation page**
+    *   A **“Privacy & Security – How this works”** internal page explains, in plain language, how HTTPS, certificates, cookies, WebRTC, and the internal tools (exceptions, site data) behave in Merezhyvo.
+    *   Accessible from **Settings → Privacy & Security** and intended for non-experts who want to understand what the knobs actually do.
 
 
 - **Optional Tor integration**
@@ -89,9 +115,20 @@ This repository contains the full source code and build scripts for the Ubuntu T
   - Long-press alternates, symbol pages, Caps Lock via long-press Shift and layout switching managed in **Settings → Keyboard**.
 
 
-- **Localization**
+- ### Localization
 
-  - UI available in English, Ukrainian, French, German and Polish (more languages can be added over time).
+*   App UI is available in multiple languages:
+
+    *   English
+    *   Ukrainian
+    *   French
+    *   German
+    *   Polish
+    *   Dutch
+    *   Spanish
+    *   Italian
+
+*   More translations can be added over time based on user feedback.
     
 
 - - -
@@ -256,32 +293,31 @@ clickable build \--arch arm64 \--accept\-review\-errors
 
 Internal settings are stored in a JSON file under the user's `~/.config` directory (for example `~/.config/merezhyvo.naz.r/settings.json`).
 
+This includes UI preferences (theme, scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting), and per-site exception lists.
+
+
 - - -
 
 ## Privacy
 
 *   No tracking, no analytics, no telemetry.
+    *   Merezhyvo does not send usage data to remote servers and does not embed third-party analytics or crash reporting.
+*   All browsing data (history, bookmarks, passwords, cookies, site data) stays inside the app sandbox on the device.
 
-*   No calls to third-party analytics or crash reporting services.
+Merezhyvo includes several tools that can help improve privacy:
 
-*   All browsing data (history, bookmarks, passwords) stays inside the app sandbox on the device.
+*   **Configurable HTTPS mode (Strict / Preferred)** to encourage secure connections and warn when only HTTP is available.
+*   **In-app certificate validation** with a clear shield indicator (white / yellow / red) and a popover with certificate status.
+*   **Optional blocking of third-party cookies** with per-site exceptions for cases where functionality depends on them.
+*   **WebRTC privacy modes** (always allowed / always blocked / blocked when Tor is enabled).
+*   **Site data management** page to inspect and clear stored cookies and site data per site, or wipe everything at once.
 
-*   HTTPS-only / HTTPS-preferred modes with in-app certificate validation and clear security indicators.
-
-*   WebRTC can be fully disabled, or automatically disabled when Tor is enabled, to reduce IP-leak surface.
-
-*   Built-in password autofill never uses the system clipboard: credentials are sent directly from encrypted storage into page forms and only live in memory long enough to fill the fields.
-
-
-Tor support can improve privacy by routing traffic through the Tor network, but:
-
+Tor support can further improve privacy by routing traffic through the Tor network, but:
 
 *   Merezhyvo is **not** the official Tor Browser.
-
 *   It does **not** include all Tor Browser hardening and fingerprinting protection.
 
-
-For sensitive use, please follow the Tor Project’s recommendations and combine Tor with good security practices.
+For sensitive use, please follow the Tor Project's recommendations and combine Tor with good security practices.
 
 
 - - -
