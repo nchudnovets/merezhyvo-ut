@@ -570,8 +570,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
               <span style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '15px' }}>{t('siteData.about.title')}</span>
               <svg
                 viewBox="0 0 16 16"
-                width={mode === 'mobile' ? 32 : 16}
-                height={mode === 'mobile' ? 32 : 16}
+                width={mode === 'mobile' ? 35 : 16}
+                height={mode === 'mobile' ? 35 : 16}
                 fill="none"
                 stroke="currentColor"
                 strokeWidth="1.5"
@@ -582,11 +582,11 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
             </button>
             {aboutExpanded && (
               <div style={{ padding: mode === 'mobile' ? '0 16px 14px' : '0 12px 12px', color: 'rgba(226,232,240,0.85)', display: 'flex', flexDirection: 'column', gap: 6 }}>
-                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body1')}</div>
-                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body2')}</div>
-                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body3')}</div>
-                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body4')}</div>
-                <div style={{ fontSize: mode === 'mobile' ? '32px' : '13px' }}>{t('siteData.about.body5')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body1')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body2')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body3')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body4')}</div>
+                <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body5')}</div>
               </div>
             )}
           </div>
