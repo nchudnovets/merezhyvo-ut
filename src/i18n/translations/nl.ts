@@ -479,6 +479,8 @@ const nl = {
   'securityExceptions.manageCerts': 'Beheer certificaatafwijkingen…',
   'securityExceptions.manageCookies': 'Beheer cookie-uitzonderingen…',
   'siteData.toast.cookiesCleared': 'Cookies gewist voor {host}',
+  'passwordSettings.status.locked': 'Wachtwoorden zijn vergrendeld. Ontgrendel om instellingen te bewerken.',
+  'passwordSettings.status.unlocked': 'Wachtwoorden zijn ontgrendeld. Je kunt ze nu gebruiken en beheren.',
   'settings.about.repo': 'Repository',
   'privacyInfo.title': 'Privacy en beveiliging – Hoe werkt dit',
   'privacyInfo.https.heading': 'HTTPS-modi',

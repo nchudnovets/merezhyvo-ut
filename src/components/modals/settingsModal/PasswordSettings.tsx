@@ -71,7 +71,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           const result = await api.settings.get();
           if (!mountedRef.current) return;
           setSettings(result);
-          setStatus(null);
+          setStatus(t('passwordSettings.status.unlocked'));
         } else {
           setSettings(null);
           setStatus(t('passwordSettings.status.locked'));
@@ -129,6 +129,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
 
   const hasMaster = statusInfo?.hasMaster ?? false;
   const isPasswordsLocked = statusInfo?.locked ?? false;
+  const lockedMessage = t('passwordSettings.status.locked');
+  const unlockedMessage = t('passwordSettings.status.unlocked');
 
   const handleChangeMasterPassword = () => {
     setChangeError(null);
@@ -336,7 +338,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           }}
           role="status"
         >
-          {status === t('passwordSettings.status.locked') ? (
+          {status === lockedMessage || status === unlockedMessage ? (
             <>
               <svg
                 width={isMobile ? 38 : 18}
@@ -351,8 +353,14 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
                 focusable="false"
                 style={{ marginRight: 8, verticalAlign: 'text-bottom' }}
               >
-                <rect x="3" y="11" width="18" height="11" rx="2" />
-                <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                {status === lockedMessage ? (
+                  <>
+                    <rect x="3" y="11" width="18" height="11" rx="2" />
+                    <path d="M7 11V7a5 5 0 0 1 10 0v4" />
+                  </>
+                ) : (
+                  <path d="M9 11V9.5c0-1.93 1.57-3.5 3.5-3.5 1.7 0 3.12 1.1 3.45 2.64h-1.41c-.28-.73-.99-1.24-1.79-1.24-1.07 0-1.95.87-1.95 1.94V11h2.4c1.2 0 2.2 1 2.2 2.2v4.6c0 1.2-1 2.2-2.2 2.2H5.5c-1.2 0-2.2-1-2.2-2.2v-4.6c0-1.2 1-2.2 2.2-2.2H9Z" />
+                )}
               </svg>
               {status}
             </>

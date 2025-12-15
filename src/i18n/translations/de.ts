@@ -345,6 +345,7 @@ const de = {
   'passwordUnlock.error.generic': 'Passwörter können nicht entsperrt werden',
   'passwordSettings.status.unavailable': 'Passwortdienst nicht verfügbar',
   'passwordSettings.status.locked': 'Passwörter sind gesperrt. Zum Bearbeiten entsperren.',
+  'passwordSettings.status.unlocked': 'Passwörter sind entsperrt. Sie können sie jetzt verwenden und verwalten.',
   'passwordSettings.status.createMaster': 'Erstelle ein Master-Passwort, um zu starten',
   'passwordSettings.status.loadError': 'Passwort-Einstellungen konnten nicht geladen werden',
   'passwordSettings.status.updated': 'Einstellungen aktualisiert',

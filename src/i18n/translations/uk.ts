@@ -441,6 +441,7 @@ const uk = {
   'passwordUnlock.error.generic': 'Не вдалося розблокувати паролі',
   'passwordSettings.status.unavailable': 'Сервіс паролів недоступний',
   'passwordSettings.status.locked': 'Паролі заблоковані. Розблокуйте для змін.',
+  'passwordSettings.status.unlocked': 'Паролі розблоковано. Тепер ви можете ними користуватися та керувати.',
   'passwordSettings.status.createMaster': 'Створіть майстер-пароль, щоб почати',
   'passwordSettings.status.loadError': 'Не вдалося завантажити налаштування паролів',
   'passwordSettings.status.updated': 'Налаштування оновлено',

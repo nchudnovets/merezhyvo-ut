@@ -417,6 +417,8 @@ const it = {
   'passwordUnlock.error.generic': 'Impossibile sbloccare',
   'passwordUnlock.error.unavailable': 'Servizio password non disponibile',
   'passwordUnlock.success': 'Password sbloccate',
+  'passwordSettings.status.locked': 'Le password sono bloccate. Sbloccale per modificare le impostazioni.',
+  'passwordSettings.status.unlocked': 'Le password sono sbloccate. Ora puoi usarle e gestirle.',
   'passwords.locked.notice': 'Password bloccate. Sblocca per modificare.',
   'passwords.locked.open': 'Sblocca',
   'passwords.locked.stayLocked': 'Rimani bloccato',

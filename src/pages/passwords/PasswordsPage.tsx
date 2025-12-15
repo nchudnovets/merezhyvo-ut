@@ -964,7 +964,10 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
           ))
           )}
       </div>
-      {toast && <div style={passwordsStyles.toast}>{toast}</div>}
+      {toast && <div style={mergeStyle(
+        passwordsStyles.toast,
+        isMobile ? passwordsStyles.toastMobile : undefined
+      )}>{toast}</div>}
 
       {modalOpen && (
         <div style={passwordsStyles.modalOverlay} onClick={closeModal}>

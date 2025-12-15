@@ -267,6 +267,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     fontSize: '13px',
     boxShadow: '0 12px 30px rgba(15, 23, 42, 0.6)'
   },
+  toastMobile: {
+    fontSize: '35px',
+  },
   banner: {
     margin: '0 24px 12px',
     padding: '12px',

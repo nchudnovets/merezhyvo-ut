@@ -424,6 +424,7 @@ const en = {
   'passwordUnlock.error.generic': 'Unable to unlock passwords',
   'passwordSettings.status.unavailable': 'Passwords service unavailable',
   'passwordSettings.status.locked': 'Passwords are locked. Unlock to edit settings.',
+  'passwordSettings.status.unlocked': 'Passwords are unlocked. You can now use and manage them.',
   'passwordSettings.status.createMaster': 'Create a master password to get started',
   'passwordSettings.status.loadError': 'Unable to load password settings',
   'passwordSettings.status.updated': 'Settings updated',

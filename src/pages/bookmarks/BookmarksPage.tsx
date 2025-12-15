@@ -1459,7 +1459,7 @@ const handleDeleteSelection = () => {
           </div>
         </div>
       )}
-      {toast && <div style={styles.toast}>{toast}</div>}
+      {toast && <div style={{...styles.toast, ...modeStyles.toast}}>{toast}</div>}
     </div>
   );
 };

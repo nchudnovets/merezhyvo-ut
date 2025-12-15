@@ -183,6 +183,9 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
     },
     contextMenuItem: {
       fontSize: '40px'
+    },
+    toast: {
+      fontSize: '35px',
     }
   }
 };

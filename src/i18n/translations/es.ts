@@ -417,6 +417,8 @@ const es = {
   'passwordUnlock.error.generic': 'No se pudo desbloquear',
   'passwordUnlock.error.unavailable': 'Servicio de contraseñas no disponible',
   'passwordUnlock.success': 'Contraseñas desbloqueadas',
+  'passwordSettings.status.locked': 'Las contraseñas están bloqueadas. Desbloquéalas para editar la configuración.',
+  'passwordSettings.status.unlocked': 'Las contraseñas están desbloqueadas. Ahora puedes usarlas y gestionarlas.',
   'passwords.locked.notice': 'Contraseñas bloqueadas. Desbloquea para cambiar.',
   'passwords.locked.open': 'Desbloquear',
   'passwords.locked.stayLocked': 'Mantener bloqueado',
