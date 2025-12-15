@@ -13,7 +13,8 @@ export const AVAILABLE_LOCALES: LocaleInfo[] = [
   { id: 'pl', label: 'Polish', nativeLabel: 'Polski', direction: 'ltr' },
   { id: 'es', label: 'Spanish', nativeLabel: 'Español', direction: 'ltr' },
   { id: 'it', label: 'Italian', nativeLabel: 'Italiano', direction: 'ltr' },
-  { id: 'nl', label: 'Dutch', nativeLabel: 'Nederlands', direction: 'ltr' }
+  { id: 'nl', label: 'Dutch', nativeLabel: 'Nederlands', direction: 'ltr' },
+  { id: 'no', label: 'Norwegian', nativeLabel: 'Norsk', direction: 'ltr' }
 ];
 
 export const DEFAULT_LOCALE = AVAILABLE_LOCALES[0]?.id ?? 'en';

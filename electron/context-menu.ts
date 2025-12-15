@@ -9,6 +9,7 @@ import pl from '../src/i18n/translations/pl';
 import es from '../src/i18n/translations/es';
 import it from '../src/i18n/translations/it';
 import nl from '../src/i18n/translations/nl';
+import no from '../src/i18n/translations/no';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 
 let renderLock = false;
@@ -31,7 +32,8 @@ const dictionaries: Record<string, Record<string, string>> = {
   pl: pl as unknown as Record<string, string>,
   es: es as unknown as Record<string, string>,
   it: it as unknown as Record<string, string>,
-  nl: nl as unknown as Record<string, string>
+  nl: nl as unknown as Record<string, string>,
+  no: no as unknown as Record<string, string>
 };
 
 const t = (key: string): string => {
