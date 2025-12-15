@@ -448,7 +448,7 @@ const uk = {
   'passwordSettings.toast.created': 'Майстер-пароль створено',
   'passwordSettings.toast.updated': 'Майстер-пароль оновлено',
   'passwordSettings.error.change': 'Не вдалося змінити майстер-пароль',
-  'passwordSettings.toggle.saveAndFill': 'Зберігати та автозаповнювати паролі (бета)',
+  'passwordSettings.toggle.saveAndFill': 'Зберігати та автозаповнювати паролі',
   'passwordSettings.toggle.offerToSave': 'Пропонувати збереження паролів',
   'passwordSettings.toggle.disallowHttp': 'Ніколи не зберігати на HTTP (небезпечно)',
   'passwordSettings.label.autoLock': 'Автоблокування через',

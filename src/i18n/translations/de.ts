@@ -352,7 +352,7 @@ const de = {
   'passwordSettings.toast.created': 'Master-Passwort erstellt',
   'passwordSettings.toast.updated': 'Master-Passwort aktualisiert',
   'passwordSettings.error.change': 'Master-Passwort konnte nicht geändert werden',
-  'passwordSettings.toggle.saveAndFill': 'Passwörter speichern & ausfüllen (Beta)',
+  'passwordSettings.toggle.saveAndFill': 'Passwörter speichern & ausfüllen',
   'passwordSettings.toggle.offerToSave': 'Anbieten, Passwörter zu speichern',
   'passwordSettings.toggle.disallowHttp': 'Nie auf HTTP (unsicher) speichern',
   'passwordSettings.label.autoLock': 'Automatisch sperren nach',

@@ -154,12 +154,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [scrollToSection, onScrollSectionHandled]);
 
-  useEffect(() => {
-    if (!scrollToSection) {
-      setForceExpandPasswords(false);
-    }
-  }, [scrollToSection]);
-
   const containerStyle =
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =

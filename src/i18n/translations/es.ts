@@ -419,6 +419,7 @@ const es = {
   'passwordUnlock.success': 'Contraseñas desbloqueadas',
   'passwordSettings.status.locked': 'Las contraseñas están bloqueadas. Desbloquéalas para editar la configuración.',
   'passwordSettings.status.unlocked': 'Las contraseñas están desbloqueadas. Ahora puedes usarlas y gestionarlas.',
+  'passwordSettings.toggle.saveAndFill': 'Guardar y autocompletar contraseñas',
   'passwords.locked.notice': 'Contraseñas bloqueadas. Desbloquea para cambiar.',
   'passwords.locked.open': 'Desbloquear',
   'passwords.locked.stayLocked': 'Mantener bloqueado',

@@ -431,7 +431,7 @@ const en = {
   'passwordSettings.toast.created': 'Master password created',
   'passwordSettings.toast.updated': 'Master password updated',
   'passwordSettings.error.change': 'Unable to change master password',
-  'passwordSettings.toggle.saveAndFill': 'Save and fill passwords (beta)',
+  'passwordSettings.toggle.saveAndFill': 'Save and fill passwords',
   'passwordSettings.toggle.offerToSave': 'Offer to save passwords',
   'passwordSettings.toggle.disallowHttp': 'Never save on HTTP (insecure)',
   'passwordSettings.label.autoLock': 'Auto-lock after',

@@ -352,7 +352,7 @@ const fr = {
   'passwordSettings.toast.created': 'Mot de passe maître créé',
   'passwordSettings.toast.updated': 'Mot de passe maître mis à jour',
   'passwordSettings.error.change': 'Impossible de modifier le mot de passe maître',
-  'passwordSettings.toggle.saveAndFill': 'Enregistrer et remplir les mots de passe (bêta)',
+  'passwordSettings.toggle.saveAndFill': 'Enregistrer et remplir les mots de passe',
   'passwordSettings.toggle.offerToSave': 'Proposer d’enregistrer les mots de passe',
   'passwordSettings.toggle.disallowHttp': 'Ne jamais enregistrer sur HTTP (non sécurisé)',
   'passwordSettings.label.autoLock': 'Verrouillage automatique après',

@@ -124,7 +124,9 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
     const api = window.merezhyvo?.passwords;
     if (!api) return;
     await api.lock();
-        setStatus(t('passwordSettings.status.locked'));
+    setSettings(null);
+    setStatusInfo((prev) => (prev ? { ...prev, locked: true } : prev));
+    setStatus(t('passwordSettings.status.locked'));
   };
 
   const hasMaster = statusInfo?.hasMaster ?? false;
@@ -203,110 +205,114 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
 
   return (
     <div style={styles.passwordSettings}>
-      {([
-        { field: 'saveAndFill', label: t('passwordSettings.toggle.saveAndFill') },
-        { field: 'offerToSave', label: t('passwordSettings.toggle.offerToSave') },
-        { field: 'disallowHttp', label: t('passwordSettings.toggle.disallowHttp') }
-      ] as const).map(({ field, label }) => {
-        const checked = settings?.[field] ?? false;
-        const trackWidth = isMobile ? 74 : 48;
-        const trackHeight = isMobile ? 40 : 20;
-        const knobSize = isMobile ? 32 : 16;
-        const knobTop = isMobile ? 4 : 2;
-        const knobLeft = checked ? (isMobile ? 36 : 26) : (isMobile ? 4 : 2);
-        return (
-          <label key={field} style={{ ...toggleRowStyle, alignItems: 'center', gap: 10 }}>
-            <span style={toggleLabelStyle}>{label}</span>
-            <span
-              style={{
-                position: 'relative',
-                width: trackWidth,
-                height: trackHeight,
-                flexShrink: 0,
-                display: 'inline-block'
-              }}
+      {!isPasswordsLocked && (
+        <>
+          {([
+            { field: 'saveAndFill', label: t('passwordSettings.toggle.saveAndFill') },
+            { field: 'offerToSave', label: t('passwordSettings.toggle.offerToSave') },
+            { field: 'disallowHttp', label: t('passwordSettings.toggle.disallowHttp') }
+          ] as const).map(({ field, label }) => {
+            const checked = settings?.[field] ?? false;
+            const trackWidth = isMobile ? 74 : 48;
+            const trackHeight = isMobile ? 40 : 20;
+            const knobSize = isMobile ? 32 : 16;
+            const knobTop = isMobile ? 4 : 2;
+            const knobLeft = checked ? (isMobile ? 36 : 26) : (isMobile ? 4 : 2);
+            return (
+              <label key={field} style={{ ...toggleRowStyle, alignItems: 'center', gap: 10 }}>
+                <span style={toggleLabelStyle}>{label}</span>
+                <span
+                  style={{
+                    position: 'relative',
+                    width: trackWidth,
+                    height: trackHeight,
+                    flexShrink: 0,
+                    display: 'inline-block'
+                  }}
+                >
+                  <input
+                    type="checkbox"
+                    checked={checked}
+                    disabled={!settings || saving}
+                    onChange={() => handleToggle(field)}
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      margin: 0,
+                      opacity: 0,
+                      cursor: !settings || saving ? 'not-allowed' : 'pointer',
+                      zIndex: 2
+                    }}
+                  />
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      inset: 0,
+                      borderRadius: 999,
+                      backgroundColor: checked ? '#2563ebeb' : 'transparent',
+                      border: `1px solid #ACB2B7`,
+                      transition: 'background-color 160ms ease, border-color 160ms ease'
+                    }}
+                  />
+                  <span
+                    aria-hidden="true"
+                    style={{
+                      position: 'absolute',
+                      top: knobTop,
+                      left: knobLeft,
+                      width: knobSize,
+                      height: knobSize,
+                      borderRadius: '50%',
+                      backgroundColor: checked ? '#ffffff' : '#ACB2B7',
+                      boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                      transition: 'left 160ms ease'
+                    }}
+                  />
+                </span>
+              </label>
+            );
+          })}
+          <div style={rowStyle}>
+            <span style={toggleLabelStyle}>{t('passwordSettings.label.autoLock')}</span>
+            <select
+              value={settings?.autoLockMinutes ?? 15}
+              disabled={!settings || saving}
+              onChange={handleAutoLockChange}
+              style={selectStyle}
             >
-              <input
-                type="checkbox"
-                checked={checked}
-                disabled={!settings || saving}
-                onChange={() => handleToggle(field)}
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  margin: 0,
-                  opacity: 0,
-                  cursor: !settings || saving ? 'not-allowed' : 'pointer',
-                  zIndex: 2
-                }}
-              />
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: 999,
-                  backgroundColor: checked ? '#2563ebeb' : 'transparent',
-                  border: `1px solid #ACB2B7`,
-                  transition: 'background-color 160ms ease, border-color 160ms ease'
-                }}
-              />
-              <span
-                aria-hidden="true"
-                style={{
-                  position: 'absolute',
-                  top: knobTop,
-                  left: knobLeft,
-                  width: knobSize,
-                  height: knobSize,
-                  borderRadius: '50%',
-                  backgroundColor: checked ? '#ffffff' : '#ACB2B7',
-                  boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                  transition: 'left 160ms ease'
-                }}
-              />
-            </span>
-          </label>
-        );
-      })}
-      <div style={rowStyle}>
-        <span style={toggleLabelStyle}>{t('passwordSettings.label.autoLock')}</span>
-        <select
-          value={settings?.autoLockMinutes ?? 15}
-          disabled={!settings || saving}
-          onChange={handleAutoLockChange}
-          style={selectStyle}
-        >
-          {LOCK_OPTIONS.map((option) => (
-            <option key={option.value} value={option.value}>
-            {t(option.key)}
-            </option>
-          ))}
-        </select>
-      </div>
-      {(!hasMaster || !isPasswordsLocked) && (
-        <div style={rowStyle}>
-          <button
-            type="button"
-            style={buttonStyle}
-            onClick={handleChangeMasterPassword}
-            disabled={changeButtonDisabled}
-          >
-            {hasMaster ? t('passwordSettings.button.changeMaster') : t('passwordSettings.button.createMaster')}
-          </button>
-        </div>
-      )}
-      {showLockAction && (
-        <div style={rowStyle}>
-          <button
-            type="button"
-            style={buttonStyle}
-            onClick={handleLockNow}
-            disabled={lockButtonDisabled}
-          >
-            {t('passwordSettings.button.lockNow')}
-          </button>
-        </div>
+              {LOCK_OPTIONS.map((option) => (
+                <option key={option.value} value={option.value}>
+                  {t(option.key)}
+                </option>
+              ))}
+            </select>
+          </div>
+          {(!hasMaster || !isPasswordsLocked) && (
+            <div style={rowStyle}>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={handleChangeMasterPassword}
+                disabled={changeButtonDisabled}
+              >
+                {hasMaster ? t('passwordSettings.button.changeMaster') : t('passwordSettings.button.createMaster')}
+              </button>
+            </div>
+          )}
+          {showLockAction && (
+            <div style={rowStyle}>
+              <button
+                type="button"
+                style={buttonStyle}
+                onClick={handleLockNow}
+                disabled={lockButtonDisabled}
+              >
+                {t('passwordSettings.button.lockNow')}
+              </button>
+            </div>
+          )}
+        </>
       )}
       {showUnlockAction && (
         <div style={rowStyle}>
@@ -320,7 +326,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           </button>
         </div>
       )}
-      <div style={linkRowStyle}>
+      {!isPasswordsLocked && (
+        <div style={linkRowStyle}>
           <button
             type="button"
             style={{ ...linkButtonStyle, ...(isPasswordsLocked || !hasMaster ? styles.settingsLinkButtonDisabled : {}) }}
@@ -329,7 +336,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           >
             {t('passwordSettings.button.manage')}
           </button>
-      </div>
+        </div>
+      )}
       {status && (
         <p
           style={{
