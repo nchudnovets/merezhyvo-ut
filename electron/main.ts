@@ -1084,17 +1084,21 @@ ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePa
         : 480;
     const targetHeight = Math.min(measuredHeight, maxHeight);
 
-    let targetWidth = bounds.width;
-    if (ctxMenuMode === 'mobile') {
-      const minWidth = 220;
-      const rawWidth = typeof width === 'number' ? width : Number(width);
-      const measuredWidth = Math.max(
-        minWidth,
-        Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width)
-      );
-      const maxWidth = wa ? Math.max(minWidth, wa.width - 16) : measuredWidth;
-      targetWidth = Math.min(measuredWidth, maxWidth);
-    }
+    const minWidth = ctxMenuMode === 'mobile' ? 220 : 240;
+    const rawWidth = typeof width === 'number' ? width : Number(width);
+    const measuredWidth = Math.max(
+      minWidth,
+      Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width)
+    );
+    const maxWidth =
+      ctxMenuMode === 'mobile'
+        ? wa
+          ? Math.max(minWidth, wa.width - 16)
+          : measuredWidth
+        : wa
+        ? Math.max(minWidth, wa.width - 16)
+        : measuredWidth;
+    const targetWidth = Math.min(measuredWidth, maxWidth);
 
     const cursor = global.lastCtx?.x != null && global.lastCtx?.y != null
       ? { x: global.lastCtx.x + 8, y: global.lastCtx.y + 10 }

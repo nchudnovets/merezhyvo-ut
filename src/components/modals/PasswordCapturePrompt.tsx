@@ -96,9 +96,9 @@ const promptCardDimensions = (mode: Mode): CSSProperties => {
 };
 
 const labelFontSizes = (mode: Mode) => ({
-  title: mode === 'mobile' ? '38px' : '26px',
-  message: mode === 'mobile' ? '32px' : '18px',
-  button: mode === 'mobile' ? '32px' : '16px'
+  title: mode === 'mobile' ? '40px' : '26px',
+  message: mode === 'mobile' ? '36px' : '18px',
+  button: mode === 'mobile' ? '36px' : '16px'
 });
 
 const PasswordCapturePrompt: React.FC<Props> = ({ open, mode, payload, busy, onAction, onClose }) => {
