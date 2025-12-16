@@ -1009,6 +1009,15 @@ window.addEventListener('message', async (ev: MessageEvent) => {
     return null;
   };
 
+  const originalInputClick = HTMLInputElement.prototype.click;
+  HTMLInputElement.prototype.click = function patchedClick(this: HTMLInputElement): void {
+    if (this && this.type === 'file') {
+      const opened = openDialogForInput(this);
+      if (opened) return;
+    }
+    return originalInputClick.apply(this, arguments as any);
+  };
+
   const base64ToArray = (base64: string): Uint8Array => {
     const binary = atob(base64);
     const array = new Uint8Array(binary.length);
@@ -1024,37 +1033,72 @@ window.addEventListener('message', async (ev: MessageEvent) => {
     return [items[0] as T];
   };
 
+  const pendingPickers = new Map<
+    string,
+    { multiple: boolean; resolve: (files: File[]) => void; reject: (err?: unknown) => void }
+  >();
+  const pendingMainWorld = new Map<string, { token: string; multiple: boolean }>();
+
   const handleResponse = (_event: Electron.IpcRendererEvent, payload: FileDialogResponse): void => {
+    const mainWorld = pendingMainWorld.get(payload.requestId);
     const input = pendingInputs.get(payload.requestId);
-    if (!input) return;
-    const descriptors = clampSelection(payload.files ?? [], input.multiple);
-    if (!descriptors.length) {
-      pendingInputs.delete(payload.requestId);
-      activeInputs.delete(input);
+    const picker = pendingPickers.get(payload.requestId);
+    if (!input && !picker && !mainWorld) return;
+
+    const multiple = input ? input.multiple : mainWorld ? mainWorld.multiple : picker?.multiple ?? false;
+    const descriptors = clampSelection(payload.files ?? [], multiple);
+
+    if (mainWorld) {
+      pendingMainWorld.delete(payload.requestId);
+      const normalized = descriptors.map((d) => {
+        const name = d?.name ?? d?.path ?? 'file';
+        return {
+          name,
+          type: d?.type ?? guessMimeType(name),
+          data: d?.data ?? null
+        };
+      });
+      try {
+        window.postMessage(
+          { __mzr: 'file-input-response', token: mainWorld.token, files: normalized },
+          '*'
+        );
+      } catch {
+        // noop
+      }
       return;
     }
-    pendingInputs.delete(payload.requestId);
-    activeInputs.delete(input);
+
     const files: File[] = [];
     for (const descriptor of descriptors) {
-      if (!descriptor.data) {
-        continue;
-      }
+      if (!descriptor?.data) continue;
       const buffer = base64ToArray(descriptor.data);
       const name = descriptor.name ?? descriptor.path ?? 'file';
       const type = descriptor.type ?? guessMimeType(name);
       files.push(new File([buffer as unknown as BlobPart], name, { type }));
     }
-    if (!files.length) return;
-    const dataTransfer = new DataTransfer();
-    files.forEach((file) => dataTransfer.items.add(file));
-    try {
-      input.files = dataTransfer.files;
-    } catch {
-      // Assigning to files may fail; ignore
+
+    if (input) {
+      pendingInputs.delete(payload.requestId);
+      activeInputs.delete(input);
+      if (!files.length) return;
+      const dataTransfer = new DataTransfer();
+      files.forEach((file) => dataTransfer.items.add(file));
+      try {
+        input.files = dataTransfer.files;
+      } catch {
+        // Assigning to files may fail; ignore
+      }
+      input.dispatchEvent(new Event('input', { bubbles: true }));
+      input.dispatchEvent(new Event('change', { bubbles: true }));
+    } else if (picker) {
+      pendingPickers.delete(payload.requestId);
+      if (!files.length) {
+        picker.resolve([]);
+        return;
+      }
+      picker.resolve(files);
     }
-    input.dispatchEvent(new Event('input', { bubbles: true }));
-    input.dispatchEvent(new Event('change', { bubbles: true }));
   };
 
   const handleClick = (event: MouseEvent): void => {
@@ -1079,4 +1123,104 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   document.addEventListener('click', handleClick, true);
   document.addEventListener('keydown', handleKeyDown, true);
   ipcRenderer.on('mzr:file-dialog:response', handleResponse);
+
+  const handleMessageFromMainWorld = (event: MessageEvent): void => {
+    const data = event.data;
+    if (!data || data.__mzr !== 'file-input-request') return;
+    const token = typeof data.token === 'string' ? data.token : '';
+    if (!token) return;
+    const accept = typeof data.accept === 'string' ? data.accept : '';
+    const multiple = Boolean(data.multiple);
+    const requestId = createRequestId();
+    pendingMainWorld.set(requestId, { token, multiple });
+    try {
+      ipcRenderer.sendToHost('mzr:file-dialog:open', { requestId, accept, multiple });
+    } catch {
+      pendingMainWorld.delete(requestId);
+    }
+  };
+
+  window.addEventListener('message', handleMessageFromMainWorld);
+
+  const MAIN_WORLD_CODE = `
+(() => {
+  if (window.__mzrFileHooksInstalled) return;
+  window.__mzrFileHooksInstalled = true;
+
+  const inputs = new Map();
+
+  const makeToken = () => 'mw_fd_' + Date.now().toString(36) + '_' + Math.random().toString(36).slice(2, 8);
+
+  const b64ToU8 = (base64) => {
+    const binary = atob(base64 || '');
+    const arr = new Uint8Array(binary.length);
+    for (let i = 0; i < binary.length; i++) arr[i] = binary.charCodeAt(i);
+    return arr;
+  };
+
+  const applyFiles = (input, files) => {
+    const dt = new DataTransfer();
+    for (const f of files) dt.items.add(f);
+    try { input.files = dt.files; } catch {}
+    input.dispatchEvent(new Event('input', { bubbles: true }));
+    input.dispatchEvent(new Event('change', { bubbles: true }));
+  };
+
+  window.addEventListener('message', (ev) => {
+    const data = ev.data;
+    if (!data || data.__mzr !== 'file-input-response') return;
+
+    const token = String(data.token || '');
+    const input = inputs.get(token);
+    inputs.delete(token);
+    if (!input) return;
+
+    const list = Array.isArray(data.files) ? data.files : [];
+    const files = [];
+    for (const desc of list) {
+      if (!desc || !desc.data) continue;
+      const buf = b64ToU8(desc.data);
+      const name = desc.name || 'file';
+      const type = desc.type || 'application/octet-stream';
+      files.push(new File([buf], name, { type }));
+    }
+    if (!files.length) return;
+    applyFiles(input, files);
+  });
+
+  const sendRequest = (input) => {
+    const token = makeToken();
+    inputs.set(token, input);
+    window.postMessage({ __mzr: 'file-input-request', token, accept: input.accept || '', multiple: !!input.multiple }, '*');
+  };
+
+  const proto = HTMLInputElement.prototype;
+  const origClick = proto.click;
+  proto.click = function() {
+    if (this && this.type === 'file') {
+      // (на час фікса) прибери userActivation-гейт, або хоча б залогуй його
+      sendRequest(this);
+      return;
+    }
+    return origClick.apply(this, arguments);
+  };
+
+  const origShow = proto.showPicker;
+  if (typeof origShow === 'function') {
+    proto.showPicker = function() {
+      if (this && this.type === 'file') {
+        sendRequest(this);
+        return;
+      }
+      return origShow.apply(this, arguments);
+    };
+  }
+})();
+`;
+
+try {
+  webFrame.executeJavaScriptInIsolatedWorld(0, [{ code: MAIN_WORLD_CODE }]);
+} catch {
+  // noop
+}
 })();
