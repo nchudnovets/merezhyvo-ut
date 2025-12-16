@@ -1,4 +1,4 @@
-const en = {
+const no = {
  'global.loading': 'Laster…',
   'global.close': 'Lukk',
   'global.cancel': 'Avbryt',
@@ -636,5 +636,4 @@ const en = {
   'privacyInfo.link': 'Slik fungerer dette'
 } as const;
 
-export type EnglishTranslationKeys = keyof typeof en;
-export default en;
+export default no;

@@ -11,6 +11,7 @@ import { trLayout } from './tr';
 import { nlLayout } from './nl';
 import { roLayout } from './ro';
 import { arLayout } from './ar';
+import { noLayout } from './no';
 
 const FALLBACK_LANG: LanguageId = 'en';
 
@@ -26,6 +27,7 @@ export const LANGUAGE_LAYOUT_IDS: readonly LanguageId[] = [
   'tr',
   'nl',
   'ro',
+  'no',
   'ar'
 ] as const;
 
@@ -41,6 +43,7 @@ export const LANGUAGE_LAYOUTS: Record<LanguageId, LanguageLayout> = {
   tr: trLayout,
   nl: nlLayout,
   ro: roLayout,
+  no: noLayout,
   ar: arLayout
 };
 

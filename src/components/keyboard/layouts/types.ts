@@ -9,6 +9,7 @@ export type LanguageId =
   | 'fr'
   | 'tr'
   | 'nl'
+  | 'no'
   | 'ro'
   | 'ar';
 
