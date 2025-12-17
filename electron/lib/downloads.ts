@@ -11,6 +11,7 @@ type DownloadEntry = {
   url: string;
   filename: string;
   referer?: string;
+  originalReferer?: string;
   session?: Session;
   state: DownloadState;
   received: number;
@@ -19,6 +20,7 @@ type DownloadEntry = {
   finishedAt?: number;
   tempPath?: string;
   finalPath?: string;
+  retriedWithOrigin?: boolean;
   retriedWithoutReferer?: boolean;
   error?: string;
   request?: ClientRequest;
@@ -43,6 +45,18 @@ const queue: string[] = [];
 const activeIds = new Set<string>();
 const stateListeners: Array<(entry: DownloadEntry) => void> = [];
 const progressListeners: Array<(entry: DownloadEntry) => void> = [];
+
+const toOrigin = (value?: string): string | undefined => {
+  if (!value) return undefined;
+  try {
+    const u = new URL(value);
+    return `${u.protocol}//${u.host}`;
+  } catch {
+    return undefined;
+  }
+};
+
+const normalizeReferer = (ref?: string): string | undefined => toOrigin(ref);
 
 const createEntryId = (): string =>
   `dl_${Date.now().toString(36)}_${Math.random().toString(36).slice(2, 8)}`;
@@ -178,8 +192,12 @@ const issueRequest = (entry: DownloadEntry, dir: string): void => {
 
   request.on('error', (err) => {
     const message = typeof err === 'object' ? String((err as Error).message ?? err) : String(err);
+    const lower = message.toLowerCase();
+    const invalidRef = lower.includes('referrer');
     const shouldRetry =
-      entry.referer && !entry.retriedWithoutReferer && message.includes('ERR_BLOCKED_BY_CLIENT');
+      entry.referer &&
+      !entry.retriedWithoutReferer &&
+      (message.includes('ERR_BLOCKED_BY_CLIENT') || invalidRef);
     if (shouldRetry) {
       entry.referer = undefined;
       entry.retriedWithoutReferer = true;
@@ -191,6 +209,29 @@ const issueRequest = (entry: DownloadEntry, dir: string): void => {
   });
 
   request.on('response', (response: IncomingMessage) => {
+    const contentType = response.headers['content-type'] ?? '';
+    const isHtmlLike =
+      typeof contentType === 'string' &&
+      (contentType.includes('text/html') || contentType.includes('application/php'));
+    const shouldRetryWithOrigin =
+      isHtmlLike &&
+      entry.originalReferer &&
+      !entry.retriedWithOrigin &&
+      entry.referer !== entry.originalReferer;
+    if (shouldRetryWithOrigin) {
+      // Retry once with origin referrer if we stripped it earlier and got an HTML/php response
+      entry.referer = entry.originalReferer;
+      entry.retriedWithOrigin = true;
+      entry.request = undefined;
+      try {
+        (response as any).destroy?.();
+      } catch {
+        // ignore
+      }
+      issueRequest(entry, dir);
+      return;
+    }
+
     handleResponse(entry, response, dir).catch((err) => {
       finalizeEntry(entry, false, String(err));
     });
@@ -301,7 +342,8 @@ export const enqueue = (url: string, referer?: string, sessionToUse?: Session): 
     id,
     url,
     filename,
-    referer,
+    referer: normalizeReferer(referer),
+    originalReferer: normalizeReferer(referer),
     session: sessionToUse,
     state: 'queued',
     received: 0,
