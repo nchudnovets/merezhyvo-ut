@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState, useLayoutEffect } from 'react';
 import type { BookmarksTree, BookmarkNode, Mode } from '../../types/models';
 import type { ServicePageProps } from '../services/types';
 import { bookmarksStyles } from './bookmarksStyles';
@@ -117,6 +117,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, onClose })
   const [folderPicker, setFolderPicker] = useState<FolderPickerState | null>(null);
   const [confirmState, setConfirmState] = useState<ConfirmState | null>(null);
   const [contextMenu, setContextMenu] = useState<ContextMenuState | null>(null);
+  const contextMenuRef = useRef<HTMLDivElement | null>(null);
   const [toast, setToast] = useState<string | null>(null);
   const [errorBanner, setErrorBanner] = useState<string | null>(null);
   const [tagFilter, setTagFilter] = useState<string | null>(null);
@@ -586,6 +587,21 @@ const refreshTree = useCallback(async () => {
       window.removeEventListener('pointerdown', handleGlobalPointerDown);
     };
   }, [closeMenus]);
+
+  useLayoutEffect(() => {
+    if (!contextMenu) return;
+    const node = contextMenuRef.current;
+    if (!node) return;
+    const rect = node.getBoundingClientRect();
+    const margin = 50;
+    const maxX = window.innerWidth - rect.width - margin;
+    const maxY = window.innerHeight - rect.height - margin;
+    const nextX = Math.max(margin, Math.min(contextMenu.x, maxX));
+    const nextY = Math.max(margin, Math.min(contextMenu.y, maxY));
+    if (nextX !== contextMenu.x || nextY !== contextMenu.y) {
+      setContextMenu((prev) => (prev ? { ...prev, x: nextX, y: nextY } : prev));
+    }
+  }, [contextMenu]);
 
   const folderItemLabel = (nodeId: string | null) => {
     if (!nodeId) return rootLabel;
@@ -1147,8 +1163,11 @@ const handleDeleteSelection = () => {
             ...styles.contextMenu,
             top: contextMenu.y,
             left: contextMenu.x,
+            maxHeight: 'calc(100vh - 16px)',
+            overflowY: 'auto',
             ...(modeStyles.contextMenu ?? {})
           }}
+          ref={contextMenuRef}
           onClick={(event) => event.stopPropagation()}
         >
           {contextMenuItems.map((item) => (
