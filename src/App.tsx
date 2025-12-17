@@ -33,18 +33,27 @@ import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import SiteDataPage from './pages/siteData/SiteDataPage';
 import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
-import PasswordUnlockModal, {
-  type PasswordUnlockPayload
-} from './components/modals/PasswordUnlockModal';
+import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
+import { useDownloadIndicators } from './hooks/useDownloadIndicators';
+import { useAppInfo } from './hooks/useAppInfo';
+import { useGlobalToast } from './hooks/useGlobalToast';
+import { useHttpsSecurity } from './hooks/useHttpsSecurity';
+import { useCookiePrivacy } from './hooks/useCookiePrivacy';
+import { useUrlSuggestions } from './hooks/useUrlSuggestions';
+import { useToolbarHeights } from './hooks/useToolbarHeights';
+import { useMessengerMode } from './hooks/useMessengerMode';
+import { usePasswordFlows } from './hooks/usePasswordFlows';
+import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
-import { useTabsStore, tabsActions, defaultTabUrl, getTabsState } from './store/tabs';
+import { useTabsStore, tabsActions, getTabsState } from './store/tabs';
+import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
+import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
 import KeyboardPane from './components/keyboard/KeyboardPane';
-import type { LayoutId } from './components/keyboard/layouts';
-import { nextLayoutId, LANGUAGE_LAYOUT_IDS } from './components/keyboard/layouts';
+import { nextLayoutId } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
 import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
 import type {
@@ -53,43 +62,28 @@ import type {
   MessengerId,
   MessengerDefinition,
   MessengerSettings,
-  PasswordStatus,
-  PasswordPromptPayload,
-  PasswordCaptureAction,
   CertificateInfo,
   HttpsMode,
   SslException,
   WebrtcMode,
   CookiePrivacySettings
 } from './types/models';
-import type { MerezhyvoAboutInfo } from './types/preload';
-import { sanitizeMessengerSettings, resolveOrderedMessengers } from './shared/messengers';
+import { sanitizeMessengerSettings } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
 import FileDialogHost from './components/fileDialog/FileDialog';
+import { WebviewErrorOverlay } from './components/overlays/WebviewErrorOverlay';
+import { WebviewLoadingOverlay } from './components/overlays/WebviewLoadingOverlay';
+import { CertOverlay } from './components/overlays/CertOverlay';
+import { useUiScale } from './hooks/useUiScale';
+import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 import { bannedCountries } from './config/bannedCountries';
 
-const DEFAULT_URL = defaultTabUrl;
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
 const ZOOM_STEP = 0.1;
-
-type StartParams = {
-  url: string;
-  hasStartParam: boolean;
-};
-
-type AppInfo = {
-  name: string;
-  version: string;
-  description: string;
-  chromium: string;
-  electron: string;
-  node: string;
-  torVersion?: string | null;
-};
 
 type ActiveInputTarget = 'url' | null;
 
@@ -210,16 +204,6 @@ const WEBVIEW_BASE_CSS = `
 `;
 
 
-const FALLBACK_APP_INFO: AppInfo = {
-  name: 'Merezhyvo',
-  version: '0.0.0',
-  description: '',
-  chromium: '',
-  electron: '',
-  node: '',
-  torVersion: null
-};
-
 const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
   position: 'absolute',
   inset: 0,
@@ -234,165 +218,12 @@ const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
 //   flex: 1
 // };
 
-const parseStartUrl = (): StartParams => {
-  try {
-    const params = new URLSearchParams(window.location.search);
-    const raw = params.get('start');
-    const providedParam = params.get('startProvided');
-
-    let url = DEFAULT_URL;
-    let hasStartParam = false;
-    if (raw) {
-      try {
-        url = decodeURIComponent(raw);
-      } catch {
-        url = raw;
-      }
-      const normalizedRaw = url.trim();
-      const providedFlag = (providedParam || '').toLowerCase();
-      const explicitlyProvided = ['1', 'true', 'yes'].includes(providedFlag);
-      if (explicitlyProvided && normalizedRaw) {
-        hasStartParam = true;
-      } else if (!providedParam && normalizedRaw && normalizedRaw !== DEFAULT_URL) {
-        // Backwards compatibility with builds that don't set startProvided.
-        hasStartParam = true;
-      }
-    }
-
-    return { url, hasStartParam };
-  } catch {
-    return { url: DEFAULT_URL, hasStartParam: false };
-  }
-};
-
-const normalizeAddress = (value: string): string => {
-  if (!value || !value.trim()) return DEFAULT_URL;
-  const trimmed = value.trim();
-
-  if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed; // already includes a scheme
-  if (trimmed.includes(' ')) return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-  if (!trimmed.includes('.') && trimmed.toLowerCase() !== 'localhost') {
-    return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-  }
-  try {
-    const candidate = new URL(`https://${trimmed}`);
-    return candidate.href;
-  } catch {
-    return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-  }
-};
-
-const normalizeNavigationTarget = (
-  value: string
-): { targetUrl: string; originalUrl: string; upgradedFromHttp: boolean } => {
-  const fallback = { targetUrl: DEFAULT_URL, originalUrl: DEFAULT_URL, upgradedFromHttp: false };
-  if (!value || !value.trim()) return fallback;
-  const trimmed = value.trim();
-  const hasScheme = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed);
-  if (hasScheme) {
-    if (trimmed.toLowerCase().startsWith('http://')) {
-      return {
-        targetUrl: trimmed.replace(/^http:/i, 'https:'),
-        originalUrl: trimmed,
-        upgradedFromHttp: true
-      };
-    }
-    return { targetUrl: trimmed, originalUrl: trimmed, upgradedFromHttp: false };
-  }
-
-  if (trimmed.includes(' ')) {
-    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
-  }
-  if (!trimmed.includes('.') && trimmed.toLowerCase() !== 'localhost') {
-    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
-  }
-
-  try {
-    const httpsCandidate = new URL(`https://${trimmed}`);
-    return {
-      targetUrl: httpsCandidate.href,
-      originalUrl: `http://${trimmed}`,
-      upgradedFromHttp: true
-    };
-  } catch {
-    const target = `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
-    return { targetUrl: target, originalUrl: target, upgradedFromHttp: false };
-  }
-};
-
-const HTTP_ERROR_TYPE = 'HTTP_NOT_SECURE';
-
-const isLikelyCertError = (code?: number, description?: string): boolean => {
-  if (typeof code === 'number') {
-    if (code === -150 /* ERR_SSL_PINNED_KEY_NOT_IN_CERT_CHAIN */) return true;
-    if (code <= -200 && code >= -299) return true;
-  }
-  if (typeof description === 'string' && description) {
-    const upper = description.toUpperCase();
-    if (
-      upper.includes('CERT') ||
-      upper.includes('SSL') ||
-      upper.includes('INSECURE_RESPONSE') ||
-      upper.includes('CERTIFICATE_TRANSPARENCY') ||
-      upper.includes('HPKP') ||
-      upper.includes('PINNED_KEY')
-    ) {
-      return true;
-    }
-  }
-  return false;
-};
-
-const normalizeHost = (url?: string | null): string | null => {
-  try {
-    const parsed = url ? new URL(url) : null;
-    return parsed?.hostname ? parsed.hostname.toLowerCase() : null;
-  } catch {
-    return null;
-  }
-};
-
-const isSubdomainOrSame = (host: string | null | undefined, root: string | null | undefined): boolean => {
-  if (!host || !root) return false;
-  if (host === root) return true;
-  return host.endsWith(`.${root}`);
-};
-
-const deriveErrorType = (cert: CertificateInfo | null): string | null => {
-  if (!cert) return null;
-  if (cert.state === 'missing') return HTTP_ERROR_TYPE;
-  if (cert.state === 'invalid') return cert.error ?? 'CERT_ERROR';
-  return null;
-};
-
-const toHttpUrl = (original: string, fallback: string): string => {
-  const tryUrl = (value: string): string | null => {
-    try {
-      const parsed = new URL(value);
-      parsed.protocol = 'http:';
-      return parsed.toString();
-    } catch {
-      return null;
-    }
-  };
-  if (original && original.toLowerCase().startsWith('http://')) {
-    return original;
-  }
-  const fromOriginal = tryUrl(original);
-  if (fromOriginal) return fromOriginal;
-  const fromFallback = tryUrl(fallback);
-  if (fromFallback) return fromFallback;
-  return '';
-};
-
 const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasStartParam }) => {
-  const webviewHandleRef = useRef<WebViewHandle | null>(null);
-  const webviewRef = useRef<WebviewTag | null>(null);
   const [activeViewRevision, setActiveViewRevision] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
+  const webviewHandleRef = useRef<WebViewHandle | null>(null);
+  const webviewRef = useRef<WebviewTag | null>(null);
   const webviewReadyRef = useRef<boolean>(false);
   const activeWcIdRef = useRef<number | null>(null);
   const { t } = useI18n();
@@ -400,9 +231,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
   const [inputValue, setInputValue] = useState<string>(initialUrl);
-  const [urlSuggestions, setUrlSuggestions] = useState<
-    { url: string; title?: string | null; source: 'history' | 'bookmark' }[]
-  >([]);
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const isEditingRef = useRef<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
@@ -413,27 +241,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [accessBlocked, setAccessBlocked] = useState<boolean>(false);
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
-  const [unlockPayload, setUnlockPayload] = useState<PasswordUnlockPayload | null>(null);
-  const [unlockError, setUnlockError] = useState<string | null>(null);
-  const [unlockSubmitting, setUnlockSubmitting] = useState(false);
-  const [pendingSettingsReopen, setPendingSettingsReopen] = useState(false);
   const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | null>(null);
-  const [passwordStatus, setPasswordStatus] = useState<PasswordStatus | null>(null);
-  const [passwordPrompt, setPasswordPrompt] = useState<PasswordPromptPayload | null>(null);
-  const [passwordPromptBusy, setPasswordPromptBusy] = useState(false);
-  const [globalToast, setGlobalToast] = useState<string | null>(null);
-  const globalToastTimerRef = useRef<number | null>(null);
-  const showGlobalToast = useCallback((message: string) => {
-    setGlobalToast(message);
-    if (globalToastTimerRef.current) {
-      window.clearTimeout(globalToastTimerRef.current);
-    }
-    globalToastTimerRef.current = window.setTimeout(() => {
-      setGlobalToast(null);
-      globalToastTimerRef.current = null;
-    }, 3200);
-  }, []);
+  const { globalToast, showGlobalToast } = useGlobalToast();
   const [torEnabled, setTorEnabled] = useState<boolean>(false);
   const [torKeepEnabled, setTorKeepEnabled] = useState<boolean>(false);
   const [torKeepEnabledDraft, setTorKeepEnabledDraft] = useState<boolean>(false);
@@ -444,86 +253,30 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
-  const [enabledKbLayouts, setEnabledKbLayouts] = useState<LayoutId[]>(['en']);
-  const [kbLayout, setKbLayout] = useState<LayoutId>('en');
+  const { enabledKbLayouts, setEnabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
-  const [mainViewMode, setMainViewMode] = useState<'browser' | 'messenger'>('browser');
-  const [messengerSettingsState, setMessengerSettingsState] = useState<MessengerSettings>(() => sanitizeMessengerSettings(null));
-  const [downloadToast, setDownloadToast] = useState<string | null>(null);
-  const downloadToastTimerRef = useRef<number | null>(null);
-  const downloadFileMapRef = useRef<Map<string, string>>(new Map());
-  const completedDownloadsRef = useRef<Set<string>>(new Set());
-  const messengerSettingsRef = useRef<MessengerSettings>(messengerSettingsState);
-  const messengerTabIdsRef = useRef<Map<MessengerId, string>>(new Map());
-  const prevBrowserTabIdRef = useRef<string | null>(null);
-  const [cookiePrivacy, setCookiePrivacy] = useState<CookiePrivacySettings>({
-    blockThirdParty: false,
-    exceptions: { thirdPartyAllow: {} }
-  });
-  const refreshCookiePrivacy = useCallback(async () => {
-    try {
-      const next = await window.merezhyvo?.settings?.cookies?.get?.();
-      if (next) {
-        setCookiePrivacy(next as CookiePrivacySettings);
-      }
-    } catch (err) {
-      console.error('[merezhyvo] cookies.get failed', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = () => {
-      void refreshCookiePrivacy();
-    };
-    window.addEventListener('merezhyvo:cookies:updated', handler);
-    return () => {
-      window.removeEventListener('merezhyvo:cookies:updated', handler);
-    };
-  }, [refreshCookiePrivacy]);
-
-  const refreshHttpsSettings = useCallback(async () => {
-    try {
-      const next = await window.merezhyvo?.settings?.https?.get?.();
-      if (next) {
-        setHttpsMode(next.httpsMode === 'preferred' ? 'preferred' : 'strict');
-        setSslExceptions(Array.isArray(next.sslExceptions) ? next.sslExceptions : []);
-      }
-    } catch (err) {
-      console.error('[merezhyvo] https settings refresh failed', err);
-    }
-  }, []);
-
-  useEffect(() => {
-    const handler = () => {
-      void refreshHttpsSettings();
-    };
-    window.addEventListener('merezhyvo:https:updated', handler);
-    return () => {
-      window.removeEventListener('merezhyvo:https:updated', handler);
-    };
-  }, [refreshHttpsSettings]);
-  const pendingMessengerTabIdRef = useRef<string | null>(null);
-  const lastMessengerIdRef = useRef<MessengerId | null>(null);
-  const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
-  const activeDownloadsRef = useRef<Set<string>>(new Set());
-  const downloadIndicatorTimerRef = useRef<number | null>(null);
-  const [downloadIndicatorState, setDownloadIndicatorState] = useState<
-    'hidden' | 'active' | 'completed' | 'error'
-  >('hidden');
+  const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
+  const { downloadIndicatorState, downloadToast, handleDownloadIndicatorClick } = useDownloadIndicators();
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
   const [certStatus, setCertStatus] = useState<CertificateInfo | null>(null);
   const [displayCert, setDisplayCert] = useState<CertificateInfo | null>(null);
   const [rememberExceptionChecked, setRememberExceptionChecked] = useState<boolean>(false);
-  const [httpsMode, setHttpsMode] = useState<HttpsMode>('strict');
-  const [sslExceptions, setSslExceptions] = useState<SslException[]>([]);
+  const {
+    httpsMode,
+    setHttpsMode,
+    httpsModeRef,
+    sslExceptions,
+    setSslExceptions,
+    sslExceptionsRef,
+    hasSslException,
+    shouldBlockCert
+  } = useHttpsSecurity();
   const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
   const blockingCertRef = useRef<CertificateInfo | null>(null);
   const storedInvalidCertRef = useRef<Map<string, CertificateInfo>>(new Map());
-  const httpsModeRef = useRef<HttpsMode>('strict');
-  const sslExceptionsRef = useRef<SslException[]>([]);
   const navigationStateRef = useRef<
     Map<string, { originalUrl: string; upgradedFromHttp: boolean; triedHttpFallback: boolean }>
   >(new Map());
@@ -532,185 +285,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
-  const bookmarksCacheRef = useRef<
-    { url: string; title?: string | null; createdAt?: number; updatedAt?: number }[]
-  >([]);
-  const bookmarksCacheReadyRef = useRef(false);
-  const clearDownloadIndicatorTimer = useCallback(() => {
-    if (downloadIndicatorTimerRef.current) {
-      window.clearTimeout(downloadIndicatorTimerRef.current);
-      downloadIndicatorTimerRef.current = null;
-    }
-  }, []);
-  const handleDownloadIndicatorClick = useCallback(() => {
-    if (downloadIndicatorState === 'active') return;
-    clearDownloadIndicatorTimer();
-    setDownloadIndicatorState('hidden');
-  }, [clearDownloadIndicatorTimer, downloadIndicatorState]);
+  const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
+  const backgroundTabRef = useRef<string | null>(null);
+  const fullscreenTabRef = useRef<string | null>(null);
+  const playingTabsRef = useRef<Set<string>>(new Set());
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
-  const [uiScale, setUiScale] = useState<number>(1);
+  const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
+  const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
 
   const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
   const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
   const oskPressGuardRef = useRef(false);
 
-  const prevAlphaLayoutRef = React.useRef(kbLayout);
-
-  useEffect(() => {
-    if (kbLayout !== 'symbols1' && kbLayout !== 'symbols2') prevAlphaLayoutRef.current = kbLayout;
-  }, [kbLayout]);
-
-  useEffect(() => {
-    messengerSettingsRef.current = messengerSettingsState;
-  }, [messengerSettingsState]);
-
-  useEffect(() => {
-    httpsModeRef.current = httpsMode;
-  }, [httpsMode]);
-
-  useEffect(() => {
-    sslExceptionsRef.current = Array.isArray(sslExceptions) ? sslExceptions : [];
-  }, [sslExceptions]);
-
-  const availableLayouts = useMemo(
-    () => new Set<LayoutId>(LANGUAGE_LAYOUT_IDS as LayoutId[]),
-    []
-  );
-
-  const toLayoutIds = useCallback((arr: unknown): LayoutId[] => {
-    if (!Array.isArray(arr)) return ['en' as LayoutId];
-    const filtered = arr.filter(
-      (x): x is LayoutId => typeof x === 'string' && availableLayouts.has(x as LayoutId)
-    );
-    return filtered.length ? filtered : (['en'] as LayoutId[]);
-  }, [availableLayouts]);
-
-  const hasSslException = useCallback((host: string | null | undefined, errorType: string | null | undefined): boolean => {
-    if (!host || !errorType) return false;
-    const normalizedHost = host.toLowerCase();
-    return sslExceptionsRef.current.some(
-      (item) => item.host === normalizedHost && item.errorType === errorType
-    );
-  }, []);
-
-
-  const shouldBlockCert = useCallback((candidate: CertificateInfo | null): boolean => {
-    if (!candidate) return false;
-    const errorType = deriveErrorType(candidate);
-    const host = candidate.host || normalizeHost(candidate.url);
-    const hasException = hasSslException(host, errorType);
-    if (candidate.state === 'invalid') {
-      return !hasException;
-    }
-    if (candidate.state === 'missing') {
-      if (httpsModeRef.current === 'preferred') return false;
-      return !hasException;
-    }
-    return false;
-  }, [hasSslException]);
-
-  const pickDefault = useCallback((def: unknown, enabled: LayoutId[]): LayoutId => {
-    if (
-      typeof def === 'string' &&
-      availableLayouts.has(def as LayoutId) &&
-      enabled.includes(def as LayoutId)
-    ) {
-      return def as LayoutId;
-    }
-    return (enabled[0] ?? ('en' as LayoutId));
-  }, [availableLayouts]);
-
-  useEffect(() => {
-    let alive = true;
-    (async () => {
-      try {
-        const kb = await ipc.settings.keyboard.get();
-        if (!alive) return;
-
-        const enabled = toLayoutIds(kb?.enabledLayouts);
-        const def = pickDefault(kb?.defaultLayout, enabled);
-
-        setEnabledKbLayouts(enabled);
-        setKbLayout(def);
-      } catch {
-        // keep defaults on failure
-      }
-    })();
-    return () => { alive = false; };
-  }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
-
-  useEffect(() => {
-    let cancelled = false;
-    (async () => {
-      try {
-        const messengerSettings = await ipc.settings.messenger.get();
-        if (!messengerSettings || cancelled) return;
-        setMessengerSettingsState(messengerSettings);
-      } catch {
-        if (!cancelled) {
-          setMessengerSettingsState(sanitizeMessengerSettings(null));
-        }
-      }
-    })();
-    return () => {
-      cancelled = true;
-    };
-  }, [setMessengerSettingsState, setMessengerOrderSaving, setMessengerOrderMessage]);
-
-  useEffect(() => {
-    const onChanged = (e: Event) => {
-      const detail = (e as CustomEvent).detail ?? {};
-      const enabled = toLayoutIds(detail?.enabledLayouts);
-      const def = pickDefault(detail?.defaultLayout, enabled);
-      setEnabledKbLayouts(enabled);
-      setKbLayout(def);
-    };
-
-    window.addEventListener('mzr-osk-settings-changed', onChanged as EventListener);
-    return () => window.removeEventListener('mzr-osk-settings-changed', onChanged as EventListener);
-  }, [pickDefault, setEnabledKbLayouts, setKbLayout, toLayoutIds]);
-
-  const [aboutInfoFromMain, setAboutInfoFromMain] = useState<MerezhyvoAboutInfo | null>(null);
-
-  useEffect(() => {
-    let canceled = false;
-    const fetchAboutInfo = async () => {
-      try {
-        const info = await window.merezhyvo?.about.getInfo();
-        if (!canceled && info) {
-          setAboutInfoFromMain(info);
-        }
-      } catch {
-        if (!canceled) {
-          setAboutInfoFromMain(null);
-        }
-      }
-    };
-    fetchAboutInfo();
-    return () => {
-      canceled = true;
-    };
-  }, []);
-
-  const appInfo = useMemo<AppInfo>(() => {
-    if (typeof window === 'undefined') return FALLBACK_APP_INFO;
-    const info = window.merezhyvo?.appInfo as Partial<AppInfo> | undefined;
-    const version = info?.version ?? FALLBACK_APP_INFO.version;
-    const chromium =
-      aboutInfoFromMain?.chromiumVersion ?? info?.chromium ?? FALLBACK_APP_INFO.chromium;
-    const torVersion =
-      aboutInfoFromMain?.torVersion ?? info?.torVersion ?? FALLBACK_APP_INFO.torVersion;
-    return {
-      name: info?.name ?? FALLBACK_APP_INFO.name,
-      version,
-      description: info?.description ?? FALLBACK_APP_INFO.description,
-      chromium,
-      electron: info?.electron ?? FALLBACK_APP_INFO.electron,
-      node: info?.node ?? FALLBACK_APP_INFO.node,
-      torVersion
-    };
-  }, [aboutInfoFromMain]);
+  const appInfo = useAppInfo();
 
   const tabsReadyRef = useRef<boolean>(tabsReady);
   const tabsRef = useRef<Tab[]>(tabs);
@@ -718,12 +306,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewHostRef = useRef<HTMLDivElement | null>(null);
   const backgroundHostRef = useRef<HTMLDivElement | null>(null);
   const zoomBarRef = useRef<HTMLDivElement | null>(null);
-  const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
-  const backgroundTabRef = useRef<string | null>(null);
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState<boolean>(false);
-  const fullscreenTabRef = useRef<string | null>(null);
   const powerBlockerIdRef = useRef<number | null>(null);
-  const playingTabsRef = useRef<Set<string>>(new Set());
+  const {
+    mountInActiveHost,
+    mountInBackgroundHost,
+    applyActiveStyles,
+    installShadowStyles
+  } = useWebviewMounts(webviewHostRef, backgroundHostRef);
 
   const startUrlAppliedRef = useRef<boolean>(false);
   const activeIdRef = useRef<string | null>(activeId);
@@ -738,10 +328,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabCount = pinnedTabs.length + regularTabs.length;
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
-  const orderedMessengers = useMemo(
-    () => resolveOrderedMessengers(messengerSettingsState),
-    [messengerSettingsState]
-  );
 
   const {
     newTab: newTabAction,
@@ -752,26 +338,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
-
-  const ensureMessengerTab = useCallback((definition: MessengerDefinition): string | null => {
-    const map = messengerTabIdsRef.current;
-    const existingId = map.get(definition.id);
-    if (existingId) {
-      const currentState = getTabsState();
-      if (currentState.tabs.some((tab) => tab.id === existingId)) {
-        return existingId;
-      }
-      map.delete(definition.id);
-    }
-    newTabAction(definition.url, { title: definition.title, kind: 'messenger' });
-    const nextState = getTabsState();
-    const createdId = nextState.activeId || null;
-    if (createdId) {
-      map.set(definition.id, createdId);
-      updateMetaAction(createdId, { title: definition.title, url: definition.url });
-    }
-    return createdId;
-  }, [newTabAction, updateMetaAction]);
   
   useEffect(() => {
     ipc.notifyTabsReady();
@@ -850,46 +416,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [showGlobalToast]
   );
 
-  const handleCookieBlockChange = useCallback(
-    async (block: boolean) => {
-      try {
-        const next = await window.merezhyvo?.settings?.cookies?.setBlock?.(block);
-        if (next) {
-          setCookiePrivacy(next as CookiePrivacySettings);
-          window.dispatchEvent(new CustomEvent('merezhyvo:cookies:updated', { detail: next }));
-        }
-      } catch (err) {
-        console.error('[merezhyvo] cookie block update failed', err);
-      }
-    },
-    []
-  );
-
-  const UI_SCALE_STEP = 0.05;
-  const applyUiScale = useCallback(async (raw: number) => {
-    const rounded = Math.round(raw / UI_SCALE_STEP) * UI_SCALE_STEP;
-    const clamped = Number(Math.max(0.5, Math.min(1.6, rounded)).toFixed(2));
-    setUiScale(clamped);
-    try {
-      await window.merezhyvo?.ui?.set?.({ scale: clamped });
-    } catch {
-      // ignore
-    }
-  }, []);
-
-  useEffect(() => {
-    const root = document.documentElement;
-    try {
-      root.style.setProperty('--ui-scale', String(uiScale));
-    } catch {
-      // noop
-    }
-  }, [uiScale]);
-
-  const handleUiScaleReset = useCallback(() => {
-    void applyUiScale(1);
-  }, [applyUiScale]);
-
   const fallbackCopy = (text: string): boolean => {
     try {
       const textarea = document.createElement('textarea');
@@ -930,40 +456,21 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const handleCopyDownloadsCommand = useCallback(() => {
     const command = window.merezhyvo?.paths?.downloadsSymlinkCommand;
     if (!command) {
-      setGlobalToast('Couldn\'t copy command');
+      showGlobalToast('Couldn\'t copy command');
       return;
     }
     void copyCommand(command);
-  }, [copyCommand, setGlobalToast]);
+  }, [copyCommand, showGlobalToast]);
 
   const handleCopyDocumentsCommand = useCallback(() => {
     const command = window.merezhyvo?.paths?.documentsSymlinkCommand;
     if (!command) {
-      setGlobalToast('Couldn\'t copy command');
+      showGlobalToast('Couldn\'t copy command');
       return;
     }
     void copyCommand(command);
-  }, [copyCommand, setGlobalToast]);
+  }, [copyCommand, showGlobalToast]);
 
-  useEffect(() => {
-    const handleShortcut = (event: KeyboardEvent) => {
-      if (!event.ctrlKey || !event.shiftKey) return;
-      if (event.key === '=' || event.key === '+') {
-        event.preventDefault();
-        void applyUiScale(uiScale + UI_SCALE_STEP);
-      } else if (event.key === '-') {
-        event.preventDefault();
-        void applyUiScale(uiScale - UI_SCALE_STEP);
-      } else if (event.key === '0') {
-        event.preventDefault();
-        handleUiScaleReset();
-      }
-    };
-    window.addEventListener('keydown', handleShortcut);
-    return () => {
-      window.removeEventListener('keydown', handleShortcut);
-    };
-  }, [applyUiScale, handleUiScaleReset, uiScale]);
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -1053,6 +560,62 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const view = getActiveWebview();
     return getWebContentsIdSafe(view);
   }, [getActiveWebview, getWebContentsIdSafe]);
+
+  const blurActiveInWebview = useCallback(() => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const js = `
+      (function(){
+        try {
+          const el = document.activeElement;
+          if (el && typeof el.blur === 'function') el.blur();
+        } catch {}
+      })();
+    `;
+    try {
+      const result = wv.executeJavaScript(js, false);
+      if (result && typeof result.then === 'function') {
+        result.catch(() => {});
+      }
+    } catch {}
+  }, [getActiveWebview]);
+
+  const resetEditingState = useCallback(() => {
+    setIsEditing(false);
+    isEditingRef.current = false;
+    activeInputRef.current = null;
+    try {
+      inputRef.current?.blur?.();
+    } catch {}
+  }, []);
+
+  const {
+    mainViewMode,
+    setMainViewMode,
+    messengerSettingsState,
+    setMessengerSettingsState,
+    messengerSettingsRef,
+    messengerTabIdsRef,
+    prevBrowserTabIdRef,
+    pendingMessengerTabIdRef,
+    lastMessengerIdRef,
+    activeMessengerId,
+    setActiveMessengerId,
+    orderedMessengers,
+    exitMessengerMode,
+    activateMessenger,
+    handleEnterMessengerMode,
+    handleMessengerSelect,
+    ensureMessengerTab,
+    exitIfNoMessengers
+  } = useMessengerMode({
+    activeId,
+    mode,
+    getActiveWebview,
+    blurActiveInWebview,
+    resetEditingState,
+    setInputValue
+  });
 
   useEffect(() => {
   let cancelled = false;
@@ -1243,50 +806,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [evaluateAccessRestriction]);
 
 
-  const mountInActiveHost = useCallback((node: HTMLDivElement | null | undefined) => {
-    const host = webviewHostRef.current;
-    if (!host || !node) return;
-    for (const child of Array.from(host.children)) {
-      if (child !== node) {
-        try { host.removeChild(child); } catch {}
-      }
-    }
-    if (node.parentElement !== host) {
-      try { host.appendChild(node); } catch {}
-    }
-  }, []);
-
-  const mountInBackgroundHost = useCallback((node: HTMLDivElement | null | undefined) => {
-    const host = backgroundHostRef.current;
-    if (!host || !node) return;
-    for (const child of Array.from(host.children)) {
-      if (child !== node) {
-        try { host.removeChild(child); } catch {}
-      }
-    }
-    if (node.parentElement !== host) {
-      try { host.appendChild(node); } catch {}
-    }
-  }, []);
-
-  const applyActiveStyles = useCallback((container: HTMLDivElement, view: WebviewTag) => {
-    if (!container || !view) return;
-    mountInActiveHost(container);
-    Object.assign(container.style, {
-      position: 'absolute',
-      inset: '0',
-      width: '100%',
-      height: '100%',
-      pointerEvents: 'auto',
-      opacity: '1'
-    });
-    Object.assign(view.style, {
-      display: 'block',
-      opacity: '1',
-      pointerEvents: 'auto'
-    });
-  }, [mountInActiveHost]);
-
   const updatePowerBlocker = useCallback(() => {
     if (playingTabsRef.current.size > 0) {
       void startPowerBlocker();
@@ -1331,41 +850,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setIsHtmlFullscreen(false);
     }
   }, [setActiveViewRevision, updateMetaAction, updatePowerBlocker]);
-
-  const installShadowStyles = useCallback((view: WebviewTag | null) => {
-    if (!view) return () => {};
-
-    const applyShadowStyles = () => {
-      try {
-        const root = view.shadowRoot;
-        if (!root) return;
-        if (!root.querySelector('#mzr-webview-host-style')) {
-          const style = document.createElement('style');
-          style.id = 'mzr-webview-host-style';
-          style.textContent = `
-            :host { display: flex !important; height: 100% !important; }
-            iframe { flex: 1 1 auto !important; width: 100% !important; height: 100% !important; min-height: 100% !important; }
-          `;
-          root.appendChild(style);
-        }
-      } catch {}
-    };
-
-    applyShadowStyles();
-    view.addEventListener('dom-ready', applyShadowStyles);
-
-    const observer = new MutationObserver(applyShadowStyles);
-    if (view.shadowRoot) {
-      try {
-        observer.observe(view.shadowRoot, { childList: true, subtree: true });
-      } catch {}
-    }
-
-    return () => {
-      view.removeEventListener('dom-ready', applyShadowStyles);
-      observer.disconnect();
-    };
-  }, []);
 
   const refreshNavigationState = useCallback(() => {
     const handle = webviewHandleRef.current;
@@ -2590,102 +2074,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return windowHelpers.isEditableElement(element);
   }, [inputRef]);
 
-  const blurActiveInWebview = useCallback(() => {
-    const wv = getActiveWebview();
-    if (!wv) return;
-    const js = `
-      (function(){
-        try {
-          const el = document.activeElement;
-          if (el && typeof el.blur === 'function') el.blur();
-        } catch {}
-      })();
-    `;
-    try {
-      const result = wv.executeJavaScript(js, false);
-      if (result && typeof result.then === 'function') {
-        result.catch(() => {});
+  useEffect(() => {
+    messengerSettingsRef.current = messengerSettingsState;
+  }, [messengerSettingsState]);
+
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const messengerSettings = await ipc.settings.messenger.get();
+        if (!messengerSettings || cancelled) return;
+        setMessengerSettingsState(messengerSettings);
+      } catch {
+        if (!cancelled) {
+          setMessengerSettingsState(sanitizeMessengerSettings(null));
+        }
       }
-    } catch {}
-  }, [getActiveWebview]);
-
-  const resetEditingState = useCallback(() => {
-    setIsEditing(false);
-    isEditingRef.current = false;
-    activeInputRef.current = null;
-    try {
-      inputRef.current?.blur?.();
-    } catch {}
-  }, []);
-
-  const exitMessengerMode = useCallback(() => {
-    if (mainViewMode !== 'messenger') return;
-    const stateBeforeExit = getTabsState();
-    const activeBeforeExit = stateBeforeExit.tabs.find((tab) => tab.id === stateBeforeExit.activeId) ?? null;
-    const shouldRestorePrevious =
-      !activeBeforeExit || activeBeforeExit.kind === 'messenger';
-    const idsToClose = Array.from(messengerTabIdsRef.current.values());
-    messengerTabIdsRef.current.clear();
-    pendingMessengerTabIdRef.current = null;
-    setMainViewMode('browser');
-    setActiveMessengerId(null);
-    void ipc.ua.setMode('auto');
-    const previousId = prevBrowserTabIdRef.current;
-    prevBrowserTabIdRef.current = null;
-    if (idsToClose.length) {
-      for (const tabId of idsToClose) {
-        closeTabAction(tabId);
-      }
-    }
-    if (shouldRestorePrevious && previousId) {
-      const state = getTabsState();
-      if (state.tabs.some((tab) => tab.id === previousId)) {
-        activateTabAction(previousId);
-      }
-    }
-    resetEditingState();
-  }, [activateTabAction, closeTabAction, mainViewMode, resetEditingState]);
-
-  const activateMessenger = useCallback((definition: MessengerDefinition) => {
-    resetEditingState();
-    blurActiveInWebview();
-    const tabId = ensureMessengerTab(definition);
-    if (!tabId) return;
-    pendingMessengerTabIdRef.current = tabId;
-    if (activeIdRef.current !== tabId) {
-      activateTabAction(tabId);
-    }
-    setMainViewMode('messenger');
-    setActiveMessengerId(definition.id);
-    lastMessengerIdRef.current = definition.id;
-    void ipc.ua.setMode('desktop');
-    setInputValue(definition.url);
-  }, [activateTabAction, blurActiveInWebview, ensureMessengerTab, resetEditingState, setInputValue]);
-
-  const handleEnterMessengerMode = useCallback(() => {
-    if (!orderedMessengers.length) return;
-    if (mainViewMode !== 'messenger') {
-      prevBrowserTabIdRef.current = activeIdRef.current;
-    }
-    const fallback = orderedMessengers[0];
-    if (!fallback) return;
-    const lastId = lastMessengerIdRef.current;
-    const preferredId = lastId && orderedMessengers.some((item) => item.id === lastId)
-      ? lastId
-      : fallback.id;
-    const target = orderedMessengers.find((item) => item.id === preferredId) ?? fallback;
-    activateMessenger(target);
-  }, [activateMessenger, mainViewMode, orderedMessengers]);
-
-  const handleMessengerSelect = useCallback((messengerId: MessengerId) => {
-    const target = orderedMessengers.find((item) => item.id === messengerId);
-    if (!target) return;
-    if (mainViewMode !== 'messenger') {
-      prevBrowserTabIdRef.current = activeIdRef.current;
-    }
-    if (activeMessengerId === messengerId && mainViewMode === 'messenger') return;
-    activateMessenger(target);
-  }, [activateMessenger, activeMessengerId, mainViewMode, orderedMessengers]);
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [setMessengerSettingsState, setMessengerOrderSaving, setMessengerOrderMessage]);
 
   const handleMessengerMove = useCallback(async (messengerId: MessengerId, direction: 'up' | 'down') => {
     const currentSettings = messengerSettingsRef.current;
@@ -2757,10 +2166,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [activeId, activeMessengerId, exitMessengerMode, mainViewMode, tabs]);
 
   useEffect(() => {
-    if (mainViewMode === 'messenger' && orderedMessengers.length === 0) {
-      exitMessengerMode();
-    }
-  }, [exitMessengerMode, mainViewMode, orderedMessengers]);
+    exitIfNoMessengers();
+  }, [exitIfNoMessengers]);
 
   useEffect(() => () => {
     const ids = Array.from(messengerTabIdsRef.current.values());
@@ -2782,7 +2189,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const closeSettingsModal = useCallback(() => {
     setShowSettingsModal(false);
     setSettingsScrollTarget(null);
-    setPendingSettingsReopen(false);
   }, []);
 
   const handleOpenTorProjectLink = useCallback(() => {
@@ -2790,33 +2196,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     newTabAction('https://www.torproject.org');
   }, [closeSettingsModal, newTabAction]);
 
-  const fetchPasswordStatus = useCallback(async (): Promise<PasswordStatus | null> => {
-    const api = window.merezhyvo?.passwords;
-    if (!api) {
-      setPasswordStatus(null);
-      return null;
-    }
-    try {
-      const info = await api.status();
-      setPasswordStatus(info);
-      return info;
-    } catch {
-      setPasswordStatus(null);
-      return null;
-    }
-  }, []);
-
-  const requestPasswordUnlock = useCallback(
-    (fromSettings = false) => {
-      closeSettingsModal();
-      void fetchPasswordStatus();
-      setUnlockPayload(null);
-      setUnlockError(null);
-      setShowUnlockModal(true);
-      setPendingSettingsReopen(fromSettings);
-    },
-    [closeSettingsModal, fetchPasswordStatus]
-  );
+  const {
+    passwordStatus,
+    passwordPrompt,
+    passwordPromptBusy,
+    showUnlockModal,
+    unlockPayload,
+    unlockError,
+    unlockSubmitting,
+    requestPasswordUnlock,
+    handlePasswordPromptAction,
+    handlePasswordPromptClose,
+    handlePasswordUnlock,
+    closeUnlockModal
+  } = usePasswordFlows({
+    t,
+    showGlobalToast,
+    closeSettingsModal,
+    openSettingsModal,
+    setSettingsScrollTarget
+  });
 
   useEffect(() => {
     const teardown = setupHostRtlDirection();
@@ -3282,10 +2681,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const handleSuggestionSelect = useCallback(
     (url: string) => {
       if (!url) return;
-      setUrlSuggestions([]);
+      clearUrlSuggestions();
       navigateToUrl(url);
     },
-    [navigateToUrl]
+    [clearUrlSuggestions, navigateToUrl]
   );
 
   const handleBack = useCallback(() => {
@@ -3381,251 +2780,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeInputRef.current === 'url') activeInputRef.current = null;
   }, []);
 
-  const loadBookmarksCache = useCallback(async () => {
-    if (bookmarksCacheReadyRef.current) {
-      return bookmarksCacheRef.current;
-    }
-    const api = typeof window !== 'undefined' ? window.merezhyvo?.bookmarks : undefined;
-    if (!api?.list) {
-      bookmarksCacheReadyRef.current = true;
-      bookmarksCacheRef.current = [];
-      return [];
-    }
-    try {
-      const tree = await api.list();
-      const nodes = tree?.nodes ? Object.values(tree.nodes) : [];
-      const bookmarks = nodes.filter((n) => n?.type === 'bookmark' && n.url?.trim());
-      bookmarksCacheRef.current = bookmarks.map((b: any) => ({
-        url: b.url as string,
-        title: b.title,
-        createdAt: b.createdAt,
-        updatedAt: b.updatedAt
-      }));
-    } catch {
-      bookmarksCacheRef.current = [];
-    } finally {
-      bookmarksCacheReadyRef.current = true;
-    }
-    return bookmarksCacheRef.current;
-  }, []);
-
-  useEffect(() => {
-    const onBookmarksChanged = () => {
-      bookmarksCacheReadyRef.current = false;
-      bookmarksCacheRef.current = [];
-    };
-    window.addEventListener('merezhyvo:bookmarks:changed', onBookmarksChanged);
-    return () => {
-      window.removeEventListener('merezhyvo:bookmarks:changed', onBookmarksChanged);
-    };
-  }, []);
-
-  const fetchUrlSuggestions = useCallback(
-    async (query: string) => {
-      if (typeof window === 'undefined') {
-        return;
-      }
-      if (!window.merezhyvo?.history && !window.merezhyvo?.bookmarks) {
-        return;
-      }
-      const needle = query.trim();
-      if (!needle) {
-        setUrlSuggestions([]);
-        return;
-      }
-      const normalizedNeedle = needle.toLowerCase();
-      const apiHistory = window.merezhyvo?.history;
-      let historyItems: { url: string; title?: string | null }[] = [];
-      try {
-        const result = await apiHistory?.query?.({ q: needle, limit: 20 });
-        historyItems =
-          result?.items?.map((item: any) => ({ url: item.url, title: item.title })) ?? [];
-      } catch (err) {
-        console.error('[suggestions] history query failed', err);
-        historyItems = [];
-      }
-
-      let bookmarkItems:
-        | { url: string; title?: string | null; createdAt?: number; updatedAt?: number }[]
-        | [] = [];
-      try {
-        const cache = await loadBookmarksCache();
-        bookmarkItems = cache.filter((entry) => {
-          const haystack = `${entry.url} ${entry.title ?? ''}`.toLowerCase();
-          return haystack.includes(normalizedNeedle);
-        });
-        bookmarkItems.sort((a, b) => {
-          const aTs = a.updatedAt ?? a.createdAt ?? 0;
-          const bTs = b.updatedAt ?? b.createdAt ?? 0;
-          return bTs - aTs;
-        });
-      } catch (err) {
-        console.error('[suggestions] bookmark scan failed', err);
-        bookmarkItems = [];
-      }
-
-      const seen = new Set<string>();
-      const combined: { url: string; title?: string | null; source: 'history' | 'bookmark' }[] =
-        [];
-      for (const item of historyItems) {
-        const key = item.url;
-        if (!key || seen.has(key)) continue;
-        seen.add(key);
-        combined.push({ url: key, title: item.title, source: 'history' });
-        if (combined.length >= 5) break;
-      }
-      if (combined.length < 5) {
-        for (const bm of bookmarkItems) {
-          const key = bm.url;
-          if (!key || seen.has(key)) continue;
-          seen.add(key);
-          combined.push({ url: key, title: bm.title, source: 'bookmark' });
-          if (combined.length >= 5) break;
-        }
-      }
-      // If all entries share the same origin but the bare origin is missing, prepend it.
-      if (combined.length > 0) {
-        try {
-          const firstEntry = combined[0];
-          if (!firstEntry) {
-            return;
-          }
-          const first = new URL(firstEntry.url);
-          const baseOrigin = first.origin;
-          const allSameOrigin = combined.every((item) => {
-            try {
-              return new URL(item.url).origin === baseOrigin;
-            } catch {
-              return false;
-            }
-          });
-          const hasOriginEntry = combined.some((item) => {
-            try {
-              const parsed = new URL(item.url);
-              return parsed.origin === baseOrigin && (parsed.pathname === '/' || parsed.pathname === '');
-            } catch {
-              return false;
-            }
-          });
-          if (allSameOrigin && !hasOriginEntry && !seen.has(baseOrigin)) {
-            combined.unshift({ url: baseOrigin, title: baseOrigin, source: 'history' });
-            seen.add(baseOrigin);
-            if (combined.length > 5) {
-              combined.length = 5;
-            }
-          }
-        } catch {
-          // ignore malformed URLs
-        }
-      }
-      setUrlSuggestions(combined);
-    },
-    [loadBookmarksCache]
-  );
-
-  useEffect(() => {
-    if (typeof window === 'undefined') return undefined;
-    const timer = window.setTimeout(() => {
-      void fetchUrlSuggestions(inputValue);
-    }, 140);
-    return () => window.clearTimeout(timer);
-  }, [inputValue, fetchUrlSuggestions]);
-
   const handleKeyboardHeightChange = useCallback((height: number) => {
     setKeyboardHeight(height > 0 ? height : 0);
   }, []);
-
-  useEffect(() => {
-    const fileMap = downloadFileMapRef.current;
-    const handler = (event: CustomEvent<{ id?: string; status: 'started' | 'completed' | 'failed'; file?: string }>) => {
-      const detail = event.detail ?? {};
-      const downloadId = typeof detail.id === 'string' && detail.id ? detail.id : null;
-      if (downloadId && typeof detail.file === 'string' && detail.file) {
-        fileMap.set(downloadId, detail.file);
-      }
-    };
-    window.addEventListener('merezhyvo:download-status', handler as EventListener);
-    return () => {
-      window.removeEventListener('merezhyvo:download-status', handler as EventListener);
-      fileMap.clear();
-      if (downloadToastTimerRef.current) {
-        window.clearTimeout(downloadToastTimerRef.current);
-        downloadToastTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    const activeSet = activeDownloadsRef.current;
-    const handler = (event: CustomEvent<{ id?: string; state?: 'queued' | 'downloading' | 'completed' | 'failed' }>) => {
-      const detail = event.detail ?? {};
-      const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
-      const state = detail.state;
-      if (!targetId || !state) return;
-      const completedSet = completedDownloadsRef.current;
-      const showFailureToast = () => {
-        const stored = downloadFileMapRef.current.get(targetId) ?? '';
-        const rawName = stored.split(/[\\/]/).pop() ?? stored;
-        const fileName = rawName || 'Download';
-        const text = `Download failed — ${fileName}`;
-        if (downloadToastTimerRef.current) {
-          window.clearTimeout(downloadToastTimerRef.current);
-        }
-        setDownloadToast(text);
-        downloadToastTimerRef.current = window.setTimeout(() => {
-          setDownloadToast(null);
-          downloadToastTimerRef.current = null;
-        }, 3200);
-        downloadFileMapRef.current.delete(targetId);
-      };
-      if (state === 'downloading') {
-        completedSet.delete(targetId);
-      } else if (state === 'completed') {
-        completedSet.add(targetId);
-        downloadFileMapRef.current.delete(targetId);
-      } else if (state === 'failed') {
-        completedSet.delete(targetId);
-      }
-      if (state === 'downloading') {
-        activeSet.add(targetId);
-        clearDownloadIndicatorTimer();
-        setDownloadIndicatorState('active');
-        return;
-      }
-      if (state === 'completed' || state === 'failed') {
-        activeSet.delete(targetId);
-        if (activeSet.size > 0) return;
-        clearDownloadIndicatorTimer();
-        if (state === 'completed') {
-          setDownloadIndicatorState('completed');
-          downloadIndicatorTimerRef.current = window.setTimeout(() => {
-            setDownloadIndicatorState('hidden');
-            downloadIndicatorTimerRef.current = null;
-          }, 10000);
-        } else {
-          showFailureToast();
-          setDownloadIndicatorState('error');
-        }
-      }
-    };
-
-    const handleProgress = () => {
-      if (activeSet.size > 0) {
-        clearDownloadIndicatorTimer();
-        setDownloadIndicatorState('active');
-      }
-    };
-
-    window.addEventListener('merezhyvo:downloads:state', handler as EventListener);
-    window.addEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
-    return () => {
-      window.removeEventListener('merezhyvo:downloads:state', handler as EventListener);
-      window.removeEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
-      clearDownloadIndicatorTimer();
-      activeSet.clear();
-      setDownloadIndicatorState('hidden');
-    };
-  }, [clearDownloadIndicatorTimer]);
 
   useEffect(() => {
     if (isHtmlFullscreen) {
@@ -3754,81 +2911,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [closeTabAction]);
 
-  useEffect(() => {
-    const handlePrompt = (event: Event) => {
-      const detail = (event as CustomEvent<PasswordPromptPayload>).detail;
-      setPasswordPrompt(detail);
-    };
-    window.addEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
-    return () => window.removeEventListener('merezhyvo:pw:prompt', handlePrompt as EventListener);
-  }, []);
-
-  useEffect(() => {
-    const handler = (event: Event) => {
-      const detail = (event as CustomEvent<PasswordUnlockPayload>).detail ?? null;
-      void fetchPasswordStatus();
-      setUnlockPayload(detail);
-      setUnlockError(null);
-      setShowUnlockModal(true);
-    };
-    window.addEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
-    return () => window.removeEventListener('merezhyvo:pw:unlock-required', handler as EventListener);
-  }, [fetchPasswordStatus]);
-
-  useEffect(() => {
-    return () => {
-      if (globalToastTimerRef.current) {
-        window.clearTimeout(globalToastTimerRef.current);
-        globalToastTimerRef.current = null;
-      }
-    };
-  }, []);
-
-  useEffect(() => {
-    void fetchPasswordStatus();
-  }, [fetchPasswordStatus]);
-
-  const handlePasswordPromptAction = useCallback(
-    async (action: PasswordCaptureAction) => {
-      if (!passwordPrompt) return;
-      const api = window.merezhyvo?.passwords;
-      if (!api) {
-        showGlobalToast('Unable to reach passwords service');
-        return;
-      }
-      setPasswordPromptBusy(true);
-      try {
-        const result = await api.captureAction({
-          captureId: passwordPrompt.captureId,
-          action,
-          entryId: passwordPrompt.entryId
-        });
-        if (result?.ok) {
-          if (action === 'update') {
-            showGlobalToast('Password updated');
-          } else if (action === 'never') {
-            showGlobalToast('This site will not ask again');
-          } else {
-            showGlobalToast('Password saved');
-          }
-          setPasswordPrompt(null);
-        } else {
-          showGlobalToast(result?.error ?? 'Unable to save password');
-        }
-      } catch {
-        showGlobalToast('Unable to save password');
-      } finally {
-        setPasswordPromptBusy(false);
-      }
-    },
-    [passwordPrompt, showGlobalToast]
-  );
-
-  const handlePasswordPromptClose = useCallback(() => {
-    setPasswordPrompt(null);
-    setPasswordPromptBusy(false);
-  }, []);
-
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
     setShowTabsPanel(true);
@@ -3928,48 +3010,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     openInNewTab('mzr://privacy-info');
     setSecurityPopoverOpen(false);
   }, [openInNewTab]);
-
-  const closeUnlockModal = useCallback(() => {
-    setShowUnlockModal(false);
-    setUnlockError(null);
-  }, []);
-
-  const handlePasswordUnlock = useCallback(
-    async (master: string, durationMinutes?: number) => {
-      const api = window.merezhyvo?.passwords;
-      if (!api) {
-        setUnlockError(t('passwordUnlock.error.unavailable'));
-        return false;
-      }
-      setUnlockSubmitting(true);
-      setUnlockError(null);
-      try {
-        const result = await api.unlock(master, durationMinutes);
-    if (result?.ok) {
-      await fetchPasswordStatus();
-      setShowUnlockModal(false);
-      setUnlockPayload(null);
-      if (pendingSettingsReopen) {
-        setPendingSettingsReopen(false);
-        setSettingsScrollTarget('passwords');
-        setTimeout(() => {
-          openSettingsModal();
-        }, 0);
-      }
-      window.dispatchEvent(new CustomEvent('merezhyvo:pw:unlocked'));
-      return true;
-    }
-        setUnlockError(t('passwordUnlock.error.invalid'));
-        return false;
-      } catch {
-        setUnlockError(t('passwordUnlock.error.generic'));
-        return false;
-      } finally {
-        setUnlockSubmitting(false);
-      }
-    },
-    [fetchPasswordStatus, pendingSettingsReopen, openSettingsModal, t]
-  );
 
   const handleCloseTab = useCallback((id: string) => {
     if (!id) return;
@@ -4089,231 +3129,88 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     error: 'Failed to load'
   };
   const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
-  const tabLoadingOverlay = status === 'error'
-    ? null
-    : activeTabIsLoading
-      ? (
-        <div
-          style={{
-            ...styles.webviewLoadingOverlay,
-            ...(mode === 'mobile' ? styles.webviewLoadingOverlayMobile : null)
-          }}
-          aria-live="polite"
-          aria-label="Loading"
-        >
-          <div
-            aria-hidden="true"
-            className="mzv-spinner"
-            style={{
-              ...styles.webviewLoadingSpinner,
-              ...(mode === 'mobile' ? styles.webviewLoadingSpinnerMobile : null)
-            }}
-          />
-        </div>
-      )
-      : null;
+  const tabLoadingOverlay = (
+    <WebviewLoadingOverlay
+      mode={mode}
+      status={status}
+      activeTabIsLoading={activeTabIsLoading}
+    />
+  );
   const webviewVisibility = status === 'error' || certWarning ? 'hidden' : 'visible';
 
-  const errorOverlay = pageError && status === 'error' ? (
-    <div
-      style={{
-        ...styles.webviewErrorOverlay,
-        ...(mode === 'mobile' ? styles.webviewErrorOverlayMobile : null)
-      }}
-      role="alert"
-      aria-live="assertive"
-    >
-      <div
-        style={{
-          ...styles.webviewErrorTitle,
-          ...(mode === 'mobile' ? styles.webviewErrorTitleMobile : null)
-        }}
-      >
-        {t('webview.error.title')}
-      </div>
-      <div
-        style={{
-          ...styles.webviewErrorSubtitle,
-          ...(mode === 'mobile' ? styles.webviewErrorSubtitleMobile : null)
-        }}
-      >
-        {t('webview.error.subtitle')}
-        {pageError.url ? (
-          <div
-            style={{
-              ...styles.webviewErrorUrl,
-              ...(mode === 'mobile' ? styles.webviewErrorUrlMobile : null)
-            }}
-            title={pageError.url}
-          >
-            {pageError.url}
-          </div>
-        ) : null}
-      </div>
-      <button
-        type="button"
-        onClick={() => {
-          setPageError(null);
-          lastFailedUrlRef.current = null;
-          ignoreUrlChangeRef.current = false;
-          handleReload();
-        }}
-        style={{
-          ...styles.webviewErrorButton,
-          ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null)
-        }}
-      >
-        {t('webview.error.retry')}
-      </button>
-    </div>
-  ) : null;
+  const handleErrorRetry = useCallback(() => {
+    setPageError(null);
+    lastFailedUrlRef.current = null;
+    ignoreUrlChangeRef.current = false;
+    handleReload();
+  }, [handleReload]);
 
-  const formatDate = (value?: number | null) => {
-    if (typeof value !== 'number' || !Number.isFinite(value)) return '';
-    return new Date(value).toLocaleString();
-  };
+  const errorOverlay = (
+    <WebviewErrorOverlay
+      mode={mode}
+      status={status}
+      pageError={pageError}
+      title={t('webview.error.title')}
+      subtitle={t('webview.error.subtitle')}
+      retryLabel={t('webview.error.retry')}
+      onRetry={handleErrorRetry}
+    />
+  );
 
   const overlayCert = displayCertEffective ?? certStatus ?? blockingCertRef.current;
+  const handleCertCancel = useCallback(() => {
+    if (activeId) closeTabAction(activeId);
+  }, [activeId, closeTabAction]);
+
+  const handleCertProceed = useCallback(async () => {
+    if (!activeId) return;
+    if (rememberExceptionChecked && certHost && certErrorType) {
+      void upsertSslException(certHost, certErrorType, true);
+    }
+    certBypassRef.current.add(activeId);
+    const wcId = activeWcIdRef.current;
+    if (certStatus?.state === 'invalid' && wcId) {
+      try {
+        await window.merezhyvo?.certificates?.continue?.(wcId);
+      } catch {
+        // ignore
+      }
+      setStatus('loading');
+      setWebviewReady(false);
+      return;
+    }
+    setCertStatus(null);
+    setStatus('loading');
+    setWebviewReady(false);
+    setRememberExceptionChecked(false);
+  }, [activeId, certErrorType, certHost, certStatus, rememberExceptionChecked, setCertStatus, setStatus, setWebviewReady, upsertSslException]);
+
   const certOverlay = certWarning && overlayCert ? (
-    <div
-      style={{
-        ...styles.webviewErrorOverlay,
-        ...(mode === 'mobile' ? styles.webviewErrorOverlayMobile : null),
-        pointerEvents: 'auto'
-      }}
-      role="alert"
-      aria-live="assertive"
-    >
-      <div
-        style={{
-          ...styles.webviewErrorTitle,
-          ...(mode === 'mobile' ? styles.webviewErrorTitleMobile : null)
-        }}
-      >
-        {overlayCert.state === 'missing' ? t('cert.title.missing') : t('cert.title.invalid')}
-      </div>
-      <div
-        style={{
-          ...styles.webviewErrorSubtitle,
-          ...(mode === 'mobile' ? styles.webviewErrorSubtitleMobile : null)
-        }}
-      >
-        {overlayCert.state === 'missing'
+    <CertOverlay
+      mode={mode}
+      cert={overlayCert}
+      rememberChecked={rememberExceptionChecked}
+      onRememberChange={setRememberExceptionChecked}
+      onCancel={handleCertCancel}
+      onProceed={handleCertProceed}
+      title={overlayCert.state === 'missing' ? t('cert.title.missing') : t('cert.title.invalid')}
+      description={
+        overlayCert.state === 'missing'
           ? t('cert.desc.missing')
           : overlayCert.error
             ? overlayCert.error
-            : t('cert.desc.invalid')}
-      </div>
-      {overlayCert.url && (
-        <div
-          style={{
-            marginTop: '10px',
-            padding: '10px 12px',
-            borderRadius: '10px',
-            background: 'rgba(148,163,184,0.08)',
-            color: '#e2e8f0',
-            maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '36px' : '16px',
-            wordBreak: 'break-all'
-          }}
-        >
-          {overlayCert.url}
-        </div>
-      )}
-      {overlayCert.certificate && (
-        <div
-          className="service-scroll"
-          style={{
-            marginTop: '10px',
-            padding: '12px',
-            borderRadius: '12px',
-            border: '1px solid rgba(148,163,184,0.35)',
-            background: 'rgba(15,23,42,0.6)',
-            textAlign: 'left',
-            maxWidth: mode === 'mobile' ? '92vw' : '520px',
-            fontSize: mode === 'mobile' ? '38px' : '16px',
-            lineHeight: 1.5,
-            overflow: 'auto'
-          }}
-        >
-          <div><strong>{t('cert.details.issuer')} </strong>{overlayCert.certificate.issuerName || '—'}</div>
-          <div><strong>{t('cert.details.subject')} </strong>{overlayCert.certificate.subjectName || '—'}</div>
-          <div><strong>{t('cert.details.serial')} </strong>{overlayCert.certificate.serialNumber || '—'}</div>
-          <div><strong>{t('cert.details.validFrom')} </strong>{formatDate(overlayCert.certificate.validStart)}</div>
-          <div><strong>{t('cert.details.validTo')} </strong>{formatDate(overlayCert.certificate.validExpiry)}</div>
-          <div><strong>{t('cert.details.fingerprint')} </strong>{overlayCert.certificate.fingerprint || '—'}</div>
-        </div>
-      )}
-      <label
-        style={{
-          display: 'flex',
-          alignItems: 'center',
-          gap: mode === 'mobile' ? '16px' : '8px',
-          marginTop: '14px',
-          fontSize: mode === 'mobile' ? '35px' : '15px',
-          color: '#e2e8f0'
-        }}
-      >
-        <input
-          type="checkbox"
-          checked={rememberExceptionChecked}
-          onChange={(e: React.ChangeEvent<HTMLInputElement>) => setRememberExceptionChecked(e.target.checked)}
-          style={{ width: mode === 'mobile' ? 30 : 16, height: mode === 'mobile' ? 30 : 16 }}
-        />
-        <span>{t('cert.actions.remember')}</span>
-      </label>
-      <div style={{ display: 'flex', gap: '12px', marginTop: '18px', flexWrap: 'wrap', justifyContent: 'center' }}>
-        <button
-          type="button"
-          onClick={() => {
-            if (activeId) closeTabAction(activeId);
-          }}
-          style={{
-            ...styles.webviewErrorButton,
-            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null),
-            borderColor: '#259cebff',
-            backgroundColor: 'rgba(37,156,235,0.12)'
-          }}
-        >
-          {t('cert.actions.cancel')}
-        </button>
-        <button
-          type="button"
-          onClick={async () => {
-            if (!activeId) return;
-            if (rememberExceptionChecked && certHost && certErrorType) {
-              void upsertSslException(certHost, certErrorType, true);
-            }
-            certBypassRef.current.add(activeId);
-            // Keep blocking cert cached so the shield stays red after proceeding.
-            // Only clear the overlay state.
-            const wcId = activeWcIdRef.current;
-            if (certStatus?.state === 'invalid' && wcId) {
-              try {
-                await window.merezhyvo?.certificates?.continue?.(wcId);
-              } catch {
-                // ignore
-              }
-              setStatus('loading');
-              setWebviewReady(false);
-              return;
-            }
-            setCertStatus(null);
-            setStatus('loading');
-            setWebviewReady(false);
-            setRememberExceptionChecked(false);
-          }}
-          style={{
-            ...styles.webviewErrorButton,
-            ...(mode === 'mobile' ? styles.webviewErrorButtonMobile : null),
-            borderColor: '#ef4444',
-            backgroundColor: 'rgba(239,68,68,0.15)'
-          }}
-        >
-          {t('cert.actions.proceed')}
-        </button>
-      </div>
-    </div>
+            : t('cert.desc.invalid')
+      }
+      rememberLabel={t('cert.actions.remember')}
+      cancelLabel={t('cert.actions.cancel')}
+      proceedLabel={t('cert.actions.proceed')}
+      issuerLabel={t('cert.details.issuer')}
+      subjectLabel={t('cert.details.subject')}
+      serialLabel={t('cert.details.serial')}
+      validFromLabel={t('cert.details.validFrom')}
+      validToLabel={t('cert.details.validTo')}
+      fingerprintLabel={t('cert.details.fingerprint')}
+    />
   ) : null;
 
   useEffect(() => {
@@ -4404,77 +3301,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [pageError, status, t]);
 
-  const toolbarRef = useRef<HTMLDivElement>(null!);
-  const messengerToolbarRef = useRef<HTMLDivElement>(null!);
-  const [toolbarHeight, setToolbarHeight] = useState(0);
-  const [messengerToolbarHeight, setMessengerToolbarHeight] = useState(0);
-  useEffect(() => {
-    if (isHtmlFullscreen) {
-      setToolbarHeight(0);
-      return undefined;
-    }
-    const node = toolbarRef.current;
-    if (!node) {
-      setToolbarHeight(0);
-      return;
-    }
-    const update = () => {
-      try {
-        const rect = node.getBoundingClientRect();
-        setToolbarHeight(rect.height || 0);
-      } catch {
-        setToolbarHeight(0);
-      }
-    };
-    update();
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => update());
-      observer.observe(node);
-      return () => {
-        observer.disconnect();
-        setToolbarHeight(0);
-      };
-    }
-    const id = window.setInterval(update, 200);
-    return () => {
-      window.clearInterval(id);
-      setToolbarHeight(0);
-    };
-  }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
-
-  useEffect(() => {
-    if (isHtmlFullscreen) {
-      setMessengerToolbarHeight(0);
-      return undefined;
-    }
-    const node = messengerToolbarRef.current;
-    if (!node) {
-      setMessengerToolbarHeight(0);
-      return;
-    }
-    const update = () => {
-      try {
-        const rect = node.getBoundingClientRect();
-        setMessengerToolbarHeight(rect.height || 0);
-      } catch {
-        setMessengerToolbarHeight(0);
-      }
-    };
-    update();
-    if (typeof ResizeObserver !== 'undefined') {
-      const observer = new ResizeObserver(() => update());
-      observer.observe(node);
-      return () => {
-        observer.disconnect();
-        setMessengerToolbarHeight(0);
-      };
-    }
-    const id = window.setInterval(update, 200);
-    return () => {
-      window.clearInterval(id);
-      setMessengerToolbarHeight(0);
-    };
-  }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
+  const {
+    toolbarRef,
+    messengerToolbarRef,
+    toolbarHeight,
+    messengerToolbarHeight
+  } = useToolbarHeights({ mode, uiScale, mainViewMode, isHtmlFullscreen });
 
   const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
   const contentTop = mainViewMode === 'messenger' ? messengerToolbarHeight : toolbarHeight;

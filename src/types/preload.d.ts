@@ -103,6 +103,9 @@ export interface MerezhyvoHistoryApi {
 
 export interface MerezhyvoBookmarksApi {
   list(): Promise<BookmarksTree>;
+  query?(
+    options?: { q?: string; limit?: number; includeDeleted?: boolean }
+  ): Promise<{ items?: { url?: string; title?: string | null; createdAt?: number; updatedAt?: number }[] }>;
   isBookmarked(url: string): Promise<{ yes: boolean; nodeId?: string }>;
   add(payload: BookmarkAddPayload): Promise<{ ok: true; nodeId: string } | { ok: false; error: string }>;
   update(payload: BookmarkUpdatePayload): Promise<{ ok: boolean }>;
