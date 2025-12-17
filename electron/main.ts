@@ -127,6 +127,8 @@ void (async () => {
 })();
 
 const SESSION_SCHEMA = 1;
+const ZOOM_MIN = 0.5;
+const ZOOM_MAX = 5;
 
 type ContextMenuMode = windows.Mode;
 
@@ -162,6 +164,8 @@ type SessionTab = {
   muted: boolean;
   discarded: boolean;
   lastUsedAt: number;
+  zoomDesktop?: number;
+  zoomMobile?: number;
 };
 
 type SessionState = {
@@ -185,6 +189,8 @@ type SessionTabLike = {
   muted?: unknown;
   discarded?: unknown;
   lastUsedAt?: unknown;
+  zoomDesktop?: unknown;
+  zoomMobile?: unknown;
 };
 
 type ContextState = {
@@ -301,6 +307,12 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
   const tabsSource = Array.isArray(source.tabs) ? (source.tabs as SessionTabLike[]) : [];
   const tabs: SessionTab[] = [];
 
+  const clampZoom = (value: unknown): number | undefined => {
+    if (typeof value !== 'number' || !Number.isFinite(value)) return undefined;
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, value));
+    return Math.round(clamped * 100) / 100;
+  };
+
   for (const raw of tabsSource) {
     if (!raw || typeof raw !== 'object') continue;
     const id =
@@ -317,6 +329,8 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
       typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
         ? raw.lastUsedAt
         : now;
+    const zoomDesktop = clampZoom((raw as SessionTabLike).zoomDesktop);
+    const zoomMobile = clampZoom((raw as SessionTabLike).zoomMobile);
 
     tabs.push({
       id,
@@ -326,7 +340,9 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
       pinned,
       muted,
       discarded,
-      lastUsedAt
+      lastUsedAt,
+      zoomDesktop,
+      zoomMobile
     });
   }
 

@@ -57,6 +57,8 @@ type UpdateMetaPatch = Partial<
     | 'keepAlive'
     | 'isLoading'
     | 'lastUsedAt'
+    | 'zoomDesktop'
+    | 'zoomMobile'
   >
 >;
 
@@ -121,6 +123,14 @@ function createTab(url: string = DEFAULT_URL, overrides: TabOverrides = {}): Tab
         ? overrides.lastUsedAt
         : now,
     kind: overrides.kind === 'messenger' ? 'messenger' : 'browser',
+    zoomDesktop:
+      typeof overrides.zoomDesktop === 'number' && Number.isFinite(overrides.zoomDesktop)
+        ? overrides.zoomDesktop
+        : undefined,
+    zoomMobile:
+      typeof overrides.zoomMobile === 'number' && Number.isFinite(overrides.zoomMobile)
+        ? overrides.zoomMobile
+        : undefined,
     keepAlive: overrides.keepAlive ?? false
   };
   return next;
@@ -208,7 +218,15 @@ function serializeState(current: TabsState) {
         isPlaying: Boolean(tab.isPlaying),
         keepAlive: Boolean(tab.keepAlive),
         lastUsedAt: typeof tab.lastUsedAt === 'number' ? tab.lastUsedAt : Date.now(),
-        kind: tab.kind === 'messenger' ? 'messenger' : 'browser'
+        kind: tab.kind === 'messenger' ? 'messenger' : 'browser',
+        zoomDesktop:
+          typeof tab.zoomDesktop === 'number' && Number.isFinite(tab.zoomDesktop)
+            ? tab.zoomDesktop
+            : undefined,
+        zoomMobile:
+          typeof tab.zoomMobile === 'number' && Number.isFinite(tab.zoomMobile)
+            ? tab.zoomMobile
+            : undefined
       }))
   };
 }
@@ -268,7 +286,17 @@ function sanitizeSession(data: unknown): TabsState {
         typeof raw.lastUsedAt === 'number' && Number.isFinite(raw.lastUsedAt)
           ? raw.lastUsedAt
           : now,
-      kind: persistedKind
+      kind: persistedKind,
+      zoomDesktop:
+        typeof (raw as { zoomDesktop?: unknown }).zoomDesktop === 'number' &&
+        Number.isFinite((raw as { zoomDesktop?: number }).zoomDesktop as number)
+          ? ((raw as { zoomDesktop?: number }).zoomDesktop as number)
+          : undefined,
+      zoomMobile:
+        typeof (raw as { zoomMobile?: unknown }).zoomMobile === 'number' &&
+        Number.isFinite((raw as { zoomMobile?: number }).zoomMobile as number)
+          ? ((raw as { zoomMobile?: number }).zoomMobile as number)
+          : undefined
     });
     tabs.push(tab);
   }
@@ -542,6 +570,18 @@ function updateMeta(id: string, patch: UpdateMetaPatch = {}): void {
     ) {
       next.lastUsedAt = patch.lastUsedAt;
       altered = true;
+    }
+    if (typeof patch.zoomDesktop === 'number' && Number.isFinite(patch.zoomDesktop)) {
+      if (next.zoomDesktop !== patch.zoomDesktop) {
+        next.zoomDesktop = patch.zoomDesktop;
+        altered = true;
+      }
+    }
+    if (typeof patch.zoomMobile === 'number' && Number.isFinite(patch.zoomMobile)) {
+      if (next.zoomMobile !== patch.zoomMobile) {
+        next.zoomMobile = patch.zoomMobile;
+        altered = true;
+      }
     }
 
     if (!altered) return prev;

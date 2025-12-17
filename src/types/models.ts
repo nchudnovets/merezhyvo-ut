@@ -34,6 +34,8 @@ export interface Tab {
   keepAlive?: boolean;
   lastUsedAt: number;
   kind: TabKind;
+  zoomDesktop?: number;
+  zoomMobile?: number;
 }
 
 export interface TabsSnapshot {

@@ -1743,44 +1743,89 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const zoomRef = useRef(mode === 'mobile' ? 2.3 : 1.0);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
+  const baseZoomForMode = useCallback((m: Mode) => (m === 'mobile' ? 2.3 : 1.0), []);
+
+  const getStoredZoomForTab = useCallback(
+    (tab: Tab | null | undefined, m: Mode): number => {
+      if (!tab) return baseZoomForMode(m);
+      const stored = m === 'mobile' ? tab.zoomMobile : tab.zoomDesktop;
+      return typeof stored === 'number' && Number.isFinite(stored) ? stored : baseZoomForMode(m);
+    },
+    [baseZoomForMode]
+  );
+
+  const applyZoomToView = useCallback(
+    (factor: number, view?: WebviewTag | null) => {
+      const target = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, factor));
+      zoomRef.current = target;
+      setZoomLevel(target);
+      const node = view ?? getActiveWebview();
+      if (!node) return;
+      try {
+        if (typeof node.setZoomFactor === 'function') {
+          node.setZoomFactor(target);
+        } else {
+          node.executeJavaScript(`require('electron').webFrame.setZoomFactor(${target})`).catch(() => {});
+        }
+      } catch {
+        // noop
+      }
+    },
+    [getActiveWebview]
+  );
+
   const setZoomClamped = useCallback((val: number | string) => {
     const numeric = Number(val);
     if (!Number.isFinite(numeric)) return;
     const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
     const rounded = Math.round(clamped * 100) / 100;
-    const view = getActiveWebview();
-    if (view) {
-      try {
-        if (typeof view.setZoomFactor === 'function') {
-          view.setZoomFactor(rounded);
-        } else {
-          view.executeJavaScript(`require('electron').webFrame.setZoomFactor(${rounded})`).catch(() => {});
-        }
-      } catch {}
+    applyZoomToView(rounded);
+    const activeTabId = activeIdRef.current;
+    if (activeTabId) {
+      if (mode === 'mobile') {
+        updateMetaAction(activeTabId, { zoomMobile: rounded });
+      } else {
+        updateMetaAction(activeTabId, { zoomDesktop: rounded });
+      }
     }
-    zoomRef.current = rounded;
-    setZoomLevel(rounded);
-  }, [getActiveWebview]);
+  }, [applyZoomToView, mode, updateMetaAction]);
 
   useEffect(() => {
-    const base = mode === 'mobile' ? 2.3 : 1.0;
-    if (Math.abs(zoomRef.current - base) < 1e-3) return;
+    const target = getStoredZoomForTab(activeTabRef.current, mode);
     const frame = requestAnimationFrame(() => {
-      setZoomClamped(base);
+      applyZoomToView(target);
     });
     return () => cancelAnimationFrame(frame);
-  }, [mode, setZoomClamped]);
+  }, [mode, applyZoomToView, getStoredZoomForTab]);
+
+  useEffect(() => {
+    const target = getStoredZoomForTab(activeTab, mode);
+    const frame = requestAnimationFrame(() => {
+      applyZoomToView(target);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeTab, mode, getStoredZoomForTab, applyZoomToView]);
 
   const applyZoomPolicy = useCallback(() => {
     const view = getActiveWebview();
     if (!view) return;
+    const tab = activeTabRef.current;
+    const target = getStoredZoomForTab(tab, mode);
+    zoomRef.current = target;
+    setZoomLevel(target);
     try {
       if (typeof view.setVisualZoomLevelLimits === 'function') {
         view.setVisualZoomLevelLimits(1, 3);
       }
-      setZoomClamped(zoomRef.current);
-    } catch {}
-  }, [getActiveWebview, setZoomClamped]);
+      if (typeof view.setZoomFactor === 'function') {
+        view.setZoomFactor(target);
+      } else {
+        view.executeJavaScript(`require('electron').webFrame.setZoomFactor(${target})`).catch(() => {});
+      }
+    } catch {
+      // ignore
+    }
+  }, [getActiveWebview, getStoredZoomForTab, mode]);
 
   useEffect(() => {
     const view = getActiveWebview();
@@ -1820,12 +1865,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [setZoomClamped]);
 
   useEffect(() => {
-    for (const entry of tabViewsRef.current.values()) {
+    const currentTabs = tabsRef.current;
+    for (const [tabId, entry] of tabViewsRef.current.entries()) {
+      const tab = currentTabs.find((t) => t.id === tabId) || null;
+      const targetZoom = getStoredZoomForTab(tab, mode);
       try {
-        entry.render?.(mode, zoomRef.current);
+        entry.render?.(mode, targetZoom);
       } catch {}
     }
-  }, [mode, zoomLevel]);
+  }, [mode, getStoredZoomForTab]);
 
   const refreshCertStatus = useCallback(
     async (wcId: number | null) => {
@@ -2230,6 +2278,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!host) {
       return null;
     }
+    const initialZoom = getStoredZoomForTab(tab, currentMode);
+    zoomRef.current = initialZoom;
+    setZoomLevel(initialZoom);
     const container = document.createElement('div');
     container.style.position = 'absolute';
     container.style.inset = '0';
@@ -2279,7 +2330,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         }
       }
     };
-    entry.render = (modeOverride: Mode = currentMode, zoomOverride: number = zoomFactor) => {
+    entry.render = (modeOverride: Mode = currentMode, zoomOverride: number = initialZoom) => {
       const initialUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
       root.render(
         <WebViewHost
@@ -2350,14 +2401,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     updateMetaAction(tab.id, { discarded: false });
     let entry = tabViewsRef.current.get(tab.id);
     if (!entry) {
-      const created = createWebviewForTab(tab, { zoom: zoomRef.current, mode });
+      const targetZoom = getStoredZoomForTab(tab, mode);
+      zoomRef.current = targetZoom;
+      setZoomLevel(targetZoom);
+      const created = createWebviewForTab(tab, { zoom: targetZoom, mode });
       if (!created) {
         requestAnimationFrame(() => activateTabView(tab));
         return;
       }
       entry = tabViewsRef.current.get(tab.id);
     } else {
-      entry.render?.(mode, zoomRef.current);
+      const targetZoom = getStoredZoomForTab(tab, mode);
+      applyZoomToView(targetZoom, entry.view);
+      entry.render?.(mode, targetZoom);
     }
     if (!entry) return;
 
