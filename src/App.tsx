@@ -155,10 +155,11 @@ const WEBVIEW_BASE_CSS = `
   }
   ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
   input, textarea, [contenteditable='true'] {
-    caret-color: #121826; !important;
+    caret-color: #1d4ed8; !important;
+    caret-shape: block !important;
   }
   :root {
-    --mzr-caret-accent: #121826;
+    --mzr-caret-accent: #1d4ed8;
     --mzr-focus-ring:   #60a5fa;
     --mzr-sel-bg:       rgba(34,211,238,.28);
     --mzr-sel-fg:       #0b1020;
@@ -172,7 +173,7 @@ const WEBVIEW_BASE_CSS = `
   }
   @media (prefers-color-scheme: dark) {
     :root {
-      --mzr-caret-accent: #121826;
+      --mzr-caret-accent: #1d4ed8;
       --mzr-sel-bg:       rgba(125,211,252,.3);
       --mzr-sel-fg:       #0a0f1f;
       --mzr-focus-ring:   #93c5fd;
@@ -180,7 +181,7 @@ const WEBVIEW_BASE_CSS = `
   }
   @media (prefers-color-scheme: light) {
     :root {
-      --mzr-caret-accent: #121826;
+      --mzr-caret-accent: #1d4ed8;
       --mzr-sel-bg:       rgba(14,165,233,.25);
       --mzr-sel-fg:       #0b1020;
       --mzr-focus-ring:   #3b82f6;
@@ -4644,6 +4645,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onClose={closeKeyboard}
             onCycleLayout={() => setKbLayout(prev => nextLayoutId(prev, enabledKbLayouts))}
             onHeightChange={handleKeyboardHeightChange}
+            onInteractionStart={() => {
+              oskPressGuardRef.current = true;
+              try { getActiveWebview()?.focus?.(); } catch {}
+            }}
+            onInteractionEnd={() => {
+              window.setTimeout(() => { oskPressGuardRef.current = false; }, 150);
+              try { getActiveWebview()?.focus?.(); } catch {}
+            }}
           />
       <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />
         </div>

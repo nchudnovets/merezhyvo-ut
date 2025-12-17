@@ -34,6 +34,8 @@ type Props = {
   onEnterShouldClose?: () => Promise<boolean> | boolean;
   onClose?: () => void;
   onHeightChange?: (height: number) => void;
+  onInteractionStart?: () => void;
+  onInteractionEnd?: () => void;
 };
 
 const SPECIAL = new Set([
@@ -198,6 +200,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
     onEnterShouldClose,
     onClose,
     onHeightChange,
+    onInteractionStart,
+    onInteractionEnd,
   } = p;
 
   // We keep a ref for compatibility; not used directly here
@@ -225,6 +229,27 @@ const KeyboardPane: React.FC<Props> = (p) => {
   } | null>(null);
   const [shift, setShift] = useState(false);
   const [caps, setCaps] = useState(false);
+
+   // Keep the webview focused while interacting with the OSK.
+  const interactionEndTimer = useRef<number | null>(null);
+
+  const startInteraction = useCallback(() => {
+    if (interactionEndTimer.current !== null) {
+      window.clearTimeout(interactionEndTimer.current);
+      interactionEndTimer.current = null;
+    }
+    onInteractionStart?.();
+  }, [onInteractionStart]);
+
+  const endInteraction = useCallback(() => {
+    if (interactionEndTimer.current !== null) {
+      window.clearTimeout(interactionEndTimer.current);
+    }
+    interactionEndTimer.current = window.setTimeout(() => {
+      interactionEndTimer.current = null;
+      onInteractionEnd?.();
+    }, 150);
+  }, [onInteractionEnd]);
 
   useEffect(() => {
     ensureOskCssInjected();
@@ -403,20 +428,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
         }
       }
     },
-    [
-      caps,
-      shift,
-      injectBackspace,
-      injectEnter,
-      injectText,
-      injectArrow,
-      layoutId,
-      enabledLayouts,
-      onCycleLayout,
-      onSetLayout,
-      onEnterShouldClose,
-      onClose,
-    ]
+    [caps, shift, layoutId, injectBackspace, injectText, injectArrow, injectEnter, onEnterShouldClose, onClose, enabledLayouts, onCycleLayout, onSetLayout]
   );
 
   // Ignore library's onKeyPress while the pointer is held down.
@@ -481,7 +493,12 @@ const KeyboardPane: React.FC<Props> = (p) => {
   const onPointerDownCapture = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!visible) return;
+      startInteraction();
+
+      // Prevent OSK UI from stealing focus from the <webview>.
       e.preventDefault();
+      e.stopPropagation();
+      try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); } catch {}
 
       isPressing.current = true;
 
@@ -550,7 +567,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
         return;
       }
     },
-    [visible, lpMap, typeKey, setActiveButton]
+    [visible, startInteraction, setActiveButton, lpMap, typeKey]
   );
 
   const onPointerUpCapture = useCallback(() => {
@@ -560,12 +577,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
     }
     clearHold();
     isPressing.current = false;
-  }, [typeKey, clearHold]);
+    endInteraction();
+  }, [clearHold, endInteraction, typeKey]);
 
   const onPointerCancel = useCallback(() => {
     clearHold();
     isPressing.current = false;
-  }, [clearHold]);
+    endInteraction();
+  }, [clearHold, endInteraction]);
 
   const onPickAlt = useCallback(
     (alt0: string) => {
@@ -618,12 +637,35 @@ const KeyboardPane: React.FC<Props> = (p) => {
       onFocus={(e: React.FocusEvent<HTMLDivElement>) => {
         e.currentTarget.blur();
       }}
+      onFocusCapture={(e: React.FocusEvent<HTMLDivElement>) => {
+        const t = e.target as HTMLElement | null;
+        // If any OSK child gets focus (e.g. .hg-button), immediately blur it.
+        if (t && t.closest && t.closest('.mzr-osk')) {
+          try { (t as any).blur?.(); } catch {}
+          e.stopPropagation();
+        }
+      }}
+      onClickCapture={(e: React.MouseEvent<HTMLDivElement>) => {
+        const t = e.target as HTMLElement | null;
+        // Block react-simple-keyboard's internal click handling for key buttons
+        // (it can steal focus and trigger blur in the webview).
+        if (t && t.closest && t.closest('.hg-button')) {
+          e.preventDefault();
+          e.stopPropagation();
+        }
+      }}
       // Our pointer handlers (capture) control long-press/hold logic
       onPointerDownCapture={onPointerDownCapture}
       onPointerUpCapture={onPointerUpCapture}
       onPointerCancel={onPointerCancel}
       onPointerLeave={onPointerCancel}
       onContextMenu={absorbContext}
+      style={{
+        touchAction: 'none',
+        WebkitUserSelect: 'none',
+        userSelect: 'none',
+        WebkitTapHighlightColor: 'transparent',
+      }}
     >
       <Keyboard
         keyboardRef={(r) => {

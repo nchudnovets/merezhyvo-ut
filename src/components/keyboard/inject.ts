@@ -449,13 +449,6 @@ export function makeWebInjects(
     if (wcId == null) return false;
     await ensureEditableFocus();
     for (const ch of Array.from(String(text))) {
-      const sendLog = { ch, wcId, focused: await ensureEditableFocus(), host: (() => {
-        try {
-          const raw = typeof getActiveWebview()?.getURL === 'function' ? getActiveWebview()!.getURL() : '';
-          return new URL(raw || 'http://localhost').hostname;
-        } catch { return ''; }
-      })() };
-      console.info('[osk-send] char', sendLog);
       await ipc.osk.char(wcId, ch);
     }
     // Ensure focus stays inside the active editable
@@ -467,7 +460,6 @@ export function makeWebInjects(
     const wcId = getWcId();
     if (wcId == null) return false;
     await ensureEditableFocus();
-    console.info('[osk-send] key', { key, wcId });
     await ipc.osk.key(wcId, key);
     // Ensure focus stays inside the active editable
     await ensureEditableFocus();

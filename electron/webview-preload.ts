@@ -1126,17 +1126,20 @@ window.addEventListener('message', async (ev: MessageEvent) => {
 
   const handleMessageFromMainWorld = (event: MessageEvent): void => {
     const data = event.data;
-    if (!data || data.__mzr !== 'file-input-request') return;
-    const token = typeof data.token === 'string' ? data.token : '';
-    if (!token) return;
-    const accept = typeof data.accept === 'string' ? data.accept : '';
-    const multiple = Boolean(data.multiple);
-    const requestId = createRequestId();
-    pendingMainWorld.set(requestId, { token, multiple });
-    try {
-      ipcRenderer.sendToHost('mzr:file-dialog:open', { requestId, accept, multiple });
-    } catch {
-      pendingMainWorld.delete(requestId);
+    if (!data) return;
+    if (data.__mzr === 'file-input-request') {
+      const token = typeof data.token === 'string' ? data.token : '';
+      if (!token) return;
+      const accept = typeof data.accept === 'string' ? data.accept : '';
+      const multiple = Boolean(data.multiple);
+      const requestId = createRequestId();
+      pendingMainWorld.set(requestId, { token, multiple });
+      try {
+        ipcRenderer.sendToHost('mzr:file-dialog:open', { requestId, accept, multiple });
+      } catch {
+        pendingMainWorld.delete(requestId);
+      }
+      return;
     }
   };
 
