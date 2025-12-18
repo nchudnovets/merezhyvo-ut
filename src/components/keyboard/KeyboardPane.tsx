@@ -498,7 +498,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
       // Prevent OSK UI from stealing focus from the <webview>.
       e.preventDefault();
       e.stopPropagation();
-      try { (e.currentTarget as any).setPointerCapture?.(e.pointerId); } catch {}
+      try { e.currentTarget.setPointerCapture?.(e.pointerId); } catch {}
 
       isPressing.current = true;
 
@@ -641,7 +641,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
         const t = e.target as HTMLElement | null;
         // If any OSK child gets focus (e.g. .hg-button), immediately blur it.
         if (t && t.closest && t.closest('.mzr-osk')) {
-          try { (t as any).blur?.(); } catch {}
+          try { t.blur(); } catch {}
           e.stopPropagation();
         }
       }}

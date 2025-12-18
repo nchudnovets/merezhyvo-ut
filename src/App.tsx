@@ -49,7 +49,7 @@ import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { windowHelpers } from './services/window/window';
-import { useTabsStore, tabsActions, getTabsState } from './store/tabs';
+import { useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
 import { useTorSettings } from './hooks/useTorSettings';
@@ -61,8 +61,6 @@ import type {
   Mode,
   Tab,
   MessengerId,
-  MessengerDefinition,
-  MessengerSettings,
   CertificateInfo,
   HttpsMode,
   SslException,
@@ -262,7 +260,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
-  const { enabledKbLayouts, setEnabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
+  const { enabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
@@ -277,7 +275,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     httpsModeRef,
     sslExceptions,
     setSslExceptions,
-    sslExceptionsRef,
     hasSslException,
     shouldBlockCert
   } = useHttpsSecurity();
@@ -317,7 +314,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState<boolean>(false);
   const powerBlockerIdRef = useRef<number | null>(null);
   const {
-    mountInActiveHost,
     mountInBackgroundHost,
     applyActiveStyles,
     installShadowStyles
@@ -399,7 +395,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         showGlobalToast('Failed to update HTTPS mode.');
       }
     },
-    [showGlobalToast]
+    [setHttpsMode, showGlobalToast]
   );
 
   const handleWebrtcModeChange = useCallback(
@@ -520,7 +516,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [
+    setTorKeepEnabled,
+    setTorKeepEnabledDraft,
+    setDownloadsConcurrent,
+    setUiScale,
+    setHttpsMode,
+    setSslExceptions,
+    setWebrtcMode,
+    setCookiePrivacy
+  ]);
 
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
     const handle = webviewHandleRef.current;
@@ -597,22 +602,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const {
     mainViewMode,
-    setMainViewMode,
     messengerSettingsState,
     setMessengerSettingsState,
     messengerSettingsRef,
     messengerTabIdsRef,
-    prevBrowserTabIdRef,
     pendingMessengerTabIdRef,
     lastMessengerIdRef,
     activeMessengerId,
     setActiveMessengerId,
     orderedMessengers,
     exitMessengerMode,
-    activateMessenger,
     handleEnterMessengerMode,
     handleMessengerSelect,
-    ensureMessengerTab,
     exitIfNoMessengers
   } = useMessengerMode({
     activeId,
@@ -1038,7 +1039,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       upgradedFromHttp: existing?.upgradedFromHttp ?? false,
       triedHttpFallback: existing?.triedHttpFallback ?? false
     });
-  }, [forceNavigateTab, hasSslException]);
+  }, [forceNavigateTab, hasSslException, httpsModeRef]);
 
   const handleNavigationError = useCallback(
     (tabId: string, payload: { errorCode: number; errorDescription: string; validatedURL: string; isMainFrame: boolean }) => {
@@ -1073,7 +1074,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         forceNavigateTab(tabId, fallbackUrl);
       }
     },
-    [forceNavigateTab, hasSslException]
+    [forceNavigateTab, hasSslException, httpsModeRef]
   );
 
   const handleHostCanGo = useCallback((tabId: string, state?: NavigationState | null) => {
@@ -1187,7 +1188,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setInputValue(cleanUrl);
       lastLoadedRef.current = { id: tabId, url: cleanUrl };
     }
-  }, [updateMetaAction, hasSslException]);
+  }, [updateMetaAction, hasSslException, httpsModeRef]);
 
   const handleHostDomReady = useCallback((tabId: string) => {
     const entry = tabViewsRef.current.get(tabId);
@@ -1441,7 +1442,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         void refreshCertStatus(wcId);
       }
     },
-    [showGlobalToast, refreshCertStatus]
+    [refreshCertStatus, setSslExceptions, showGlobalToast]
   );
 
   useEffect(() => {
@@ -1757,7 +1758,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, []);
 
   const createWebviewForTab = useCallback(
-    (tab: Tab, { zoom: zoomFactor, mode: currentMode }: CreateWebviewOptions): WebviewTag | null => {
+    (tab: Tab, { zoom: _zoomFactor, mode: currentMode }: CreateWebviewOptions): WebviewTag | null => {
     if (!ensureHostReady()) return null;
     const host = webviewHostRef.current;
     if (!host) {
@@ -1845,6 +1846,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     handleHostStatus,
     handleHostUrlChange,
     installShadowStyles,
+    getStoredZoomForTab,
+    setZoomLevel,
     setActiveViewRevision,
     getWebContentsIdSafe,
     refreshCertStatus,
@@ -1942,7 +1945,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [
     applyActiveStyles,
+    applyZoomToView,
     createWebviewForTab,
+    getStoredZoomForTab,
     loadUrlIntoView,
     mode,
     refreshNavigationState,
@@ -2071,7 +2076,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useEffect(() => {
     messengerSettingsRef.current = messengerSettingsState;
-  }, [messengerSettingsState]);
+  }, [messengerSettingsRef, messengerSettingsState]);
 
   useEffect(() => {
     let cancelled = false;
@@ -2127,7 +2132,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } finally {
       setMessengerOrderSaving(false);
     }
-  }, []);
+  }, [messengerSettingsRef, setMessengerOrderMessage, setMessengerOrderSaving, setMessengerSettingsState]);
 
   useEffect(() => {
     if (mainViewMode !== 'messenger') return;
@@ -2158,7 +2163,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setActiveMessengerId(currentMessengerId);
       lastMessengerIdRef.current = currentMessengerId;
     }
-  }, [activeId, activeMessengerId, exitMessengerMode, mainViewMode, tabs]);
+  }, [
+    activeId,
+    activeMessengerId,
+    exitMessengerMode,
+    mainViewMode,
+    tabs,
+    messengerTabIdsRef,
+    pendingMessengerTabIdRef,
+    setActiveMessengerId,
+    lastMessengerIdRef
+  ]);
 
   useEffect(() => {
     exitIfNoMessengers();
@@ -2174,7 +2189,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
     }
     void ipc.ua.setMode('auto');
-  }, [closeTabAction]);
+  }, [closeTabAction, messengerTabIdsRef, pendingMessengerTabIdRef]);
   const openSettingsModal = useCallback(() => {
     activeInputRef.current = null;
     setShowSettingsModal(true);
@@ -2234,7 +2249,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp]);
+  }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp, setTorConfigFeedback, setTorKeepEnabledDraft]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -2405,7 +2420,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         console.error('[merezhyvo] cookie exception toggle failed', err);
       }
     },
-    [activeSecurityHost, handleReload]
+    [activeSecurityHost, handleReload, setCookiePrivacy]
   );
 
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {

@@ -1010,12 +1010,15 @@ window.addEventListener('message', async (ev: MessageEvent) => {
   };
 
   const originalInputClick = HTMLInputElement.prototype.click;
-  HTMLInputElement.prototype.click = function patchedClick(this: HTMLInputElement): void {
+  HTMLInputElement.prototype.click = function patchedClick(
+    this: HTMLInputElement,
+    ...args: Parameters<HTMLInputElement['click']>
+  ): void {
     if (this && this.type === 'file') {
       const opened = openDialogForInput(this);
       if (opened) return;
     }
-    return originalInputClick.apply(this, arguments as any);
+    return originalInputClick.apply(this, args);
   };
 
   const base64ToArray = (base64: string): Uint8Array => {

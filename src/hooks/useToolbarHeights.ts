@@ -20,15 +20,9 @@ export const useToolbarHeights = ({
   const [messengerToolbarHeight, setMessengerToolbarHeight] = useState(0);
 
   useEffect(() => {
-    if (isHtmlFullscreen) {
-      setToolbarHeight(0);
-      return undefined;
-    }
+    if (isHtmlFullscreen) return undefined;
     const node = toolbarRef.current;
-    if (!node) {
-      setToolbarHeight(0);
-      return;
-    }
+    if (!node) return undefined;
     const update = () => {
       try {
         const rect = node.getBoundingClientRect();
@@ -54,15 +48,9 @@ export const useToolbarHeights = ({
   }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
 
   useEffect(() => {
-    if (isHtmlFullscreen) {
-      setMessengerToolbarHeight(0);
-      return undefined;
-    }
+    if (isHtmlFullscreen) return undefined;
     const node = messengerToolbarRef.current;
-    if (!node) {
-      setMessengerToolbarHeight(0);
-      return;
-    }
+    if (!node) return undefined;
     const update = () => {
       try {
         const rect = node.getBoundingClientRect();
@@ -87,10 +75,13 @@ export const useToolbarHeights = ({
     };
   }, [mode, uiScale, mainViewMode, isHtmlFullscreen]);
 
+  const effectiveToolbarHeight = isHtmlFullscreen ? 0 : toolbarHeight;
+  const effectiveMessengerToolbarHeight = isHtmlFullscreen ? 0 : messengerToolbarHeight;
+
   return {
     toolbarRef,
     messengerToolbarRef,
-    toolbarHeight,
-    messengerToolbarHeight
+    toolbarHeight: effectiveToolbarHeight,
+    messengerToolbarHeight: effectiveMessengerToolbarHeight
   };
 };

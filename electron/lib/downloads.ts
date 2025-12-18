@@ -224,7 +224,9 @@ const issueRequest = (entry: DownloadEntry, dir: string): void => {
       entry.retriedWithOrigin = true;
       entry.request = undefined;
       try {
-        (response as any).destroy?.();
+        const destroyFn: ((error?: Error) => void) | undefined =
+          (response as { destroy?: (error?: Error) => void }).destroy;
+        destroyFn?.call(response as IncomingMessage);
       } catch {
         // ignore
       }

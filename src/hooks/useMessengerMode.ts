@@ -15,8 +15,8 @@ type UseMessengerModeParams = {
 
 export const useMessengerMode = ({
   activeId,
-  mode,
-  getActiveWebview,
+  mode: _mode,
+  getActiveWebview: _getActiveWebview,
   blurActiveInWebview,
   resetEditingState,
   setInputValue
