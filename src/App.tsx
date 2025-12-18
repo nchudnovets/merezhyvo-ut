@@ -40,6 +40,7 @@ import { useAppInfo } from './hooks/useAppInfo';
 import { useGlobalToast } from './hooks/useGlobalToast';
 import { useHttpsSecurity } from './hooks/useHttpsSecurity';
 import { useCookiePrivacy } from './hooks/useCookiePrivacy';
+import { useMobileSoftKeyboard } from './hooks/useMobileSoftKeyboard';
 import { useUrlSuggestions } from './hooks/useUrlSuggestions';
 import { useToolbarHeights } from './hooks/useToolbarHeights';
 import { useMessengerMode } from './hooks/useMessengerMode';
@@ -47,11 +48,11 @@ import { usePasswordFlows } from './hooks/usePasswordFlows';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
-import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions, getTabsState } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
+import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
@@ -79,7 +80,6 @@ import { useUiScale } from './hooks/useUiScale';
 import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
-import { bannedCountries } from './config/bannedCountries';
 
 const ZOOM_MIN = 0.5;
 const ZOOM_MAX = 3.5;
@@ -226,6 +226,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewRef = useRef<WebviewTag | null>(null);
   const webviewReadyRef = useRef<boolean>(false);
   const activeWcIdRef = useRef<number | null>(null);
+  const webviewFocusedRef = useRef<boolean>(false);
   const { t } = useI18n();
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
@@ -238,18 +239,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [status, setStatus] = useState<StatusState>('loading');
   const [webviewReady, setWebviewReady] = useState<boolean>(false);
 
-  const [accessBlocked, setAccessBlocked] = useState<boolean>(false);
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | null>(null);
   const { globalToast, showGlobalToast } = useGlobalToast();
-  const [torEnabled, setTorEnabled] = useState<boolean>(false);
-  const [torKeepEnabled, setTorKeepEnabled] = useState<boolean>(false);
-  const [torKeepEnabledDraft, setTorKeepEnabledDraft] = useState<boolean>(false);
-  const [torConfigSaving, setTorConfigSaving] = useState<boolean>(false);
-  const [torConfigFeedback, setTorConfigFeedback] = useState<string>('');
-  const [torIp, setTorIp] = useState<string>('');
-  const [torIpLoading, setTorIpLoading] = useState<boolean>(false);
+  const {
+    accessBlocked,
+    torEnabled,
+    torKeepEnabled,
+    torKeepEnabledDraft,
+    torConfigSaving,
+    torConfigFeedback,
+    torIp,
+    torIpLoading,
+    setTorKeepEnabled,
+    setTorKeepEnabledDraft,
+    setTorConfigFeedback,
+    refreshTorIp,
+    handleTorKeepChange,
+    handleToggleTor
+  } = useTorSettings({ showGlobalToast });
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
@@ -294,11 +303,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
 
-  const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
-  const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
   const oskPressGuardRef = useRef(false);
 
   const appInfo = useAppInfo();
+  const lastEditableMainRef = useRef<HTMLElement | null>(null);
 
   const tabsReadyRef = useRef<boolean>(tabsReady);
   const tabsRef = useRef<Tab[]>(tabs);
@@ -319,8 +327,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const activeIdRef = useRef<string | null>(activeId);
   const activeTabRef = useRef<Tab | null>(activeTab ?? null);
   const lastLoadedRef = useRef<LastLoadedInfo>({ id: null, url: null });
-  const torIpRequestRef = useRef<number>(0);
-  const torAutoStartGuardRef = useRef<boolean>(false);
 
   const isServiceTab = (tab: Tab): boolean => (tab.url ?? '').trim().toLowerCase().startsWith('mzr://');
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned && !isServiceTab(tab)), [tabs]);
@@ -676,20 +682,35 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   getActiveWebview,
 ]);
 
-  const isEditableMainNow = React.useCallback(() => {
+  const isEditableElement = useCallback((element: Element | null) => {
+    if (!element) return false;
+    if (element === inputRef.current) return true;
+    return windowHelpers.isEditableElement(element);
+  }, [inputRef]);
+
+  const isEditableMainNow = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
-    if (!el) return false;
-    if (el.closest?.('[data-soft-keyboard="true"]')) return false;
-    if ((el as any).isContentEditable) return true;
-    if (el.tagName === 'TEXTAREA') return !(el as HTMLTextAreaElement).readOnly && !(el as HTMLTextAreaElement).disabled;
-    if (el.tagName === 'INPUT') {
-      const input = el as HTMLInputElement;
-      const type = (input.getAttribute('type') || 'text').toLowerCase();
-      const nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
-      if (nonText.has(type)) return false;
-      return !input.readOnly && !input.disabled;
+    if (el && el.tagName && el.tagName.toLowerCase() === 'webview') {
+      return false;
     }
+    if (webviewFocusedRef.current) {
+      return false;
+    }
+    if (isEditableElement(el)) return true;
     return false;
+  }, [isEditableElement]);
+
+  const focusLastMainEditable = useCallback(() => {
+    const last = lastEditableMainRef.current;
+    if (!last || !document.contains(last)) {
+      lastEditableMainRef.current = null;
+      return;
+    }
+    try {
+      last.focus({ preventScroll: true });
+    } catch {
+      try { last.focus(); } catch {}
+    }
   }, []);
 
   const onEnterShouldClose = useCallback(async (): Promise<boolean> => {
@@ -714,28 +735,44 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const closeKeyboard = useCallback(() => setKbVisible(false), []);
 
   const injectText = React.useCallback(async (text: string) => {
-    if (isEditableMainNow()) { injectTextToMain(text); return; }
+    if (isEditableMainNow()) {
+      focusLastMainEditable();
+      injectTextToMain(text);
+      return;
+    }
     const ok = await probeWebEditable(getActiveWebview);
     await injectTextToWeb(text);
     if (!ok) {
       // best-effort: even if probe failed, we tried to inject via web
     }
-  }, [getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
 
   const injectBackspace = React.useCallback(async () => {
-    if (isEditableMainNow()) { injectBackspaceToMain(); return; }
+    if (isEditableMainNow()) {
+      focusLastMainEditable();
+      injectBackspaceToMain();
+      return;
+    }
     await injectBackspaceToWeb();
-  }, [injectBackspaceToMain, injectBackspaceToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, injectBackspaceToMain, injectBackspaceToWeb, isEditableMainNow]);
 
   const injectEnter = React.useCallback(async () => {
-    if (isEditableMainNow()) { injectEnterToMain(); return; }
+    if (isEditableMainNow()) {
+      focusLastMainEditable();
+      injectEnterToMain();
+      return;
+    }
     await injectEnterToWeb();
-  }, [injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, injectEnterToMain, injectEnterToWeb, isEditableMainNow]);
 
   const injectArrow = React.useCallback(async (dir: KeyboardDirection) => {
-    if (isEditableMainNow()) { injectArrowToMain(dir); return; }
+    if (isEditableMainNow()) {
+      focusLastMainEditable();
+      injectArrowToMain(dir);
+      return;
+    }
     await injectArrowToWeb(dir);
-  }, [injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
   const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
 
@@ -763,48 +800,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     powerBlockerIdRef.current = null;
   }, []);
-
-  const evaluateAccessRestriction = useCallback(async (ip?: string) => {
-    try {
-      const endpoint = ip && ip.trim().length ? `https://ipapi.co/${ip}/json/` : 'https://ipapi.co/json/';
-      const response = await fetch(endpoint, { cache: 'no-store' });
-      if (!response.ok) {
-        setAccessBlocked(false);
-        return;
-      }
-      const data = (await response.json().catch(() => ({}))) as { country_code?: string };
-      const country = typeof data.country_code === 'string' ? data.country_code.trim().toUpperCase() : '';
-      setAccessBlocked(country ? bannedCountries.includes(country) : false);
-    } catch {
-      setAccessBlocked(false);
-    }
-  }, [setAccessBlocked]);
-
-  const refreshTorIp = useCallback(async (): Promise<void> => {
-    const requestId = Date.now();
-    torIpRequestRef.current = requestId;
-    setTorIpLoading(true);
-    try {
-      const response = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to fetch IP');
-      const data = (await response.json().catch(() => ({}))) as { ip?: string };
-      if (torIpRequestRef.current === requestId) {
-        const ip = typeof data.ip === 'string' ? data.ip : '';
-        setTorIp(ip);
-        evaluateAccessRestriction(ip);
-      }
-    } catch {
-      if (torIpRequestRef.current === requestId) {
-        setTorIp('');
-        evaluateAccessRestriction();
-      }
-    } finally {
-      if (torIpRequestRef.current === requestId) {
-        setTorIpLoading(false);
-      }
-    }
-  }, [evaluateAccessRestriction]);
-
 
   const updatePowerBlocker = useCallback(() => {
     if (playingTabsRef.current.size > 0) {
@@ -928,9 +923,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
 
     injectBaseCss();
+    const handleFocus = () => { webviewFocusedRef.current = true; };
+    const handleBlur = () => { webviewFocusedRef.current = false; };
     view.addEventListener('dom-ready', injectBaseCss);
     view.addEventListener('did-navigate', injectBaseCss);
     view.addEventListener('did-navigate-in-page', injectBaseCss);
+    view.addEventListener('focus', handleFocus);
+    view.addEventListener('blur', handleBlur);
 
     view.addEventListener('page-title-updated', handleTitle);
     view.addEventListener('page-favicon-updated', handleFavicon);
@@ -951,6 +950,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       view.removeEventListener('dom-ready', injectBaseCss);
       view.removeEventListener('did-navigate', injectBaseCss);
       view.removeEventListener('did-navigate-in-page', injectBaseCss);
+      view.removeEventListener('focus', handleFocus);
+      view.removeEventListener('blur', handleBlur);
     };
   }, [destroyTabView, updateMetaAction, updatePowerBlocker, isYouTubeTab]);
 
@@ -2068,12 +2069,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return first ? first.toUpperCase() : '•';
   }, [displayTitleForTab]);
 
-  const isEditableElement = useCallback((element: Element | null) => {
-    if (!element) return false;
-    if (element === inputRef.current) return true;
-    return windowHelpers.isEditableElement(element);
-  }, [inputRef]);
-
   useEffect(() => {
     messengerSettingsRef.current = messengerSettingsState;
   }, [messengerSettingsState]);
@@ -2241,93 +2236,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp]);
 
-  const handleTorKeepChange = useCallback(
-    (next: boolean) => {
-      if (torConfigSaving) return;
-      const previousKeep = torKeepEnabled;
-      setTorKeepEnabledDraft(next);
-      setTorConfigSaving(true);
-      setTorConfigFeedback('');
-
-      void (async () => {
-        try {
-          const result = await ipc.settings.setTorKeepEnabled(next);
-          if (result?.ok) {
-            const keep = Boolean(result.keepEnabled);
-            setTorKeepEnabled(keep);
-            setTorKeepEnabledDraft(keep);
-            setTorConfigFeedback('Saved');
-          } else {
-            setTorKeepEnabled(previousKeep);
-            setTorKeepEnabledDraft(previousKeep);
-            setTorConfigFeedback(result?.error || 'Failed to update Tor preference.');
-          }
-        } catch (err) {
-          setTorKeepEnabled(previousKeep);
-          setTorKeepEnabledDraft(previousKeep);
-          setTorConfigFeedback(String(err));
-        } finally {
-          setTorConfigSaving(false);
-        }
-      })();
-    },
-    [torKeepEnabled, torConfigSaving]
-  );
-
-  const handleToggleTor = useCallback(async () => {
-    try {
-      const state = await torService.toggle();
-      if (!torEnabled && (!state || !state.enabled)) {
-        const reason = state?.reason?.trim() || 'Tor failed to start.';
-        showGlobalToast(reason);
-      }
-    } catch (err) {
-      console.error('[Merezhyvo] tor toggle failed', err);
-      showGlobalToast('Tor toggle failed.');
-    }
-  }, [torEnabled, showGlobalToast]);
-
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
-
-  useEffect(() => {
-    const off = torService.subscribe((enabled) => {
-      setTorEnabled(!!enabled);
-    });
-    torService.getState()
-      .then((state) => {
-        if (state) {
-          setTorEnabled(!!state.enabled);
-        }
-      })
-      .catch(() => {});
-    return () => { if (typeof off === 'function') off(); };
-  }, []);
-
-  useEffect(() => {
-    if (!torKeepEnabled || torEnabled) {
-      torAutoStartGuardRef.current = false;
-      return;
-    }
-    if (torAutoStartGuardRef.current) return;
-    torAutoStartGuardRef.current = true;
-    void (async () => {
-      try {
-        await torService.toggle();
-      } catch (err) {
-        console.error('[Merezhyvo] tor auto-start failed', err);
-      } finally {
-        torAutoStartGuardRef.current = false;
-      }
-    })();
-  }, [torKeepEnabled, torEnabled]);
-
-  useEffect(() => {
-    refreshTorIp();
-  }, [torEnabled, refreshTorIp]);
 
   useEffect(() => {
     refreshNavigationState();
   }, [activeId, refreshNavigationState, tabsReady]);
+
+  useEffect(() => {
+    const handleFocusIn = (event: FocusEvent) => {
+      const target = event.target as HTMLElement | null;
+      if (target && target.tagName && target.tagName.toLowerCase() !== 'webview') {
+        webviewFocusedRef.current = false;
+      }
+      if (isEditableElement(target)) {
+        lastEditableMainRef.current = target;
+      }
+    };
+    document.addEventListener('focusin', handleFocusIn, true);
+    return () => {
+      document.removeEventListener('focusin', handleFocusIn, true);
+    };
+  }, [isEditableElement]);
 
   useEffect(() => {
     if (!isEditingRef.current) return;
@@ -2344,299 +2273,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     });
   }, [inputValue]);
 
-  useEffect(() => {
-    if (mode !== 'mobile') return;
-
-    const onPointerDown = (e: PointerEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (!t) return;
-      const insideOsk = t.closest('[data-soft-keyboard="true"]');
-      if (insideOsk) {
-        oskPressGuardRef.current = true;
-        setTimeout(() => { oskPressGuardRef.current = false; }, 250);
-        return;
-      }
-      if (!isEditableElement(t)) setKbVisible(false);
-    };
-
-    const onFocusIn = (e: FocusEvent) => {
-      const t = e.target as HTMLElement | null;
-      if (!t) return;
-      if (isEditableElement(t)) setKbVisible(true);
-    };
-
-    const onFocusOut = () => {
-      if (oskPressGuardRef.current) return;
-      const active = document.activeElement as HTMLElement | null;
-      if (!isEditableElement(active)) {
-        setKbVisible(false);
-      }
-    };
-
-    document.addEventListener('pointerdown', onPointerDown, true);
-    document.addEventListener('focusin', onFocusIn, true);
-    document.addEventListener('focusout', onFocusOut, true);
-
-    return () => {
-      document.removeEventListener('pointerdown', onPointerDown, true);
-      document.removeEventListener('focusin', onFocusIn, true);
-      document.removeEventListener('focusout', onFocusOut, true);
-    };
-  }, [mode, isEditableElement]);
-
-  useEffect(() => {
-    if (mode !== 'mobile') return;
-    const wv = getActiveWebview();
-    if (!wv) return;
-
-    const bridgeScript = `
-      (function(){
-        try {
-          if (window.__mzrFocusBridgeInstalled) return;
-          window.__mzrFocusBridgeInstalled = true;
-
-          var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
-          function isEditable(el){
-            if(!el) return false;
-            if(el.isContentEditable) return true;
-            var tag = (el.tagName||'').toLowerCase();
-            if(tag==='textarea') return !el.disabled && !el.readOnly;
-            if(tag==='input'){
-              var type = (el.getAttribute('type')||'').toLowerCase();
-              if(nonText.has(type)) return false;
-              return !el.disabled && !el.readOnly;
-            }
-            return false;
-          }
-
-          function markLast(el){
-            try { window.__mzrLastEditable = el; } catch(e) {}
-          }
-
-          function notify(flag){
-            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
-          }
-
-          document.addEventListener('focusin', function(ev){
-            if (isEditable(ev.target)) { markLast(ev.target); notify(true); }
-          }, true);
-
-          document.addEventListener('focusout', function(ev){
-            if (!isEditable(ev.target)) return;
-            setTimeout(function(){
-              var still = isEditable(document.activeElement);
-              if (still) markLast(document.activeElement);
-              notify(still);
-            }, 0);
-          }, true);
-
-          document.addEventListener('pointerdown', function(ev){
-            var t = ev.target;
-            if (isEditable(t)) { markLast(t); notify(true); }
-          }, true);
-
-           // === Merezhyvo: custom <select> overlay for mobile ===
-          (function(){
-            try {
-              if (window.__mzrSelectBridgeInstalled) return;
-              window.__mzrSelectBridgeInstalled = true;
-
-              var win = window;
-              var overlayId = '__mzr_select_overlay';
-
-              function resolveSelectFromEvent(ev){
-                try {
-                  var t = ev && ev.target;
-                  if (!t) return null;
-                  var el = t;
-                  while (el && el.nodeType === 1) {
-                    var tag = (el.tagName || '').toLowerCase();
-                    if (tag === 'select') return el;
-                    el = el.parentElement;
-                  }
-                } catch(_) {}
-                return null;
-              }
-
-              function closeSelectOverlay(doc){
-                try {
-                  doc = doc || document;
-                  var existing = doc.getElementById(overlayId);
-                  if (existing && existing.parentNode) {
-                    existing.parentNode.removeChild(existing);
-                  }
-                } catch(_) {}
-              }
-
-              function openSelectOverlay(el){
-                if (!el || el.disabled) return;
-
-                var doc = el.ownerDocument || document;
-                var body = doc.body || doc.documentElement;
-                var cs = win.getComputedStyle ? win.getComputedStyle(el) : null;
-                var fg = cs ? cs.color : '#f9fafb';
-                var bg = cs && cs.color ? cs.backgroundColor : '#111827';
-
-                closeSelectOverlay(doc);
-
-                var currentValue = el.value;
-
-                var overlay = doc.createElement('div');
-                overlay.id = overlayId;
-                overlay.setAttribute('data-mzr', 'select-overlay');
-
-                overlay.style.position = 'fixed';
-                overlay.style.left = '0';
-                overlay.style.top = '0';
-                overlay.style.right = '0';
-                overlay.style.bottom = '0';
-                overlay.style.zIndex = '999999';
-                overlay.style.background = 'rgba(0,0,0,0.35)';
-                overlay.style.display = 'flex';
-                overlay.style.alignItems = 'flex-end';
-                overlay.style.justifyContent = 'center';
-
-                var panel = doc.createElement('div');
-                panel.style.maxHeight = '60vh';
-                panel.style.width = '100%';
-                panel.style.maxWidth = '480px';
-                panel.style.margin = '0 8px 12px 8px';
-                panel.style.borderRadius = '12px';
-                panel.style.background = bg;
-                panel.style.color = fg;
-                panel.style.boxShadow = '0 10px 30px rgba(0,0,0,0.45)';
-                panel.style.overflowY = 'auto';
-                panel.style.fontFamily =
-                  'system-ui, -apple-system, BlinkMacSystemFont, sans-serif';
-
-                var list = doc.createElement('div');
-                list.style.padding = '4px 0';
-                panel.appendChild(list);
-
-                var opts = el.options || [];
-                for (var i = 0; i < opts.length; i++) {
-                  var opt = opts[i];
-                  if (!opt) continue;
-                  if (opt.disabled) continue;
-
-                  var item = doc.createElement('button');
-                  item.type = 'button';
-                  item.textContent =
-                    opt.textContent || opt.label || opt.value || '';
-                  item.setAttribute('data-value', opt.value);
-
-                  item.style.display = 'block';
-                  item.style.width = '100%';
-                  item.style.textAlign = 'left';
-                  item.style.padding = '10px 14px';
-                  item.style.border = '0';
-                  item.style.outline = 'none';
-                  item.style.background =
-                    (opt.value === currentValue)
-                      ? 'rgba(37,99,235,0.22)'
-                      : 'transparent';
-                  item.style.color = fg;
-                  item.style.fontSize = '14px';
-                  item.style.cursor = 'pointer';
-
-                  item.addEventListener('click', (function(val){
-                    return function(ev){
-                      ev.preventDefault();
-                      ev.stopPropagation();
-                      try {
-                        if (typeof el.focus === 'function') el.focus();
-                      } catch(_) {}
-                      try {
-                        if (val !== el.value) {
-                          el.value = val;
-                          var inputEv = new Event('input', {
-                            bubbles: true,
-                            cancelable: false
-                          });
-                          var changeEv = new Event('change', {
-                            bubbles: true,
-                            cancelable: false
-                          });
-                          el.dispatchEvent(inputEv);
-                          el.dispatchEvent(changeEv);
-                          try {
-                            if (typeof el.reportValidity === 'function') {
-                              el.reportValidity();
-                            }
-                          } catch(_) {}
-                        }
-                      } catch(_) {}
-                      closeSelectOverlay(doc);
-                    };
-                  })(opt.value));
-
-                  list.appendChild(item);
-                }
-
-                overlay.addEventListener('click', function(ev){
-                  if (ev.target === overlay) {
-                    ev.preventDefault();
-                    ev.stopPropagation();
-                    closeSelectOverlay(doc);
-                  }
-                });
-
-                overlay.appendChild(panel);
-                body.appendChild(overlay);
-
-              }
-
-              document.addEventListener('click', function(ev){
-                var el = resolveSelectFromEvent(ev);
-                if (!el) return;
-                if (el.disabled) return;
-
-                try {
-                  if (ev.button != null && ev.button !== 0) return;
-                } catch(_) {}
-
-                ev.preventDefault();
-                ev.stopPropagation();
-
-                openSelectOverlay(el);
-              }, true);
-            } catch(e){}
-          })();
-        } catch(e){}
-      })();
-    `;
-
-
-    const install = () => {
-      try {
-        const r = wv.executeJavaScript(bridgeScript, false);
-        if (r && typeof r.then === 'function') r.catch(()=>{});
-      } catch {}
-    };
-
-    const onConsole = (event: any) => {
-      const msg: string = (event && event.message) || '';
-      if (msg === FOCUS_CONSOLE_ACTIVE) {
-        setKbVisible(true);
-      } else if (msg === FOCUS_CONSOLE_INACTIVE) {
-        if (oskPressGuardRef.current) return;
-        setKbVisible(false);
-      }
-    };
-
-    install();
-    wv.addEventListener('dom-ready', install);
-    wv.addEventListener('did-navigate', install);
-    wv.addEventListener('did-navigate-in-page', install);
-    wv.addEventListener('console-message', onConsole);
-
-    return () => {
-      wv.removeEventListener('dom-ready', install);
-      wv.removeEventListener('did-navigate', install);
-      wv.removeEventListener('did-navigate-in-page', install);
-      wv.removeEventListener('console-message', onConsole);
-    };
-  }, [mode, getActiveWebview, activeId, activeViewRevision]);
+  useMobileSoftKeyboard({
+    mode,
+    isEditableElement,
+    getActiveWebview,
+    activeId,
+    activeViewRevision,
+    setKbVisible,
+    oskPressGuardRef
+  });
   const navigateToUrl = useCallback(
     (raw: string) => {
       const handle = getActiveWebviewHandle();
@@ -3535,11 +3180,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onHeightChange={handleKeyboardHeightChange}
             onInteractionStart={() => {
               oskPressGuardRef.current = true;
-              try { getActiveWebview()?.focus?.(); } catch {}
+              if (!isEditableMainNow()) {
+                try { getActiveWebview()?.focus?.(); } catch {}
+              }
             }}
             onInteractionEnd={() => {
               window.setTimeout(() => { oskPressGuardRef.current = false; }, 150);
-              try { getActiveWebview()?.focus?.(); } catch {}
+              if (!isEditableMainNow()) {
+                try { getActiveWebview()?.focus?.(); } catch {}
+              }
             }}
           />
       <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />
