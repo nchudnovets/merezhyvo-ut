@@ -214,7 +214,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
       </div>
       <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 10 }}>
         <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
-          {t('settings.privacy.trackers.title')}
+          {t('settings.privacy.trackers.heading')}
         </div>
         <label
           style={{

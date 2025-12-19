@@ -53,6 +53,7 @@ const no = {
   'settings.cookies.manageSiteData': 'Behandle nettsteddata',
   'settings.cookies.manageSiteDataList': 'Behandle alle nettsteddata…',
   'settings.privacy.trackers.title': 'Blokker sporere (anbefalt)',
+  'settings.privacy.trackers.heading': 'Blokkering av sporere',
   'settings.privacy.trackers.helper': 'Blokkerer forespørsler til kjente annonse- og analyse-domener.',
   'settings.privacy.trackers.warning': 'Kan skape problemer med innlogging eller betaling på noen nettsteder. For slike kan du slå av dette per side.',
   'settings.privacy.trackers.manageLink': 'Behandle sporer-unntak…',
@@ -184,6 +185,7 @@ const no = {
   'security.trackers.allowToggle': 'Tillat sporere for dette nettstedet',
   'security.trackers.allowHelper': 'Kan være nødvendig for SSO/innlogging/betaling på noen nettsteder.',
   'security.trackers.manageLink': 'Administrer unntak…',
+  'security.exceptions.manageLink': 'Administrer unntak…',
 
   'toast.dismiss': 'Lukk',
 

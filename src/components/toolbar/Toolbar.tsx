@@ -62,6 +62,7 @@ interface ToolbarProps {
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
   onOpenPrivacyInfo?: () => void;
+  onOpenSecurityExceptions?: () => void;
   trackerStatus?: TrackerStatus;
   onToggleTrackerException?: (next: boolean) => void;
   onOpenTrackersExceptions?: () => void;
@@ -106,6 +107,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToggleCookieException,
   onOpenSiteData,
   onOpenPrivacyInfo,
+  onOpenSecurityExceptions,
   trackerStatus,
   onToggleTrackerException,
   onOpenTrackersExceptions
@@ -172,6 +174,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       cookiePolicy={cookiePolicy}
       onToggleCookieException={onToggleCookieException}
       onOpenSiteData={onOpenSiteData}
+      onOpenSecurityExceptions={onOpenSecurityExceptions}
       onOpenPrivacyInfo={onOpenPrivacyInfo}
       trackerStatus={trackerStatus}
       onToggleTrackerException={onToggleTrackerException}

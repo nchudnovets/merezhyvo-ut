@@ -54,6 +54,7 @@ interface AddressBarProps {
   };
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
+  onOpenSecurityExceptions?: () => void;
   onOpenPrivacyInfo?: () => void;
   trackerStatus?: TrackerStatus;
   onToggleTrackerException?: (next: boolean) => void;
@@ -89,6 +90,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onToggleCookieException,
   onOpenSiteData,
   onOpenPrivacyInfo,
+  onOpenSecurityExceptions,
   trackerStatus,
   onToggleTrackerException,
   onOpenTrackersExceptions
@@ -506,6 +508,23 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     <span>{t('cert.actions.allowSite')}</span>
                   </label>
                 ) : null}
+                <button
+                  type="button"
+                  onClick={onOpenSecurityExceptions}
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: mode === 'mobile' ? 10 : 8,
+                    padding: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#93c5fd',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: mode === 'mobile' ? '35px' : '13px'
+                  }}
+                >
+                  {t('security.exceptions.manageLink')}
+                </button>
               </div>
             )}
 

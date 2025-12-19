@@ -2703,6 +2703,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     openInNewTab('mzr://security-exceptions#trackers');
     setSecurityPopoverOpen(false);
   }, [openInNewTab]);
+  const openSecurityExceptionsFromPopover = useCallback(() => {
+    openInNewTab('mzr://security-exceptions');
+    setSecurityPopoverOpen(false);
+  }, [openInNewTab]);
   const openPrivacyInfoFromPopover = useCallback(() => {
     openInNewTab('mzr://privacy-info');
     setSecurityPopoverOpen(false);
@@ -3079,6 +3083,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               cookiePolicy={siteCookiePolicy}
               onToggleCookieException={handleToggleCookieException}
               onOpenSiteData={openSiteDataPage}
+              onOpenSecurityExceptions={() => openInNewTab('mzr://security-exceptions')}
               onOpenPrivacyInfo={openPrivacyInfoFromPopover}
               trackerStatus={trackerStatus}
               onToggleTrackerException={handleToggleTrackerException}
