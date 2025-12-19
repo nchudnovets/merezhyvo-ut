@@ -1335,7 +1335,7 @@ ipcMain.handle('merezhyvo:settings:trackers:get', async () => {
     const state = await readSettingsState();
     const trackers = state.privacy?.trackers;
     return {
-      enabled: typeof trackers?.enabled === 'boolean' ? trackers.enabled : true,
+      enabled: typeof trackers?.enabled === 'boolean' ? trackers.enabled : false,
       exceptions: Array.isArray(trackers?.exceptions) ? trackers.exceptions : []
     } as TrackerPrivacySettings;
   } catch (err) {
@@ -1381,7 +1381,7 @@ ipcMain.handle('merezhyvo:settings:trackers:add-exception', async (_event, paylo
     const nextSettings: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
         ? current.privacy!.trackers!.enabled
-        : true,
+        : false,
       exceptions: next
     };
     await writeSettingsState({
@@ -1413,7 +1413,7 @@ ipcMain.handle('merezhyvo:settings:trackers:remove-exception', async (_event, pa
     const nextSettings: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
         ? current.privacy!.trackers!.enabled
-        : true,
+        : false,
       exceptions: next
     };
     await writeSettingsState({
@@ -1433,7 +1433,7 @@ ipcMain.handle('merezhyvo:settings:trackers:clear-exceptions', async () => {
     const nextSettings: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
         ? current.privacy!.trackers!.enabled
-        : true,
+        : false,
       exceptions: []
     };
     await writeSettingsState({
@@ -1481,7 +1481,7 @@ ipcMain.handle('trackers:setSiteAllowed', async (_event, payload: unknown) => {
     const nextTrackers: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
         ? current.privacy!.trackers!.enabled
-        : true,
+        : false,
       exceptions: Array.from(nextExceptions)
     };
     await writeSettingsState({

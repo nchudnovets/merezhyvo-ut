@@ -169,7 +169,7 @@ const DEFAULT_COOKIE_PRIVACY: CookiePrivacySettings = {
   exceptions: { thirdPartyAllow: {} }
 };
 const DEFAULT_TRACKER_PRIVACY: TrackerPrivacySettings = {
-  enabled: true,
+  enabled: false,
   exceptions: []
 };
 
@@ -391,9 +391,17 @@ export async function writeSettingsState(patch: SettingsLike | SettingsState): P
   }
 
   // 2) Merge current-on-disk with incoming patch (patch wins), then sanitize once.
+  const currentPrivacy = (current as SettingsLike | null)?.privacy ?? {};
+  const patchPrivacy = (patch as SettingsLike | null)?.privacy ?? {};
+  const mergedPrivacy =
+    typeof currentPrivacy === 'object' && currentPrivacy !== null
+      ? { ...currentPrivacy, ...(typeof patchPrivacy === 'object' && patchPrivacy !== null ? patchPrivacy : {}) }
+      : patchPrivacy;
+
   const merged = sanitizeSettingsPayload({
     ...(current ?? {}),
-    ...(patch ?? {})
+    ...(patch ?? {}),
+    ...(mergedPrivacy ? { privacy: mergedPrivacy } : {})
   });
 
   // 3) Persist merged result.

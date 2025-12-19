@@ -35,7 +35,7 @@ const BLOCKLIST_CANDIDATES = [
 ];
 
 const DEFAULT_TRACKER_SETTINGS: TrackerSettings = {
-  enabled: true,
+  enabled: false,
   exceptions: []
 };
 

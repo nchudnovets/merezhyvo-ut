@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TrackerStatus } from '../types/models';
 
 const defaultStatus: TrackerStatus = {
-  enabledGlobal: true,
+  enabledGlobal: false,
   siteHost: null,
   siteAllowed: false,
   blockedCount: 0
