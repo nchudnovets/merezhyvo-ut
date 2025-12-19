@@ -526,6 +526,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
     await api.lock();
     showToast(t('passwords.page.toast.locked'));
     setOverflowOpen(false);
+    onClose?.();
   };
 
   const handleDeleteRequest = (entryId: string) => {
