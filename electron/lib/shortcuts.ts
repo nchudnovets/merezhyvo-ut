@@ -167,20 +167,33 @@ const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
   order: [...DEFAULT_MESSENGER_ORDER]
 };
 
+const MESSENGER_HOST_EXCEPTIONS = [
+  'web.telegram.org',
+  'web.whatsapp.com',
+  'whatsapp.com',
+  'www.messenger.com',
+  'messenger.com'
+];
+
 const DEFAULT_HTTPS_MODE: HttpsMode = 'strict';
 const DEFAULT_SSL_EXCEPTIONS: SslException[] = [];
 const DEFAULT_WEBRTC_MODE: WebrtcMode = 'always_on';
 const DEFAULT_COOKIE_PRIVACY: CookiePrivacySettings = {
   blockThirdParty: false,
-  exceptions: { thirdPartyAllow: {} }
+  exceptions: {
+    thirdPartyAllow: MESSENGER_HOST_EXCEPTIONS.reduce<Record<string, boolean>>((acc, host) => {
+      acc[host] = true;
+      return acc;
+    }, {})
+  }
 };
 const DEFAULT_TRACKER_PRIVACY: TrackerPrivacySettings = {
   enabled: false,
-  exceptions: []
+  exceptions: [...MESSENGER_HOST_EXCEPTIONS]
 };
 const DEFAULT_ADS_PRIVACY: AdsPrivacySettings = {
   enabled: false,
-  exceptions: []
+  exceptions: [...MESSENGER_HOST_EXCEPTIONS]
 };
 
 export const createDefaultSettingsState = (): SettingsState => ({
@@ -196,7 +209,7 @@ export const createDefaultSettingsState = (): SettingsState => ({
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
   webrtcMode: DEFAULT_WEBRTC_MODE,
   privacy: {
-    cookies: { ...DEFAULT_COOKIE_PRIVACY, exceptions: { thirdPartyAllow: {} } },
+    cookies: { ...DEFAULT_COOKIE_PRIVACY },
     trackers: { ...DEFAULT_TRACKER_PRIVACY },
     ads: { ...DEFAULT_ADS_PRIVACY }
   }
@@ -252,6 +265,11 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
       }
     }
   }
+  for (const host of MESSENGER_HOST_EXCEPTIONS) {
+    if (!(host in map)) {
+      map[host] = true;
+    }
+  }
   return {
     blockThirdParty,
     exceptions: { thirdPartyAllow: map }
@@ -265,7 +283,12 @@ export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => 
     ? Array.from(new Set(source.exceptions
       .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
       .filter((item) => item.length > 0)))
-    : [...DEFAULT_TRACKER_PRIVACY.exceptions];
+    : [];
+  for (const host of MESSENGER_HOST_EXCEPTIONS) {
+    if (!exceptions.includes(host)) {
+      exceptions.push(host);
+    }
+  }
   return { enabled, exceptions };
 };
 
@@ -276,7 +299,12 @@ export const sanitizeAdsPrivacy = (raw: unknown): AdsPrivacySettings => {
     ? Array.from(new Set(source.exceptions
       .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
       .filter((item) => item.length > 0)))
-    : [...DEFAULT_ADS_PRIVACY.exceptions];
+    : [];
+  for (const host of MESSENGER_HOST_EXCEPTIONS) {
+    if (!exceptions.includes(host)) {
+      exceptions.push(host);
+    }
+  }
   return { enabled, exceptions };
 };
 
