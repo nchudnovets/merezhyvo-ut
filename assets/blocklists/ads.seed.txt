@@ -1,0 +1,21 @@
+# Minimal seed ad/marketing domains (fallback)
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+pagead2.googlesyndication.com
+adsrvr.org
+adnxs.com
+adnxs.net
+rubiconproject.com
+openx.net
+pubmatic.com
+criteo.com
+criteo.net
+taboola.com
+outbrain.com
+moatads.com
+doubleverify.com
+quantserve.com
+scorecardresearch.com
+yieldmanager.com

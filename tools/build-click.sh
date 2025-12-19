@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-# Перейти в корінь репозиторію (tools/..)
+# Move to the repository root (tools/..)
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 REPO_ROOT="${SCRIPT_DIR}/.."
 cd "${REPO_ROOT}"
@@ -10,15 +10,15 @@ APP_NAME="merezhyvo.naz.r"
 ARCH="arm64"
 OUT_DIR="build"
 
-# .deb, з якого витягаємо tor (arm64)
+# .deb package we extract Tor from (arm64)
 TOR_DEB_URL_DEFAULT="https://ftp.debian.org/debian/pool/main/t/tor/tor_0.4.8.16-1_arm64.deb"
 
-# Шлях до "кешованого" бінарника tor у репозиторії
+# Cached Tor binary + metadata stored in the repo
 TOR_SOURCE_BIN="resources/tor/tor"
 TOR_LICENSE_SOURCE="resources/tor/LICENSE"
 TOR_VERSION_SOURCE="resources/tor/version.txt"
 
-# Шляхи, куди їх треба покласти у зібраний app/
+# Where they must end up inside the packaged app/
 TOR_TARGET_BIN="app/resources/tor/tor"
 TOR_LICENSE_TARGET="app/resources/tor/LICENSE"
 TOR_VERSION_TARGET="app/resources/tor/version.txt"
@@ -42,7 +42,7 @@ else
 
   mkdir -p "${ROOTFS_DIR}"
 
-  # завантаження .deb (curl або wget)
+  # Download .deb (curl or wget)
   if command -v curl >/dev/null 2>&1; then
     curl -L "${TOR_DEB_URL}" -o "${TOR_DEB}"
   elif command -v wget >/dev/null 2>&1; then
@@ -66,14 +66,14 @@ else
     exit 1
   fi
 
-  # зчитати версію tor з метаданих deb
+  # Read Tor version from deb metadata
   echo "    Reading tor version from .deb metadata..."
   TOR_VERSION="$(dpkg-deb -f "${TOR_DEB}" Version || echo "unknown")"
   mkdir -p "$(dirname "${TOR_VERSION_SOURCE}")"
   printf '%s\n' "${TOR_VERSION}" > "${TOR_VERSION_SOURCE}"
   echo "    Tor version: ${TOR_VERSION}"
 
-  # витягти license/copyright
+  # Extract license/copyright
   TOR_COPYRIGHT_PATH="${ROOTFS_DIR}/usr/share/doc/tor/copyright"
   mkdir -p "$(dirname "${TOR_LICENSE_SOURCE}")"
   if [ -f "${TOR_COPYRIGHT_PATH}" ]; then
@@ -94,18 +94,51 @@ else
   echo "    Tor source binary and metadata cached successfully."
 fi
 
-echo "==> Step 1/3: npm ci"
+echo "==> Step 1/4: npm ci"
 npm ci
 
-echo "==> Step 2/3: npm run package (build React + pack Electron for ${ARCH})"
+echo "==> Step 2/4: update blocklists (trackers/ads) -> assets/blocklists/"
+# Set MEREZHYVO_OFFLINE=1 to skip downloading and use existing lists (or seeds)
+if [ "${MEREZHYVO_OFFLINE:-0}" = "1" ]; then
+  node tools/update-blocklists.mjs --offline --out assets/blocklists
+else
+  if ! node tools/update-blocklists.mjs --out assets/blocklists; then
+    echo "WARNING: blocklist update failed; continuing with existing lists (or seeds)."
+  fi
+fi
+
+# Seed fallback: if generated lists are missing, copy from seeds
+mkdir -p assets/blocklists
+
+if [ ! -f "assets/blocklists/trackers.txt" ]; then
+  if [ -f "assets/blocklists/trackers.seed.txt" ]; then
+    echo "[blocklists] trackers.txt missing -> using trackers.seed.txt"
+    cp assets/blocklists/trackers.seed.txt assets/blocklists/trackers.txt
+  else
+    echo "ERROR: assets/blocklists/trackers.txt is missing and trackers.seed.txt not found."
+    exit 1
+  fi
+fi
+
+if [ ! -f "assets/blocklists/ads.txt" ]; then
+  if [ -f "assets/blocklists/ads.seed.txt" ]; then
+    echo "[blocklists] ads.txt missing -> using ads.seed.txt"
+    cp assets/blocklists/ads.seed.txt assets/blocklists/ads.txt
+  else
+    echo "ERROR: assets/blocklists/ads.txt is missing and ads.seed.txt not found."
+    exit 1
+  fi
+fi
+
+echo "==> Step 3/4: npm run package (build React + pack Electron for ${ARCH})"
 npm run package
 
-# Додати QML для UT
+# Add UT QML helper(s)
 mkdir -p app/resources/ut
 cp electron/ut/location_once.qml app/resources/ut/location_once.qml
 
-# Скопіювати tor та його метадані всередину зібраного app/
-echo "==> Step 2.5: copy Tor and metadata into app/resources"
+# Copy Tor and metadata into the packaged app/resources
+echo "==> Step 3.5: copy Tor and metadata into app/resources"
 if [ ! -f "${TOR_SOURCE_BIN}" ] || [ ! -f "${TOR_LICENSE_SOURCE}" ] || [ ! -f "${TOR_VERSION_SOURCE}" ]; then
   echo "ERROR: cached Tor binary and/or metadata missing."
   echo "       Expected:"
@@ -122,15 +155,15 @@ chmod +x "${TOR_TARGET_BIN}"
 cp "${TOR_LICENSE_SOURCE}" "${TOR_LICENSE_TARGET}"
 cp "${TOR_VERSION_SOURCE}" "${TOR_VERSION_TARGET}"
 
-# sanity-check: бінар має існувати
+# Sanity check: the packaged binary must exist
 if [ ! -f "./app/merezhyvo" ]; then
-  echo "ERROR: ./app/merezhyvo не знайдено після 'npm run package'."
+  echo "ERROR: ./app/merezhyvo not found after 'npm run package'."
   exit 1
 fi
 
-echo "==> Step 3/3: clickable build (.click packaging)"
+echo "==> Step 4/4: clickable build (.click packaging)"
 export CLICKABLE_FRAMEWORK='ubuntu-touch-24.04-1.x'
 clickable clean || true
 clickable build --arch "${ARCH}" --accept-review-errors
 
-echo "==> Done. Перевір ${OUT_DIR}/ на наявність *.click"
+echo "==> Done. Check ${OUT_DIR}/ for *.click"

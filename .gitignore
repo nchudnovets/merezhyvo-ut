@@ -42,3 +42,7 @@ tmp/
 **/.gitkeep
 about.md
 yTask.txt
+
+# Generated blocklists (updated during build)
+assets/blocklists/trackers.txt
+assets/blocklists/ads.txt

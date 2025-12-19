@@ -1,0 +1,25 @@
+# Minimal seed tracker domains (fallback)
+google-analytics.com
+googletagmanager.com
+doubleclick.net
+googlesyndication.com
+googleadservices.com
+adservice.google.com
+stats.g.doubleclick.net
+connect.facebook.net
+snap.licdn.com
+static.ads-twitter.com
+analytics.twitter.com
+hotjar.com
+clarity.ms
+mixpanel.com
+amplitude.com
+segment.com
+cdn.segment.com
+heapanalytics.com
+chartbeat.com
+chartbeat.net
+parsely.com
+sentry.io
+nr-data.net
+static.cloudflareinsights.com
