@@ -88,7 +88,12 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         t('privacyInfo.trackers.body8'),
         t('privacyInfo.trackers.body9'),
         t('privacyInfo.trackers.body10'),
-        t('privacyInfo.trackers.body11')
+        t('privacyInfo.trackers.body11'),
+        t('privacyInfo.trackers.body12'),
+        t('privacyInfo.trackers.body13'),
+        t('privacyInfo.trackers.body14'),
+        t('privacyInfo.trackers.body15'),
+        t('privacyInfo.trackers.body16')
       ]
     },
     {
@@ -120,8 +125,8 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
     }
   ];
 
-  const textSize = mode === 'mobile' ? '38px' : '14px';
-  const headingSize = mode === 'mobile' ? '42px' : '18px';
+  const textSize = mode === 'mobile' ? '40px' : '16px';
+  const headingSize = mode === 'mobile' ? '44px' : '18px';
 
   return (
     <div

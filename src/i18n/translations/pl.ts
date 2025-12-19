@@ -530,17 +530,30 @@ const pl = {
   'privacyInfo.cookies.body5': 'W Merezhyvo możesz włączyć lub wyłączyć blokowanie cookies stron trzecich w ustawieniach. Domyślnie jest wyłączone, aby wszystko działało. Możesz je włączyć dla prywatności i dodawać wyjątki dla konkretnych stron, jeśli coś się psuje.',
   'privacyInfo.cookies.body6': 'Możesz dodać wyjątki dla pojedynczych stron, pozwalając na cookies stron trzecich tam, gdzie są potrzebne, przy blokowaniu w innych miejscach.',
   'privacyInfo.trackers.heading': 'Blokowanie trackerów i reklam',
-  'privacyInfo.trackers.body1': 'Trackery to skrypty, piksele i inne żądania z domen zewnętrznych używane do analityki, reklam lub śledzenia zachowań. Nawet jeśli ich nie „widzisz” na stronie, mogą działać w tle.',
-  'privacyInfo.trackers.body2': 'Merezhyvo ma prosty bloker trackerów: blokuje żądania sieciowe do znanych domen analityki/reklam z wbudowanej listy. Nie dotyka witryny z paska adresu, ale może zatrzymać ładowanie zewnętrznych zasobów w środku strony.',
-  'privacyInfo.trackers.body3': 'W panelu bezpieczeństwa (ikona tarczy) jest pozycja „Trackery…”. Pokazuje:',
-  'privacyInfo.trackers.body4': '– domenę bieżącej strony;',
-  'privacyInfo.trackers.body5': '– ile żądań trackerów zablokowano.',
-  'privacyInfo.trackers.body6': 'Licznik rośnie, gdy przeglądasz ten sam serwis w zakładce. Jeśli w tej samej zakładce przejdziesz na inną stronę (inna domena w pasku), licznik resetuje się i liczy od nowa dla nowej strony.',
-  'privacyInfo.trackers.body7': 'Jeśli blokowanie coś psuje (logowanie, płatność, wideo, przyciski „Zaloguj przez …”), możesz tam włączyć wyjątek:',
-  'privacyInfo.trackers.body8': '– „Zezwól na trackery dla tej strony”.',
-  'privacyInfo.trackers.body9': 'Gdy dla strony włączono wyjątek bezpieczeństwa lub prywatności (np. trackery dozwolone lub zmienione reguły cookies), tarcza staje się żółta — przypomnienie, że świadomie obniżyłeś ochronę dla tej domeny.',
-  'privacyInfo.trackers.body10': 'Jest też globalne ustawienie „Blokuj trackery”, a wyjątkami możesz zarządzać na stronie mzr://security-exceptions.',
-  'privacyInfo.trackers.body11': 'Blokowanie trackerów i blokowanie cookies stron trzecich to różne mechanizmy. Cookies to zapisane dane, a bloker trackerów zatrzymuje część żądań sieciowych. Można je włączać niezależnie.',
+  'privacyInfo.trackers.body1':
+    'Trackery to skrypty, piksele i inne żądania z domen zewnętrznych używane do analityki, reklam lub śledzenia zachowań. Nawet jeśli ich nie „widzisz” na stronie, mogą działać w tle.',
+  'privacyInfo.trackers.body2':
+    'Merezhyvo ma prosty bloker trackerów i reklam: przeglądarka blokuje żądania sieciowe do znanych domen analityki i sieci reklamowych z wbudowanych list. Nie dotyka witryny z paska adresu, ale może zatrzymać ładowanie zewnętrznych zasobów w środku strony.',
+  'privacyInfo.trackers.body3':
+    'W ustawieniach są dwa osobne przełączniki: blokowanie trackerów i blokowanie reklam. Możesz je włączać niezależnie. Dla części stron wystarczy blokować tylko trackery, a blokowanie reklam może mocniej wpływać na działanie stron.',
+  'privacyInfo.trackers.body4': 'W panelu bezpieczeństwa (ikona tarczy) jest pozycja „Trackery i reklamy”. Pokazuje:',
+  'privacyInfo.trackers.body5': '– domenę bieżącej strony;',
+  'privacyInfo.trackers.body6': '– zablokowane łącznie;',
+  'privacyInfo.trackers.body7': '– zablokowane reklamy;',
+  'privacyInfo.trackers.body8': '– zablokowane trackery.',
+  'privacyInfo.trackers.body9':
+    'Licznik rośnie, gdy przeglądasz ten sam serwis w zakładce. Jeśli w tej samej zakładce przejdziesz na inną stronę (inna domena w pasku), licznik zeruje się i liczy od nowa dla nowej strony.',
+  'privacyInfo.trackers.body10': 'Jeśli blokowanie coś psuje (logowanie, płatność, wideo, przyciski „Zaloguj przez …”), możesz tam włączyć wyjątek:',
+  'privacyInfo.trackers.body11': '– „Zezwól na trackery dla tej strony”;',
+  'privacyInfo.trackers.body12': '– „Zezwól na reklamy dla tej strony”.',
+  'privacyInfo.trackers.body13':
+    'Gdy dla strony włączono wyjątek bezpieczeństwa lub prywatności (np. trackery dozwolone albo zmienione reguły cookies), tarcza staje się żółta — przypomnienie, że świadomie obniżyłeś ochronę dla tej domeny.',
+  'privacyInfo.trackers.body14':
+    'Ważne: nawet z włączonym blokowaniem reklam wciąż możesz widzieć reklamy na niektórych stronach. Powody: – część reklam może być serwowana z tej samej domeny co serwis (treść first-party) i trudno ją odróżnić od zwykłych elementów; – reklama może być wbudowana bezpośrednio w HTML lub skrypty bez osobnych żądań do domen reklamowych; – niektóre strony używają neutralnych domen dostawczych (CDN), które zawierają zarówno potrzebne zasoby, jak i bloki reklam — ich pełne blokowanie często psuje stronę. Blokowanie domen mocno ogranicza wiele żądań reklamowych i trackingowych, ale nie gwarantuje zniknięcia wszystkich reklam wszędzie.',
+  'privacyInfo.trackers.body15':
+    'Są też globalne ustawienia „Blokuj trackery” i „Blokuj reklamy”, a wyjątkami możesz zarządzać na stronie mzr://security-exceptions.',
+  'privacyInfo.trackers.body16':
+    'Blokowanie trackerów/reklam i blokowanie cookies stron trzecich to różne mechanizmy. Cookies to zapisane dane, a bloker trackerów i reklam zatrzymuje część żądań sieciowych. Można je włączać niezależnie.',
   'privacyInfo.siteData.heading': 'Zarządzanie danymi witryn',
   'privacyInfo.siteData.body1': 'Strona „Zarządzaj danymi witryn” pokazuje, które strony zapisały cookies lub inne dane i pozwala je usuwać wybiórczo albo wszystkie naraz.',
   'privacyInfo.siteData.body2': 'Na liście są zarówno strony odwiedzone bezpośrednio, jak i usługi zewnętrzne osadzone w tych stronach (CDN, fonty, analityka, trackery).',
