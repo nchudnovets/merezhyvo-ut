@@ -8,7 +8,7 @@ import type {
   FocusEvent,
   FormEvent
 } from 'react';
-import type { Mode } from '../../types/models';
+import type { Mode, TrackerStatus } from '../../types/models';
 import { useI18n } from '../../i18n/I18nProvider';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 
@@ -55,6 +55,9 @@ interface AddressBarProps {
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
   onOpenPrivacyInfo?: () => void;
+  trackerStatus?: TrackerStatus;
+  onToggleTrackerException?: (next: boolean) => void;
+  onOpenTrackersExceptions?: () => void;
 }
 
 const AddressBar: React.FC<AddressBarProps> = ({
@@ -85,7 +88,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
   cookiePolicy,
   onToggleCookieException,
   onOpenSiteData,
-  onOpenPrivacyInfo
+  onOpenPrivacyInfo,
+  trackerStatus,
+  onToggleTrackerException,
+  onOpenTrackersExceptions
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
@@ -159,7 +165,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
     height: indicatorSize,
     right: mode === 'mobile' ? '20px' : '10px'
   };
-  const [securityView, setSecurityView] = React.useState<'root' | 'connection' | 'cookies'>('root');
+  const [securityView, setSecurityView] = React.useState<'root' | 'connection' | 'cookies' | 'trackers'>('root');
   React.useEffect(() => {
     if (!securityOpen) {
       setSecurityView('root');
@@ -327,6 +333,71 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     strokeWidth="1.5"
                     strokeLinecap="round"
                     strokeLinejoin="round"
+                >
+                  <path d="M5.5 3 10 8l-4.5 5" />
+                </svg>
+              </button>
+              <button
+                type="button"
+                onClick={() => setSecurityView('trackers')}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: 12,
+                  padding: mode === 'mobile' ? '18px 16px' : '12px 10px',
+                  borderRadius: 10,
+                  border:
+                    trackerStatus?.enabledGlobal && trackerStatus?.siteAllowed
+                      ? '1px solid #fbbf24'
+                      : '1px solid rgba(148,163,184,0.35)',
+                  background: 'rgba(15,23,42,0.6)',
+                  color:
+                    trackerStatus?.enabledGlobal && trackerStatus?.siteAllowed
+                      ? '#fbbf24'
+                      : '#e2e8f0',
+                  cursor: 'pointer'
+                }}
+              >
+                <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+                  <svg
+                    viewBox="0 0 24 24"
+                    width={mode === 'mobile' ? 48 : 18}
+                    height={mode === 'mobile' ? 48 : 18}
+                    fill="currentColor"
+                    aria-hidden="true"
+                  >
+                    <path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4z" />
+                  </svg>
+                  <div style={{ textAlign: 'left' }}>
+                    <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '14px' }}>{t('security.trackers.menuTitle')}</div>
+                    <div
+                      style={{
+                        opacity: 0.9,
+                        fontSize: mode === 'mobile' ? '33px' : '13px',
+                        color:
+                          trackerStatus?.enabledGlobal && trackerStatus?.siteAllowed
+                            ? '#fbbf24'
+                            : undefined
+                      }}
+                    >
+                      {!trackerStatus?.enabledGlobal
+                        ? t('security.trackers.statusDisabled')
+                        : trackerStatus?.siteAllowed
+                          ? t('security.trackers.statusAllowed')
+                          : t('security.trackers.statusBlocked', { count: trackerStatus?.blockedCount ?? 0 })}
+                    </div>
+                  </div>
+                </div>
+                <svg
+                  viewBox="0 0 16 16"
+                  width={mode === 'mobile' ? 28 : 14}
+                  height={mode === 'mobile' ? 28 : 14}
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="1.5"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
                 >
                   <path d="M5.5 3 10 8l-4.5 5" />
                 </svg>
@@ -555,6 +626,126 @@ const AddressBar: React.FC<AddressBarProps> = ({
                   }}
                 >
                   {t('siteData.manageLink')}
+                </button>
+              </div>
+            )}
+
+            {securityView === 'trackers' && (
+              <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 20 : 10 }}>
+                  <button
+                    type="button"
+                    onClick={() => setSecurityView('root')}
+                    aria-label={t('security.popup.back')}
+                    style={{
+                      background: 'transparent',
+                      border: '1px solid rgba(148,163,184,0.35)',
+                      color: '#e2e8f0',
+                      width: mode === 'mobile' ? 52 : 30,
+                      height: mode === 'mobile' ? 52 : 30,
+                      borderRadius: 8,
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      justifyContent: 'center',
+                      cursor: 'pointer'
+                    }}
+                  >
+                    <svg
+                      viewBox="0 0 16 16"
+                      width={mode === 'mobile' ? 24 : 14}
+                      height={mode === 'mobile' ? 24 : 14}
+                      fill="none"
+                      stroke="currentColor"
+                      strokeWidth="1.5"
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                    >
+                      <path d="M10 3.5 5.5 8 10 12.5" />
+                    </svg>
+                  </button>
+                  <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '16px' }}>
+                    {t('security.trackers.heading')}
+                  </div>
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  {t('security.trackers.site', { host: trackerStatus?.siteHost || '—' })}
+                </div>
+                <div style={{ marginBottom: '4px' }}>
+                  {t('security.trackers.blockedCount', { count: trackerStatus?.blockedCount ?? 0 })}
+                </div>
+                {trackerStatus?.siteHost ? (
+                  <label
+                    style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: mode === 'mobile' ? 20 : 10,
+                      marginTop: 6
+                    }}
+                  >
+                    <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
+                      <input
+                        type="checkbox"
+                        checked={Boolean(trackerStatus.siteAllowed)}
+                        onChange={(e) => onToggleTrackerException?.(e.target.checked)}
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          margin: 0,
+                          opacity: 0,
+                          cursor: 'pointer',
+                          zIndex: 2
+                        }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          inset: 0,
+                          borderRadius: 999,
+                          backgroundColor: trackerStatus.siteAllowed ? '#2563ebeb' : 'transparent',
+                          border: '1px solid #ACB2B7',
+                          transition: 'background-color 160ms ease, border-color 160ms ease'
+                        }}
+                      />
+                      <span
+                        aria-hidden="true"
+                        style={{
+                          position: 'absolute',
+                          top: mode === 'mobile' ? 4 : 2,
+                          left: trackerStatus.siteAllowed ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+                          width: mode === 'mobile' ? 32 : 16,
+                          height: mode === 'mobile' ? 32 : 16,
+                          borderRadius: '50%',
+                          backgroundColor: trackerStatus.siteAllowed ? '#ffffff' : '#ACB2B7',
+                          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                          transition: 'left 160ms ease'
+                        }}
+                      />
+                    </span>
+                    <span style={{ fontWeight: 600 }}>
+                      {t('security.trackers.allowToggle')}
+                    </span>
+                  </label>
+                ) : null}
+                <div style={{ opacity: 0.78, fontSize: mode === 'mobile' ? '32px' : '13px', lineHeight: 1.35 }}>
+                  {t('security.trackers.allowHelper')}
+                </div>
+                <button
+                  type="button"
+                  onClick={onOpenTrackersExceptions}
+                  style={{
+                    alignSelf: 'flex-start',
+                    marginTop: mode === 'mobile' ? 10 : 8,
+                    padding: 0,
+                    background: 'transparent',
+                    border: 'none',
+                    color: '#93c5fd',
+                    cursor: 'pointer',
+                    textDecoration: 'underline',
+                    fontSize: mode === 'mobile' ? '35px' : '13px'
+                  }}
+                >
+                  {t('security.trackers.manageLink')}
                 </button>
               </div>
             )}

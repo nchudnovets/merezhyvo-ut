@@ -44,6 +44,13 @@ export interface TabsSnapshot {
   activeId: string | null;
 }
 
+export type TrackerStatus = {
+  enabledGlobal: boolean;
+  siteHost: string | null;
+  siteAllowed: boolean;
+  blockedCount: number;
+};
+
 export interface HistoryVisit {
   id: string;
   ts: number;
@@ -194,6 +201,11 @@ export type CookiePrivacySettings = {
   };
 };
 
+export type TrackerPrivacySettings = {
+  enabled: boolean;
+  exceptions: string[];
+};
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -206,6 +218,7 @@ export interface SettingsState {
   webrtcMode: WebrtcMode;
   privacy?: {
     cookies?: CookiePrivacySettings;
+    trackers?: TrackerPrivacySettings;
   };
 }
 

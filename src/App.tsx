@@ -45,6 +45,7 @@ import { useUrlSuggestions } from './hooks/useUrlSuggestions';
 import { useToolbarHeights } from './hooks/useToolbarHeights';
 import { useMessengerMode } from './hooks/useMessengerMode';
 import { usePasswordFlows } from './hooks/usePasswordFlows';
+import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
@@ -278,6 +279,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     hasSslException,
     shouldBlockCert
   } = useHttpsSecurity();
+  const {
+    status: trackerStatus,
+    refreshStatus: refreshTrackerStatus,
+    setEnabledGlobal: setTrackersEnabledGlobal,
+    setSiteAllowed: setTrackersSiteAllowed
+  } = useTrackerBlocking();
   const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
@@ -1344,6 +1351,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     };
   }, [activeId, activeViewRevision, applyZoomPolicy, getActiveWebview, webviewReady]);
 
+  useEffect(() => {
+    void refreshTrackerStatus(activeWcIdRef.current ?? null);
+  }, [activeViewRevision, refreshTrackerStatus]);
+
   const handleZoomSliderChange = useCallback((event: ChangeEvent<HTMLInputElement>) => {
     const { valueAsNumber, value } = event.target;
     const candidate = Number.isFinite(valueAsNumber) ? valueAsNumber : Number(value);
@@ -1649,7 +1660,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       Object.keys(cookieExceptionsMap).some(
         (key) => key && activeSecurityHost && isSubdomainOrSame(activeSecurityHost, key)
       ));
-  const securityState: SecurityIndicatorState = certProblem ? 'warn' : hasCookieException ? 'notice' : 'ok';
+  const trackerExceptionAllowed = Boolean(trackerStatus.enabledGlobal && trackerStatus.siteAllowed);
+  const securityState: SecurityIndicatorState = certProblem
+    ? 'warn'
+    : hasCookieException || trackerExceptionAllowed
+      ? 'notice'
+      : 'ok';
   const siteCookiePolicy = useMemo(
     () => ({
       blockThirdParty: cookiePrivacy.blockThirdParty,
@@ -2423,6 +2439,23 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [activeSecurityHost, handleReload, setCookiePrivacy]
   );
 
+  const handleToggleTrackerException = useCallback(
+    async (allow: boolean) => {
+      const host = trackerStatus.siteHost;
+      if (!host) return;
+      try {
+        await setTrackersSiteAllowed(host, allow);
+        await refreshTrackerStatus(activeWcIdRef.current ?? null);
+        if (!allow) {
+          handleReload();
+        }
+      } catch (err) {
+        console.error('[merezhyvo] tracker exception toggle failed', err);
+      }
+    },
+    [handleReload, refreshTrackerStatus, setTrackersSiteAllowed, trackerStatus.siteHost]
+  );
+
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'url';
   }, []);
@@ -2666,6 +2699,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     },
     [normalizeSiteDataHost, openInNewTab]
   );
+  const openTrackersExceptionsFromPopover = useCallback(() => {
+    openInNewTab('mzr://security-exceptions#trackers');
+    setSecurityPopoverOpen(false);
+  }, [openInNewTab]);
   const openPrivacyInfoFromPopover = useCallback(() => {
     openInNewTab('mzr://privacy-info');
     setSecurityPopoverOpen(false);
@@ -3043,6 +3080,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onToggleCookieException={handleToggleCookieException}
               onOpenSiteData={openSiteDataPage}
               onOpenPrivacyInfo={openPrivacyInfoFromPopover}
+              trackerStatus={trackerStatus}
+              onToggleTrackerException={handleToggleTrackerException}
+              onOpenTrackersExceptions={openTrackersExceptionsFromPopover}
             />
           )}
 
@@ -3132,6 +3172,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
               onOpenSiteData={openSiteDataFromSettings}
               onOpenPrivacyInfo={openPrivacyInfoFromSettings}
+              trackersEnabled={trackerStatus.enabledGlobal}
+              onTrackersEnabledChange={setTrackersEnabledGlobal}
+              onOpenTrackersExceptions={openSecurityExceptionsFromSettings}
             />
           )}
 

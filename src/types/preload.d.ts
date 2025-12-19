@@ -40,7 +40,9 @@ import type {
   CertificateInfo,
   HttpsMode,
   SslException,
-  WebrtcMode
+  WebrtcMode,
+  TrackerPrivacySettings,
+  TrackerStatus
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -219,12 +221,19 @@ export interface MerezhyvoAPI {
   };
   settings: {
     load(): Promise<MerezhyvoSettingsState>;
-    cookies: {
-      get(): Promise<CookiePrivacyState>;
-      setBlock(blockThirdParty: boolean): Promise<CookiePrivacyState>;
-      setException(host: string, allow: boolean): Promise<CookiePrivacyState>;
-      listExceptions(): Promise<Record<string, boolean>>;
-      clearExceptions(): Promise<CookiePrivacyState>;
+  cookies: {
+    get(): Promise<CookiePrivacyState>;
+    setBlock(blockThirdParty: boolean): Promise<CookiePrivacyState>;
+    setException(host: string, allow: boolean): Promise<CookiePrivacyState>;
+    listExceptions(): Promise<Record<string, boolean>>;
+    clearExceptions(): Promise<CookiePrivacyState>;
+  };
+    trackers: {
+      get(): Promise<TrackerPrivacySettings>;
+      setEnabled(enabled: boolean): Promise<TrackerPrivacySettings>;
+      addException(host: string): Promise<TrackerPrivacySettings>;
+      removeException(host: string): Promise<TrackerPrivacySettings>;
+      clearExceptions(): Promise<TrackerPrivacySettings>;
     };
     tor: {
       setKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult>;
@@ -271,6 +280,13 @@ export interface MerezhyvoAPI {
       get(): Promise<DownloadsSettings>;
       set(payload: Partial<DownloadsSettings>): Promise<DownloadsSettings>;
     };
+  };
+  trackers?: {
+    getStatus(payload: { webContentsId?: number | null }): Promise<TrackerStatus>;
+    setEnabled(enabled: boolean): Promise<TrackerPrivacySettings>;
+    setSiteAllowed(payload: { siteHost: string; allowed: boolean }): Promise<TrackerPrivacySettings>;
+    clearExceptions(): Promise<TrackerPrivacySettings>;
+    onStats(handler: (payload: TrackerStatus) => void): MerezhyvoUnsubscribe;
   };
   power: {
     start(): Promise<number | null>;

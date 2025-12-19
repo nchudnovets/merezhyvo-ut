@@ -3,7 +3,7 @@ import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
-import type { Mode } from '../../types/models';
+import type { Mode, TrackerStatus } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { TelegramIcon } from '../messenger/MessengerIcon';
 
@@ -62,6 +62,9 @@ interface ToolbarProps {
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
   onOpenPrivacyInfo?: () => void;
+  trackerStatus?: TrackerStatus;
+  onToggleTrackerException?: (next: boolean) => void;
+  onOpenTrackersExceptions?: () => void;
 }
 
 const Toolbar: React.FC<ToolbarProps> = ({
@@ -102,7 +105,10 @@ const Toolbar: React.FC<ToolbarProps> = ({
   cookiePolicy,
   onToggleCookieException,
   onOpenSiteData,
-  onOpenPrivacyInfo
+  onOpenPrivacyInfo,
+  trackerStatus,
+  onToggleTrackerException,
+  onOpenTrackersExceptions
 }) => {
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
@@ -167,6 +173,9 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onToggleCookieException={onToggleCookieException}
       onOpenSiteData={onOpenSiteData}
       onOpenPrivacyInfo={onOpenPrivacyInfo}
+      trackerStatus={trackerStatus}
+      onToggleTrackerException={onToggleTrackerException}
+      onOpenTrackersExceptions={onOpenTrackersExceptions}
     />
 
     {!compact && (

@@ -14,6 +14,9 @@ type SecuritySettingsProps = {
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
+  trackersEnabled: boolean;
+  onTrackersEnabledChange: (enabled: boolean) => void;
+  onOpenTrackersExceptions: () => void;
 };
 
 const radioStyle = (mode: Mode): React.CSSProperties => ({
@@ -35,7 +38,10 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   onCookieBlockChange,
   onOpenSecurityExceptions,
   onOpenSiteData,
-  onOpenPrivacyInfo
+  onOpenPrivacyInfo,
+  trackersEnabled,
+  onTrackersEnabledChange,
+  onOpenTrackersExceptions
 }) => {
   const { t } = useI18n();
   const radioSize = mode === 'mobile' ? 40 : 18;
@@ -202,6 +208,31 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             </div>
             <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.webrtc.offWithTorDesc')}
+            </div>
+          </div>
+        </label>
+      </div>
+      <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 10 }}>
+        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+          {t('settings.privacy.trackers.title')}
+        </div>
+        <label
+          style={{
+            ...radioStyle(mode),
+            alignItems: 'center',
+            gap: mode === 'mobile' ? 22 : 12
+          }}
+        >
+          {renderToggle(trackersEnabled, onTrackersEnabledChange)}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.privacy.trackers.title')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.privacy.trackers.helper')}
+            </div>
+            <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 6 }}>
+              {t('settings.privacy.trackers.warning')}
             </div>
           </div>
         </label>

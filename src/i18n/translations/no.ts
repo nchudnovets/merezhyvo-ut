@@ -49,9 +49,13 @@ const no = {
     'Informasjonskapsler fra innebygd tredjepartsinnhold (sporere, annonser osv.) kan blokkeres.',
   'settings.cookies.warning':
     'Obs: Dette kan ødelegge innlogging på noen nettsteder. Du kan tillate tredjeparts informasjonskapsler per nettsted ved behov.',
-  'settings.cookies.manageLink': 'Behandle sikkerhetsunntak…',
+  'settings.cookies.manageLink': 'Administrer unntak for personvern og sikkerhet…',
   'settings.cookies.manageSiteData': 'Behandle nettsteddata',
   'settings.cookies.manageSiteDataList': 'Behandle alle nettsteddata…',
+  'settings.privacy.trackers.title': 'Blokker sporere (anbefalt)',
+  'settings.privacy.trackers.helper': 'Blokkerer forespørsler til kjente annonse- og analyse-domener.',
+  'settings.privacy.trackers.warning': 'Kan skape problemer med innlogging eller betaling på noen nettsteder. For slike kan du slå av dette per side.',
+  'settings.privacy.trackers.manageLink': 'Behandle sporer-unntak…',
 
   'siteData.manageLink': 'Behandle nettsteddata',
 
@@ -161,6 +165,10 @@ const no = {
   'security.popup.title': 'Nettstedssikkerhet',
   'security.popup.connection': 'Tilkobling og sertifikat',
   'security.popup.cookies': 'Informasjonskapsler og nettsteddata',
+  'security.trackers.menuTitle': 'Sporere og annonser',
+  'security.trackers.statusDisabled': 'Blokkering deaktivert',
+  'security.trackers.statusAllowed': 'Sporere tillatt (unntak)',
+  'security.trackers.statusBlocked': 'Blokkert: {count}',
   'security.popup.back': 'Tilbake',
 
   'security.cookies.status.allowedException':
@@ -170,6 +178,12 @@ const no = {
   'security.cookies.status.allowedGlobal': 'Tredjeparts informasjonskapsler er tillatt (global innstilling).',
   'security.cookies.toggle': 'Tillat tredjeparts informasjonskapsler på dette nettstedet',
   'security.cookies.hint': 'Du kan trenge dette for enkel pålogging eller betalingsflyter på noen nettsteder.',
+  'security.trackers.heading': 'Sporere og annonser',
+  'security.trackers.site': 'Nettsted: {host}',
+  'security.trackers.blockedCount': 'Blokkert: {count}',
+  'security.trackers.allowToggle': 'Tillat sporere for dette nettstedet',
+  'security.trackers.allowHelper': 'Kan være nødvendig for SSO/innlogging/betaling på noen nettsteder.',
+  'security.trackers.manageLink': 'Administrer unntak…',
 
   'toast.dismiss': 'Lukk',
 
@@ -208,6 +222,12 @@ const no = {
   'securityExceptions.empty': 'Ingen unntak lagt til ennå.',
   'securityExceptions.toggle': 'Tillat tredjeparts informasjonskapsler',
   'securityExceptions.remove': 'Fjern',
+  'exceptions.trackers.heading': 'Unntak for blokkering av sporere',
+  'exceptions.trackers.description': 'Tillat sporere på nettsteder der innlogging/betaling ikke fungerer uten dem.',
+  'exceptions.trackers.clearAll': 'Tøm alle sporer-unntak',
+  'exceptions.trackers.toggle': 'Tillat sporere',
+  'exceptions.trackers.confirmClear': 'Slette alle sporer-unntak?',
+  'exceptions.trackers.noEntries': 'Ingen sporer-unntak.',
 
   'licenses.title': 'Lisenser',
   'licenses.hide': 'Skjul innhold',
@@ -567,7 +587,7 @@ const no = {
   'privacyInfo.certs.body4':
     '– Rødt skjold – noe er galt: sertifikatet mangler, er utløpt, ugyldig eller tilbakekalt, eller siden lastes over vanlig http://. Tilkoblingen er ikke fullt beskyttet og kan være utrygg.',
   'privacyInfo.certs.body5':
-    '– Gult skjold – du har lagt til et tilpasset personvern- eller sikkerhetsunntak for dette nettstedet (for eksempel at du tillot et ødelagt sertifikat eller endret informasjonskapsel-atferd bare her).',
+    '– Gult skjold – du har lagt til et tilpasset personvern- eller sikkerhetsunntak for dette nettstedet (for eksempel tillatt et ødelagt sertifikat, endret cookie-regler bare her eller tillatt trackere for dette nettstedet).',
   'privacyInfo.certs.body6':
     'Hvis du velger å ignorere en sertifikatsvarsel, lar nettleseren deg åpne siden, men selve tilkoblingen blir ikke tryggere — du aksepterer bare risikoen.',
   'privacyInfo.certs.body7':
@@ -576,8 +596,10 @@ const no = {
   'privacyInfo.certs.body9':
     '– sjekke om tredjeparts informasjonskapsler er blokkert eller eksplisitt tillatt for dette nettstedet, og slå på/av dette unntaket;',
   'privacyInfo.certs.body10':
-    '– følge lenken «Behandle nettsteddata» for å åpne en full liste over lagrede informasjonskapsler og nettsteddata for dette nettstedet.',
+    '– sjekke om trackerblokkering er på for dette nettstedet, se hvor mange forespørsler som ble blokkert, og eventuelt tillate trackere som unntak;',
   'privacyInfo.certs.body11':
+    '– følge lenken «Behandle nettsteddata» for å åpne en full liste over lagrede informasjonskapsler og nettsteddata for dette nettstedet.',
+  'privacyInfo.certs.body12':
     'Hvis noe er galt, blir den tilsvarende raden i dette panelet markert i rødt eller gult, som matcher fargen på skjoldet.',
 
   'privacyInfo.webrtc.heading': 'WebRTC',
@@ -608,6 +630,25 @@ const no = {
     'I Merezhyvo kan du slå blokkering av tredjeparts informasjonskapsler av eller på i innstillingene. Som standard er det av, slik at alle nettsteder fungerer normalt. Du kan aktivere blokkering som et bevisst personvernvalg og deretter legge til unntak per nettsted hvis et bestemt nettsted slutter å fungere.',
   'privacyInfo.cookies.body6':
     'Du kan legge til unntak per nettsted hvis du trenger at noen nettsteder tillater tredjeparts informasjonskapsler, mens de forblir blokkert andre steder.',
+  'privacyInfo.trackers.heading': 'Blokkering av trackere og reklame',
+  'privacyInfo.trackers.body1':
+    'Trackere er skript, piksler og andre forespørsler som lastes fra tredjepartsdomener for analyse, annonser eller sporing av atferd. Selv om du ikke «ser» dem på siden, kan de kjøre i bakgrunnen.',
+  'privacyInfo.trackers.body2':
+    'Merezhyvo har en enkel tracker-blokker: nettleseren blokkerer nettverksforespørsler til kjente analyse-/annonsedomener fra en innebygd liste. Dette påvirker ikke nettstedet i adressefeltet, men kan stoppe innlasting av tredjepartsressurser inne på siden.',
+  'privacyInfo.trackers.body3': 'I sikkerhetspanelet (skjoldikonet) finnes punktet «Trackere…». Der ser du:',
+  'privacyInfo.trackers.body4': '– domenet til det aktuelle nettstedet;',
+  'privacyInfo.trackers.body5': '– hvor mange tracker-forespørsler som ble blokkert.',
+  'privacyInfo.trackers.body6':
+    'Telleren øker mens du surfer på samme nettsted i fanen. Går du i samme fane til et annet nettsted (annet domene i adressefeltet), nullstilles telleren og begynner for det nye nettstedet.',
+  'privacyInfo.trackers.body7':
+    'Hvis blokkeringen bryter noe (innlogging, betaling, video, «Logg inn med …»-knapper), kan du der aktivere et unntak:',
+  'privacyInfo.trackers.body8': '– «Tillat trackere for dette nettstedet».',
+  'privacyInfo.trackers.body9':
+    'Når et nettsted har et sikkerhets- eller personvernsunntak (f.eks. trackere tillatt eller endrede cookie-regler), blir skjoldet gult — en påminnelse om at du bevisst har senket beskyttelsen for dette domenet.',
+  'privacyInfo.trackers.body10':
+    'Det finnes også en global innstilling «Blokker trackere», og du kan administrere unntak på mzr://security-exceptions.',
+  'privacyInfo.trackers.body11':
+    'Tracker-blokkering og blokkering av tredjepartscookies er ulike mekanismer. Cookies er lagrede data, mens tracker-blokkeren stopper visse nettverksforespørsler. Du kan slå dem på uavhengig av hverandre.',
 
   'privacyInfo.siteData.heading': 'Behandling av nettsteddata',
   'privacyInfo.siteData.body1':

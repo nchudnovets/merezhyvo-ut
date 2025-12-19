@@ -12,7 +12,7 @@ import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 import { INTERNAL_BASE_FOLDER } from './internal-paths';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 6;
+export const SETTINGS_SCHEMA = 7;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -50,6 +50,11 @@ export type CookiePrivacySettings = {
   };
 };
 
+export type TrackerPrivacySettings = {
+  enabled: boolean;
+  exceptions: string[];
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -63,6 +68,7 @@ export type SettingsState = {
   permissions?: unknown;
   privacy?: {
     cookies?: CookiePrivacySettings;
+    trackers?: TrackerPrivacySettings;
   };
 };
 
@@ -162,6 +168,10 @@ const DEFAULT_COOKIE_PRIVACY: CookiePrivacySettings = {
   blockThirdParty: false,
   exceptions: { thirdPartyAllow: {} }
 };
+const DEFAULT_TRACKER_PRIVACY: TrackerPrivacySettings = {
+  enabled: true,
+  exceptions: []
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -175,7 +185,10 @@ export const createDefaultSettingsState = (): SettingsState => ({
   httpsMode: DEFAULT_HTTPS_MODE,
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
   webrtcMode: DEFAULT_WEBRTC_MODE,
-  privacy: { cookies: { ...DEFAULT_COOKIE_PRIVACY, exceptions: { thirdPartyAllow: {} } } }
+  privacy: {
+    cookies: { ...DEFAULT_COOKIE_PRIVACY, exceptions: { thirdPartyAllow: {} } },
+    trackers: { ...DEFAULT_TRACKER_PRIVACY }
+  }
 });
 
 const coerceScale = (value: number): number => {
@@ -234,6 +247,17 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
   };
 };
 
+export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<TrackerPrivacySettings> : {};
+  const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_TRACKER_PRIVACY.enabled;
+  const exceptions = Array.isArray(source.exceptions)
+    ? Array.from(new Set(source.exceptions
+      .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+      .filter((item) => item.length > 0)))
+    : [...DEFAULT_TRACKER_PRIVACY.exceptions];
+  return { enabled, exceptions };
+};
+
 export const sanitizeSslExceptions = (raw: unknown): SslException[] => {
   if (!Array.isArray(raw)) return [...DEFAULT_SSL_EXCEPTIONS];
   const normalized = raw
@@ -269,6 +293,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
       ? source.permissions
       : undefined;
   const privacyCookies = sanitizeCookiePrivacy((source.privacy as { cookies?: unknown } | undefined)?.cookies);
+  const privacyTrackers = sanitizeTrackerPrivacy((source.privacy as { trackers?: unknown } | undefined)?.trackers);
   const downloads = sanitizeDownloadsSettings(source.downloads);
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
@@ -288,7 +313,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     sslExceptions,
     webrtcMode,
     ...(permissions ? { permissions } : {}),
-    privacy: { cookies: privacyCookies }
+    privacy: { cookies: privacyCookies, trackers: privacyTrackers }
   };
 };
 

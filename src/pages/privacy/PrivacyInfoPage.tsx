@@ -45,7 +45,8 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         t('privacyInfo.certs.body8'),
         t('privacyInfo.certs.body9'),
         t('privacyInfo.certs.body10'),
-        t('privacyInfo.certs.body11')
+        t('privacyInfo.certs.body11'),
+        t('privacyInfo.certs.body12')
       ]
     },
     {
@@ -71,6 +72,23 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         t('privacyInfo.cookies.body4'),
         t('privacyInfo.cookies.body5'),
         t('privacyInfo.cookies.body6')
+      ]
+    },
+    {
+      key: 'trackers',
+      heading: t('privacyInfo.trackers.heading'),
+      body: [
+        t('privacyInfo.trackers.body1'),
+        t('privacyInfo.trackers.body2'),
+        t('privacyInfo.trackers.body3'),
+        t('privacyInfo.trackers.body4'),
+        t('privacyInfo.trackers.body5'),
+        t('privacyInfo.trackers.body6'),
+        t('privacyInfo.trackers.body7'),
+        t('privacyInfo.trackers.body8'),
+        t('privacyInfo.trackers.body9'),
+        t('privacyInfo.trackers.body10'),
+        t('privacyInfo.trackers.body11')
       ]
     },
     {

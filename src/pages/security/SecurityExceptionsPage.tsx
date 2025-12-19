@@ -13,6 +13,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
   const [sslExceptions, setSslExceptions] = useState<SslException[]>([]);
   const [showConfirm, setShowConfirm] = useState(false);
   const [showConfirmSsl, setShowConfirmSsl] = useState(false);
+  const [trackerExceptions, setTrackerExceptions] = useState<string[]>([]);
+  const [showConfirmTrackers, setShowConfirmTrackers] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -35,6 +37,12 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
         setSslExceptions(httpsState.sslExceptions);
       } else {
         setSslExceptions([]);
+      }
+      const trackersState = await window.merezhyvo?.settings?.trackers?.get?.();
+      if (trackersState && Array.isArray(trackersState.exceptions)) {
+        setTrackerExceptions(trackersState.exceptions);
+      } else {
+        setTrackerExceptions([]);
       }
       try {
         window.dispatchEvent(
@@ -118,9 +126,39 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
     }
   }, [refresh, sslExceptions]);
 
+  const handleTrackerToggle = useCallback(
+    async (host: string, allow: boolean) => {
+      if (!host) return;
+      try {
+        if (allow) {
+          await window.merezhyvo?.settings?.trackers?.addException?.(host);
+        } else {
+          await window.merezhyvo?.settings?.trackers?.removeException?.(host);
+        }
+      } catch {
+        // ignore
+      } finally {
+        void refresh();
+      }
+    },
+    [refresh]
+  );
+
+  const handleClearAllTrackers = useCallback(async () => {
+    try {
+      await window.merezhyvo?.settings?.trackers?.clearExceptions?.();
+    } catch {
+      // noop
+    } finally {
+      setShowConfirmTrackers(false);
+      void refresh();
+    }
+  }, [refresh]);
+
   const entries = useMemo(() => Object.entries(exceptions), [exceptions]);
   const hasEntries = entries.length > 0;
   const hasSslEntries = sslExceptions.length > 0;
+  const hasTrackerEntries = trackerExceptions.length > 0;
 
   const toggleTrackWidth = mode === 'mobile' ? 90 : 60;
   const toggleTrackHeight = mode === 'mobile' ? 46 : 26;
@@ -346,6 +384,120 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                 )}
               </div>
             ))
+          )}
+        </div>
+
+        <div style={{ marginTop: mode === 'mobile' ? 22 : 14 }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 14 : 8, justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: mode === 'mobile' ? 42 : 20, fontWeight: 800 }}>
+                {t('exceptions.trackers.heading')}
+              </div>
+              <div style={{ fontSize: mode === 'mobile' ? 34 : 14, opacity: 0.85, marginTop: 4 }}>
+                {t('exceptions.trackers.description')}
+              </div>
+            </div>
+            {hasTrackerEntries && (
+              <button
+                type="button"
+                onClick={() => setShowConfirmTrackers(true)}
+                style={{
+                  background: 'transparent',
+                  border: rowBorder,
+                  color: '#e2e8f0',
+                  padding: mode === 'mobile' ? '14px 20px' : '10px 14px',
+                  borderRadius: 10,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('exceptions.trackers.clearAll')}
+              </button>
+            )}
+          </div>
+          {showConfirmTrackers && (
+            <div
+              style={{
+                marginTop: 10,
+                padding: mode === 'mobile' ? '18px' : '12px',
+                background: 'rgba(15,23,42,0.5)',
+                border: rowBorder,
+                borderRadius: 12
+              }}
+            >
+              <div style={{ marginBottom: 8 }}>{t('exceptions.trackers.confirmClear')}</div>
+              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
+                <button
+                  type="button"
+                  onClick={handleClearAllTrackers}
+                  style={{
+                    background: '#ef4444',
+                    border: 'none',
+                    color: '#fff',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {t('global.clear')}
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowConfirmTrackers(false)}
+                  style={{
+                    background: 'transparent',
+                    border: rowBorder,
+                    color: '#e2e8f0',
+                    padding: '8px 14px',
+                    borderRadius: 8,
+                    cursor: 'pointer'
+                  }}
+                >
+                  {t('global.cancel')}
+                </button>
+              </div>
+            </div>
+          )}
+          {hasTrackerEntries ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: mode === 'mobile' ? 12 : 10 }}>
+              {trackerExceptions.map((host) => (
+                <div
+                  key={host}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: mode === 'mobile' ? '1fr' : '1fr auto',
+                    alignItems: mode === 'mobile' ? 'stretch' : 'center',
+                    gap: 12,
+                    padding: mode === 'mobile' ? '18px 20px' : '12px 14px',
+                    border: rowBorder,
+                    borderRadius: 12,
+                    background: 'rgba(15,23,42,0.45)'
+                  }}
+                >
+                  <div style={{ fontWeight: 600, wordBreak: 'break-word', fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+                    {host}
+                  </div>
+                  {mode === 'mobile' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 6 }}>
+                      <span style={{ fontSize: '38px' }}>
+                        {t('exceptions.trackers.toggle')}
+                      </span>
+                      {renderToggle(true, (next) => handleTrackerToggle(host, next))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: '13px' }}>
+                        {t('exceptions.trackers.toggle')}
+                      </span>
+                      {renderToggle(true, (next) => handleTrackerToggle(host, next))}
+                    </div>
+                  )}
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div style={{ fontSize: mode === 'mobile' ? '34px' : '14px', opacity: 0.7, marginTop: 6 }}>
+              {t('exceptions.trackers.noEntries')}
+            </div>
           )}
         </div>
 
