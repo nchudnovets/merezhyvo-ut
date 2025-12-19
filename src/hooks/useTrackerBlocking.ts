@@ -2,10 +2,14 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import type { TrackerStatus } from '../types/models';
 
 const defaultStatus: TrackerStatus = {
-  enabledGlobal: false,
+  trackersEnabledGlobal: false,
+  adsEnabledGlobal: false,
   siteHost: null,
-  siteAllowed: false,
-  blockedCount: 0
+  trackersAllowedForSite: false,
+  adsAllowedForSite: false,
+  blockedTotal: 0,
+  blockedAds: 0,
+  blockedTrackers: 0
 };
 
 export const useTrackerBlocking = () => {
@@ -27,12 +31,12 @@ export const useTrackerBlocking = () => {
     }
   }, []);
 
-  const setEnabledGlobal = useCallback(async (enabled: boolean) => {
-    setStatus((prev) => ({ ...prev, enabledGlobal: enabled }));
+  const setTrackersEnabledGlobal = useCallback(async (enabled: boolean) => {
+    setStatus((prev) => ({ ...prev, trackersEnabledGlobal: enabled }));
     try {
       const next = await window.merezhyvo?.trackers?.setEnabled?.(enabled);
       if (next) {
-        setStatus((prev) => ({ ...prev, enabledGlobal: Boolean(next.enabled) }));
+        setStatus((prev) => ({ ...prev, trackersEnabledGlobal: Boolean(next.enabled) }));
       }
       return next ?? null;
     } catch (err) {
@@ -41,20 +45,46 @@ export const useTrackerBlocking = () => {
     }
   }, []);
 
-  const setSiteAllowed = useCallback(async (siteHost: string | null | undefined, allowed: boolean) => {
+  const setAdsEnabledGlobal = useCallback(async (enabled: boolean) => {
+    setStatus((prev) => ({ ...prev, adsEnabledGlobal: enabled }));
+    try {
+      const next = await window.merezhyvo?.trackers?.setAdsEnabled?.(enabled);
+      if (next) {
+        setStatus((prev) => ({ ...prev, adsEnabledGlobal: Boolean(next.enabled) }));
+      }
+      return next ?? null;
+    } catch (err) {
+      console.error('[merezhyvo] trackers setAdsEnabled failed', err);
+      return null;
+    }
+  }, []);
+
+  const setTrackersSiteAllowed = useCallback(async (siteHost: string | null | undefined, allowed: boolean) => {
     const host = (siteHost ?? '').trim().toLowerCase();
     if (!host) return null;
     try {
       const next = await window.merezhyvo?.trackers?.setSiteAllowed?.({ siteHost: host, allowed });
       if (next) {
-        setStatus((prev) => ({
-          ...prev,
-          siteAllowed: allowed
-        }));
+        setStatus(next);
       }
       return next ?? null;
     } catch (err) {
       console.error('[merezhyvo] trackers setSiteAllowed failed', err);
+      return null;
+    }
+  }, []);
+
+  const setAdsSiteAllowed = useCallback(async (siteHost: string | null | undefined, allowed: boolean) => {
+    const host = (siteHost ?? '').trim().toLowerCase();
+    if (!host) return null;
+    try {
+      const next = await window.merezhyvo?.trackers?.setAdsAllowed?.({ siteHost: host, allowed });
+      if (next) {
+        setStatus(next);
+      }
+      return next ?? null;
+    } catch (err) {
+      console.error('[merezhyvo] trackers setAdsAllowed failed', err);
       return null;
     }
   }, []);
@@ -76,7 +106,9 @@ export const useTrackerBlocking = () => {
   return {
     status,
     refreshStatus,
-    setEnabledGlobal,
-    setSiteAllowed
+    setTrackersEnabledGlobal,
+    setAdsEnabledGlobal,
+    setTrackersSiteAllowed,
+    setAdsSiteAllowed
   };
 };

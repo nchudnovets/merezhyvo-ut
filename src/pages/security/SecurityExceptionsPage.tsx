@@ -15,6 +15,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
   const [showConfirmSsl, setShowConfirmSsl] = useState(false);
   const [trackerExceptions, setTrackerExceptions] = useState<string[]>([]);
   const [showConfirmTrackers, setShowConfirmTrackers] = useState(false);
+  const [adsExceptions, setAdsExceptions] = useState<string[]>([]);
+  const [showConfirmAds, setShowConfirmAds] = useState(false);
 
   const refresh = useCallback(async () => {
     setLoading(true);
@@ -43,6 +45,12 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
         setTrackerExceptions(trackersState.exceptions);
       } else {
         setTrackerExceptions([]);
+      }
+      const adsState = await window.merezhyvo?.settings?.ads?.get?.();
+      if (adsState && Array.isArray((adsState as { exceptions?: unknown }).exceptions)) {
+        setAdsExceptions((adsState as { exceptions?: string[] }).exceptions ?? []);
+      } else {
+        setAdsExceptions([]);
       }
       try {
         window.dispatchEvent(
@@ -155,10 +163,63 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
     }
   }, [refresh]);
 
+  const handleAdsToggle = useCallback(
+    async (host: string, allow: boolean) => {
+      if (!host) return;
+      try {
+        if (allow) {
+          await window.merezhyvo?.settings?.ads?.addException?.(host);
+        } else {
+          await window.merezhyvo?.settings?.ads?.removeException?.(host);
+        }
+      } catch {
+        // ignore
+      } finally {
+        void refresh();
+      }
+    },
+    [refresh]
+  );
+
+  const handleClearAllAds = useCallback(async () => {
+    try {
+      await window.merezhyvo?.settings?.ads?.clearExceptions?.();
+    } catch {
+      // noop
+    } finally {
+      setShowConfirmAds(false);
+      void refresh();
+    }
+  }, [refresh]);
+
   const entries = useMemo(() => Object.entries(exceptions), [exceptions]);
   const hasEntries = entries.length > 0;
   const hasSslEntries = sslExceptions.length > 0;
   const hasTrackerEntries = trackerExceptions.length > 0;
+  const hasAdsEntries = adsExceptions.length > 0;
+  const sectionGap = mode === 'mobile' ? 32 : 20;
+  const confirmStyleBase: React.CSSProperties = {
+    marginTop: 10,
+    padding: mode === 'mobile' ? '18px' : '12px',
+    background: 'rgba(15,23,42,0.9)',
+    border: rowBorder,
+    borderRadius: 12,
+    color: '#e2e8f0',
+    maxWidth: mode === 'mobile' ? '100%' : 420,
+    width: mode === 'mobile' ? '100%' : 'auto'
+  };
+  const noEntriesCard = (
+    <div
+      style={{
+        padding: mode === 'mobile' ? '18px 20px' : '14px 12px',
+        textAlign: 'center',
+        opacity: 0.8,
+        fontSize: mode === 'mobile' ? '38px' : '15px'
+      }}
+    >
+      {t('securityExceptions.empty')}
+    </div>
+  );
 
   const toggleTrackWidth = mode === 'mobile' ? 90 : 60;
   const toggleTrackHeight = mode === 'mobile' ? 46 : 26;
@@ -259,7 +320,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
         )}
 
         <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
-          <div style={{ position: 'relative' }}>
+          <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-end' }}>
             <button
               type="button"
               onClick={() => hasEntries && setShowConfirm((prev) => !prev)}
@@ -273,25 +334,15 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                 cursor: hasEntries ? 'pointer' : 'not-allowed',
                 fontSize: mode === 'mobile' ? '38px' : '15px'
               }}
-            >
-              {t('securityExceptions.clearCookies')}
-            </button>
+              >
+                {t('securityExceptions.clearCookies')}
+              </button>
             {showConfirm && hasEntries && (
               <div
                 style={{
-                  position: 'absolute',
-                  top: mode === 'mobile' ? '110%' : '100%',
-                  right: 0,
-                  width: mode === 'mobile' ? '100%' : 360,
-                  maxWidth: mode === 'mobile' ? 'none' : 420,
-                  padding: mode === 'mobile' ? '18px 16px' : '12px 12px',
+                  ...confirmStyleBase,
                   marginTop: 8,
-                  borderRadius: 14,
-                  border: rowBorder,
-                  background: 'rgba(15,23,42,0.9)',
-                  boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-                  zIndex: 10,
-                  color: '#e2e8f0'
+                  alignSelf: 'flex-end'
                 }}
               >
                 <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '15px', marginBottom: mode === 'mobile' ? 14 : 8 }}>
@@ -387,7 +438,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           )}
         </div>
 
-        <div style={{ marginTop: mode === 'mobile' ? 22 : 14 }}>
+        <div style={{ marginTop: sectionGap }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 14 : 8, justifyContent: 'space-between' }}>
             <div>
               <div style={{ fontSize: mode === 'mobile' ? 42 : 20, fontWeight: 800 }}>
@@ -400,7 +451,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
             {hasTrackerEntries && (
               <button
                 type="button"
-                onClick={() => setShowConfirmTrackers(true)}
+                onClick={() => hasTrackerEntries && setShowConfirmTrackers((prev) => !prev)}
                 style={{
                   background: 'transparent',
                   border: rowBorder,
@@ -415,50 +466,44 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
             )}
           </div>
           {showConfirmTrackers && (
-            <div
-              style={{
-                marginTop: 10,
-                padding: mode === 'mobile' ? '18px' : '12px',
-                background: 'rgba(15,23,42,0.5)',
-                border: rowBorder,
-                borderRadius: 12
-              }}
-            >
-              <div style={{ marginBottom: 8 }}>{t('exceptions.trackers.confirmClear')}</div>
-              <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap' }}>
-                <button
-                  type="button"
-                  onClick={handleClearAllTrackers}
-                  style={{
-                    background: '#ef4444',
-                    border: 'none',
-                    color: '#fff',
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('global.clear')}
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setShowConfirmTrackers(false)}
-                  style={{
-                    background: 'transparent',
-                    border: rowBorder,
-                    color: '#e2e8f0',
-                    padding: '8px 14px',
-                    borderRadius: 8,
-                    cursor: 'pointer'
-                  }}
-                >
-                  {t('global.cancel')}
-                </button>
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ ...confirmStyleBase, alignSelf: 'flex-end' }}>
+                <div style={{ marginBottom: 8 }}>{t('exceptions.trackers.confirmClear')}</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmTrackers(false)}
+                    style={{
+                      background: 'transparent',
+                      border: rowBorder,
+                      color: '#e2e8f0',
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('global.close')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearAllTrackers}
+                    style={{
+                      background: '#ef4444',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('exceptions.trackers.clearAll')}
+                  </button>
+                </div>
               </div>
             </div>
           )}
           {hasTrackerEntries ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 10, marginTop: mode === 'mobile' ? 12 : 10 }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, overflow: 'hidden', background: 'rgba(15,23,42,0.45)' }}>
               {trackerExceptions.map((host) => (
                 <div
                   key={host}
@@ -468,9 +513,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     alignItems: mode === 'mobile' ? 'stretch' : 'center',
                     gap: 12,
                     padding: mode === 'mobile' ? '18px 20px' : '12px 14px',
-                    border: rowBorder,
-                    borderRadius: 12,
-                    background: 'rgba(15,23,42,0.45)'
+                    borderBottom: rowBorder
                   }}
                 >
                   <div style={{ fontWeight: 600, wordBreak: 'break-word', fontSize: mode === 'mobile' ? '40px' : '15px' }}>
@@ -493,15 +536,127 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                   )}
                 </div>
               ))}
+              <div style={{ height: 1, background: 'transparent' }} />
             </div>
           ) : (
-            <div style={{ fontSize: mode === 'mobile' ? '34px' : '14px', opacity: 0.7, marginTop: 6 }}>
-              {t('exceptions.trackers.noEntries')}
+            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'rgba(15,23,42,0.45)' }}>
+              <div style={{ padding: mode === 'mobile' ? '18px 20px' : '12px 14px', textAlign: 'center', opacity: 0.8, fontSize: mode === 'mobile' ? '38px' : '15px' }}>
+                {t('exceptions.trackers.noEntries')}
+              </div>
             </div>
           )}
         </div>
 
-        <div style={{ marginTop: mode === 'mobile' ? 22 : 14 }}>
+        <div style={{ marginTop: sectionGap }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 14 : 8, justifyContent: 'space-between' }}>
+            <div>
+              <div style={{ fontSize: mode === 'mobile' ? 42 : 20, fontWeight: 800 }}>
+                {t('exceptions.ads.heading')}
+              </div>
+              <div style={{ fontSize: mode === 'mobile' ? 34 : 14, opacity: 0.85, marginTop: 4 }}>
+                {t('exceptions.ads.description')}
+              </div>
+            </div>
+            {hasAdsEntries && (
+              <button
+                type="button"
+                onClick={() => hasAdsEntries && setShowConfirmAds((prev) => !prev)}
+                style={{
+                  background: 'transparent',
+                  border: rowBorder,
+                  color: '#e2e8f0',
+                  padding: mode === 'mobile' ? '14px 20px' : '10px 14px',
+                  borderRadius: 10,
+                  cursor: 'pointer'
+                }}
+              >
+                {t('exceptions.ads.clearAll')}
+              </button>
+            )}
+          </div>
+          {showConfirmAds && (
+            <div style={{ display: 'flex', justifyContent: 'flex-end' }}>
+              <div style={{ ...confirmStyleBase, alignSelf: 'flex-end' }}>
+                <div style={{ marginBottom: 8 }}>{t('exceptions.ads.confirmClear')}</div>
+                <div style={{ display: 'flex', gap: 10, flexWrap: 'wrap', justifyContent: 'flex-end' }}>
+                  <button
+                    type="button"
+                    onClick={() => setShowConfirmAds(false)}
+                    style={{
+                      background: 'transparent',
+                      border: rowBorder,
+                      color: '#e2e8f0',
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('global.close')}
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleClearAllAds}
+                    style={{
+                      background: '#ef4444',
+                      border: 'none',
+                      color: '#fff',
+                      padding: '8px 14px',
+                      borderRadius: 8,
+                      cursor: 'pointer'
+                    }}
+                  >
+                    {t('exceptions.ads.clearAll')}
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+          {hasAdsEntries ? (
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, overflow: 'hidden', background: 'rgba(15,23,42,0.45)' }}>
+              {adsExceptions.map((host) => (
+                <div
+                  key={host}
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: mode === 'mobile' ? '1fr' : '1fr auto',
+                    alignItems: mode === 'mobile' ? 'stretch' : 'center',
+                    gap: 12,
+                    padding: mode === 'mobile' ? '18px 20px' : '12px 14px',
+                    borderBottom: rowBorder
+                  }}
+                >
+                  <div style={{ fontWeight: 600, wordBreak: 'break-word', fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+                    {host}
+                  </div>
+                  {mode === 'mobile' ? (
+                    <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: 12, paddingTop: 6 }}>
+                      <span style={{ fontSize: '38px' }}>
+                        {t('exceptions.ads.toggle')}
+                      </span>
+                      {renderToggle(true, (next) => handleAdsToggle(host, next))}
+                    </div>
+                  ) : (
+                    <div style={{ display: 'flex', alignItems: 'center', gap: 10, justifyContent: 'flex-end' }}>
+                      <span style={{ fontSize: '13px' }}>
+                        {t('exceptions.ads.toggle')}
+                      </span>
+                      {renderToggle(true, (next) => handleAdsToggle(host, next))}
+                    </div>
+                  )}
+                </div>
+              ))}
+              <div style={{ height: 1, background: 'transparent' }} />
+            </div>
+          ) : (
+            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'rgba(15,23,42,0.45)' }}>
+              <div style={{ padding: mode === 'mobile' ? '18px 20px' : '12px 14px', textAlign: 'center', opacity: 0.8, fontSize: mode === 'mobile' ? '38px' : '15px' }}>
+                {t('exceptions.ads.noEntries')}
+              </div>
+            </div>
+          )}
+        </div>
+
+        <div style={{ marginTop: sectionGap }}>
           <div style={{ fontSize: mode === 'mobile' ? 38 : 18, fontWeight: 700, marginBottom: mode === 'mobile' ? 10 : 6 }}>
             {t('securityExceptions.certsTitle')}
           </div>
@@ -509,7 +664,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
             {t('securityExceptions.certsDesc')}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: mode === 'mobile' ? 10 : 6 }}>
-            <div style={{ position: 'relative' }}>
+            <div style={{ position: 'relative', display: 'flex', flexDirection: 'column', alignItems: 'flex-end', width: '100%' }}>
               <button
                 type="button"
                 onClick={() => hasSslEntries && setShowConfirmSsl((prev) => !prev)}
@@ -530,19 +685,9 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
               {showConfirmSsl && hasSslEntries && (
                 <div
                   style={{
-                    position: 'absolute',
-                    top: mode === 'mobile' ? '110%' : '100%',
-                    right: 0,
-                    width: mode === 'mobile' ? '100%' : 360,
-                    maxWidth: mode === 'mobile' ? 'none' : 420,
-                    padding: mode === 'mobile' ? '18px 16px' : '12px 12px',
+                    ...confirmStyleBase,
                     marginTop: 8,
-                    borderRadius: 14,
-                    border: rowBorder,
-                    background: 'rgba(15,23,42,0.9)',
-                    boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-                    zIndex: 10,
-                    color: '#e2e8f0'
+                    alignSelf: 'flex-end'
                   }}
                 >
                   <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? 38 : 15, marginBottom: mode === 'mobile' ? 14 : 8 }}>

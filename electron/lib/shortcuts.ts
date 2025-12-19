@@ -55,6 +55,11 @@ export type TrackerPrivacySettings = {
   exceptions: string[];
 };
 
+export type AdsPrivacySettings = {
+  enabled: boolean;
+  exceptions: string[];
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -69,6 +74,7 @@ export type SettingsState = {
   privacy?: {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;
+    ads?: AdsPrivacySettings;
   };
 };
 
@@ -172,6 +178,10 @@ const DEFAULT_TRACKER_PRIVACY: TrackerPrivacySettings = {
   enabled: false,
   exceptions: []
 };
+const DEFAULT_ADS_PRIVACY: AdsPrivacySettings = {
+  enabled: false,
+  exceptions: []
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -187,7 +197,8 @@ export const createDefaultSettingsState = (): SettingsState => ({
   webrtcMode: DEFAULT_WEBRTC_MODE,
   privacy: {
     cookies: { ...DEFAULT_COOKIE_PRIVACY, exceptions: { thirdPartyAllow: {} } },
-    trackers: { ...DEFAULT_TRACKER_PRIVACY }
+    trackers: { ...DEFAULT_TRACKER_PRIVACY },
+    ads: { ...DEFAULT_ADS_PRIVACY }
   }
 });
 
@@ -258,6 +269,17 @@ export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => 
   return { enabled, exceptions };
 };
 
+export const sanitizeAdsPrivacy = (raw: unknown): AdsPrivacySettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<AdsPrivacySettings> : {};
+  const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_ADS_PRIVACY.enabled;
+  const exceptions = Array.isArray(source.exceptions)
+    ? Array.from(new Set(source.exceptions
+      .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+      .filter((item) => item.length > 0)))
+    : [...DEFAULT_ADS_PRIVACY.exceptions];
+  return { enabled, exceptions };
+};
+
 export const sanitizeSslExceptions = (raw: unknown): SslException[] => {
   if (!Array.isArray(raw)) return [...DEFAULT_SSL_EXCEPTIONS];
   const normalized = raw
@@ -294,6 +316,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
       : undefined;
   const privacyCookies = sanitizeCookiePrivacy((source.privacy as { cookies?: unknown } | undefined)?.cookies);
   const privacyTrackers = sanitizeTrackerPrivacy((source.privacy as { trackers?: unknown } | undefined)?.trackers);
+  const privacyAds = sanitizeAdsPrivacy((source.privacy as { ads?: unknown } | undefined)?.ads);
   const downloads = sanitizeDownloadsSettings(source.downloads);
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
@@ -313,7 +336,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     sslExceptions,
     webrtcMode,
     ...(permissions ? { permissions } : {}),
-    privacy: { cookies: privacyCookies, trackers: privacyTrackers }
+    privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds }
   };
 };
 

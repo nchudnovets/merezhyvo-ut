@@ -45,10 +45,14 @@ export interface TabsSnapshot {
 }
 
 export type TrackerStatus = {
-  enabledGlobal: boolean;
+  trackersEnabledGlobal: boolean;
+  adsEnabledGlobal: boolean;
   siteHost: string | null;
-  siteAllowed: boolean;
-  blockedCount: number;
+  trackersAllowedForSite: boolean;
+  adsAllowedForSite: boolean;
+  blockedTotal: number;
+  blockedAds: number;
+  blockedTrackers: number;
 };
 
 export interface HistoryVisit {
@@ -206,6 +210,11 @@ export type TrackerPrivacySettings = {
   exceptions: string[];
 };
 
+export type AdsPrivacySettings = {
+  enabled: boolean;
+  exceptions: string[];
+};
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -219,6 +228,7 @@ export interface SettingsState {
   privacy?: {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;
+    ads?: AdsPrivacySettings;
   };
 }
 

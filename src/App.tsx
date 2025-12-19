@@ -282,8 +282,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const {
     status: trackerStatus,
     refreshStatus: refreshTrackerStatus,
-    setEnabledGlobal: setTrackersEnabledGlobal,
-    setSiteAllowed: setTrackersSiteAllowed
+    setTrackersEnabledGlobal,
+    setAdsEnabledGlobal,
+    setTrackersSiteAllowed,
+    setAdsSiteAllowed
   } = useTrackerBlocking();
   const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
@@ -1660,10 +1662,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       Object.keys(cookieExceptionsMap).some(
         (key) => key && activeSecurityHost && isSubdomainOrSame(activeSecurityHost, key)
       ));
-  const trackerExceptionAllowed = Boolean(trackerStatus.enabledGlobal && trackerStatus.siteAllowed);
+  const trackerExceptionAllowed = Boolean(trackerStatus.trackersEnabledGlobal && trackerStatus.trackersAllowedForSite);
+  const adsExceptionAllowed = Boolean(trackerStatus.adsEnabledGlobal && trackerStatus.adsAllowedForSite);
   const securityState: SecurityIndicatorState = certProblem
     ? 'warn'
-    : hasCookieException || trackerExceptionAllowed
+    : hasCookieException || trackerExceptionAllowed || adsExceptionAllowed
       ? 'notice'
       : 'ok';
   const siteCookiePolicy = useMemo(
@@ -2446,14 +2449,27 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       try {
         await setTrackersSiteAllowed(host, allow);
         await refreshTrackerStatus(activeWcIdRef.current ?? null);
-        if (!allow) {
-          handleReload();
-        }
+        handleReload();
       } catch (err) {
         console.error('[merezhyvo] tracker exception toggle failed', err);
       }
     },
     [handleReload, refreshTrackerStatus, setTrackersSiteAllowed, trackerStatus.siteHost]
+  );
+
+  const handleToggleAdsException = useCallback(
+    async (allow: boolean) => {
+      const host = trackerStatus.siteHost;
+      if (!host) return;
+      try {
+        await setAdsSiteAllowed(host, allow);
+        await refreshTrackerStatus(activeWcIdRef.current ?? null);
+        handleReload();
+      } catch (err) {
+        console.error('[merezhyvo] ads exception toggle failed', err);
+      }
+    },
+    [handleReload, refreshTrackerStatus, setAdsSiteAllowed, trackerStatus.siteHost]
   );
 
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
@@ -3087,6 +3103,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenPrivacyInfo={openPrivacyInfoFromPopover}
               trackerStatus={trackerStatus}
               onToggleTrackerException={handleToggleTrackerException}
+              onToggleAdsException={handleToggleAdsException}
               onOpenTrackersExceptions={openTrackersExceptionsFromPopover}
             />
           )}
@@ -3177,8 +3194,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
               onOpenSiteData={openSiteDataFromSettings}
               onOpenPrivacyInfo={openPrivacyInfoFromSettings}
-              trackersEnabled={trackerStatus.enabledGlobal}
+              trackersEnabled={trackerStatus.trackersEnabledGlobal}
+              adsEnabled={trackerStatus.adsEnabledGlobal}
               onTrackersEnabledChange={setTrackersEnabledGlobal}
+              onAdsEnabledChange={setAdsEnabledGlobal}
               onOpenTrackersExceptions={openSecurityExceptionsFromSettings}
             />
           )}

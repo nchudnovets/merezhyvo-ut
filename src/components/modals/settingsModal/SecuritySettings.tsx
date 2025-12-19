@@ -15,7 +15,9 @@ type SecuritySettingsProps = {
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
   trackersEnabled: boolean;
+  adsEnabled: boolean;
   onTrackersEnabledChange: (enabled: boolean) => void;
+  onAdsEnabledChange: (enabled: boolean) => void;
   onOpenTrackersExceptions: () => void;
 };
 
@@ -40,7 +42,9 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   onOpenSiteData,
   onOpenPrivacyInfo,
   trackersEnabled,
+  adsEnabled,
   onTrackersEnabledChange,
+  onAdsEnabledChange,
   onOpenTrackersExceptions
 }) => {
   const { t } = useI18n();
@@ -233,6 +237,26 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             </div>
             <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 6 }}>
               {t('settings.privacy.trackers.warning')}
+            </div>
+          </div>
+        </label>
+        <label
+          style={{
+            ...radioStyle(mode),
+            alignItems: 'center',
+            gap: mode === 'mobile' ? 22 : 12
+          }}
+        >
+          {renderToggle(adsEnabled, onAdsEnabledChange)}
+          <div>
+            <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+              {t('settings.privacy.ads.title')}
+            </div>
+            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+              {t('settings.privacy.ads.helper')}
+            </div>
+            <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 6 }}>
+              {t('settings.privacy.ads.warning')}
             </div>
           </div>
         </label>

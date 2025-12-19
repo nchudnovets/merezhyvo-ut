@@ -35,7 +35,8 @@ import type {
   SslException,
   WebrtcMode,
   TrackerStatus,
-  TrackerPrivacySettings
+  TrackerPrivacySettings,
+  AdsPrivacySettings
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
@@ -272,7 +273,11 @@ const exposeApi: MerezhyvoAPI = {
           httpsMode: 'strict',
           sslExceptions: [],
           webrtcMode: 'always_on',
-          privacy: { cookies: { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } } }
+          privacy: {
+            cookies: { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } },
+            trackers: { enabled: false, exceptions: [] },
+            ads: { enabled: false, exceptions: [] }
+          }
         };
       }
     },
@@ -461,12 +466,12 @@ const exposeApi: MerezhyvoAPI = {
       get: async (): Promise<TrackerPrivacySettings> => {
         try {
           const result = await ipcRenderer.invoke('merezhyvo:settings:trackers:get');
-          const enabled = typeof result?.enabled === 'boolean' ? result.enabled : true;
+          const enabled = typeof result?.enabled === 'boolean' ? result.enabled : false;
           const exceptions = Array.isArray(result?.exceptions) ? result.exceptions : [];
           return { enabled, exceptions };
         } catch (err) {
           console.error('[merezhyvo] settings.trackers.get failed', err);
-          return { enabled: true, exceptions: [] };
+          return { enabled: false, exceptions: [] };
         }
       },
       setEnabled: async (enabled: boolean) => {
@@ -482,7 +487,7 @@ const exposeApi: MerezhyvoAPI = {
           return (await ipcRenderer.invoke('merezhyvo:settings:trackers:add-exception', { host })) as TrackerPrivacySettings;
         } catch (err) {
           console.error('[merezhyvo] settings.trackers.addException failed', err);
-          return { enabled: true, exceptions: [] };
+          return { enabled: false, exceptions: [] };
         }
       },
       removeException: async (host: string) => {
@@ -490,7 +495,7 @@ const exposeApi: MerezhyvoAPI = {
           return (await ipcRenderer.invoke('merezhyvo:settings:trackers:remove-exception', { host })) as TrackerPrivacySettings;
         } catch (err) {
           console.error('[merezhyvo] settings.trackers.removeException failed', err);
-          return { enabled: true, exceptions: [] };
+          return { enabled: false, exceptions: [] };
         }
       },
       clearExceptions: async () => {
@@ -498,7 +503,52 @@ const exposeApi: MerezhyvoAPI = {
           return (await ipcRenderer.invoke('merezhyvo:settings:trackers:clear-exceptions')) as TrackerPrivacySettings;
         } catch (err) {
           console.error('[merezhyvo] settings.trackers.clearExceptions failed', err);
-          return { enabled: true, exceptions: [] };
+          return { enabled: false, exceptions: [] };
+        }
+      }
+    },
+    ads: {
+      get: async (): Promise<AdsPrivacySettings> => {
+        try {
+          const result = await ipcRenderer.invoke('merezhyvo:settings:ads:get');
+          const enabled = typeof result?.enabled === 'boolean' ? result.enabled : false;
+          const exceptions = Array.isArray(result?.exceptions) ? result.exceptions : [];
+          return { enabled, exceptions };
+        } catch (err) {
+          console.error('[merezhyvo] settings.ads.get failed', err);
+          return { enabled: false, exceptions: [] };
+        }
+      },
+      setEnabled: async (enabled: boolean) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:ads:set-enabled', enabled)) as AdsPrivacySettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.ads.setEnabled failed', err);
+          return { enabled, exceptions: [] };
+        }
+      },
+      addException: async (host: string) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:ads:add-exception', { host })) as AdsPrivacySettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.ads.addException failed', err);
+          return { enabled: false, exceptions: [] };
+        }
+      },
+      removeException: async (host: string) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:ads:remove-exception', { host })) as AdsPrivacySettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.ads.removeException failed', err);
+          return { enabled: false, exceptions: [] };
+        }
+      },
+      clearExceptions: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:ads:clear-exceptions')) as AdsPrivacySettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.ads.clearExceptions failed', err);
+          return { enabled: false, exceptions: [] };
         }
       }
     },
@@ -698,7 +748,16 @@ const exposeApi: MerezhyvoAPI = {
         return (await ipcRenderer.invoke('trackers:getStatus', payload ?? {})) as TrackerStatus;
       } catch (err) {
         console.error('[merezhyvo] trackers.getStatus failed', err);
-        return { enabledGlobal: false, siteHost: null, siteAllowed: false, blockedCount: 0 };
+        return {
+          trackersEnabledGlobal: false,
+          adsEnabledGlobal: false,
+          siteHost: null,
+          trackersAllowedForSite: false,
+          adsAllowedForSite: false,
+          blockedTotal: 0,
+          blockedAds: 0,
+          blockedTrackers: 0
+        };
       }
     },
     setEnabled: async (enabled: boolean) => {
@@ -709,12 +768,46 @@ const exposeApi: MerezhyvoAPI = {
         return { enabled, exceptions: [] };
       }
     },
-    setSiteAllowed: async (payload: { siteHost: string; allowed: boolean }) => {
+    setAdsEnabled: async (enabled: boolean) => {
       try {
-        return (await ipcRenderer.invoke('trackers:setSiteAllowed', payload ?? {})) as TrackerPrivacySettings;
+        return (await ipcRenderer.invoke('trackers:setAdsEnabled', enabled)) as AdsPrivacySettings;
+      } catch (err) {
+        console.error('[merezhyvo] trackers.setAdsEnabled failed', err);
+        return { enabled, exceptions: [] };
+      }
+    },
+    setSiteAllowed: async (payload: { siteHost: string; allowed: boolean; webContentsId?: number | null }) => {
+      try {
+        return (await ipcRenderer.invoke('trackers:setSiteAllowed', payload ?? {})) as TrackerStatus;
       } catch (err) {
         console.error('[merezhyvo] trackers.setSiteAllowed failed', err);
-        return { enabled: true, exceptions: [] };
+        return {
+          trackersEnabledGlobal: false,
+          adsEnabledGlobal: false,
+          siteHost: null,
+          trackersAllowedForSite: false,
+          adsAllowedForSite: false,
+          blockedTotal: 0,
+          blockedAds: 0,
+          blockedTrackers: 0
+        };
+      }
+    },
+    setAdsAllowed: async (payload: { siteHost: string; allowed: boolean; webContentsId?: number | null }) => {
+      try {
+        return (await ipcRenderer.invoke('trackers:setAdsAllowed', payload ?? {})) as TrackerStatus;
+      } catch (err) {
+        console.error('[merezhyvo] trackers.setAdsAllowed failed', err);
+        return {
+          trackersEnabledGlobal: false,
+          adsEnabledGlobal: false,
+          siteHost: null,
+          trackersAllowedForSite: false,
+          adsAllowedForSite: false,
+          blockedTotal: 0,
+          blockedAds: 0,
+          blockedTrackers: 0
+        };
       }
     },
     clearExceptions: async () => {
@@ -722,6 +815,14 @@ const exposeApi: MerezhyvoAPI = {
         return (await ipcRenderer.invoke('trackers:clearExceptions')) as TrackerPrivacySettings;
       } catch (err) {
         console.error('[merezhyvo] trackers.clearExceptions failed', err);
+        return { enabled: true, exceptions: [] };
+      }
+    },
+    clearAdsExceptions: async () => {
+      try {
+        return (await ipcRenderer.invoke('trackers:clearAdsExceptions')) as AdsPrivacySettings;
+      } catch (err) {
+        console.error('[merezhyvo] trackers.clearAdsExceptions failed', err);
         return { enabled: true, exceptions: [] };
       }
     },

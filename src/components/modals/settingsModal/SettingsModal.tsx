@@ -58,7 +58,9 @@ interface SettingsModalProps {
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
   trackersEnabled: boolean;
+  adsEnabled: boolean;
   onTrackersEnabledChange: (enabled: boolean) => void;
+  onAdsEnabledChange: (enabled: boolean) => void;
   onOpenTrackersExceptions: () => void;
 }
 
@@ -103,7 +105,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSiteData,
   onOpenPrivacyInfo,
   trackersEnabled,
+  adsEnabled,
   onTrackersEnabledChange,
+  onAdsEnabledChange,
   onOpenTrackersExceptions
 }) => {
   const styles = settingsModalStyles;
@@ -235,7 +239,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onOpenSiteData={onOpenSiteData}
               onOpenPrivacyInfo={onOpenPrivacyInfo}
               trackersEnabled={trackersEnabled}
+              adsEnabled={adsEnabled}
               onTrackersEnabledChange={onTrackersEnabledChange}
+              onAdsEnabledChange={onAdsEnabledChange}
               onOpenTrackersExceptions={onOpenTrackersExceptions}
             />
             }

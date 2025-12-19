@@ -65,6 +65,7 @@ interface ToolbarProps {
   onOpenSecurityExceptions?: () => void;
   trackerStatus?: TrackerStatus;
   onToggleTrackerException?: (next: boolean) => void;
+  onToggleAdsException?: (next: boolean) => void;
   onOpenTrackersExceptions?: () => void;
 }
 
@@ -110,6 +111,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenSecurityExceptions,
   trackerStatus,
   onToggleTrackerException,
+  onToggleAdsException,
   onOpenTrackersExceptions
 }) => {
   const modeStyles = toolbarModeStyles[mode];
@@ -178,6 +180,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onOpenPrivacyInfo={onOpenPrivacyInfo}
       trackerStatus={trackerStatus}
       onToggleTrackerException={onToggleTrackerException}
+      onToggleAdsException={onToggleAdsException}
       onOpenTrackersExceptions={onOpenTrackersExceptions}
     />
 

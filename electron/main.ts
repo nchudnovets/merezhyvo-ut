@@ -47,7 +47,10 @@ import {
   getTrackerStatus,
   setTrackersEnabledGlobal,
   setTrackersSiteAllowed,
-  clearTrackerExceptions
+  clearTrackerExceptions,
+  setAdsEnabledGlobal,
+  setAdsSiteAllowed,
+  clearAdsExceptions
 } from './lib/tracker-blocker';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
@@ -1334,13 +1337,18 @@ ipcMain.handle('merezhyvo:settings:trackers:get', async () => {
   try {
     const state = await readSettingsState();
     const trackers = state.privacy?.trackers;
+    const ads = state.privacy?.ads;
     return {
       enabled: typeof trackers?.enabled === 'boolean' ? trackers.enabled : false,
-      exceptions: Array.isArray(trackers?.exceptions) ? trackers.exceptions : []
-    } as TrackerPrivacySettings;
+      exceptions: Array.isArray(trackers?.exceptions) ? trackers.exceptions : [],
+      ads: {
+        enabled: typeof ads?.enabled === 'boolean' ? ads.enabled : false,
+        exceptions: Array.isArray(ads?.exceptions) ? ads.exceptions : []
+      }
+    } as TrackerPrivacySettings & { ads: { enabled: boolean; exceptions: string[] } };
   } catch (err) {
     console.error('[merezhyvo] trackers settings get failed', err);
-    return { enabled: true, exceptions: [] } as TrackerPrivacySettings;
+    return { enabled: false, exceptions: [] } as TrackerPrivacySettings;
   }
 });
 
@@ -1447,6 +1455,115 @@ ipcMain.handle('merezhyvo:settings:trackers:clear-exceptions', async () => {
   }
 });
 
+ipcMain.handle('merezhyvo:settings:ads:get', async () => {
+  try {
+    const state = await readSettingsState();
+    const ads = state.privacy?.ads;
+    return {
+      enabled: typeof ads?.enabled === 'boolean' ? ads.enabled : false,
+      exceptions: Array.isArray(ads?.exceptions) ? ads.exceptions : []
+    };
+  } catch (err) {
+    console.error('[merezhyvo] ads settings get failed', err);
+    return { enabled: false, exceptions: [] };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:ads:set-enabled', async (_event, payload: unknown) => {
+  const enabled = typeof payload === 'boolean' ? payload : Boolean((payload as { enabled?: unknown })?.enabled);
+  try {
+    const current = await readSettingsState();
+    const nextAds = {
+      enabled,
+      exceptions: Array.isArray(current.privacy?.ads?.exceptions) ? current.privacy!.ads!.exceptions : []
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextAds }
+    });
+    setAdsEnabledGlobal(enabled);
+    return nextAds;
+  } catch (err) {
+    console.error('[merezhyvo] ads set-enabled failed', err);
+    return { enabled, exceptions: [] };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:ads:add-exception', async (_event, payload: unknown) => {
+  const host =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
+        ? ((payload as { host?: string }).host ?? '')
+        : '';
+  const normalized = host.trim().toLowerCase();
+  if (!normalized) return { enabled: false, exceptions: [] };
+  try {
+    const current = await readSettingsState();
+    const existing = Array.isArray(current.privacy?.ads?.exceptions)
+      ? current.privacy!.ads!.exceptions
+      : [];
+    const nextSettings = {
+      enabled: typeof current.privacy?.ads?.enabled === 'boolean' ? current.privacy!.ads!.enabled : false,
+      exceptions: Array.from(new Set([...existing, normalized]))
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextSettings }
+    });
+    setAdsSiteAllowed(normalized, true);
+    return nextSettings;
+  } catch (err) {
+    console.error('[merezhyvo] ads add-exception failed', err);
+    return { enabled: false, exceptions: [normalized] };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:ads:remove-exception', async (_event, payload: unknown) => {
+  const host =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { host?: unknown }).host === 'string'
+        ? ((payload as { host?: string }).host ?? '')
+        : '';
+  const normalized = host.trim().toLowerCase();
+  if (!normalized) return { enabled: false, exceptions: [] };
+  try {
+    const current = await readSettingsState();
+    const existing = Array.isArray(current.privacy?.ads?.exceptions)
+      ? current.privacy!.ads!.exceptions
+      : [];
+    const nextSettings = {
+      enabled: typeof current.privacy?.ads?.enabled === 'boolean' ? current.privacy!.ads!.enabled : false,
+      exceptions: existing.filter((item) => item !== normalized)
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextSettings }
+    });
+    setAdsSiteAllowed(normalized, false);
+    return nextSettings;
+  } catch (err) {
+    console.error('[merezhyvo] ads remove-exception failed', err);
+    return { enabled: false, exceptions: [] };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:ads:clear-exceptions', async () => {
+  try {
+    const current = await readSettingsState();
+    const nextSettings = {
+      enabled: typeof current.privacy?.ads?.enabled === 'boolean' ? current.privacy!.ads!.enabled : false,
+      exceptions: []
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextSettings }
+    });
+    clearAdsExceptions();
+    return nextSettings;
+  } catch (err) {
+    console.error('[merezhyvo] ads clear-exceptions failed', err);
+    return { enabled: false, exceptions: [] };
+  }
+});
+
 ipcMain.handle('trackers:getStatus', (_event, payload: unknown) => {
   const wcId = typeof payload === 'object' && payload && typeof (payload as { webContentsId?: unknown }).webContentsId === 'number'
     ? ((payload as { webContentsId?: number }).webContentsId ?? null)
@@ -1523,7 +1640,7 @@ ipcMain.handle('trackers:clearExceptions', async () => {
     const nextTrackers: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
         ? current.privacy!.trackers!.enabled
-        : true,
+        : false,
       exceptions: []
     };
     await writeSettingsState({
@@ -1534,7 +1651,91 @@ ipcMain.handle('trackers:clearExceptions', async () => {
   } catch (err) {
     console.error('[merezhyvo] trackers clear-exceptions failed', err);
     clearTrackerExceptions();
-    return { enabled: true, exceptions: [] } as TrackerPrivacySettings;
+    return { enabled: false, exceptions: [] } as TrackerPrivacySettings;
+  }
+});
+
+ipcMain.handle('trackers:setAdsEnabled', async (_event, payload: unknown) => {
+  const enabled = typeof payload === 'boolean' ? payload : Boolean((payload as { enabled?: unknown })?.enabled);
+  try {
+    const current = await readSettingsState();
+    const nextAds = {
+      enabled,
+      exceptions: Array.isArray(current.privacy?.ads?.exceptions)
+        ? current.privacy!.ads!.exceptions
+        : []
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextAds }
+    });
+    setAdsEnabledGlobal(enabled);
+    return nextAds;
+  } catch (err) {
+    console.error('[merezhyvo] ads setEnabled failed', err);
+    setAdsEnabledGlobal(enabled);
+    return { enabled, exceptions: [] };
+  }
+});
+
+ipcMain.handle('trackers:setAdsAllowed', async (_event, payload: unknown) => {
+  const host =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { siteHost?: unknown }).siteHost === 'string'
+        ? ((payload as { siteHost?: string }).siteHost ?? '')
+        : '';
+  const allowed =
+    typeof payload === 'object' && payload && typeof (payload as { allowed?: unknown }).allowed === 'boolean'
+      ? Boolean((payload as { allowed?: unknown }).allowed)
+      : false;
+  const normalized = host.trim().toLowerCase();
+  if (!normalized) return getTrackerStatus(null);
+  try {
+    const current = await readSettingsState();
+    const existing = Array.isArray(current.privacy?.ads?.exceptions)
+      ? current.privacy!.ads!.exceptions
+      : [];
+    const nextExceptions = new Set(existing);
+    if (allowed) {
+      nextExceptions.add(normalized);
+    } else {
+      nextExceptions.delete(normalized);
+    }
+    const nextAds = {
+      enabled: typeof current.privacy?.ads?.enabled === 'boolean'
+        ? current.privacy!.ads!.enabled
+        : false,
+      exceptions: Array.from(nextExceptions)
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextAds }
+    });
+    setAdsSiteAllowed(normalized, allowed);
+    return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
+  } catch (err) {
+    console.error('[merezhyvo] ads set-site-allowed failed', err);
+    return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
+  }
+});
+
+ipcMain.handle('trackers:clearAdsExceptions', async () => {
+  try {
+    const current = await readSettingsState();
+    const nextAds = {
+      enabled: typeof current.privacy?.ads?.enabled === 'boolean'
+        ? current.privacy!.ads!.enabled
+        : false,
+      exceptions: []
+    };
+    await writeSettingsState({
+      privacy: { ...(current.privacy ?? {}), ads: nextAds }
+    });
+    clearAdsExceptions();
+    return nextAds;
+  } catch (err) {
+    console.error('[merezhyvo] ads clear-exceptions failed', err);
+    clearAdsExceptions();
+    return { enabled: false, exceptions: [] };
   }
 });
 

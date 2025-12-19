@@ -8,40 +8,58 @@ export type TrackerSettings = {
   exceptions: string[];
 };
 
+export type AdsSettings = {
+  enabled: boolean;
+  exceptions: string[];
+};
+
 export type TrackerStatus = {
-  enabledGlobal: boolean;
+  trackersEnabledGlobal: boolean;
+  adsEnabledGlobal: boolean;
   siteHost: string | null;
-  siteAllowed: boolean;
-  blockedCount: number;
+  trackersAllowedForSite: boolean;
+  adsAllowedForSite: boolean;
+  blockedTotal: number;
+  blockedAds: number;
+  blockedTrackers: number;
 };
 
 type TabStats = {
   siteHost: string | null;
-  blockedCount: number;
+  blockedAds: number;
+  blockedTrackers: number;
 };
 
 type InitOptions = {
   sessions?: Session[];
   getSettings?: () =>
-    | Promise<{ privacy?: { trackers?: Partial<TrackerSettings> }; httpsMode?: HttpsMode }>
-    | { privacy?: { trackers?: Partial<TrackerSettings> }; httpsMode?: HttpsMode };
-  onSettingsUpdated?: (settings: TrackerSettings) => void;
+    | Promise<{ privacy?: { trackers?: Partial<TrackerSettings>; ads?: Partial<AdsSettings> }; httpsMode?: HttpsMode }>
+    | { privacy?: { trackers?: Partial<TrackerSettings>; ads?: Partial<AdsSettings> }; httpsMode?: HttpsMode };
+  onSettingsUpdated?: (settings: { trackers: TrackerSettings; ads: AdsSettings }) => void;
 };
 
-const BLOCKLIST_CANDIDATES = [
-  path.join(__dirname, '..', 'assets', 'blocklists', 'trackers.txt'),
-  path.join(process.resourcesPath ?? '', 'assets', 'blocklists', 'trackers.txt'),
-  path.join(process.cwd(), 'assets', 'blocklists', 'trackers.txt')
+const BLOCKLIST_BASES = [
+  path.join(__dirname, '..', 'assets', 'blocklists'),
+  path.join(process.resourcesPath ?? '', 'assets', 'blocklists'),
+  path.join(process.cwd(), 'assets', 'blocklists')
 ];
 
 const DEFAULT_TRACKER_SETTINGS: TrackerSettings = {
   enabled: false,
   exceptions: []
 };
+const DEFAULT_ADS_SETTINGS: AdsSettings = {
+  enabled: false,
+  exceptions: []
+};
 
 const statsByWcId = new Map<number, TabStats>();
-const blocklist = new Set<string>();
+const trackerBlocklist = new Set<string>();
+const adsBlocklist = new Set<string>();
+const hostCategoryCache = new Map<string, 'ads' | 'trackers' | 'none'>();
+const CACHE_LIMIT = 20000;
 let trackerSettings: TrackerSettings = { ...DEFAULT_TRACKER_SETTINGS };
+let adsSettings: AdsSettings = { ...DEFAULT_ADS_SETTINGS };
 let initializedSessions = new WeakSet<Session>();
 
 const normalizeHost = (value: string | null | undefined): string | null => {
@@ -54,39 +72,65 @@ const normalizeHost = (value: string | null | undefined): string | null => {
   }
 };
 
-const loadBlocklist = (): void => {
-  for (const candidate of BLOCKLIST_CANDIDATES) {
+const trimCache = () => {
+  if (hostCategoryCache.size <= CACHE_LIMIT) return;
+  const overflow = hostCategoryCache.size - CACHE_LIMIT;
+  const keys = hostCategoryCache.keys();
+  for (let i = 0; i < overflow; i++) {
+    const k = keys.next();
+    if (k.done) break;
+    hostCategoryCache.delete(k.value);
+  }
+};
+
+const loadBlocklist = (target: Set<string>, filename: string): void => {
+  for (const base of BLOCKLIST_BASES) {
+    const filePath = path.join(base, filename);
     try {
-      const raw = fs.readFileSync(candidate, 'utf8');
+      const raw = fs.readFileSync(filePath, 'utf8');
       const entries = raw
         .split(/\r?\n/)
         .map((line) => line.trim().toLowerCase())
         .filter((line) => line && !line.startsWith('#'));
-      for (const entry of entries) {
-        blocklist.add(entry);
-      }
-      if (blocklist.size > 0) return;
+      for (const entry of entries) target.add(entry);
+      if (target.size > 0) return;
     } catch {
-      // try next candidate
+      // try next
     }
   }
 };
 
-const domainMatches = (host: string | null | undefined): boolean => {
-  if (!host) return false;
+const domainCategory = (host: string | null | undefined): 'ads' | 'trackers' | 'none' => {
+  if (!host) return 'none';
   const lower = host.toLowerCase();
-  if (blocklist.has(lower)) return true;
-  for (const blocked of blocklist) {
-    if (lower === blocked) return true;
-    if (lower.endsWith(`.${blocked}`)) return true;
+  if (hostCategoryCache.has(lower)) return hostCategoryCache.get(lower) ?? 'none';
+
+  const match = (set: Set<string>): boolean => {
+    let candidate = lower;
+    while (candidate) {
+      if (set.has(candidate)) return true;
+      const dot = candidate.indexOf('.');
+      if (dot === -1) break;
+      candidate = candidate.slice(dot + 1);
+    }
+    return false;
+  };
+
+  let result: 'ads' | 'trackers' | 'none' = 'none';
+  if (match(trackerBlocklist)) {
+    result = 'trackers';
+  } else if (match(adsBlocklist)) {
+    result = 'ads';
   }
-  return false;
+  hostCategoryCache.set(lower, result);
+  trimCache();
+  return result;
 };
 
 const getTabStats = (wcId: number): TabStats => {
   let stats = statsByWcId.get(wcId);
   if (!stats) {
-    stats = { siteHost: null, blockedCount: 0 };
+    stats = { siteHost: null, blockedAds: 0, blockedTrackers: 0 };
     statsByWcId.set(wcId, stats);
   }
   return stats;
@@ -99,7 +143,8 @@ const resetStatsForNavigation = (wcId: number, url: string | null | undefined, i
   const stats = getTabStats(wcId);
   if (stats.siteHost !== host) {
     stats.siteHost = host;
-    stats.blockedCount = 0;
+    stats.blockedAds = 0;
+    stats.blockedTrackers = 0;
   }
 };
 
@@ -108,12 +153,19 @@ const notifyRenderer = (wcId: number): void => {
   if (!target) return;
   const stats = statsByWcId.get(wcId);
   const siteHost = stats?.siteHost ?? null;
-  const siteAllowed = siteHost ? trackerSettings.exceptions.includes(siteHost) : false;
+  const trackersAllowedForSite = siteHost ? trackerSettings.exceptions.includes(siteHost) : false;
+  const adsAllowedForSite = siteHost ? adsSettings.exceptions.includes(siteHost) : false;
+  const blockedAds = stats?.blockedAds ?? 0;
+  const blockedTrackers = stats?.blockedTrackers ?? 0;
   const payload: TrackerStatus = {
-    enabledGlobal: trackerSettings.enabled,
+    trackersEnabledGlobal: trackerSettings.enabled,
+    adsEnabledGlobal: adsSettings.enabled,
     siteHost,
-    siteAllowed,
-    blockedCount: stats?.blockedCount ?? 0
+    trackersAllowedForSite,
+    adsAllowedForSite,
+    blockedTotal: blockedAds + blockedTrackers,
+    blockedAds,
+    blockedTrackers
   };
   try {
     target.send('trackers:statsChanged', payload);
@@ -124,7 +176,7 @@ const notifyRenderer = (wcId: number): void => {
 
 const handleBeforeRequest = (details: Electron.OnBeforeRequestListenerDetails, callback: (response: Electron.CallbackResponse) => void) => {
   try {
-    if (!trackerSettings.enabled) return callback({});
+    if (!trackerSettings.enabled && !adsSettings.enabled) return callback({});
     const wcId = details.webContentsId;
     if (!wcId) return callback({});
     if (details.resourceType === 'mainFrame') return callback({});
@@ -137,12 +189,17 @@ const handleBeforeRequest = (details: Electron.OnBeforeRequestListenerDetails, c
     const stats = getTabStats(wcId);
     const siteHost = stats.siteHost;
     if (!siteHost) return callback({});
-    if (siteHost && trackerSettings.exceptions.includes(siteHost)) {
-      return callback({});
-    }
 
-    if (domainMatches(host)) {
-      stats.blockedCount += 1;
+    const category = domainCategory(host);
+    if (category === 'ads') {
+      if (!adsSettings.enabled || adsSettings.exceptions.includes(siteHost)) return callback({});
+      stats.blockedAds += 1;
+      notifyRenderer(wcId);
+      return callback({ cancel: true });
+    }
+    if (category === 'trackers') {
+      if (!trackerSettings.enabled || trackerSettings.exceptions.includes(siteHost)) return callback({});
+      stats.blockedTrackers += 1;
       notifyRenderer(wcId);
       return callback({ cancel: true });
     }
@@ -171,13 +228,21 @@ const initSession = (sess: Session) => {
 };
 
 export const initTrackerBlocker = async (options: InitOptions = {}) => {
-  loadBlocklist();
+  loadBlocklist(trackerBlocklist, 'trackers.txt');
+  loadBlocklist(adsBlocklist, 'ads.txt');
   const settingsRaw = await options.getSettings?.();
   const trackersRaw = settingsRaw?.privacy?.trackers ?? {};
+  const adsRaw = settingsRaw?.privacy?.ads ?? {};
   trackerSettings = {
     enabled: typeof trackersRaw.enabled === 'boolean' ? trackersRaw.enabled : DEFAULT_TRACKER_SETTINGS.enabled,
     exceptions: Array.isArray(trackersRaw.exceptions)
       ? Array.from(new Set(trackersRaw.exceptions.map((h) => String(h).toLowerCase().trim()).filter(Boolean)))
+      : []
+  };
+  adsSettings = {
+    enabled: typeof adsRaw.enabled === 'boolean' ? adsRaw.enabled : DEFAULT_ADS_SETTINGS.enabled,
+    exceptions: Array.isArray(adsRaw.exceptions)
+      ? Array.from(new Set(adsRaw.exceptions.map((h) => String(h).toLowerCase().trim()).filter(Boolean)))
       : []
   };
 
@@ -194,37 +259,62 @@ export const initTrackerBlocker = async (options: InitOptions = {}) => {
 export const getTrackerStatus = (wcId: number | null | undefined): TrackerStatus => {
   const stats = wcId ? statsByWcId.get(wcId) : null;
   const siteHost = stats?.siteHost ?? null;
-  const siteAllowed = siteHost ? trackerSettings.exceptions.includes(siteHost) : false;
+  const trackersAllowedForSite = siteHost ? trackerSettings.exceptions.includes(siteHost) : false;
+  const adsAllowedForSite = siteHost ? adsSettings.exceptions.includes(siteHost) : false;
+  const blockedAds = stats?.blockedAds ?? 0;
+  const blockedTrackers = stats?.blockedTrackers ?? 0;
   return {
-    enabledGlobal: trackerSettings.enabled,
+    trackersEnabledGlobal: trackerSettings.enabled,
+    adsEnabledGlobal: adsSettings.enabled,
     siteHost,
-    siteAllowed,
-    blockedCount: stats?.blockedCount ?? 0
+    trackersAllowedForSite,
+    adsAllowedForSite,
+    blockedTotal: blockedAds + blockedTrackers,
+    blockedAds,
+    blockedTrackers
   };
 };
 
-export const setTrackersEnabledGlobal = (enabled: boolean): TrackerSettings => {
+export const setTrackersEnabledGlobal = (enabled: boolean): { trackers: TrackerSettings; ads: AdsSettings } => {
   trackerSettings.enabled = Boolean(enabled);
   statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
-  return trackerSettings;
+  return { trackers: trackerSettings, ads: adsSettings };
 };
 
-export const setTrackersSiteAllowed = (siteHost: string, allowed: boolean): TrackerSettings => {
+export const setAdsEnabledGlobal = (enabled: boolean): { trackers: TrackerSettings; ads: AdsSettings } => {
+  adsSettings.enabled = Boolean(enabled);
+  statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
+  return { trackers: trackerSettings, ads: adsSettings };
+};
+
+export const setTrackersSiteAllowed = (siteHost: string, allowed: boolean): { trackers: TrackerSettings; ads: AdsSettings } => {
   const normalized = siteHost?.toLowerCase().trim();
-  if (!normalized) return trackerSettings;
+  if (!normalized) return { trackers: trackerSettings, ads: adsSettings };
   const next = new Set(trackerSettings.exceptions);
-  if (allowed) {
-    next.add(normalized);
-  } else {
-    next.delete(normalized);
-  }
+  if (allowed) next.add(normalized); else next.delete(normalized);
   trackerSettings.exceptions = Array.from(next);
   statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
-  return trackerSettings;
+  return { trackers: trackerSettings, ads: adsSettings };
 };
 
-export const clearTrackerExceptions = (): TrackerSettings => {
+export const setAdsSiteAllowed = (siteHost: string, allowed: boolean): { trackers: TrackerSettings; ads: AdsSettings } => {
+  const normalized = siteHost?.toLowerCase().trim();
+  if (!normalized) return { trackers: trackerSettings, ads: adsSettings };
+  const next = new Set(adsSettings.exceptions);
+  if (allowed) next.add(normalized); else next.delete(normalized);
+  adsSettings.exceptions = Array.from(next);
+  statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
+  return { trackers: trackerSettings, ads: adsSettings };
+};
+
+export const clearTrackerExceptions = (): { trackers: TrackerSettings; ads: AdsSettings } => {
   trackerSettings.exceptions = [];
   statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
-  return trackerSettings;
+  return { trackers: trackerSettings, ads: adsSettings };
+};
+
+export const clearAdsExceptions = (): { trackers: TrackerSettings; ads: AdsSettings } => {
+  adsSettings.exceptions = [];
+  statsByWcId.forEach((_v, wcId) => notifyRenderer(wcId));
+  return { trackers: trackerSettings, ads: adsSettings };
 };
