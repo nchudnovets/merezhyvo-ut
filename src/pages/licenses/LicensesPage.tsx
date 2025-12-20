@@ -45,6 +45,7 @@ const Viewer: React.FC<ViewerProps> = ({
     ...styles[key],
     ...(modeStyles[key] ?? {})
   });
+
   return (
     <section style={merge('section')}>
       <div style={merge('lead')}>{lead}</div>
@@ -79,9 +80,24 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
     error: null,
     loading: true
   });
+
+  const [blocklistsNotices, setBlocklistsNotices] = useState<LoadState>({
+    text: null,
+    error: null,
+    loading: true
+  });
+  const [gplLicense, setGplLicense] = useState<LoadState>({
+    text: null,
+    error: null,
+    loading: true
+  });
+
   const [showApp, setShowApp] = useState(false);
   const [showThird, setShowThird] = useState(false);
   const [showTor, setShowTor] = useState(false);
+  const [showBlocklists, setShowBlocklists] = useState(false);
+  const [showGpl, setShowGpl] = useState(false);
+
   const { t } = useI18n();
 
   useEffect(() => {
@@ -144,6 +160,46 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
     };
   }, [t]);
 
+  useEffect(() => {
+    let canceled = false;
+    fetchText('resources/legal/BLOCKLISTS-NOTICES.txt')
+      .then((text) => {
+        if (!canceled) setBlocklistsNotices({ text, error: null, loading: false });
+      })
+      .catch(() => {
+        if (!canceled) {
+          setBlocklistsNotices({
+            text: null,
+            error: t('licenses.error.missing'),
+            loading: false
+          });
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [t]);
+
+  useEffect(() => {
+    let canceled = false;
+    fetchText('resources/legal/GPL-3.0.txt')
+      .then((text) => {
+        if (!canceled) setGplLicense({ text, error: null, loading: false });
+      })
+      .catch(() => {
+        if (!canceled) {
+          setGplLicense({
+            text: null,
+            error: t('licenses.error.missing'),
+            loading: false
+          });
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [t]);
+
   const styles = licensesStyles;
   const modeStyles = licensesModeStyles[mode] || {};
   const mergeContainer = () => ({
@@ -164,6 +220,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
           open={showApp}
           mode={mode}
         />
+
         <Viewer
           lead={t('licenses.third.lead')}
           subtext={t('licenses.third.subtext')}
@@ -174,6 +231,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
           open={showThird}
           mode={mode}
         />
+
         <Viewer
           lead={t('licenses.tor.lead')}
           subtext={t('licenses.tor.subtext')}
@@ -184,9 +242,44 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
           open={showTor}
           mode={mode}
         />
+
+        <Viewer
+          lead={t('licenses.blocklists.lead')}
+          subtext={t('licenses.blocklists.subtext')}
+          load={blocklistsNotices}
+          toggleLabel={t('licenses.blocklists.toggle')}
+          hideLabel={t('licenses.hide')}
+          onToggle={() => setShowBlocklists((prev) => !prev)}
+          open={showBlocklists}
+          mode={mode}
+        />
+
+        <Viewer
+          lead={t('licenses.gpl.lead')}
+          subtext={t('licenses.gpl.subtext')}
+          load={gplLicense}
+          toggleLabel={t('licenses.gpl.toggle')}
+          hideLabel={t('licenses.hide')}
+          onToggle={() => setShowGpl((prev) => !prev)}
+          open={showGpl}
+          mode={mode}
+        />
       </>
     ),
-    [appLicense, thirdParty, showApp, showThird, torLicense, showTor, mode, t]
+    [
+      appLicense,
+      thirdParty,
+      torLicense,
+      blocklistsNotices,
+      gplLicense,
+      showApp,
+      showThird,
+      showTor,
+      showBlocklists,
+      showGpl,
+      mode,
+      t
+    ]
   );
 
   return (
@@ -210,7 +303,16 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
                 cursor: 'pointer'
               }}
             >
-              <svg width={mode === 'mobile' ? 50 : 18} height={mode === 'mobile' ? 50 : 18} viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2" fill="none" strokeLinecap="round" strokeLinejoin="round">
+              <svg
+                width={mode === 'mobile' ? 50 : 18}
+                height={mode === 'mobile' ? 50 : 18}
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+                strokeWidth="2"
+                fill="none"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
                 <line x1="18" y1="6" x2="6" y2="18" />
                 <line x1="6" y1="6" x2="18" y2="18" />
               </svg>
@@ -219,6 +321,7 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
           <h2>{t('licenses.title')}</h2>
         </div>
       </div>
+
       {viewerContent}
     </div>
   );

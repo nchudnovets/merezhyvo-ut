@@ -1,0 +1,38 @@
+Merezhyvo — Blocklists notices
+
+Merezhyvo includes (and generates derived domain-only lists from) third-party filter lists.
+These filter lists are distributed under their respective licenses. This file provides attribution and source references.
+
+Generated files:
+- assets/blocklists/trackers.txt
+- assets/blocklists/ads.txt
+
+Upstream sources used by the blocklist updater:
+
+1) AdGuard Tracking Protection filter
+   URL: https://filters.adtidy.org/extension/ublock/filters/3.txt
+   Upstream project: AdguardTeam/AdguardFilters
+   License: GPL-3.0 (see GPL-3.0.txt)
+   Source: https://github.com/AdguardTeam/AdguardFilters
+
+2) AdGuard Base filter
+   URL: https://filters.adtidy.org/extension/ublock/filters/2.txt
+   Upstream project: AdguardTeam/AdguardFilters
+   License: GPL-3.0 (see GPL-3.0.txt)
+   Source: https://github.com/AdguardTeam/AdguardFilters
+
+3) AdGuard Mobile Ads filter
+   URL: https://filters.adtidy.org/extension/ublock/filters/11.txt
+   Upstream project: AdguardTeam/AdguardFilters
+   License: GPL-3.0 (see GPL-3.0.txt)
+   Source: https://github.com/AdguardTeam/AdguardFilters
+
+4) EasyPrivacy
+   URL: https://easylist-downloads.adblockplus.org/easyprivacy.txt
+   License: dual-licensed; Merezhyvo uses the GPLv3+ option for compatibility with other sources
+   Attribution: "The EasyList authors (https://easylist.to/)"
+   License info: https://easylist.to/pages/licence.html
+
+Notes:
+- The generated domain lists are derived from the sources above.
+- The Merezhyvo application code is licensed separately (see LICENSE.txt).

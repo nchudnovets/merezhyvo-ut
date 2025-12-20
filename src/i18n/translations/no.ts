@@ -258,6 +258,15 @@ const no = {
   'licenses.tor.subtext':
     'Denne appen inkluderer Tor-programvaren. Den er separat lisensiert av The Tor Project. Se hele Tor-lisensteksten nedenfor.',
   'licenses.tor.toggle': 'Vis Tor-lisens',
+  'licenses.blocklists.lead': 'Blokklister (sporere og reklame)',
+  'licenses.blocklists.subtext':
+    'Denne appen bruker tredjeparts filterlister for å generere domeneblokklister for blokkering av sporere og reklame. Kilder og kreditering står nedenfor. Dette endrer ikke appens lisens; blokklister er separate datafiler.',
+  'licenses.blocklists.toggle': 'Åpne BLOKKLISTE-MERKNADER',
+
+  'licenses.gpl.lead': 'GPL-3.0-lisenstekst',
+  'licenses.gpl.subtext':
+    'Noen medfølgende blokklister er lisensiert under GPL-3.0. Hele lisensteksten finnes nedenfor.',
+  'licenses.gpl.toggle': 'Vis GPL-3.0-tekst',
 
   'tor.status.label': 'Tor-status',
   'tor.status.enabled': 'Tor aktivert',
