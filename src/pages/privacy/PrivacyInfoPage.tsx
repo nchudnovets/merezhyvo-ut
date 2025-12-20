@@ -170,7 +170,7 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         </div>
 
         {sections.map((section) => {
-          const isOpen = expanded[section.key] ?? true;
+          const isOpen = expanded[section.key] ?? false;
           return (
             <div key={section.key} style={cardStyle}>
               <button

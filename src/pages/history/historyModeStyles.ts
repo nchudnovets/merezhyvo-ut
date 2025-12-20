@@ -8,6 +8,9 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
     entryText: {
       maxWidth: '50%'
     },
+    actionToggle: {
+      padding: '6px 8px'
+    },
     button: {}
   },
   mobile: {
@@ -22,9 +25,9 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
       maxWidth: '60%'
     },
     entryActions: {
-      flexDirection: 'column',
-      alignItems: 'stretch',
-      gap: '10px'
+      flexDirection: 'row',
+      alignItems: 'center',
+      justifyContent: 'flex-end'
     },
     entryTitle: {
       fontSize: 'clamp(28px, 5vw, 38px)',
@@ -41,6 +44,12 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
       width: '100%',
       textAlign: 'center',
       fontSize: '35px'
+    },
+    actionToggle: {
+      padding: '10px',
+      borderRadius: '12px',
+      width: '64px',
+      height: '64px'
     },
     favicon: {
       width: '55px',

@@ -71,6 +71,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   const [hasMore, setHasMore] = useState(false);
   const [, setLoadingMore] = useState(false);
   const [search, setSearch] = useState('');
+  const [expandedActions, setExpandedActions] = useState<Record<string, boolean>>({});
   const [loading, setLoading] = useState(false);
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
@@ -266,11 +267,22 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
     }
   }, [refreshHistory, t]);
 
+  useEffect(() => {
+    if (!feedback) return;
+    const timer = setTimeout(() => setFeedback(null), 3000);
+    return () => clearTimeout(timer);
+  }, [feedback]);
+
   const formatTime = (ts: number) => new Date(ts).toLocaleString();
 
   const entryActionsStyle = {
     ...styles.entryActions,
     ...(modeStyles.entryActions ?? {})
+  };
+
+  const toggleButtonStyle = {
+    ...styles.actionToggle,
+    ...(modeStyles.actionToggle ?? {})
   };
 
   const actionButtonStyle = {
@@ -337,7 +349,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
         value={search}
         onChange={(event) => setSearch(event.target.value)}
       />
-      {feedback && <div style={{ color: '#34d399', fontSize: '12px' }}>{feedback}</div>}
+      {feedback && <div style={{ color: '#34d399', fontSize: mode === 'mobile' ? '35px' : '12px' }}>{feedback}</div>}
       <div style={groupsStyle} className="service-scroll" ref={listRef}>
         {loading && <div style={styles.placeholder}>{t('history.loading')}</div>}
         {!loading && !sortedVisits.length && <div style={styles.placeholder}>{t('history.empty')}</div>}
@@ -347,34 +359,127 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
           return (
             <div key={key as string} style={styles.group}>
               <h3 style={groupsTitle}>{groupLabelMap[key as GroupKey]}</h3>
-              {entries.map((visit) => (
-                <React.Fragment key={visit.id}>
-                  <div style={{ ...styles.entry, ...(modeStyles.entry ?? {}) }}>
-                    <div style={styles.entryMain}>
-                      <FaviconIcon faviconId={visit.faviconId} mode={mode} />
-                      <div style={styles.entryText}>
-                        <span style={entryTitleStyle}>{visit.title || visit.url}</span>
-                        <span style={entryUrlStyle}>{visit.url}</span>
-                        <span style={entryUrlStyle}>{formatTime(visit.ts)}</span>
-                      </div>
+              {entries.map((visit) => {
+                const isExpanded = Boolean(expandedActions[visit.id]);
+                return (
+                  <React.Fragment key={visit.id}>
+                    <div style={{ ...styles.entry, ...(modeStyles.entry ?? {}), flexDirection: mode === 'mobile' && isExpanded ? 'column' : undefined }}>
+                      {mode === 'mobile' ? (
+                        <>
+                          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
+                            <div style={{ ...styles.entryMain, flex: 1 }}>
+                              <FaviconIcon faviconId={visit.faviconId} mode={mode} />
+                              <div style={styles.entryText}>
+                                <span style={entryTitleStyle}>{visit.title || visit.url}</span>
+                                <span style={entryUrlStyle}>{visit.url}</span>
+                                <span style={entryUrlStyle}>{formatTime(visit.ts)}</span>
+                              </div>
+                            </div>
+                            <button
+                              type="button"
+                              style={toggleButtonStyle}
+                              onClick={() =>
+                                setExpandedActions((prev) => ({ ...prev, [visit.id]: !prev[visit.id] }))
+                              }
+                            >
+                              <svg
+                                viewBox="0 0 16 16"
+                                width={38}
+                                height={38}
+                                style={{
+                                  transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                                  transition: 'transform 150ms ease'
+                                }}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M4 6l4 4 4-4" />
+                              </svg>
+                            </button>
+                          </div>
+                          {isExpanded && (
+                            <div
+                              style={{
+                                display: 'flex',
+                                flexDirection: 'column',
+                                gap: 8,
+                                width: '100%',
+                                marginTop: 10
+                              }}
+                            >
+                              <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
+                                {t('history.entry.open')}
+                              </button>
+                              <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
+                                {t('history.entry.delete')}
+                              </button>
+                              <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>
+                                {t('history.entry.deleteDomain')}
+                              </button>
+                            </div>
+                          )}
+                        </>
+                      ) : (
+                        <>
+                          <div style={styles.entryMain}>
+                            <FaviconIcon faviconId={visit.faviconId} mode={mode} />
+                            <div style={styles.entryText}>
+                              <span style={entryTitleStyle}>{visit.title || visit.url}</span>
+                              <span style={entryUrlStyle}>{visit.url}</span>
+                              <span style={entryUrlStyle}>{formatTime(visit.ts)}</span>
+                            </div>
+                          </div>
+                          <div style={entryActionsStyle}>
+                            {isExpanded && (
+                              <div style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                                <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
+                                  {t('history.entry.open')}
+                                </button>
+                                <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
+                                  {t('history.entry.delete')}
+                                </button>
+                                <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>
+                                  {t('history.entry.deleteDomain')}
+                                </button>
+                              </div>
+                            )}
+                            <button
+                              type="button"
+                              style={toggleButtonStyle}
+                              onClick={() =>
+                                setExpandedActions((prev) => ({ ...prev, [visit.id]: !prev[visit.id] }))
+                              }
+                            >
+                              <svg
+                                viewBox="0 0 16 16"
+                                width={18}
+                                height={18}
+                                style={{
+                                  transform: isExpanded ? 'rotate(0deg)' : 'rotate(180deg)',
+                                  transition: 'transform 150ms ease'
+                                }}
+                                fill="none"
+                                stroke="currentColor"
+                                strokeWidth="1.6"
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                              >
+                                <path d="M6 4l4 4-4 4" />
+                              </svg>
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </div>
-                    <div style={entryActionsStyle}>
-                      <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
-                        {t('history.entry.open')}
-                      </button>
-                      <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
-                        {t('history.entry.delete')}
-                      </button>
-                      <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>
-                        {t('history.entry.deleteDomain')}
-                      </button>
-                    </div>
-                  </div>
-                  {visit.id === sentinelId && hasMore && (
-                    <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />
-                  )}
-                </React.Fragment>
-              ))}
+                    {visit.id === sentinelId && hasMore && (
+                      <div ref={sentinelRef} style={{ height: 1, width: '100%' }} />
+                    )}
+                  </React.Fragment>
+                );
+              })}
             </div>
           );
         })}

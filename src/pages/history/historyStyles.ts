@@ -15,6 +15,7 @@ export type HistoryStyleKeys =
   | 'entryTitle'
   | 'entryUrl'
 | 'entryActions'
+| 'actionToggle'
 | 'actionButton'
 | 'favicon'
 | 'placeholder'
@@ -118,6 +119,17 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   entryActions: {
     display: 'flex',
     gap: '8px'
+  },
+  actionToggle: {
+    padding: '6px',
+    borderRadius: '8px',
+    border: '1px solid rgba(148, 163, 184, 0.45)',
+    background: 'rgba(224, 231, 255, 0.08)',
+    color: '#f8fafc',
+    cursor: 'pointer',
+    display: 'inline-flex',
+    alignItems: 'center',
+    justifyContent: 'center'
   },
   actionButton: {
     padding: '6px 10px',
