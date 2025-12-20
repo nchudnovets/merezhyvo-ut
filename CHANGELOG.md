@@ -1,5 +1,27 @@
 # Changelog
 
+----
+
+## 0.4.5 - 2025-12-20
+
+### Added
+- Tracker & ads blocking (domain-based), with per-site exceptions and counters in the security popover.
+- Norwegian UI translation and Norwegian keyboard layout.
+
+### Changed
+- Page zoom is now persisted per-tab across sessions, separately for mobile and desktop modes.
+- Updated and improved UI translations for multiple languages.
+- Various UI polish and small layout tweaks.
+
+### Fixed
+- File downloads and uploads: fixed several issues with saving downloads and uploading files on websites.
+- Fixed text input on some sites where typing did not work.
+- Fixed a disappearing caret issue in certain cases.
+- Fixed context menu positioning.
+- Fixed an issue where the Passwords internal page could remain open / not close correctly when the password manager was locked.
+
+----
+
 ## 0.4.4 - 2025-12-13
 
 ### Added
