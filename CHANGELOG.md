@@ -12,6 +12,7 @@
 - Page zoom is now persisted per-tab across sessions, separately for mobile and desktop modes.
 - Updated and improved UI translations for multiple languages.
 - Various UI polish and small layout tweaks.
+- Updated Electron/Chromium engine (Chromium 142.0.7444.235)
 
 ### Fixed
 - File downloads and uploads: fixed several issues with saving downloads and uploading files on websites.
