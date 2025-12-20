@@ -1,4 +1,9 @@
 # Changelog
+----
+## 0.4.5.1 - 2025-12-20
+
+### Fixed
+- a bug when trackers blocker blocked the main duckduckgo page
 
 ----
 
