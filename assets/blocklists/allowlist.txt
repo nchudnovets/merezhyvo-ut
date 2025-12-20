@@ -1,0 +1,2 @@
+# Domains that must NEVER be blocked by Merezhyvo domain blocker
+duckduckgo.com

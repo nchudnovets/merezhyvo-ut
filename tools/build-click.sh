@@ -23,6 +23,10 @@ TOR_TARGET_BIN="app/resources/tor/tor"
 TOR_LICENSE_TARGET="app/resources/tor/LICENSE"
 TOR_VERSION_TARGET="app/resources/tor/version.txt"
 
+# Legal notices (licenses, third-party notices, blocklists notices)
+LEGAL_SOURCE_DIR="resources/legal"
+LEGAL_TARGET_DIR="app/resources/legal"
+
 echo "==> Pre-clean build/"
 rm -rf build || true
 
@@ -154,6 +158,29 @@ chmod +x "${TOR_TARGET_BIN}"
 
 cp "${TOR_LICENSE_SOURCE}" "${TOR_LICENSE_TARGET}"
 cp "${TOR_VERSION_SOURCE}" "${TOR_VERSION_TARGET}"
+
+echo "==> Step 3.6: copy legal notices into app/resources/legal"
+if [ ! -d "${LEGAL_SOURCE_DIR}" ]; then
+  echo "ERROR: ${LEGAL_SOURCE_DIR} not found."
+  exit 1
+fi
+
+mkdir -p "${LEGAL_TARGET_DIR}"
+cp -a "${LEGAL_SOURCE_DIR}/." "${LEGAL_TARGET_DIR}/"
+
+# Sanity-check: expected legal files should exist in the packaged app
+REQUIRED_LEGAL_FILES=(
+  "${LEGAL_TARGET_DIR}/LICENSE.txt"
+  "${LEGAL_TARGET_DIR}/THIRD-PARTY-NOTICES.txt"
+  "${LEGAL_TARGET_DIR}/BLOCKLISTS-NOTICES.txt"
+  "${LEGAL_TARGET_DIR}/GPL-3.0.txt"
+)
+
+for f in "${REQUIRED_LEGAL_FILES[@]}"; do
+  if [ ! -f "${f}" ]; then
+    echo "WARNING: missing legal file in packaged app: ${f}"
+  fi
+done
 
 # Sanity check: the packaged binary must exist
 if [ ! -f "./app/merezhyvo" ]; then

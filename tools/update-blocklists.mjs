@@ -12,16 +12,20 @@ const SOURCES = {
   trackers: [
     // AdGuard Tracking Protection filter
     "https://filters.adtidy.org/extension/ublock/filters/3.txt",
-    // EasyPrivacy (official ABP mirror)
+    // EasyPrivacy (official ABP mirror) — dual-licensed; attribution required
     "https://easylist-downloads.adblockplus.org/easyprivacy.txt",
   ],
   ads: [
     // AdGuard Base filter (includes EasyList + AdGuard English)
     "https://filters.adtidy.org/extension/ublock/filters/2.txt",
-    // YoYo adservers list (hosts format)
-    "https://pgl.yoyo.org/adservers/serverlist.php?hostformat=hosts&mimetype=plaintext&showintro=0",
+    // AdGuard Mobile Ads filter
+    "https://filters.adtidy.org/extension/ublock/filters/11.txt",
   ],
 };
+
+const LICENSE_NOTE =
+  "Licenses: GPL-3.0 (see app/resources/legal/GPL-3.0.txt). Notices: app/resources/legal/BLOCKLISTS-NOTICES.txt";
+
 
 function parseArgs(argv) {
   const args = {
@@ -136,6 +140,26 @@ function isValidDomain(domain) {
   return true;
 }
 
+async function loadAllowlist(filePath) {
+  try {
+    const txt = await fs.readFile(filePath, 'utf8');
+    const out = new Set();
+
+    for (const raw of txt.split(/\r?\n/)) {
+      const line = raw.trim();
+      if (!line) continue;
+      if (line.startsWith('#')) continue;
+
+      const d = line.toLowerCase();
+      if (d !== 'localhost' && isValidDomain(d)) out.add(d);
+    }
+
+    return out;
+  } catch {
+    return new Set(); // missing allowlist is OK
+  }
+}
+
 function extractDomainsFromText(text) {
   const out = new Set();
 
@@ -146,6 +170,9 @@ function extractDomainsFromText(text) {
 
     // Comments in ABP lists
     if (line.startsWith("!") || line.startsWith("#")) continue;
+
+    // Not a network block: remove tracking params, etc.
+    if (line.includes('$removeparam')) continue;
 
     // Cosmetic filters
     if (line.includes("##") || line.includes("#@#") || line.includes("#?#")) continue;
@@ -201,6 +228,7 @@ async function writeListFile(filepath, { kind, domains, sources, quiet }) {
     `# ${path.basename(filepath)} (generated)`,
     `# Generated: ${now}`,
     `# Kind: ${kind}`,
+    `# ${LICENSE_NOTE}`,
     `# Sources:`,
     ...sources.map((s) => `#  - ${s}`),
     `# Domains: ${sorted.length}`,
@@ -220,6 +248,11 @@ async function main() {
   const outDir = args.outDir;
   const trackersPath = path.join(outDir, "trackers.txt");
   const adsPath = path.join(outDir, "ads.txt");
+  const allowlistPath = path.join(outDir, "allowlist.txt");
+  const allowlist = await loadAllowlist(allowlistPath);
+  if (allowlist.size > 0) {
+    log(args.quiet, `Using allowlist: ${allowlistPath} (${allowlist.size} domains)`);
+  }
 
   if (args.offline) {
     log(args.quiet, "Offline mode: skipping downloads; keeping existing lists.");
@@ -247,6 +280,13 @@ async function main() {
         console.warn(`  ! failed: ${url}\n    ${e?.message || e}`);
       }
     }
+
+     // Apply allowlist removals
+    let removed = 0;
+    for (const d of allowlist) {
+      if (combined.delete(d)) removed++;
+    }
+    if (removed > 0) log(args.quiet, `  allowlist removed: ${removed}`);
 
     results[kind] = { anyOk, combined, sources };
   }
