@@ -45,13 +45,15 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Adjustable UI scaling: change the size of toolbar, tabs and controls independently from page zoom.
 
+  - Page zoom is persisted per tab across sessions, separately for mobile and desktop modes.
+
 
 - ### Privacy & security features
 
 *   **Certificate validation & shield indicator**
     *   Merezhyvo validates HTTPS certificates in-app and shows a small shield icon before the URL.
     *   White shield: everything looks normal for this site.
-    *   Yellow shield: you have added a custom privacy or security exception for this site.
+    *   Yellow shield: you have enabled a per-site privacy/security exception for this site (for example cookies, trackers/ads, or certificate overrides).
     *   Red shield: the connection is not secure (HTTP only, invalid/expired/revoked certificate, etc.).
     *   Tapping the shield opens a popover with a short summary, certificate details, and links to manage site data or exceptions.
 
@@ -64,6 +66,11 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   Global setting under **Settings → Privacy & Security** to block or allow third-party cookies.
     *   Per-site exceptions: you can explicitly allow third-party cookies for individual sites that break without them (for example some logins or embedded widgets).
     *   Exceptions are visible both on the internal **“Manage security exceptions”** page and in the shield popover for the current site.
+
+*   **Tracker & ads blocking (domain-based)**
+    *   Two separate global toggles under **Settings → Privacy & Security**: block trackers (recommended) and block ads.
+    *   Per-site exceptions: you can allow trackers and/or ads for individual sites if something breaks.
+    *   The shield popover shows counters for the current site: blocked total / ads / trackers.
 
 *   **WebRTC privacy modes**
     *   WebRTC is a browser technology used for real-time audio/video and peer-to-peer connections.
@@ -79,7 +86,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   The same page is linked from the shield popover (“Manage site data”) with the current site pre-filtered.
 
 *   **Built-in explanation page**
-    *   A **“Privacy & Security – How this works”** internal page explains, in plain language, how HTTPS, certificates, cookies, WebRTC, and the internal tools (exceptions, site data) behave in Merezhyvo.
+    *   A **“Privacy & Security – How this works”** internal page explains, in plain language, how HTTPS, certificates, cookies, tracker/ad blocking, WebRTC, and the internal tools (exceptions, site data) behave in Merezhyvo.
     *   Accessible from **Settings → Privacy & Security** and intended for non-experts who want to understand what the knobs actually do.
 
 
@@ -110,7 +117,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
 - **Integrated on-screen keyboard**
 
-  - Custom OSK tailored for the browser with multiple layouts (including `en`, `uk`, `de`, `pl`, `fr`, `es`, `it`, `pt`, `tr`, `nl`, `ro`, `ar`).
+  - Custom OSK tailored for the browser with multiple layouts (including `en`, `uk`, `de`, `pl`, `fr`, `es`, `it`, `pt`, `tr`, `nl`, `no`, `ro`, `ar`).
 
   - Long-press alternates, symbol pages, Caps Lock via long-press Shift and layout switching managed in **Settings → Keyboard**.
 
@@ -127,6 +134,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   Dutch
     *   Spanish
     *   Italian
+    *   Norwegian
 
 *   More translations can be added over time based on user feedback.
     
@@ -159,6 +167,19 @@ electron/ # Electron main process and preload
   lib/ # main-process helpers (settings, Tor, geo, etc.)
 
 
+assets/
+
+  blocklists/ # generated domain lists used by the blocker
+
+    trackers.seed.txt # small committed fallback list
+
+    ads.seed.txt # small committed fallback list
+
+    trackers.txt # generated during build (ignored by git)
+
+    ads.txt # generated during build (ignored by git)
+
+
 resources/
 
   tor/tor # cached Tor binary (host side, before packaging)
@@ -175,6 +196,8 @@ resources/
 tools/
 
   build-click.sh # one-shot full build to .click
+
+  update-blocklists.mjs # downloads and generates trackers.txt / ads.txt during build (with seed fallback)
 
   tor-update.sh # refresh cached Tor binary/license/version
 
@@ -259,12 +282,14 @@ This script will:
 1.  Ensure there is a cached Tor binary under `resources/tor/` (downloading and extracting from `.deb` if needed).
     
 2.  Run `npm ci` to install dependencies.
+
+3.  Update the tracker/ad domain blocklists into `assets/blocklists/` (using seed files as fallback if offline).
     
-3.  Run `npm run package` to build the React UI and package the Electron app into `./app/` for arm64.
+4.  Run `npm run package` to build the React UI and package the Electron app into `./app/` for arm64.
     
-4.  Copy UT-specific resources (e.g. `location_once.qml`) and the Tor binary into `app/resources/`.
+5.  Copy UT-specific resources (e.g. `location_once.qml`) and the Tor binary into `app/resources/`.
     
-5.  Run **Clickable** to build the `.click` using the Ubuntu Touch 24.04 framework.
+6.  Run **Clickable** to build the `.click` using the Ubuntu Touch 24.04 framework.
     
 
 The resulting `.click` file will be placed in the `build/` directory, for example:
@@ -293,7 +318,7 @@ clickable build \--arch arm64 \--accept\-review\-errors
 
 Internal settings are stored in a JSON file under the user's `~/.config` directory (for example `~/.config/merezhyvo.naz.r/settings.json`).
 
-This includes UI preferences (theme, scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting), and per-site exception lists.
+This includes UI preferences (theme, scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting, tracker/ad blocking), and per-site exception lists.
 
 
 - - -
@@ -309,6 +334,7 @@ Merezhyvo includes several tools that can help improve privacy:
 *   **Configurable HTTPS mode (Strict / Preferred)** to encourage secure connections and warn when only HTTP is available.
 *   **In-app certificate validation** with a clear shield indicator (white / yellow / red) and a popover with certificate status.
 *   **Optional blocking of third-party cookies** with per-site exceptions for cases where functionality depends on them.
+*   **Tracker and ad blocking (domain-based)** with separate global toggles and per-site exceptions.
 *   **WebRTC privacy modes** (always allowed / always blocked / blocked when Tor is enabled).
 *   **Site data management** page to inspect and clear stored cookies and site data per site, or wipe everything at once.
 
