@@ -45,6 +45,7 @@ import { useUrlSuggestions } from './hooks/useUrlSuggestions';
 import { useToolbarHeights } from './hooks/useToolbarHeights';
 import { useMessengerMode } from './hooks/useMessengerMode';
 import { usePasswordFlows } from './hooks/usePasswordFlows';
+import { usePowerBlocker } from './hooks/usePowerBlocker';
 import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
@@ -300,10 +301,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
-  const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
-  const backgroundTabRef = useRef<string | null>(null);
-  const fullscreenTabRef = useRef<string | null>(null);
-  const playingTabsRef = useRef<Set<string>>(new Set());
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
@@ -321,12 +318,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const backgroundHostRef = useRef<HTMLDivElement | null>(null);
   const zoomBarRef = useRef<HTMLDivElement | null>(null);
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState<boolean>(false);
-  const powerBlockerIdRef = useRef<number | null>(null);
+  const playingTabsRef = useRef<Set<string>>(new Set());
+  const { powerBlockerIdRef, updatePowerBlocker } = usePowerBlocker(playingTabsRef);
   const {
     mountInBackgroundHost,
     applyActiveStyles,
     installShadowStyles
   } = useWebviewMounts(webviewHostRef, backgroundHostRef);
+  const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
+  const backgroundTabRef = useRef<string | null>(null);
+  const fullscreenTabRef = useRef<string | null>(null);
 
   const startUrlAppliedRef = useRef<boolean>(false);
   const activeIdRef = useRef<string | null>(activeId);
@@ -785,39 +786,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [focusLastMainEditable, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
   const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
-
-  const startPowerBlocker = useCallback(async (): Promise<number | null> => {
-    if (powerBlockerIdRef.current != null) return powerBlockerIdRef.current;
-    try {
-      const id = await ipc.power.start();
-      if (typeof id === 'number') {
-        powerBlockerIdRef.current = id;
-        return id;
-      }
-    } catch (err) {
-      console.error('[Merezhyvo] power blocker start failed', err);
-    }
-    return null;
-  }, []);
-
-  const stopPowerBlocker = useCallback(async (): Promise<void> => {
-    const id = powerBlockerIdRef.current;
-    if (id == null) return;
-    try {
-      await ipc.power.stop(id);
-    } catch (err) {
-      console.error('[Merezhyvo] power blocker stop failed', err);
-    }
-    powerBlockerIdRef.current = null;
-  }, []);
-
-  const updatePowerBlocker = useCallback(() => {
-    if (playingTabsRef.current.size > 0) {
-      void startPowerBlocker();
-    } else {
-      void stopPowerBlocker();
-    }
-  }, [startPowerBlocker, stopPowerBlocker]);
 
   const destroyTabView = useCallback((tabId: string, { keepMeta = false }: DestroyTabOptions = {}) => {
     const entry = tabViewsRef.current.get(tabId);
