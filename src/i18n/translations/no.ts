@@ -273,14 +273,17 @@ const no = {
     'Denne appen inkluderer Tor-programvaren. Den er separat lisensiert av The Tor Project. Se hele Tor-lisensteksten nedenfor.',
   'licenses.tor.toggle': 'Vis Tor-lisens',
   'licenses.blocklists.lead': 'Blokklister (sporere og reklame)',
-  'licenses.blocklists.subtext':
-    'Denne appen bruker tredjeparts filterlister for å generere domeneblokklister for blokkering av sporere og reklame. Kilder og kreditering står nedenfor. Dette endrer ikke appens lisens; blokklister er separate datafiler.',
-  'licenses.blocklists.toggle': 'Åpne BLOKKLISTE-MERKNADER',
+'licenses.blocklists.subtext':
+  'Denne appen bruker tredjeparts filterlister for å generere domeneblokklister for blokkering av sporere og reklame. Kilder og kreditering står nedenfor. Dette endrer ikke appens lisens; blokklister er separate datafiler.',
+'licenses.blocklists.toggle': 'Åpne BLOKKLISTE-MERKNADER',
 
-  'licenses.gpl.lead': 'GPL-3.0-lisenstekst',
-  'licenses.gpl.subtext':
-    'Noen medfølgende blokklister er lisensiert under GPL-3.0. Hele lisensteksten finnes nedenfor.',
-  'licenses.gpl.toggle': 'Vis GPL-3.0-tekst',
+'licenses.gpl.lead': 'GPL-3.0-lisenstekst',
+'licenses.gpl.subtext':
+  'Noen medfølgende blokklister er lisensiert under GPL-3.0. Hele lisensteksten finnes nedenfor.',
+'licenses.gpl.toggle': 'Vis GPL-3.0-tekst',
+  'licenses.mpl.lead': 'MPL 2.0-lisenstekst',
+  'licenses.mpl.subtext': 'Public Suffix List-data levert via tldts er lisensiert under Mozilla Public License 2.0. Hele teksten nedenfor.',
+  'licenses.mpl.toggle': 'Vis MPL 2.0-tekst',
 
   'tor.status.label': 'Tor-status',
   'tor.status.enabled': 'Tor aktivert',
@@ -671,27 +674,41 @@ const no = {
   'privacyInfo.trackers.body1':
     'Trackere er skript, piksler og andre forespørsler som lastes fra tredjepartsdomener for analyse, annonser eller sporing av atferd. Selv om du ikke «ser» dem på siden, kan de kjøre i bakgrunnen.',
   'privacyInfo.trackers.body2':
-    'Merezhyvo har en enkel blokkering for trackere og annonser: nettleseren blokkerer nettverksforespørsler til kjente analyse- og annonse-domener fra innebygde lister. Dette påvirker ikke siden du har i adressefeltet, men kan stoppe innlasting av tredjepartsressurser inne på siden.',
+    'Merezhyvo har en enkel blokkering for trackere og reklame: nettleseren blokkerer nettverksforespørsler til kjente analyse- og annonse-domener fra innebygde lister. Dette påvirker ikke siden du har i adressefeltet, men kan stoppe innlasting av tredjepartsressurser inne på siden.',
   'privacyInfo.trackers.body3':
-    'I innstillingene finnes to separate brytere: blokkering av trackere og blokkering av reklame. Du kan slå dem på uavhengig. For noen sider holder det å blokkere bare trackere, mens reklameblokkering kan påvirke sider sterkere.',
-  'privacyInfo.trackers.body4': 'I sikkerhetspanelet (skjoldikonet) finnes punktet «Trackere og reklame». Der ser du:',
-  'privacyInfo.trackers.body5': '– domenet til det aktuelle nettstedet;',
-  'privacyInfo.trackers.body6': '– blokkert totalt;',
-  'privacyInfo.trackers.body7': '– blokkert reklame;',
-  'privacyInfo.trackers.body8': '– blokkert trackere.',
+    'I innstillingene finnes to separate brytere: Blokker trackere og Blokker reklame. Du kan slå dem på uavhengig. For noen sider holder det å blokkere bare trackere; reklameblokkering kan påvirke sider mer aggressivt.',
+  'privacyInfo.trackers.body4':
+    'Når minst én av disse bryterne er på, kan du også velge en blokkeringsmodus.',
+  'privacyInfo.trackers.body5':
+    'Når du surfer, laster en side ofte ressurser fra mer enn ett sted. I tillegg til nettstedet du åpnet (domenet i adressefeltet) kan siden laste ekstra skript, bilder, fonter, videospillere, analyse og reklame fra andre domener «i bakgrunnen».',
+  'privacyInfo.trackers.body6':
+    'Basic (anbefalt) blokkerer trackere/annonser bare når de kommer fra andre domener. I praksis betyr det: – Du åpner example.com → ressurser fra example.com er vanligvis tillatt. – Forespørsler til et annet domene (for eksempel et kjent analyse-/annonse-domene) kan blokkeres. Denne modusen prøver å redusere sporing mens sider fortsetter å fungere, fordi den unngår å blokkere nettstedets egne kritiske ressurser.',
+  'privacyInfo.trackers.body7':
+    'Strict er mer aggressiv. Den blokkerer tracker-/annonse-domener selv om innholdet ser ut til å komme fra samme nettsted. Noen sider leverer annonser og sporing fra eget domene eller blander dem med vanlige ressurser. Strict prøver å blokkere mer i slike tilfeller, men kan også oftere ødelegge sider (manglende knapper, innloggingsproblemer, tomme seksjoner eller video som ikke lastes).',
+  'privacyInfo.trackers.body8':
+    'Hvis du er usikker på hva du skal velge, start med Basic. Hvis en side fortsatt føles «for bråkete» og du tåler litt feil av og til, prøv Strict.',
   'privacyInfo.trackers.body9':
-    'Telleren øker mens du surfer på samme nettsted i fanen. Går du i samme fane til et annet nettsted (annet domene i adressefeltet), nullstilles den og begynner på nytt for det nye nettstedet.',
-  'privacyInfo.trackers.body10':
-    'Hvis blokkeringen bryter noe (innlogging, betaling, video, «Logg inn med …»-knapper), kan du der aktivere et unntak:',
-  'privacyInfo.trackers.body11': '– «Tillat trackere for dette nettstedet»;',
-  'privacyInfo.trackers.body12': '– «Tillat reklame for dette nettstedet».',
-  'privacyInfo.trackers.body13':
-    'Når et nettsted har et sikkerhets- eller personvernsunntak (for eksempel trackere tillatt eller endrede cookie-regler), blir skjoldet gult — en påminnelse om at du bevisst har senket beskyttelsen for dette domenet.',
-  'privacyInfo.trackers.body14':
-    'Viktig: Selv med reklameblokkering på kan du fortsatt se reklame på noen sider. Årsaker: – noe reklame kan leveres fra samme domene som selve siden (førstepartsinnhold) og er vanskelig å skille fra vanlige elementer; – reklame kan være innebygd direkte i HTML eller skript uten egne forespørsler til annonsedomenene; – noen sider bruker nøytrale leveringsdomener (CDN-er) som inneholder både nyttige ressurser og annonseblokker, og full blokkering av dem bryter ofte siden. Domeneblokkering reduserer mange annonse- og sporingsforespørsler, men garanterer ikke at alle annonser forsvinner overalt.',
+    'Tips: hvis en side blir ødelagt, bytt tilbake til Basic eller bruk unntak per nettsted («Tillat trackere/annonser for dette nettstedet») i skjoldpanelet.',
+  'privacyInfo.trackers.body10': 'I sikkerhetspanelet (skjoldikonet) finnes punktet «Trackere og reklame». Der ser du:',
+  'privacyInfo.trackers.body11': '– domenet til det aktuelle nettstedet;',
+  'privacyInfo.trackers.body12': '– blokkert totalt;',
+  'privacyInfo.trackers.body13': '– blokkert reklame;',
+  'privacyInfo.trackers.body14': '– blokkert trackere.',
   'privacyInfo.trackers.body15':
-    'Det finnes også globale innstillinger «Blokker trackere» og «Blokker reklame», og du kan administrere unntak på mzr://security-exceptions.',
+    'Telleren øker mens du surfer på samme nettsted i fanen. Går du i samme fane til et annet nettsted (annet domene i adressefeltet), nullstilles den og begynner på nytt for det nye nettstedet.',
   'privacyInfo.trackers.body16':
+    'Hvis blokkeringen bryter noe (innlogging, betaling, video, «Logg inn med …»-knapper), kan du der aktivere et unntak:',
+  'privacyInfo.trackers.body17': '– «Tillat trackere for dette nettstedet»;',
+  'privacyInfo.trackers.body18': '– «Tillat reklame for dette nettstedet».',
+  'privacyInfo.trackers.body19':
+    'Når et nettsted har et sikkerhets- eller personvernsunntak (for eksempel trackere tillatt eller endrede cookie-regler), blir skjoldet gult — en påminnelse om at du bevisst har senket beskyttelsen for dette domenet. I Basic-modus tillates forespørsler til siden du åpnet som regel, noe som hjelper å unngå «selvblokkering» hvis en liste inneholder hoveddomenet til siden.',
+  'privacyInfo.trackers.body20':
+    'Viktig: Selv med reklameblokkering på kan du fortsatt se reklame på noen sider. Årsaker:',
+  'privacyInfo.trackers.body21':
+    '– noe reklame kan leveres fra samme domene som selve siden (førstepartsinnhold) og er vanskelig å skille fra vanlige elementer; – reklame kan være innebygd direkte i HTML eller skript uten egne forespørsler til annonsedomenene; – noen sider bruker nøytrale leveringsdomener (CDN-er) som inneholder både nyttige ressurser og annonseblokker, og full blokkering av dem bryter ofte siden. Domeneblokkering reduserer mange annonse- og sporingsforespørsler, men garanterer ikke at alle annonser forsvinner overalt.',
+  'privacyInfo.trackers.body22':
+    'Du kan administrere unntak per nettsted på mzr://security-exceptions.',
+  'privacyInfo.trackers.body23':
     'Blokkering av trackere/reklame og blokkering av tredjepartscookies er ulike mekanismer. Cookies er lagrede data, mens blokkeren for trackere og reklame stopper enkelte nettverksforespørsler. Du kan slå dem på uavhengig av hverandre.',
 
   'privacyInfo.siteData.heading': 'Behandling av nettsteddata',

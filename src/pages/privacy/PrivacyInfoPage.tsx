@@ -93,7 +93,14 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         t('privacyInfo.trackers.body13'),
         t('privacyInfo.trackers.body14'),
         t('privacyInfo.trackers.body15'),
-        t('privacyInfo.trackers.body16')
+        t('privacyInfo.trackers.body16'),
+        t('privacyInfo.trackers.body17'),
+        t('privacyInfo.trackers.body18'),
+        t('privacyInfo.trackers.body19'),
+        t('privacyInfo.trackers.body20'),
+        t('privacyInfo.trackers.body21'),
+        t('privacyInfo.trackers.body22'),
+        t('privacyInfo.trackers.body23')
       ]
     },
     {

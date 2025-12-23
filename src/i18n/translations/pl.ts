@@ -229,14 +229,17 @@ const pl = {
   'licenses.tor.subtext': 'Aplikacja zawiera oprogramowanie Tor, licencjonowane osobno przez Tor Project. Pełny tekst poniżej.',
   'licenses.tor.toggle': 'Zobacz licencję Tor',
   'licenses.blocklists.lead': 'Listy blokowania (trackery i reklamy)',
-  'licenses.blocklists.subtext':
-    'Ta aplikacja używa zewnętrznych list filtrów do generowania list domen blokujących trackery i reklamy. Źródła oraz informacje o atrybucji znajdują się poniżej. Nie zmienia to licencji aplikacji: listy blokowania są oddzielnymi plikami danych.',
-  'licenses.blocklists.toggle': 'Otwórz INFORMACJE O LISTACH',
+'licenses.blocklists.subtext':
+  'Ta aplikacja używa zewnętrznych list filtrów do generowania list domen blokujących trackery i reklamy. Źródła oraz informacje o atrybucji znajdują się poniżej. Nie zmienia to licencji aplikacji: listy blokowania są oddzielnymi plikami danych.',
+'licenses.blocklists.toggle': 'Otwórz INFORMACJE O LISTACH',
 
-  'licenses.gpl.lead': 'Tekst licencji GPL-3.0',
-  'licenses.gpl.subtext':
-    'Niektóre dołączone listy blokowania są objęte licencją GPL-3.0. Pełny tekst licencji jest dostępny poniżej.',
-  'licenses.gpl.toggle': 'Pokaż tekst GPL-3.0',
+'licenses.gpl.lead': 'Tekst licencji GPL-3.0',
+'licenses.gpl.subtext':
+  'Niektóre dołączone listy blokowania są objęte licencją GPL-3.0. Pełny tekst licencji jest dostępny poniżej.',
+'licenses.gpl.toggle': 'Pokaż tekst GPL-3.0',
+  'licenses.mpl.lead': 'Tekst licencji MPL 2.0',
+  'licenses.mpl.subtext': 'Dane Public Suffix List dostarczane przez tldts są objęte licencją Mozilla Public License 2.0. Pełny tekst poniżej.',
+  'licenses.mpl.toggle': 'Pokaż tekst MPL 2.0',
   'tor.status.label': 'Status Tor',
   'tor.status.enabled': 'Tor włączony',
   'tor.status.disabled': 'Tor wyłączony',
@@ -558,24 +561,38 @@ const pl = {
   'privacyInfo.trackers.body2':
     'Merezhyvo ma prosty bloker trackerów i reklam: przeglądarka blokuje żądania sieciowe do znanych domen analityki i sieci reklamowych z wbudowanych list. Nie dotyka witryny z paska adresu, ale może zatrzymać ładowanie zewnętrznych zasobów w środku strony.',
   'privacyInfo.trackers.body3':
-    'W ustawieniach są dwa osobne przełączniki: blokowanie trackerów i blokowanie reklam. Możesz je włączać niezależnie. Dla części stron wystarczy blokować tylko trackery, a blokowanie reklam może mocniej wpływać na działanie stron.',
-  'privacyInfo.trackers.body4': 'W panelu bezpieczeństwa (ikona tarczy) jest pozycja „Trackery i reklamy”. Pokazuje:',
-  'privacyInfo.trackers.body5': '– domenę bieżącej strony;',
-  'privacyInfo.trackers.body6': '– zablokowane łącznie;',
-  'privacyInfo.trackers.body7': '– zablokowane reklamy;',
-  'privacyInfo.trackers.body8': '– zablokowane trackery.',
+    'W ustawieniach są dwa osobne przełączniki: Blokuj trackery i Blokuj reklamy. Możesz je włączać niezależnie. Dla części stron wystarczy blokować tylko trackery; blokowanie reklam może mocniej wpływać na działanie stron.',
+  'privacyInfo.trackers.body4':
+    'Gdy co najmniej jeden z tych przełączników jest włączony, możesz też wybrać tryb blokowania.',
+  'privacyInfo.trackers.body5':
+    'Podczas przeglądania strona często ładuje zasoby z więcej niż jednego miejsca. Oprócz witryny, którą otworzyłeś (domena w pasku), może pobierać skrypty, obrazy, fonty, odtwarzacze wideo, analitykę i reklamy z innych domen „w tle”.',
+  'privacyInfo.trackers.body6':
+    'Podstawowy (zalecany) blokuje trackery/reklamy tylko wtedy, gdy pochodzą z innych domen. W praktyce oznacza to: – Otwierasz example.com → zasoby z example.com są zwykle dozwolone. – Żądania do innej domeny (np. znanej analitycznej/reklamowej) mogą zostać zablokowane. Ten tryb ma ograniczać śledzenie, jednocześnie nie psując stron, bo nie blokuje krytycznych zasobów samej witryny.',
+  'privacyInfo.trackers.body7':
+    'Ścisły jest bardziej agresywny. Blokuje domeny trackerów/reklam nawet gdy treść wygląda na pochodzącą z tej samej strony. Niektóre serwisy podają reklamy i śledzenie ze swojej domeny albo mieszają je ze zwykłymi zasobami. Ścisły próbuje zablokować więcej w takich przypadkach, ale częściej może psuć strony (brak przycisków, problemy z logowaniem, puste sekcje czy wideo, które się nie ładuje).',
+  'privacyInfo.trackers.body8':
+    'Jeśli nie wiesz, co wybrać, zacznij od Podstawowego. Gdy strona nadal jest „zbyt hałaśliwa” i akceptujesz okazjonalne problemy, spróbuj Ścisłego.',
   'privacyInfo.trackers.body9':
-    'Licznik rośnie, gdy przeglądasz ten sam serwis w zakładce. Jeśli w tej samej zakładce przejdziesz na inną stronę (inna domena w pasku), licznik zeruje się i liczy od nowa dla nowej strony.',
-  'privacyInfo.trackers.body10': 'Jeśli blokowanie coś psuje (logowanie, płatność, wideo, przyciski „Zaloguj przez …”), możesz tam włączyć wyjątek:',
-  'privacyInfo.trackers.body11': '– „Zezwól na trackery dla tej strony”;',
-  'privacyInfo.trackers.body12': '– „Zezwól na reklamy dla tej strony”.',
-  'privacyInfo.trackers.body13':
-    'Gdy dla strony włączono wyjątek bezpieczeństwa lub prywatności (np. trackery dozwolone albo zmienione reguły cookies), tarcza staje się żółta — przypomnienie, że świadomie obniżyłeś ochronę dla tej domeny.',
-  'privacyInfo.trackers.body14':
-    'Ważne: nawet z włączonym blokowaniem reklam wciąż możesz widzieć reklamy na niektórych stronach. Powody: – część reklam może być serwowana z tej samej domeny co serwis (treść first-party) i trudno ją odróżnić od zwykłych elementów; – reklama może być wbudowana bezpośrednio w HTML lub skrypty bez osobnych żądań do domen reklamowych; – niektóre strony używają neutralnych domen dostawczych (CDN), które zawierają zarówno potrzebne zasoby, jak i bloki reklam — ich pełne blokowanie często psuje stronę. Blokowanie domen mocno ogranicza wiele żądań reklamowych i trackingowych, ale nie gwarantuje zniknięcia wszystkich reklam wszędzie.',
+    'Wskazówka: jeśli strona się psuje, wróć do Podstawowego albo użyj wyjątków per strona („Zezwól na trackery/reklamy dla tej strony”) w panelu tarczy.',
+  'privacyInfo.trackers.body10': 'W panelu bezpieczeństwa (ikona tarczy) jest pozycja „Trackery i reklamy”. Pokazuje:',
+  'privacyInfo.trackers.body11': '– domenę bieżącej strony;',
+  'privacyInfo.trackers.body12': '– zablokowane łącznie;',
+  'privacyInfo.trackers.body13': '– zablokowane reklamy;',
+  'privacyInfo.trackers.body14': '– zablokowane trackery.',
   'privacyInfo.trackers.body15':
-    'Są też globalne ustawienia „Blokuj trackery” i „Blokuj reklamy”, a wyjątkami możesz zarządzać na stronie mzr://security-exceptions.',
-  'privacyInfo.trackers.body16':
+    'Licznik rośnie, gdy przeglądasz ten sam serwis w zakładce. Jeśli w tej samej zakładce przejdziesz na inną stronę (inna domena w pasku), licznik zeruje się i liczy od nowa dla nowej strony.',
+  'privacyInfo.trackers.body16': 'Jeśli blokowanie coś psuje (logowanie, płatność, wideo, przyciski „Zaloguj przez …”), możesz tam włączyć wyjątek:',
+  'privacyInfo.trackers.body17': '– „Zezwól na trackery dla tej strony”;',
+  'privacyInfo.trackers.body18': '– „Zezwól na reklamy dla tej strony”.',
+  'privacyInfo.trackers.body19':
+    'Gdy dla strony włączono wyjątek bezpieczeństwa lub prywatności (np. trackery dozwolone albo zmienione reguły cookies), tarcza staje się żółta — przypomnienie, że świadomie obniżyłeś ochronę dla tej domeny. W trybie Podstawowym żądania do strony, którą otworzyłeś, są zwykle dozwolone, co pomaga uniknąć „samoblokady”, jeśli lista blokowania zawiera główną domenę serwisu.',
+  'privacyInfo.trackers.body20':
+    'Ważne: nawet z włączonym blokowaniem reklam wciąż możesz widzieć reklamy na niektórych stronach. Powody:',
+  'privacyInfo.trackers.body21':
+    '– część reklam może być serwowana z tej samej domeny co serwis (treść first-party) i trudno ją odróżnić od zwykłych elementów; – reklama może być wbudowana bezpośrednio w HTML lub skrypty bez osobnych żądań do domen reklamowych; – niektóre strony używają neutralnych domen dostawczych (CDN), które zawierają zarówno potrzebne zasoby, jak i bloki reklam — ich pełne blokowanie często psuje stronę. Blokowanie domen mocno ogranicza wiele żądań reklamowych i trackingowych, ale nie gwarantuje zniknięcia wszystkich reklam wszędzie.',
+  'privacyInfo.trackers.body22':
+    'Wyjątkami możesz zarządzać per strona na mzr://security-exceptions.',
+  'privacyInfo.trackers.body23':
     'Blokowanie trackerów/reklam i blokowanie cookies stron trzecich to różne mechanizmy. Cookies to zapisane dane, a bloker trackerów i reklam zatrzymuje część żądań sieciowych. Można je włączać niezależnie.',
   'privacyInfo.siteData.heading': 'Zarządzanie danymi witryn',
   'privacyInfo.siteData.body1': 'Strona „Zarządzaj danymi witryn” pokazuje, które strony zapisały cookies lub inne dane i pozwala je usuwać wybiórczo albo wszystkie naraz.',

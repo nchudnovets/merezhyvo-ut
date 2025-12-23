@@ -91,12 +91,18 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
     error: null,
     loading: true
   });
+  const [mplLicense, setMplLicense] = useState<LoadState>({
+    text: null,
+    error: null,
+    loading: true
+  });
 
   const [showApp, setShowApp] = useState(false);
   const [showThird, setShowThird] = useState(false);
   const [showTor, setShowTor] = useState(false);
   const [showBlocklists, setShowBlocklists] = useState(false);
   const [showGpl, setShowGpl] = useState(false);
+  const [showMpl, setShowMpl] = useState(false);
 
   const { t } = useI18n();
 
@@ -200,6 +206,26 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
     };
   }, [t]);
 
+  useEffect(() => {
+    let canceled = false;
+    fetchText('resources/legal/MPL-2-0.txt')
+      .then((text) => {
+        if (!canceled) setMplLicense({ text, error: null, loading: false });
+      })
+      .catch(() => {
+        if (!canceled) {
+          setMplLicense({
+            text: null,
+            error: t('licenses.error.missing'),
+            loading: false
+          });
+        }
+      });
+    return () => {
+      canceled = true;
+    };
+  }, [t]);
+
   const styles = licensesStyles;
   const modeStyles = licensesModeStyles[mode] || {};
   const mergeContainer = () => ({
@@ -264,6 +290,17 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
           open={showGpl}
           mode={mode}
         />
+
+        <Viewer
+          lead={t('licenses.mpl.lead')}
+          subtext={t('licenses.mpl.subtext')}
+          load={mplLicense}
+          toggleLabel={t('licenses.mpl.toggle')}
+          hideLabel={t('licenses.hide')}
+          onToggle={() => setShowMpl((prev) => !prev)}
+          open={showMpl}
+          mode={mode}
+        />
       </>
     ),
     [
@@ -272,11 +309,13 @@ const LicensesPage: React.FC<LicensesPageProps> = ({ mode, onClose }) => {
       torLicense,
       blocklistsNotices,
       gplLicense,
+      mplLicense,
       showApp,
       showThird,
       showTor,
       showBlocklists,
       showGpl,
+      showMpl,
       mode,
       t
     ]

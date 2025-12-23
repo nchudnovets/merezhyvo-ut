@@ -63,7 +63,7 @@ const hostCategoryCache = new Map<string, 'ads' | 'trackers' | 'none'>();
 const CACHE_LIMIT = 20000;
 let trackerSettings: TrackerSettings = { ...DEFAULT_TRACKER_SETTINGS };
 let adsSettings: AdsSettings = { ...DEFAULT_ADS_SETTINGS };
-let initializedSessions = new WeakSet<Session>();
+const initializedSessions = new WeakSet<Session>();
 let blockingMode: BlockingMode = 'basic';
 
 const normalizeHost = (value: string | null | undefined): string | null => {

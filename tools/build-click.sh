@@ -174,11 +174,13 @@ REQUIRED_LEGAL_FILES=(
   "${LEGAL_TARGET_DIR}/THIRD-PARTY-NOTICES.txt"
   "${LEGAL_TARGET_DIR}/BLOCKLISTS-NOTICES.txt"
   "${LEGAL_TARGET_DIR}/GPL-3.0.txt"
+  "${LEGAL_TARGET_DIR}/MPL-2-0.txt"
 )
 
 for f in "${REQUIRED_LEGAL_FILES[@]}"; do
   if [ ! -f "${f}" ]; then
-    echo "WARNING: missing legal file in packaged app: ${f}"
+    echo "ERROR: missing legal file in packaged app: ${f}"
+    exit 1
   fi
 done
 
