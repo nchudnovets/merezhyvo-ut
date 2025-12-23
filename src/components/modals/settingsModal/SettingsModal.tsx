@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode } from '../../../types/models';
+import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode, BlockingMode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
@@ -57,6 +57,8 @@ interface SettingsModalProps {
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
+  blockingMode: BlockingMode;
+  onBlockingModeChange: (mode: BlockingMode) => void;
   trackersEnabled: boolean;
   adsEnabled: boolean;
   onTrackersEnabledChange: (enabled: boolean) => void;
@@ -104,6 +106,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSecurityExceptions,
   onOpenSiteData,
   onOpenPrivacyInfo,
+  blockingMode,
+  onBlockingModeChange,
   trackersEnabled,
   adsEnabled,
   onTrackersEnabledChange,
@@ -238,6 +242,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               onOpenSecurityExceptions={onOpenSecurityExceptions}
               onOpenSiteData={onOpenSiteData}
               onOpenPrivacyInfo={onOpenPrivacyInfo}
+              blockingMode={blockingMode}
+              onBlockingModeChange={onBlockingModeChange}
               trackersEnabled={trackersEnabled}
               adsEnabled={adsEnabled}
               onTrackersEnabledChange={onTrackersEnabledChange}

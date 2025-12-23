@@ -655,185 +655,210 @@ const AddressBar: React.FC<AddressBarProps> = ({
               </div>
             )}
 
-            {securityView === 'trackers' && (
-              <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
-                <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 20 : 10 }}>
-                  <button
-                    type="button"
-                    onClick={() => setSecurityView('root')}
-                    aria-label={t('security.popup.back')}
-                    style={{
-                      background: 'transparent',
-                      border: '1px solid rgba(148,163,184,0.35)',
-                      color: '#e2e8f0',
-                      width: mode === 'mobile' ? 52 : 30,
-                      height: mode === 'mobile' ? 52 : 30,
-                      borderRadius: 8,
-                      display: 'inline-flex',
-                      alignItems: 'center',
-                      justifyContent: 'center',
-                      cursor: 'pointer'
-                    }}
-                  >
-                    <svg
-                      viewBox="0 0 16 16"
-                      width={mode === 'mobile' ? 24 : 14}
-                      height={mode === 'mobile' ? 24 : 14}
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="1.5"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
+            {securityView === 'trackers' &&
+              (() => {
+                const blockingActive = Boolean(trackerStatus?.blockingActive ?? (trackerStatus?.trackersEnabledGlobal || trackerStatus?.adsEnabledGlobal));
+                const blockedTotal = blockingActive ? trackerStatus?.blockedTotal ?? 0 : 0;
+                const blockedAds = blockingActive ? trackerStatus?.blockedAds ?? 0 : 0;
+                const blockedTrackers = blockingActive ? trackerStatus?.blockedTrackers ?? 0 : 0;
+
+                return (
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 10 }}>
+                    <div style={{ display: 'flex', alignItems: 'center', gap: mode === 'mobile' ? 20 : 10 }}>
+                      <button
+                        type="button"
+                        onClick={() => setSecurityView('root')}
+                        aria-label={t('security.popup.back')}
+                        style={{
+                          background: 'transparent',
+                          border: '1px solid rgba(148,163,184,0.35)',
+                          color: '#e2e8f0',
+                          width: mode === 'mobile' ? 52 : 30,
+                          height: mode === 'mobile' ? 52 : 30,
+                          borderRadius: 8,
+                          display: 'inline-flex',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          cursor: 'pointer'
+                        }}
+                      >
+                        <svg
+                          viewBox="0 0 16 16"
+                          width={mode === 'mobile' ? 24 : 14}
+                          height={mode === 'mobile' ? 24 : 14}
+                          fill="none"
+                          stroke="currentColor"
+                          strokeWidth="1.5"
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                        >
+                          <path d="M10 3.5 5.5 8 10 12.5" />
+                        </svg>
+                      </button>
+                      <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '16px' }}>
+                        {t('security.trackers.heading')}
+                      </div>
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      {t('security.trackers.site', { host: trackerStatus?.siteHost || '—' })}
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      {t('security.trackers.mode', {
+                        mode:
+                          trackerStatus?.blockingMode === 'strict'
+                            ? t('security.trackers.mode.strict')
+                            : t('security.trackers.mode.basic')
+                      })}
+                    </div>
+                    {!blockingActive && (
+                      <div style={{ marginBottom: mode === 'mobile' ? 10 : 8, color: '#fbbf24', fontWeight: 600 }}>
+                        {t('security.trackers.disabledBanner')}
+                      </div>
+                    )}
+                    <div style={{ marginBottom: '4px' }}>
+                      {t('security.trackers.blockedTotal', { count: blockedTotal })}
+                    </div>
+                    <div style={{ marginBottom: '4px' }}>
+                      {t('security.trackers.blockedAds', { count: blockedAds })}
+                    </div>
+                    <div style={{ marginBottom: '8px' }}>
+                      {t('security.trackers.blockedTrackers', { count: blockedTrackers })}
+                    </div>
+                    {trackerStatus?.siteHost ? (
+                      <>
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: mode === 'mobile' ? 20 : 10,
+                            marginTop: 6,
+                            opacity: blockingActive ? 1 : 0.55
+                          }}
+                        >
+                          <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(trackerStatus.trackersAllowedForSite)}
+                              disabled={!blockingActive}
+                              onChange={(e) => onToggleTrackerException?.(e.target.checked)}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                margin: 0,
+                                opacity: 0,
+                                cursor: blockingActive ? 'pointer' : 'not-allowed',
+                                zIndex: 2
+                              }}
+                            />
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                borderRadius: 999,
+                                backgroundColor: trackerStatus.trackersAllowedForSite ? '#2563ebeb' : 'transparent',
+                                border: '1px solid #ACB2B7',
+                                transition: 'background-color 160ms ease, border-color 160ms ease'
+                              }}
+                            />
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                top: mode === 'mobile' ? 4 : 2,
+                                left: trackerStatus.trackersAllowedForSite ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+                                width: mode === 'mobile' ? 32 : 16,
+                                height: mode === 'mobile' ? 32 : 16,
+                                borderRadius: '50%',
+                                backgroundColor: trackerStatus.trackersAllowedForSite ? '#ffffff' : '#ACB2B7',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                                transition: 'left 160ms ease'
+                              }}
+                            />
+                          </span>
+                          <span style={{ fontWeight: 600 }}>
+                            {t('security.trackers.allowToggle')}
+                          </span>
+                        </label>
+                        <label
+                          style={{
+                            display: 'flex',
+                            alignItems: 'center',
+                            gap: mode === 'mobile' ? 20 : 10,
+                            marginTop: mode === 'mobile' ? 16 : 10,
+                            opacity: blockingActive ? 1 : 0.55
+                          }}
+                        >
+                          <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
+                            <input
+                              type="checkbox"
+                              checked={Boolean(trackerStatus.adsAllowedForSite)}
+                              disabled={!blockingActive}
+                              onChange={(e) => onToggleAdsException?.(e.target.checked)}
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                margin: 0,
+                                opacity: 0,
+                                cursor: blockingActive ? 'pointer' : 'not-allowed',
+                                zIndex: 2
+                              }}
+                            />
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                inset: 0,
+                                borderRadius: 999,
+                                backgroundColor: trackerStatus.adsAllowedForSite ? '#2563ebeb' : 'transparent',
+                                border: '1px solid #ACB2B7',
+                                transition: 'background-color 160ms ease, border-color 160ms ease'
+                              }}
+                            />
+                            <span
+                              aria-hidden="true"
+                              style={{
+                                position: 'absolute',
+                                top: mode === 'mobile' ? 4 : 2,
+                                left: trackerStatus.adsAllowedForSite ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
+                                width: mode === 'mobile' ? 32 : 16,
+                                height: mode === 'mobile' ? 32 : 16,
+                                borderRadius: '50%',
+                                backgroundColor: trackerStatus.adsAllowedForSite ? '#ffffff' : '#ACB2B7',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+                                transition: 'left 160ms ease'
+                              }}
+                            />
+                          </span>
+                          <span style={{ fontWeight: 600 }}>
+                            {t('security.trackers.allowAdsToggle')}
+                          </span>
+                        </label>
+                      </>
+                    ) : null}
+                    <div style={{ opacity: 0.78, fontSize: mode === 'mobile' ? '32px' : '13px', lineHeight: 1.35, marginTop: 6 }}>
+                      {blockingActive ? t('security.trackers.allowHelper') : t('security.trackers.enableToManage')}
+                    </div>
+                    <button
+                      type="button"
+                      onClick={onOpenTrackersExceptions}
+                      style={{
+                        alignSelf: 'flex-start',
+                        marginTop: mode === 'mobile' ? 10 : 8,
+                        padding: 0,
+                        background: 'transparent',
+                        border: 'none',
+                        color: '#93c5fd',
+                        cursor: 'pointer',
+                        textDecoration: 'underline',
+                        fontSize: mode === 'mobile' ? '35px' : '13px'
+                      }}
                     >
-                      <path d="M10 3.5 5.5 8 10 12.5" />
-                    </svg>
-                  </button>
-                  <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '38px' : '16px' }}>
-                    {t('security.trackers.heading')}
+                      {t('security.trackers.manageLink')}
+                    </button>
                   </div>
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  {t('security.trackers.site', { host: trackerStatus?.siteHost || '—' })}
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  {t('security.trackers.blockedTotal', { count: trackerStatus?.blockedTotal ?? 0 })}
-                </div>
-                <div style={{ marginBottom: '4px' }}>
-                  {t('security.trackers.blockedAds', { count: trackerStatus?.blockedAds ?? 0 })}
-                </div>
-                <div style={{ marginBottom: '8px' }}>
-                  {t('security.trackers.blockedTrackers', { count: trackerStatus?.blockedTrackers ?? 0 })}
-                </div>
-                {trackerStatus?.siteHost ? (
-                  <>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: mode === 'mobile' ? 20 : 10,
-                        marginTop: 6
-                      }}
-                    >
-                      <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(trackerStatus.trackersAllowedForSite)}
-                          onChange={(e) => onToggleTrackerException?.(e.target.checked)}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            margin: 0,
-                            opacity: 0,
-                            cursor: 'pointer',
-                            zIndex: 2
-                          }}
-                        />
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 999,
-                            backgroundColor: trackerStatus.trackersAllowedForSite ? '#2563ebeb' : 'transparent',
-                            border: '1px solid #ACB2B7',
-                            transition: 'background-color 160ms ease, border-color 160ms ease'
-                          }}
-                        />
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: 'absolute',
-                            top: mode === 'mobile' ? 4 : 2,
-                            left: trackerStatus.trackersAllowedForSite ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
-                            width: mode === 'mobile' ? 32 : 16,
-                            height: mode === 'mobile' ? 32 : 16,
-                            borderRadius: '50%',
-                            backgroundColor: trackerStatus.trackersAllowedForSite ? '#ffffff' : '#ACB2B7',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                            transition: 'left 160ms ease'
-                          }}
-                        />
-                      </span>
-                      <span style={{ fontWeight: 600 }}>
-                        {t('security.trackers.allowToggle')}
-                      </span>
-                    </label>
-                    <label
-                      style={{
-                        display: 'flex',
-                        alignItems: 'center',
-                        gap: mode === 'mobile' ? 20 : 10,
-                        marginTop: mode === 'mobile' ? 16 : 10
-                      }}
-                    >
-                      <span style={{ position: 'relative', width: mode === 'mobile' ? 74 : 48, height: mode === 'mobile' ? 40 : 22, flexShrink: 0 }}>
-                        <input
-                          type="checkbox"
-                          checked={Boolean(trackerStatus.adsAllowedForSite)}
-                          onChange={(e) => onToggleAdsException?.(e.target.checked)}
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            margin: 0,
-                            opacity: 0,
-                            cursor: 'pointer',
-                            zIndex: 2
-                          }}
-                        />
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: 'absolute',
-                            inset: 0,
-                            borderRadius: 999,
-                            backgroundColor: trackerStatus.adsAllowedForSite ? '#2563ebeb' : 'transparent',
-                            border: '1px solid #ACB2B7',
-                            transition: 'background-color 160ms ease, border-color 160ms ease'
-                          }}
-                        />
-                        <span
-                          aria-hidden="true"
-                          style={{
-                            position: 'absolute',
-                            top: mode === 'mobile' ? 4 : 2,
-                            left: trackerStatus.adsAllowedForSite ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
-                            width: mode === 'mobile' ? 32 : 16,
-                            height: mode === 'mobile' ? 32 : 16,
-                            borderRadius: '50%',
-                            backgroundColor: trackerStatus.adsAllowedForSite ? '#ffffff' : '#ACB2B7',
-                            boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                            transition: 'left 160ms ease'
-                          }}
-                        />
-                      </span>
-                      <span style={{ fontWeight: 600 }}>
-                        {t('security.trackers.allowAdsToggle')}
-                      </span>
-                    </label>
-                  </>
-                ) : null}
-                <div style={{ opacity: 0.78, fontSize: mode === 'mobile' ? '32px' : '13px', lineHeight: 1.35, marginTop: 6 }}>
-                  {t('security.trackers.allowHelper')}
-                </div>
-                <button
-                  type="button"
-                  onClick={onOpenTrackersExceptions}
-                  style={{
-                    alignSelf: 'flex-start',
-                    marginTop: mode === 'mobile' ? 10 : 8,
-                    padding: 0,
-                    background: 'transparent',
-                    border: 'none',
-                    color: '#93c5fd',
-                    cursor: 'pointer',
-                    textDecoration: 'underline',
-                    fontSize: mode === 'mobile' ? '35px' : '13px'
-                  }}
-                >
-                  {t('security.trackers.manageLink')}
-                </button>
-              </div>
-            )}
+                );
+              })()}
           </div>
         )}
         <input

@@ -1,5 +1,5 @@
 import React from 'react';
-import type { Mode, HttpsMode, WebrtcMode } from '../../../types/models';
+import type { Mode, HttpsMode, WebrtcMode, BlockingMode } from '../../../types/models';
 import { settingsModalStyles as styles } from './settingsModalStyles';
 import { useI18n } from '../../../i18n/I18nProvider';
 
@@ -14,6 +14,8 @@ type SecuritySettingsProps = {
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
+  blockingMode: BlockingMode;
+  onBlockingModeChange: (mode: BlockingMode) => void;
   trackersEnabled: boolean;
   adsEnabled: boolean;
   onTrackersEnabledChange: (enabled: boolean) => void;
@@ -41,24 +43,28 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
   onOpenSecurityExceptions,
   onOpenSiteData,
   onOpenPrivacyInfo,
+  blockingMode,
+  onBlockingModeChange,
   trackersEnabled,
   adsEnabled,
   onTrackersEnabledChange,
   onAdsEnabledChange,
-  onOpenTrackersExceptions
 }) => {
   const { t } = useI18n();
   const radioSize = mode === 'mobile' ? 40 : 18;
   const toggleTrackWidth = mode === 'mobile' ? 74 : 48;
   const toggleTrackHeight = mode === 'mobile' ? 40 : 20;
   const toggleThumbSize = mode === 'mobile' ? 32 : 16;
+  const blockingEnabled = trackersEnabled || adsEnabled;
+  const blockingModes: BlockingMode[] = ['basic', 'strict'];
 
-  const renderRadioControl = (checked: boolean, name: string, onSelect: () => void): React.ReactElement => (
+  const renderRadioControl = (checked: boolean, name: string, onSelect: () => void, disabled = false): React.ReactElement => (
     <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
       <input
         type="radio"
         name={name}
         checked={checked}
+        disabled={disabled}
         onChange={onSelect}
         style={{
           position: 'absolute',
@@ -260,6 +266,36 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             </div>
           </div>
         </label>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 16 : 10, marginTop: mode === 'mobile' ? 18 : 12 }}>
+          <div style={{ fontSize: mode === 'mobile' ? '45px' : '16px', color: 'rgba(226,232,240,0.7)' }}>
+            {t('settings.privacy.blockingMode.label')}
+          </div>
+          {!blockingEnabled && (
+            <div style={{ color: 'rgba(226,232,240,0.65)', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 4 }}>
+              {t('settings.privacy.blockingMode.disabledHelper')}
+            </div>
+          )}
+          {blockingModes.map((val) => (
+            <label
+              key={val}
+              style={{
+                ...radioStyle(mode),
+                opacity: blockingEnabled ? 1 : 0.55,
+                pointerEvents: blockingEnabled ? 'auto' : 'none'
+              }}
+            >
+              {renderRadioControl(blockingMode === val, 'blocking-mode', () => blockingEnabled && onBlockingModeChange(val), !blockingEnabled)}
+              <div>
+                <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
+                  {t(`settings.privacy.blockingMode.${val}.title`)}
+                </div>
+                <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+                  {t(`settings.privacy.blockingMode.${val}.desc`)}
+                </div>
+              </div>
+            </label>
+          ))}
+        </div>
       </div>
       <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 8 }}>
         <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>

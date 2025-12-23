@@ -37,6 +37,7 @@
   "dependencies": {
     "dbus-next": "^0.10.2",
     "psl": "^1.15.0",
+    "tldts": "^6.1.24",
     "react": "^19.2.3",
     "react-dom": "^19.2.3",
     "react-simple-keyboard": "^3.8.141",

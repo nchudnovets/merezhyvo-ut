@@ -751,6 +751,27 @@ const exposeApi: MerezhyvoAPI = {
         return {
           trackersEnabledGlobal: false,
           adsEnabledGlobal: false,
+          blockingMode: 'basic',
+          blockingActive: false,
+          siteHost: null,
+          trackersAllowedForSite: false,
+          adsAllowedForSite: false,
+          blockedTotal: 0,
+          blockedAds: 0,
+          blockedTrackers: 0
+        };
+      }
+    },
+    setBlockingMode: async (mode: 'basic' | 'strict') => {
+      try {
+        return (await ipcRenderer.invoke('trackers:setBlockingMode', { mode })) as TrackerStatus;
+      } catch (err) {
+        console.error('[merezhyvo] trackers.setBlockingMode failed', err);
+        return {
+          trackersEnabledGlobal: false,
+          adsEnabledGlobal: false,
+          blockingMode: 'basic',
+          blockingActive: false,
           siteHost: null,
           trackersAllowedForSite: false,
           adsAllowedForSite: false,
@@ -784,6 +805,8 @@ const exposeApi: MerezhyvoAPI = {
         return {
           trackersEnabledGlobal: false,
           adsEnabledGlobal: false,
+          blockingMode: 'basic',
+          blockingActive: false,
           siteHost: null,
           trackersAllowedForSite: false,
           adsAllowedForSite: false,
@@ -801,6 +824,8 @@ const exposeApi: MerezhyvoAPI = {
         return {
           trackersEnabledGlobal: false,
           adsEnabledGlobal: false,
+          blockingMode: 'basic',
+          blockingActive: false,
           siteHost: null,
           trackersAllowedForSite: false,
           adsAllowedForSite: false,

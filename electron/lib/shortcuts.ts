@@ -10,9 +10,10 @@ import {
 } from '../../src/shared/messengers';
 import { DEFAULT_LOCALE, isValidLocale } from '../../src/i18n/locales';
 import { INTERNAL_BASE_FOLDER } from './internal-paths';
+import { getSiteKey } from './site-key';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 7;
+export const SETTINGS_SCHEMA = 8;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -60,6 +61,8 @@ export type AdsPrivacySettings = {
   exceptions: string[];
 };
 
+export type BlockingMode = 'basic' | 'strict';
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -75,6 +78,7 @@ export type SettingsState = {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;
     ads?: AdsPrivacySettings;
+    blockingMode?: BlockingMode;
   };
 };
 
@@ -195,6 +199,7 @@ const DEFAULT_ADS_PRIVACY: AdsPrivacySettings = {
   enabled: false,
   exceptions: [...MESSENGER_HOST_EXCEPTIONS]
 };
+const DEFAULT_BLOCKING_MODE: BlockingMode = 'basic';
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -209,6 +214,7 @@ export const createDefaultSettingsState = (): SettingsState => ({
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
   webrtcMode: DEFAULT_WEBRTC_MODE,
   privacy: {
+    blockingMode: DEFAULT_BLOCKING_MODE,
     cookies: { ...DEFAULT_COOKIE_PRIVACY },
     trackers: { ...DEFAULT_TRACKER_PRIVACY },
     ads: { ...DEFAULT_ADS_PRIVACY }
@@ -261,7 +267,8 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
   if (thirdPartyAllow && typeof thirdPartyAllow === 'object') {
     for (const [key, val] of Object.entries(thirdPartyAllow as Record<string, unknown>)) {
       if (typeof val === 'boolean' && typeof key === 'string' && key.trim()) {
-        map[key.toLowerCase()] = val;
+        const siteKey = getSiteKey(key) ?? key.toLowerCase();
+        map[siteKey] = val;
       }
     }
   }
@@ -281,7 +288,11 @@ export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => 
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_TRACKER_PRIVACY.enabled;
   const exceptions = Array.isArray(source.exceptions)
     ? Array.from(new Set(source.exceptions
-      .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+      .map((item) => {
+        if (typeof item !== 'string') return '';
+        const siteKey = getSiteKey(item);
+        return siteKey ?? item.trim().toLowerCase();
+      })
       .filter((item) => item.length > 0)))
     : [];
   for (const host of MESSENGER_HOST_EXCEPTIONS) {
@@ -297,7 +308,11 @@ export const sanitizeAdsPrivacy = (raw: unknown): AdsPrivacySettings => {
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_ADS_PRIVACY.enabled;
   const exceptions = Array.isArray(source.exceptions)
     ? Array.from(new Set(source.exceptions
-      .map((item) => (typeof item === 'string' ? item.trim().toLowerCase() : ''))
+      .map((item) => {
+        if (typeof item !== 'string') return '';
+        const siteKey = getSiteKey(item);
+        return siteKey ?? item.trim().toLowerCase();
+      })
       .filter((item) => item.length > 0)))
     : [];
   for (const host of MESSENGER_HOST_EXCEPTIONS) {
@@ -345,6 +360,11 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const privacyCookies = sanitizeCookiePrivacy((source.privacy as { cookies?: unknown } | undefined)?.cookies);
   const privacyTrackers = sanitizeTrackerPrivacy((source.privacy as { trackers?: unknown } | undefined)?.trackers);
   const privacyAds = sanitizeAdsPrivacy((source.privacy as { ads?: unknown } | undefined)?.ads);
+  const blockingModeRaw = (source.privacy as { blockingMode?: unknown } | undefined)?.blockingMode;
+  const blockingMode: BlockingMode =
+    blockingModeRaw === 'basic' || blockingModeRaw === 'strict'
+      ? blockingModeRaw
+      : DEFAULT_BLOCKING_MODE;
   const downloads = sanitizeDownloadsSettings(source.downloads);
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
@@ -364,7 +384,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     sslExceptions,
     webrtcMode,
     ...(permissions ? { permissions } : {}),
-    privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds }
+    privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds, blockingMode }
   };
 };
 

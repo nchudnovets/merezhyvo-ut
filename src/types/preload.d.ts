@@ -291,6 +291,7 @@ export interface MerezhyvoAPI {
   };
   trackers?: {
     getStatus(payload: { webContentsId?: number | null }): Promise<TrackerStatus>;
+    setBlockingMode(mode: 'basic' | 'strict'): Promise<TrackerStatus>;
     setEnabled(enabled: boolean): Promise<TrackerPrivacySettings>;
     setAdsEnabled(enabled: boolean): Promise<AdsPrivacySettings>;
     setSiteAllowed(payload: { siteHost: string; allowed: boolean; webContentsId?: number | null }): Promise<TrackerStatus>;

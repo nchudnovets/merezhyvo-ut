@@ -47,6 +47,8 @@ export interface TabsSnapshot {
 export type TrackerStatus = {
   trackersEnabledGlobal: boolean;
   adsEnabledGlobal: boolean;
+  blockingMode: BlockingMode;
+  blockingActive: boolean;
   siteHost: string | null;
   trackersAllowedForSite: boolean;
   adsAllowedForSite: boolean;
@@ -215,6 +217,8 @@ export type AdsPrivacySettings = {
   exceptions: string[];
 };
 
+export type BlockingMode = 'basic' | 'strict';
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -229,6 +233,7 @@ export interface SettingsState {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;
     ads?: AdsPrivacySettings;
+    blockingMode?: BlockingMode;
   };
 }
 

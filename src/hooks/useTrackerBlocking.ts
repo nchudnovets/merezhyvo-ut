@@ -4,6 +4,8 @@ import type { TrackerStatus } from '../types/models';
 const defaultStatus: TrackerStatus = {
   trackersEnabledGlobal: false,
   adsEnabledGlobal: false,
+  blockingMode: 'basic',
+  blockingActive: false,
   siteHost: null,
   trackersAllowedForSite: false,
   adsAllowedForSite: false,
@@ -15,6 +17,13 @@ const defaultStatus: TrackerStatus = {
 export const useTrackerBlocking = () => {
   const [status, setStatus] = useState<TrackerStatus>(defaultStatus);
   const statusRef = useRef<TrackerStatus>(defaultStatus);
+  const normalizeStatus = useCallback(
+    (payload: TrackerStatus): TrackerStatus => ({
+      ...payload,
+      blockingActive: Boolean(payload.blockingActive ?? (payload.trackersEnabledGlobal || payload.adsEnabledGlobal))
+    }),
+    []
+  );
 
   useEffect(() => {
     statusRef.current = status;
@@ -24,19 +33,23 @@ export const useTrackerBlocking = () => {
     try {
       const result = await window.merezhyvo?.trackers?.getStatus?.({ webContentsId: webContentsId ?? null });
       if (result) {
-        setStatus(result);
+        setStatus(normalizeStatus(result as TrackerStatus));
       }
     } catch (err) {
       console.error('[merezhyvo] trackers refresh failed', err);
     }
-  }, []);
+  }, [normalizeStatus]);
 
   const setTrackersEnabledGlobal = useCallback(async (enabled: boolean) => {
-    setStatus((prev) => ({ ...prev, trackersEnabledGlobal: enabled }));
+    setStatus((prev) => ({ ...prev, trackersEnabledGlobal: enabled, blockingActive: Boolean(enabled || prev.adsEnabledGlobal) }));
     try {
       const next = await window.merezhyvo?.trackers?.setEnabled?.(enabled);
       if (next) {
-        setStatus((prev) => ({ ...prev, trackersEnabledGlobal: Boolean(next.enabled) }));
+        setStatus((prev) => ({
+          ...prev,
+          trackersEnabledGlobal: Boolean(next.enabled),
+          blockingActive: Boolean(Boolean(next.enabled) || prev.adsEnabledGlobal)
+        }));
       }
       return next ?? null;
     } catch (err) {
@@ -46,11 +59,15 @@ export const useTrackerBlocking = () => {
   }, []);
 
   const setAdsEnabledGlobal = useCallback(async (enabled: boolean) => {
-    setStatus((prev) => ({ ...prev, adsEnabledGlobal: enabled }));
+    setStatus((prev) => ({ ...prev, adsEnabledGlobal: enabled, blockingActive: Boolean(prev.trackersEnabledGlobal || enabled) }));
     try {
       const next = await window.merezhyvo?.trackers?.setAdsEnabled?.(enabled);
       if (next) {
-        setStatus((prev) => ({ ...prev, adsEnabledGlobal: Boolean(next.enabled) }));
+        setStatus((prev) => ({
+          ...prev,
+          adsEnabledGlobal: Boolean(next.enabled),
+          blockingActive: Boolean(prev.trackersEnabledGlobal || Boolean(next.enabled))
+        }));
       }
       return next ?? null;
     } catch (err) {
@@ -65,7 +82,7 @@ export const useTrackerBlocking = () => {
     try {
       const next = await window.merezhyvo?.trackers?.setSiteAllowed?.({ siteHost: host, allowed });
       if (next) {
-        setStatus(next);
+        setStatus(normalizeStatus(next as TrackerStatus));
       }
       return next ?? null;
     } catch (err) {
@@ -80,7 +97,7 @@ export const useTrackerBlocking = () => {
     try {
       const next = await window.merezhyvo?.trackers?.setAdsAllowed?.({ siteHost: host, allowed });
       if (next) {
-        setStatus(next);
+        setStatus(normalizeStatus(next as TrackerStatus));
       }
       return next ?? null;
     } catch (err) {
@@ -92,7 +109,7 @@ export const useTrackerBlocking = () => {
   useEffect(() => {
     const off = window.merezhyvo?.trackers?.onStats?.((payload) => {
       if (!payload) return;
-      setStatus(payload);
+      setStatus(normalizeStatus(payload as TrackerStatus));
     });
     return () => {
       try {
@@ -101,7 +118,7 @@ export const useTrackerBlocking = () => {
         // noop
       }
     };
-  }, []);
+  }, [normalizeStatus]);
 
   return {
     status,
@@ -109,6 +126,18 @@ export const useTrackerBlocking = () => {
     setTrackersEnabledGlobal,
     setAdsEnabledGlobal,
     setTrackersSiteAllowed,
-    setAdsSiteAllowed
+    setAdsSiteAllowed,
+    setBlockingMode: async (mode: 'basic' | 'strict') => {
+      try {
+        const next = await window.merezhyvo?.trackers?.setBlockingMode?.(mode);
+        if (next) {
+          setStatus(normalizeStatus(next as TrackerStatus));
+        }
+        return next ?? null;
+      } catch (err) {
+        console.error('[merezhyvo] trackers setBlockingMode failed', err);
+        return null;
+      }
+    }
   };
 };

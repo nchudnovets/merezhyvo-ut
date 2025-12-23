@@ -1,7 +1,1 @@
 # Domains that must NEVER be blocked by Merezhyvo domain blocker
-duckduckgo.com
-youtube.com
-m.youtube.com
-youtubekids.com
-www.youtube.com
-github.com

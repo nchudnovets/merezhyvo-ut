@@ -40,7 +40,8 @@ import {
   sanitizeHttpsMode,
   sanitizeSslExceptions,
   type WebrtcMode,
-  type TrackerPrivacySettings
+  type TrackerPrivacySettings,
+  type BlockingMode
 } from './lib/shortcuts';
 import {
   initTrackerBlocker,
@@ -50,7 +51,9 @@ import {
   clearTrackerExceptions,
   setAdsEnabledGlobal,
   setAdsSiteAllowed,
-  clearAdsExceptions
+  clearAdsExceptions,
+  setBlockingMode,
+  getBlockingMode
 } from './lib/tracker-blocker';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
@@ -68,6 +71,7 @@ import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDial
 import { getEntrySecret } from './lib/pw/vault';
 import { registerSiteDataIpc } from './lib/site-data-ipc';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
+import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
 import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
 import { installCookiePolicy } from './lib/cookie-policy';
@@ -125,6 +129,20 @@ const getTorVersion = async (): Promise<string | null> => {
 
 const { DEFAULT_URL } = windows;
 
+const normalizeBlockingModeValue = (mode: unknown): BlockingMode =>
+  mode === 'strict' ? 'strict' : 'basic';
+
+const ensureBlockingModeSaved = async (state: SettingsState | null | undefined): Promise<BlockingMode> => {
+  const normalized = normalizeBlockingModeValue(state?.privacy?.blockingMode);
+  if (!state || state.privacy?.blockingMode === normalized) return normalized;
+  try {
+    await writeSettingsState({ ...(state ?? {}), privacy: { ...(state.privacy ?? {}), blockingMode: normalized } });
+  } catch (err) {
+    console.warn('[merezhyvo] normalize blockingMode failed', err);
+  }
+  return normalized;
+};
+
 void (async () => {
   try {
     const state = await readSettingsState();
@@ -132,10 +150,22 @@ void (async () => {
       downloads.setDefaultDir(state.downloads.defaultDir);
       downloads.setConcurrent(state.downloads.concurrent);
     }
+    await ensureBlockingModeSaved(state);
     try {
       await initTrackerBlocker({
         sessions: [session.defaultSession],
-        getSettings: () => readSettingsState()
+        getSettings: () => readSettingsState(),
+        onSettingsUpdated: async (settings) => {
+          try {
+            const current = await readSettingsState();
+            await writeSettingsState({
+              ...(current ?? {}),
+              privacy: { ...(current?.privacy ?? {}), trackers: settings.trackers, ads: settings.ads, blockingMode: normalizeBlockingModeValue(settings.blockingMode) }
+            });
+          } catch (err) {
+            console.warn('[merezhyvo] tracker-blocker settings sync failed', err);
+          }
+        }
       });
     } catch (err) {
       console.warn('[merezhyvo] tracker blocker init failed', err);
@@ -1455,6 +1485,39 @@ ipcMain.handle('merezhyvo:settings:trackers:clear-exceptions', async () => {
   }
 });
 
+ipcMain.handle('merezhyvo:settings:blocking:get', async () => {
+  try {
+    const state = await readSettingsState();
+    const mode = await ensureBlockingModeSaved(state);
+    return { mode };
+  } catch (err) {
+    console.error('[merezhyvo] blocking mode get failed', err);
+    return { mode: 'basic' as BlockingMode };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:blocking:set', async (_event, payload: unknown) => {
+  const modeRaw =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { mode?: unknown }).mode === 'string'
+        ? ((payload as { mode?: string }).mode ?? '')
+        : '';
+  const normalized: BlockingMode = normalizeBlockingModeValue(modeRaw);
+  try {
+    const current = await readSettingsState();
+    await writeSettingsState({
+      ...(current ?? {}),
+      privacy: { ...(current.privacy ?? {}), blockingMode: normalized }
+    });
+    setBlockingMode(normalized);
+    return { mode: normalized };
+  } catch (err) {
+    console.error('[merezhyvo] blocking mode set failed', err);
+    return { mode: normalized };
+  }
+});
+
 ipcMain.handle('merezhyvo:settings:ads:get', async () => {
   try {
     const state = await readSettingsState();
@@ -1584,6 +1647,7 @@ ipcMain.handle('trackers:setSiteAllowed', async (_event, payload: unknown) => {
       : false;
   const normalized = host.trim().toLowerCase();
   if (!normalized) return getTrackerStatus(null);
+  const siteKey = getSiteKey(normalized) ?? normalized;
   try {
     const current = await readSettingsState();
     const existing = Array.isArray(current.privacy?.trackers?.exceptions)
@@ -1591,9 +1655,9 @@ ipcMain.handle('trackers:setSiteAllowed', async (_event, payload: unknown) => {
       : [];
     const nextExceptions = new Set(existing);
     if (allowed) {
-      nextExceptions.add(normalized);
+      nextExceptions.add(siteKey);
     } else {
-      nextExceptions.delete(normalized);
+      nextExceptions.delete(siteKey);
     }
     const nextTrackers: TrackerPrivacySettings = {
       enabled: typeof current.privacy?.trackers?.enabled === 'boolean'
@@ -1604,7 +1668,7 @@ ipcMain.handle('trackers:setSiteAllowed', async (_event, payload: unknown) => {
     await writeSettingsState({
       privacy: { ...(current.privacy ?? {}), trackers: nextTrackers }
     });
-    setTrackersSiteAllowed(normalized, allowed);
+    setTrackersSiteAllowed(siteKey, allowed);
     return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
   } catch (err) {
     console.error('[merezhyvo] trackers set-site-allowed failed', err);
@@ -1690,6 +1754,7 @@ ipcMain.handle('trackers:setAdsAllowed', async (_event, payload: unknown) => {
       : false;
   const normalized = host.trim().toLowerCase();
   if (!normalized) return getTrackerStatus(null);
+  const siteKey = getSiteKey(normalized) ?? normalized;
   try {
     const current = await readSettingsState();
     const existing = Array.isArray(current.privacy?.ads?.exceptions)
@@ -1697,9 +1762,9 @@ ipcMain.handle('trackers:setAdsAllowed', async (_event, payload: unknown) => {
       : [];
     const nextExceptions = new Set(existing);
     if (allowed) {
-      nextExceptions.add(normalized);
+      nextExceptions.add(siteKey);
     } else {
-      nextExceptions.delete(normalized);
+      nextExceptions.delete(siteKey);
     }
     const nextAds = {
       enabled: typeof current.privacy?.ads?.enabled === 'boolean'
@@ -1710,10 +1775,33 @@ ipcMain.handle('trackers:setAdsAllowed', async (_event, payload: unknown) => {
     await writeSettingsState({
       privacy: { ...(current.privacy ?? {}), ads: nextAds }
     });
-    setAdsSiteAllowed(normalized, allowed);
+    setAdsSiteAllowed(siteKey, allowed);
     return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
   } catch (err) {
     console.error('[merezhyvo] ads set-site-allowed failed', err);
+    return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
+  }
+});
+
+ipcMain.handle('trackers:setBlockingMode', async (_event, payload: unknown) => {
+  const modeRaw =
+    typeof payload === 'string'
+      ? payload
+      : typeof payload === 'object' && payload && typeof (payload as { mode?: unknown }).mode === 'string'
+        ? ((payload as { mode?: string }).mode ?? '')
+        : '';
+  const normalized: BlockingMode = normalizeBlockingModeValue(modeRaw);
+  try {
+    const current = await readSettingsState();
+    await writeSettingsState({
+      ...(current ?? {}),
+      privacy: { ...(current.privacy ?? {}), blockingMode: normalized }
+    });
+    setBlockingMode(normalized);
+    return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
+  } catch (err) {
+    console.error('[merezhyvo] trackers setBlockingMode failed', err);
+    setBlockingMode(normalized);
     return getTrackerStatus((payload as { webContentsId?: number })?.webContentsId ?? null);
   }
 });

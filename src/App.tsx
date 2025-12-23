@@ -269,7 +269,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setTrackersEnabledGlobal,
     setAdsEnabledGlobal,
     setTrackersSiteAllowed,
-    setAdsSiteAllowed
+    setAdsSiteAllowed,
+    setBlockingMode
   } = useTrackerBlocking();
   const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
@@ -3048,6 +3049,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
               onOpenSiteData={openSiteDataFromSettings}
               onOpenPrivacyInfo={openPrivacyInfoFromSettings}
+              blockingMode={trackerStatus.blockingMode}
+              onBlockingModeChange={setBlockingMode}
               trackersEnabled={trackerStatus.trackersEnabledGlobal}
               adsEnabled={trackerStatus.adsEnabledGlobal}
               onTrackersEnabledChange={setTrackersEnabledGlobal}
