@@ -46,6 +46,8 @@ import { useToolbarHeights } from './hooks/useToolbarHeights';
 import { useMessengerMode } from './hooks/useMessengerMode';
 import { usePasswordFlows } from './hooks/usePasswordFlows';
 import { usePowerBlocker } from './hooks/usePowerBlocker';
+import { useTabDestroy } from './hooks/useTabDestroy';
+import { useTabRefs } from './hooks/useTabRefs';
 import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useI18n } from './i18n/I18nProvider';
@@ -222,8 +224,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [activeViewRevision, setActiveViewRevision] = useState<number>(0);
   const inputRef = useRef<HTMLInputElement | null>(null);
   const activeInputRef = useRef<ActiveInputTarget>(null);
-  const webviewHandleRef = useRef<WebViewHandle | null>(null);
-  const webviewRef = useRef<WebviewTag | null>(null);
   const webviewReadyRef = useRef<boolean>(false);
   const activeWcIdRef = useRef<number | null>(null);
   const webviewFocusedRef = useRef<boolean>(false);
@@ -318,16 +318,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const backgroundHostRef = useRef<HTMLDivElement | null>(null);
   const zoomBarRef = useRef<HTMLDivElement | null>(null);
   const [isHtmlFullscreen, setIsHtmlFullscreen] = useState<boolean>(false);
-  const playingTabsRef = useRef<Set<string>>(new Set());
+  const {
+    tabViewsRef,
+    backgroundTabRef,
+    fullscreenTabRef,
+    playingTabsRef,
+    webviewHandleRef,
+    webviewRef
+  } = useTabRefs();
   const { powerBlockerIdRef, updatePowerBlocker } = usePowerBlocker(playingTabsRef);
   const {
     mountInBackgroundHost,
     applyActiveStyles,
     installShadowStyles
   } = useWebviewMounts(webviewHostRef, backgroundHostRef);
-  const tabViewsRef = useRef<Map<string, TabViewEntry>>(new Map());
-  const backgroundTabRef = useRef<string | null>(null);
-  const fullscreenTabRef = useRef<string | null>(null);
 
   const startUrlAppliedRef = useRef<boolean>(false);
   const activeIdRef = useRef<string | null>(activeId);
@@ -350,6 +354,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
+
   
   useEffect(() => {
     ipc.notifyTabsReady();
@@ -786,43 +791,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [focusLastMainEditable, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
   const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
-
-  const destroyTabView = useCallback((tabId: string, { keepMeta = false }: DestroyTabOptions = {}) => {
-    const entry = tabViewsRef.current.get(tabId);
-    if (!entry) return;
-    try {
-      entry.cleanup?.();
-    } catch {}
-    const { root, container } = entry;
-    if (root) {
-      Promise.resolve().then(() => {
-        try { root.unmount(); } catch {}
-        if (container) {
-          try { container.remove(); } catch {}
-        }
-      });
-    } else if (container) {
-      try { container.remove(); } catch {}
-    }
-    if (webviewRef.current === entry.view) {
-      webviewRef.current = null;
-      webviewHandleRef.current = null;
-      setActiveViewRevision((rev) => rev + 1);
-    }
-    tabViewsRef.current.delete(tabId);
-    playingTabsRef.current.delete(tabId);
-    updatePowerBlocker();
-    if (!keepMeta) {
-      updateMetaAction(tabId, { isPlaying: false, discarded: true, keepAlive: false });
-    }
-    if (backgroundTabRef.current === tabId) {
-      backgroundTabRef.current = null;
-    }
-    if (fullscreenTabRef.current === tabId) {
-      fullscreenTabRef.current = null;
-      setIsHtmlFullscreen(false);
-    }
-  }, [setActiveViewRevision, updateMetaAction, updatePowerBlocker]);
+  const destroyTabView = useTabDestroy({
+    tabViewsRef,
+    playingTabsRef,
+    backgroundTabRef,
+    fullscreenTabRef,
+    webviewRef,
+    webviewHandleRef,
+    setActiveViewRevision,
+    updateMetaAction,
+    updatePowerBlocker,
+    setIsHtmlFullscreen
+  });
 
   const refreshNavigationState = useCallback(() => {
     const handle = webviewHandleRef.current;
