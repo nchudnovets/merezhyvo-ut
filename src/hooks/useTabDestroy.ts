@@ -3,17 +3,9 @@ import type { MutableRefObject } from 'react';
 import type { WebviewTag } from 'electron';
 import type { Tab } from '../types/models';
 import type { WebViewHandle } from '../components/webview/WebViewHost';
+import type { TabViewEntry } from '../types/tabView';
 
 type DestroyTabOptions = { keepMeta?: boolean };
-
-type TabViewEntry = {
-  container: HTMLDivElement | null;
-  root: { unmount: () => void } | null;
-  cleanup?: () => void;
-  view: WebviewTag | null;
-  handle: WebViewHandle | null;
-  isBackground?: boolean;
-};
 
 type Params = {
   tabViewsRef: MutableRefObject<Map<string, TabViewEntry>>;

@@ -14,7 +14,6 @@ import type {
 } from 'react';
 import type { WebviewTag } from 'electron';
 import { createRoot } from 'react-dom/client';
-import type { Root } from 'react-dom/client';
 import Toolbar from './components/toolbar/Toolbar';
 import { MessengerToolbar } from './components/messenger/MessengerToolbar';
 import WebViewPane from './components/webview/WebViewPane';
@@ -50,6 +49,7 @@ import { useTabDestroy } from './hooks/useTabDestroy';
 import { useTabRefs } from './hooks/useTabRefs';
 import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
+import { useWebviewListeners } from './hooks/useWebviewListeners';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { windowHelpers } from './services/window/window';
@@ -71,6 +71,7 @@ import type {
   WebrtcMode,
   CookiePrivacySettings
 } from './types/models';
+import type { TabViewEntry } from './types/tabView';
 import { sanitizeMessengerSettings } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
@@ -108,27 +109,9 @@ type LastLoadedInfo = {
   url: string | null;
 };
 
-type WebviewTitleEvent = {
-  title?: string | null;
-};
-
-type WebviewFaviconEvent = {
-  favicons?: unknown;
-};
-
 type KeyboardDirection = 'ArrowLeft' | 'ArrowRight';
 
 type SecurityIndicatorState = 'ok' | 'warn' | 'notice';
-
-type TabViewEntry = {
-  container: HTMLDivElement;
-  root: Root;
-  cleanup: () => void;
-  isBackground: boolean;
-  handle: WebViewHandle | null;
-  view: WebviewTag | null;
-  render: (mode?: Mode, zoom?: number) => void;
-};
 
 type MainBrowserAppProps = {
   initialUrl: string;
@@ -823,95 +806,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, []);
 
-  const attachWebviewListeners = useCallback((view: WebviewTag, tabId: string) => {
-    const handleTitle = (event: WebviewTitleEvent | null | undefined) => {
-      const titleValue = typeof event?.title === 'string' ? event.title : '';
-      if (titleValue) {
-        updateMetaAction(tabId, { title: titleValue, lastUsedAt: Date.now() });
-      }
-    };
-
-    const handleFavicon = (event: WebviewFaviconEvent | null | undefined) => {
-      const favicons = Array.isArray(event?.favicons) ? event.favicons : [];
-      const favicon = favicons.find((href): href is string => typeof href === 'string' && href.trim().length > 0);
-      if (favicon) {
-        updateMetaAction(tabId, { favicon: favicon.trim() });
-      }
-    };
-
-    const handleMediaStarted = () => {
-      playingTabsRef.current.add(tabId);
-      updatePowerBlocker();
-      updateMetaAction(tabId, {
-        isPlaying: true,
-        discarded: false,
-        keepAlive: isYouTubeTab(tabId)
-      });
-    };
-
-    const handleMediaPaused = () => {
-      playingTabsRef.current.delete(tabId);
-      updatePowerBlocker();
-      const shouldKeepAlive = isYouTubeTab(tabId) || backgroundTabRef.current === tabId;
-      updateMetaAction(tabId, { isPlaying: false, keepAlive: shouldKeepAlive });
-      if (backgroundTabRef.current === tabId && !shouldKeepAlive) {
-        destroyTabView(tabId, { keepMeta: true });
-      }
-    };
-
-    const handleEnterFullscreen = () => {
-      fullscreenTabRef.current = tabId;
-      setIsHtmlFullscreen(true);
-    };
-
-    const handleLeaveFullscreen = () => {
-      if (fullscreenTabRef.current === tabId) {
-        fullscreenTabRef.current = null;
-        setIsHtmlFullscreen(false);
-      }
-    };
-
-    const injectBaseCss = () => {
-      try {
-        const maybe = view.insertCSS(WEBVIEW_BASE_CSS);
-        if (maybe && typeof maybe.catch === 'function') {
-          maybe.catch(() => {});
-        }
-      } catch {}
-    };
-
-    injectBaseCss();
-    const handleFocus = () => { webviewFocusedRef.current = true; };
-    const handleBlur = () => { webviewFocusedRef.current = false; };
-    view.addEventListener('dom-ready', injectBaseCss);
-    view.addEventListener('did-navigate', injectBaseCss);
-    view.addEventListener('did-navigate-in-page', injectBaseCss);
-    view.addEventListener('focus', handleFocus);
-    view.addEventListener('blur', handleBlur);
-
-    view.addEventListener('page-title-updated', handleTitle);
-    view.addEventListener('page-favicon-updated', handleFavicon);
-    view.addEventListener('media-started-playing', handleMediaStarted);
-    view.addEventListener('media-paused', handleMediaPaused);
-    view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
-    view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
-
-    injectBaseCss();
-
-    return () => {
-      view.removeEventListener('page-title-updated', handleTitle);
-      view.removeEventListener('page-favicon-updated', handleFavicon);
-      view.removeEventListener('media-started-playing', handleMediaStarted);
-      view.removeEventListener('media-paused', handleMediaPaused);
-      view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
-      view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
-      view.removeEventListener('dom-ready', injectBaseCss);
-      view.removeEventListener('did-navigate', injectBaseCss);
-      view.removeEventListener('did-navigate-in-page', injectBaseCss);
-      view.removeEventListener('focus', handleFocus);
-      view.removeEventListener('blur', handleBlur);
-    };
-  }, [destroyTabView, updateMetaAction, updatePowerBlocker, isYouTubeTab]);
+  const attachWebviewListeners = useWebviewListeners({
+    baseCss: WEBVIEW_BASE_CSS,
+    updateMetaAction,
+    playingTabsRef,
+    updatePowerBlocker,
+    isYouTubeTab,
+    backgroundTabRef,
+    destroyTabView,
+    fullscreenTabRef,
+    setIsHtmlFullscreen,
+    webviewFocusedRef
+  });
 
   const forceNavigateTab = useCallback((tabId: string, targetUrl: string) => {
     if (!tabId || !targetUrl) return;
