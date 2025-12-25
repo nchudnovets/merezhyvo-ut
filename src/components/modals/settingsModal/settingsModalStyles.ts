@@ -79,7 +79,7 @@ export const settingsModalStyles: StyleRecord = {
     color: 'var(--mzr-text-secondary)'
   },
   blockToggleButton: {
-    background: 'var(--mzr-surface-transparent)',
+    background: 'transparent',
     color: 'var(--mzr-text-secondary)',
     width: '30px',
     height: '30px',
