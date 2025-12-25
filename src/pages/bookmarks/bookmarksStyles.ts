@@ -84,12 +84,17 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     gap: '18px',
     height: '100%',
     overflow: 'hidden',
-    overflowX: 'hidden'
+    overflowX: 'hidden',
+    background: 'var(--mzr-surface)',
+    padding: '20px',
+    maxWidth: '800px',
+    margin: '0 auto'
   },
   hero: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    marginBottom: '15px'
   },
   heroTitle: {
     fontSize: '24px',

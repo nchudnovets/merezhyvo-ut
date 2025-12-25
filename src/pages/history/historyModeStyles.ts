@@ -14,6 +14,12 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
     button: {}
   },
   mobile: {
+    container: {
+      padding: '28px'
+    },
+    header: {
+      marginBottom: '30px'
+    },
     title: { fontSize: 'clamp(42px, 6vw, 54px)' },
     button: {
       fontSize: '45px'

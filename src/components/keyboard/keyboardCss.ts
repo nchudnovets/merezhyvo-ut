@@ -1,10 +1,35 @@
-let injected = false;
+type ThemeName = 'light' | 'dark';
 
-export function ensureOskCssInjected() {
-  if (injected) return;
-  injected = true;
+let styleEl: HTMLStyleElement | null = null;
+let lastKey: string | null = null;
 
-  const css = `
+const pick = (vars: Record<string, string>, key: string, fallback: string): string =>
+  (typeof vars?.[key] === 'string' && vars[key].trim().length > 0 ? vars[key] : fallback);
+
+const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
+  const bg = theme === 'light' ? 'rgba(255,255,255,0.92)' : 'rgba(24,24,24,0.95)';
+  const text = pick(vars, 'text-primary', theme === 'light' ? '#0F1525' : '#f8fafc');
+  const muted = pick(vars, 'text-muted', theme === 'light' ? '#6B7A96' : 'rgba(248,250,252,0.7)');
+  const border = pick(vars, 'border', theme === 'light' ? '#CBD5E4' : 'rgba(148, 163, 184, 0.45)');
+  const hover = pick(vars, 'accent-tint', theme === 'light' ? '#E6EEFF' : 'rgba(255,255,255,0.06)');
+  const sep = pick(vars, 'divider', theme === 'light' ? '#E2E8F3' : 'rgba(148,163,184,0.25)');
+  const accent = pick(vars, 'accent-strong', '#3b82f6');
+  const buttonBg = pick(vars, 'surface-muted', theme === 'light' ? 'rgba(248,250,252,0.9)' : 'rgba(255,255,255,0.08)');
+  const popupBg = theme === 'light' ? 'rgba(248,250,252,0.98)' : 'rgba(15, 15, 15, 0.98)';
+
+  return `
+  :root {
+    --mzr-osk-bg: ${bg};
+    --mzr-osk-text: ${text};
+    --mzr-osk-muted: ${muted};
+    --mzr-osk-border: ${border};
+    --mzr-osk-hover: ${hover};
+    --mzr-osk-sep: ${sep};
+    --mzr-osk-accent: ${accent};
+    --mzr-osk-btn-bg: ${buttonBg};
+    --mzr-osk-popup-bg: ${popupBg};
+  }
+
   .mzr-osk.fixed-osk {
     position: fixed; left: 0; right: 0; bottom: 0;
     z-index: 100000;
@@ -16,8 +41,9 @@ export function ensureOskCssInjected() {
   .mzr-osk-theme {
     position: relative;
     padding: 8px 6px calc(18px + 48px);
-    background: rgba(24,24,24,0.95);
+    background: var(--mzr-osk-bg);
     backdrop-filter: blur(6px);
+    color: var(--mzr-osk-text);
   }
   .mzr-osk-close {
     position: absolute;
@@ -26,7 +52,7 @@ export function ensureOskCssInjected() {
     transform: translateX(-50%);
     background: transparent;
     border: none;
-    color: rgba(203, 213, 225, 0.85);
+    color: var(--mzr-osk-muted);
     display: flex;
     align-items: center;
     justify-content: center;
@@ -40,24 +66,27 @@ export function ensureOskCssInjected() {
     transform: translateX(-50%) translateY(2px);
   }
   .mzr-osk-close:hover {
-    color: rgba(241, 245, 249, 0.95);
+    color: var(--mzr-osk-text);
   }
 
   .mzr-osk .hg-button {
     font-family: Roboto, Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif !important;
-    font-size: 65px !important; 
+    font-size: 65px !important;
     line-height: 1.05 !important;
     padding: 6px 6px !important;
     margin: 4px 3px !important;
     min-width: 0 !important;
-    height: 88px !important; 
+    height: 88px !important;
     border-radius: 10px !important;
     display: inline-flex; align-items: center; justify-content: center;
+    background: var(--mzr-osk-btn-bg) !important;
+    color: var(--mzr-osk-text) !important;
+    border: 1px solid var(--mzr-osk-border) !important;
   }
   .mzr-osk .hg-button:active,
-  .mzr-osk .hg-button.mzr-osk-pressed { 
-    filter: brightness(1.5);
-    border-color: #f7e78f;
+  .mzr-osk .hg-button.mzr-osk-pressed {
+    filter: brightness(1.05);
+    border-color: var(--mzr-osk-accent);
     transform: translateX(-2px) translateY(2px);
   }
 
@@ -86,21 +115,22 @@ export function ensureOskCssInjected() {
   }
 
   .mzr-osk .hg-button.hg-button-shift.hg-button-active {
-    background: #3b82f6 !important;
+    background: var(--mzr-osk-accent) !important;
     color: #fff !important;
   }
 
   .mzr-osk-popup {
     position: fixed;
     transform: translate(-50%, -100%);
-    background: rgba(15, 15, 15, 0.98);
-    color: #fff;
+    background: var(--mzr-osk-popup-bg);
+    color: var(--mzr-osk-text);
     padding: 8px 10px;
     border-radius: 16px;
     box-shadow: 0 10px 30px rgba(0,0,0,0.35);
     z-index: 100001;
     display: flex;
     gap: 6px;
+    border: 1px solid var(--mzr-osk-border);
   }
   .mzr-osk-popup-btn {
     font-family: Roboto, Arial, "Helvetica Neue", Helvetica, system-ui, sans-serif;
@@ -109,13 +139,23 @@ export function ensureOskCssInjected() {
     padding: 8px 10px;
     min-width: 0;
     background: transparent;
-    color: #fff;
+    color: var(--mzr-osk-text);
     border: 0;
     border-radius: 10px;
     height: 88px;
   }
   .mzr-osk-popup-btn:active {
-    background: rgba(255,255,255,0.12);
+    background: var(--mzr-osk-hover);
+  }
+
+  .mzr-osk .fill-label {
+    color: var(--mzr-osk-muted);
+  }
+  .mzr-osk .item:hover {
+    background: var(--mzr-osk-hover);
+  }
+  .mzr-osk .sep {
+    background: var(--mzr-osk-sep);
   }
 
   @media (max-width: 400px) {
@@ -124,11 +164,22 @@ export function ensureOskCssInjected() {
     .mzr-osk-popup-btn { font-size: 48px; padding: 6px 8px; }
   }
   `;
+};
 
-  const style = document.createElement('style');
-  style.setAttribute('data-osk', '1');
-  style.textContent = css;
-  document.head.appendChild(style);
+export function ensureOskCssInjected(themeVars: Record<string, string> = {}, theme: ThemeName = 'dark') {
+  const key = `${theme}:${JSON.stringify(themeVars)}`;
+  if (styleEl && lastKey === key) return;
+
+  const css = buildCss(themeVars, theme);
+
+  if (!styleEl) {
+    styleEl = document.createElement('style');
+    styleEl.setAttribute('data-osk', '1');
+    document.head.appendChild(styleEl);
+  }
+
+  styleEl.textContent = css;
+  lastKey = key;
 }
 
 export const KEYBOARD_CSS_RTL = `

@@ -33,12 +33,17 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
     flexDirection: 'column',
     height: '100%',
     gap: '18px',
-    overflowX: 'hidden'
+    overflowX: 'hidden',
+    background: 'var(--mzr-surface)',
+    padding: '20px',
+    maxWidth: '800px',
+    margin: '0 auto'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between'
+    justifyContent: 'space-between',
+    marginBottom: '15px'
   },
   title: {
     margin: 0,

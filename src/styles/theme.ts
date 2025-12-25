@@ -1,6 +1,6 @@
 export type ThemeName = 'dark' | 'light';
 
-type ThemeVars = Record<string, string>;
+export type ThemeVars = Record<string, string>;
 
 const baseDark: ThemeVars = {
   'color-scheme': 'dark',

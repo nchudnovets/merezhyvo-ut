@@ -18,6 +18,8 @@ import {
   resolveLayoutRows,
 } from './layouts';
 import { ensureOskCssInjected } from './keyboardCss';
+import type { ThemeName } from '../../types/models';
+import type { ThemeVars } from '../../styles/theme';
 
 type Props = {
   visible: boolean;
@@ -36,6 +38,8 @@ type Props = {
   onHeightChange?: (height: number) => void;
   onInteractionStart?: () => void;
   onInteractionEnd?: () => void;
+  theme: ThemeName;
+  themeVars: ThemeVars;
 };
 
 const SPECIAL = new Set([
@@ -202,6 +206,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
     onHeightChange,
     onInteractionStart,
     onInteractionEnd,
+    theme,
+    themeVars,
   } = p;
 
   // We keep a ref for compatibility; not used directly here
@@ -252,8 +258,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
   }, [onInteractionEnd]);
 
   useEffect(() => {
-    ensureOskCssInjected();
-  }, []);
+    ensureOskCssInjected(themeVars, theme);
+  }, [theme, themeVars]);
 
   useEffect(() => {
     if (!onHeightChange) return;

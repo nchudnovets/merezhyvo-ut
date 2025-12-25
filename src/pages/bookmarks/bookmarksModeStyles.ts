@@ -7,8 +7,11 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
   },
   mobile: {
     container: {
-      padding: '18px',
+      padding: '28px',
       fontSize: '35px'
+    },
+    hero: {
+      marginBottom: '30px'
     },
     heroTitle: {
       fontSize: 'clamp(42px, 6vw, 54px)'

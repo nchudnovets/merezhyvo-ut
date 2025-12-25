@@ -273,7 +273,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsKeyboardLayoutCode: {
       width: 'clamp(140px, 18vw, 180px)',
-      fontSize: 'clamp(42px, 6vw, 54px)'
+      fontSize: '42px'
     },
     settingsKeyboardLayoutId: {
       fontSize: 'clamp(33px, 4.8vw, 40px)'
