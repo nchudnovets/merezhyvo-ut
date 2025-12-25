@@ -8,10 +8,10 @@ export const settingsModalStyles: StyleRecord = {
     height: '93vh',
     maxHeight: '100vh',
     borderRadius: '24px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     display: 'flex',
     flexDirection: 'column',
     padding: '24px',
@@ -22,10 +22,10 @@ export const settingsModalStyles: StyleRecord = {
   containerMobile: {
     width: '100%',
     borderRadius: '24px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     padding: 'calc(2vh) calc(4vw)',
@@ -56,7 +56,7 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     gap: '18px',
     padding: '28px 15px',
-    borderTop: '1px solid rgba(148, 163, 184, 0.25)',
+    borderTop: '1px solid var(--mzr-border)',
     position: 'relative'
   },
   blockHeader: {
@@ -76,11 +76,11 @@ export const settingsModalStyles: StyleRecord = {
     fontSize: '14px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   blockToggleButton: {
-    background: 'rgba(15, 23, 42, 0.65)',
-    color: '#cbd5f5',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     width: '30px',
     height: '30px',
     display: 'flex',
@@ -96,9 +96,9 @@ export const settingsModalStyles: StyleRecord = {
     gap: '14px'
   },
   keyboardToggleButton: {
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
-    color: '#cbd5f5',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     width: '36px',
     height: '36px',
     borderRadius: '12px',
@@ -135,6 +135,8 @@ export const settingsModalStyles: StyleRecord = {
     alignItems: 'center',
     gap: '8px',
     padding: '12px 16px',
+    color: 'var(--mzr-text-primary)',
+    background: 'transparent',
   },
   keyboardHeaderActions: {
     display: 'flex',
@@ -146,11 +148,11 @@ export const settingsModalStyles: StyleRecord = {
     textAlign: 'center',
     fontWeight: 600,
     fontSize: '15px',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   keyboardLayoutId: {
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     opacity: 0.85,
     fontSize: '15px',
     fontVariantNumeric: 'tabular-nums',
@@ -162,7 +164,7 @@ export const settingsModalStyles: StyleRecord = {
     alignItems: 'center',
     gap: '8px',
     fontSize: '15px',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   keyboardActions: {
@@ -173,12 +175,12 @@ export const settingsModalStyles: StyleRecord = {
   },
   loading: {
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   empty: {
     margin: 0,
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   appList: {
     listStyle: 'none',
@@ -195,8 +197,8 @@ export const settingsModalStyles: StyleRecord = {
     gap: '16px',
     padding: '16px 18px',
     borderRadius: '16px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    backgroundColor: 'rgba(17, 24, 39, 0.65)'
+    border: '1px solid var(--mzr-divider)',
+    backgroundColor: 'var(--mzr-surface-transparent)'
   },
   appHeader: {
     display: 'flex',
@@ -214,14 +216,14 @@ export const settingsModalStyles: StyleRecord = {
   appTitle: {
     fontSize: '15px',
     fontWeight: 600,
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
   appUrl: {
     fontSize: '13px',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
@@ -235,8 +237,8 @@ export const settingsModalStyles: StyleRecord = {
     width: '32px',
     height: '32px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
     color: 'rgba(250, 97, 97, 0.92)',
     display: 'flex',
     alignItems: 'center',
@@ -254,7 +256,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: '14px',
     border: '1px solid rgba(59, 130, 246, 0.45)',
     backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    color: '#bfdbfe',
+    color: 'var(--mzr-accent-tint)',
     padding: '12px 14px'
   },
   confirm: {
@@ -262,13 +264,13 @@ export const settingsModalStyles: StyleRecord = {
     flexDirection: 'column',
     gap: '12px',
     width: '100%',
-    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+    borderTop: '1px solid var(--mzr-divider)',
     paddingTop: '15px'
   },
   confirmText: {
     margin: 0,
     fontSize: '14px',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   confirmActions: {
     display: 'flex',
@@ -279,9 +281,9 @@ export const settingsModalStyles: StyleRecord = {
     minWidth: '120px',
     height: '40px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
-    color: '#e2e8f0',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer'
@@ -289,7 +291,7 @@ export const settingsModalStyles: StyleRecord = {
   confirmButtonPrimary: {
     border: 'none',
     background: 'rgba(250, 97, 97, 0.92)',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   aboutCard: {
     display: 'flex',
@@ -297,37 +299,78 @@ export const settingsModalStyles: StyleRecord = {
     gap: '8px',
     padding: '16px 18px',
     // borderRadius: '16px',
-    // border: '1px solid rgba(148, 163, 184, 0.2)',
-    // backgroundColor: 'rgba(17, 24, 39, 0.65)'
+    // border: '1px solid var(--mzr-divider)',
+    // backgroundColor: 'var(--mzr-surface-transparent)'
   },
   aboutName: {
     margin: 0,
     fontSize: '18px',
     fontWeight: 600,
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   aboutVersion: {
     margin: 0,
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   aboutDescription: {
     margin: 0,
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   aboutButton: {
     alignSelf: 'flex-start',
-    border: '1px solid rgba(59, 130, 246, 0.6)',
-    background: 'rgba(37, 99, 235, 0.15)',
-    color: '#bfdbfe',
+    border: '1px solid var(--mzr-accent)',
+    background: 'var(--mzr-accent)',
+    color: '#fff',
     borderRadius: '12px',
     padding: '8px 16px',
     cursor: 'pointer',
     fontSize: '13px',
     margin: '20px auto',
     width: '50%'
+  },
+  themeContainer: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  themeHeader: {
+    display: 'flex',
+    alignItems: 'baseline',
+    justifyContent: 'space-between',
+    gap: '12px'
+  },
+  themeLabel: {
+    fontSize: '14px',
+    fontWeight: 600
+  },
+  themeHelper: {
+    fontSize: '13px',
+    color: 'var(--mzr-text-muted)',
+    textAlign: 'right',
+    flex: 1
+  },
+  themeOptions: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px'
+  },
+  themeOption: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '12px',
+    padding: '12px 14px',
+    borderRadius: '14px',
+    border: 'none',
+    background: 'transparent',
+    color: 'var(--mzr-text-primary)',
+    cursor: 'pointer'
+  },
+  themeOptionActive: {
+    color: 'var(--mzr-accent)',
+    fontWeight: 700
   },
   scaleContainer: {
     display: 'flex',
@@ -343,20 +386,21 @@ export const settingsModalStyles: StyleRecord = {
   scaleLabel: {
     fontSize: '18px',
     fontWeight: 600,
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   scaleValue: {
     fontSize: '18px',
     fontWeight: 600,
-    color: '#a5b4fc'
+    color: 'var(--mzr-accent)'
   },
   scaleRange: {
-    width: '100%'
+    width: '100%',
+    accentColor: 'var(--mzr-accent)'
   },
   scaleHelper: {
     margin: 0,
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   scaleButtons: {
     display: 'flex',
@@ -364,9 +408,9 @@ export const settingsModalStyles: StyleRecord = {
     justifyContent: 'center'
   },
   scaleButton: {
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.75)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border-strong)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-primary)',
     borderRadius: '12px',
     padding: '8px 16px',
     fontSize: '14px',
@@ -383,12 +427,12 @@ export const settingsModalStyles: StyleRecord = {
     fontSize: '12px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   torInfoValue: {
     fontSize: '15px',
     fontWeight: 600,
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   torInfoValueEnabled: {
     color: '#4ade80'
@@ -404,7 +448,7 @@ export const settingsModalStyles: StyleRecord = {
   torInputLabel: {
     fontSize: '13px',
     fontWeight: 600,
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   torInputRow: {
     display: 'flex',
@@ -415,9 +459,9 @@ export const settingsModalStyles: StyleRecord = {
     flex: 1,
     height: '38px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-primary)',
     padding: '0 12px'
   },
   torSaveButton: {
@@ -425,7 +469,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: '12px',
     border: '1px solid rgba(59, 130, 246, 0.5)',
     background: 'rgba(37, 99, 235, 0.2)',
-    color: '#bfdbfe',
+    color: 'var(--mzr-accent-tint)',
     fontWeight: 600,
     padding: '0 18px',
     cursor: 'pointer'
@@ -433,7 +477,7 @@ export const settingsModalStyles: StyleRecord = {
   torInputHint: {
     margin: 0,
     fontSize: '12px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   torKeepRow: {
     display: 'flex',
@@ -444,12 +488,12 @@ export const settingsModalStyles: StyleRecord = {
     width: '18px',
     height: '18px',
     cursor: 'pointer',
-    accentColor: '#2563eb'
+    accentColor: 'var(--mzr-accent)'
   },
   torKeepLabel: {
     fontSize: '16px',
     fontWeight: 600,
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     marginLeft: '7px'
   },
@@ -464,7 +508,7 @@ export const settingsModalStyles: StyleRecord = {
   },
   messengerHint: {
     fontSize: '15px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   messengerList: {
     listStyle: 'none',
@@ -491,13 +535,13 @@ export const settingsModalStyles: StyleRecord = {
   messengerName: {
     fontWeight: 600,
     fontSize: '16px',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
   messengerUrl: {
     fontSize: '14px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
@@ -510,10 +554,10 @@ export const settingsModalStyles: StyleRecord = {
     width: '36px',
     height: '36px',
     borderRadius: '12px',
-    // border: '1px solid rgba(148, 163, 184, 0.35)',
+    // border: '1px solid var(--mzr-border)',
     border: 'none',
-    backgroundColor: 'rgba(15, 23, 42, 0.7)',
-    color: '#cbd5f5',
+    backgroundColor: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -522,11 +566,11 @@ export const settingsModalStyles: StyleRecord = {
   messengerMessage: {
     margin: 0,
     fontSize: '13px',
-    color: '#a5b4fc'
+    color: 'var(--mzr-accent)'
   },
   permissionsBadge: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsHeaderActions: {
@@ -535,9 +579,9 @@ export const settingsModalStyles: StyleRecord = {
     gap: '12px'
   },
   permissionsToggleButton: {
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
-    color: '#cbd5f5',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     width: '36px',
     height: '36px',
     borderRadius: '12px',
@@ -569,12 +613,12 @@ export const settingsModalStyles: StyleRecord = {
   permissionsDefaultsTitle: {
     fontSize: '14px',
     fontWeight: 600,
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsDefaultsDescription: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4,
     maxWidth: 420
   },
@@ -586,7 +630,7 @@ export const settingsModalStyles: StyleRecord = {
   },
   permissionsDefaultsLabel: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsDefaultsButtonGroup: {
@@ -595,12 +639,12 @@ export const settingsModalStyles: StyleRecord = {
   },
   permissionsDefaultsHeaderTitle: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsDefaultsHeaderLabel: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4,
     textAlign: 'center'
   },
@@ -609,7 +653,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: 10,
     border: '1px solid rgba(148,163,184,0.28)',
     background: 'transparent',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontSize: '14px',
     fontWeight: 600,
     letterSpacing: '0.02em',
@@ -623,12 +667,12 @@ export const settingsModalStyles: StyleRecord = {
   permissionsOptionNeutral: {},
   permissionsOptionPrimary: {
     border: '1px solid rgba(37,99,235,0.55)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     background: 'rgba(37, 99, 235, 0.07)'
   },
   permissionsOptionDestructive: {
     border: '1px solid rgba(239,68,68,0.55)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     background: 'rgba(239,68,68,0.07)'
   },
   permissionsOptionActive: {
@@ -658,7 +702,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: 12,
     border: '1px solid rgba(148,163,184,0.28)',
     background: 'rgba(15,23,42,0.6)',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer'
@@ -674,7 +718,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: 12,
     border: '1px solid rgba(148,163,184,0.28)',
     background: 'rgba(15,23,42,0.55)',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     outline: 'none',
     fontSize: '14px'
   },
@@ -693,7 +737,7 @@ export const settingsModalStyles: StyleRecord = {
     background: 'rgba(148,163,184,0.08)',
     fontSize: '14px',
     fontWeight: 600,
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsSiteHeaderActions: {
@@ -707,14 +751,14 @@ export const settingsModalStyles: StyleRecord = {
     padding: '12px 14px',
     borderTop: '1px solid rgba(148,163,184,0.22)',
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsSiteOrigin: {
     overflow: 'hidden',
     textOverflow: 'ellipsis',
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontWeight: 600,
     lineHeight: 1.4
   },
@@ -732,7 +776,7 @@ export const settingsModalStyles: StyleRecord = {
     borderRadius: 10,
     border: '1px solid rgba(148,163,184,0.28)',
     background: 'rgba(15,23,42,0.6)',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer'
@@ -740,7 +784,7 @@ export const settingsModalStyles: StyleRecord = {
   permissionsSiteEmpty: {
     padding: '16px 18px',
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   permissionsSiteCard: {
@@ -759,7 +803,7 @@ export const settingsModalStyles: StyleRecord = {
   permissionsSiteCardOrigin: {
     fontWeight: 600,
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4,
     overflow: 'hidden',
     textOverflow: 'ellipsis'
@@ -780,7 +824,7 @@ export const settingsModalStyles: StyleRecord = {
   },
   permissionsSiteCardPermissionLabel: {
     fontSize: '14px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontWeight: 500,
     lineHeight: 1.4
   }
@@ -815,18 +859,18 @@ export const settingsModalStyles: StyleRecord = {
     marginTop: '12px'
   },
   settingsSelect: {
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    color: '#f8fafc',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border)',
+    color: 'var(--mzr-text-primary)',
     borderRadius: '10px',
     padding: '8px 12px',
     fontSize: '14px'
   },
   settingsButton: {
-    border: '1px solid rgba(148, 163, 184, 0.35)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '12px',
-    background: '#2563ebeb',
-    color: '#f8fafc',
+    background: 'var(--mzr-accent)',
+    color: 'var(--mzr-text-primary)',
     padding: '8px 16px',
     cursor: 'pointer',
     width: '60%',
@@ -835,7 +879,7 @@ export const settingsModalStyles: StyleRecord = {
   settingsLinkButton: {
     border: 'none',
     background: 'transparent',
-    color: '#93c5fd',
+    color: 'var(--mzr-focus-ring)',
     textDecoration: 'underline',
     cursor: 'pointer',
     padding: 0
@@ -847,7 +891,7 @@ export const settingsModalStyles: StyleRecord = {
   settingsMessage: {
     margin: 0,
     fontSize: '16px',
-    color: '#a5b4fc',
+    color: 'var(--mzr-accent-tint)',
     marginBottom: '15px'
   }
 } as const;

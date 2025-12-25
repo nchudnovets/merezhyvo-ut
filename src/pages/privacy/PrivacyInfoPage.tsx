@@ -9,11 +9,12 @@ type Section = {
 };
 
 const cardStyle = {
-  background: 'rgba(15,23,42,0.55)',
+  background: 'var(--mzr-surface-transparent)',
+  border: 'none',
   padding: '14px 14px 12px',
   display: 'flex',
   flexDirection: 'column' as const,
-  gap: 10
+  gap: 5
 };
 
 const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
@@ -143,7 +144,8 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         height: '100%',
         padding: mode === 'mobile' ? '28px 22px 40px' : '22px 26px',
         boxSizing: 'border-box',
-        color: '#e2e8f0'
+        color: 'var(--mzr-text-secondary)',
+        background: 'var(--mzr-surface)'
       }}
     >
       <div style={{ maxWidth: mode === 'mobile' ? 'none' : 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
@@ -158,8 +160,8 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
                   width: mode === 'mobile' ? 56 : 36,
                   height: mode === 'mobile' ? 56 : 36,
                   border: 'none',
-                  background: 'rgba(15,23,42,0.6)',
-                  color: '#e2e8f0',
+                  background: 'var(--mzr-surface-weak)',
+                  color: 'var(--mzr-text-primary)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -190,7 +192,7 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
                   width: '100%',
                   background: 'transparent',
                   border: 'none',
-                  color: '#e2e8f0',
+                  color: 'var(--mzr-text-primary)',
                   cursor: 'pointer',
                   padding: 0
                 }}
@@ -211,7 +213,15 @@ const PrivacyInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
               {isOpen && (
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 8, paddingRight: 4 }}>
                   {section.body.map((line, idx) => (
-                    <p key={idx} style={{ margin: 0, fontSize: textSize, lineHeight: 1.45, color: 'rgba(226,232,240,0.9)' }}>
+                    <p
+                      key={idx}
+                      style={{
+                        margin: 0,
+                        fontSize: textSize,
+                        lineHeight: 1.45,
+                        color: 'var(--mzr-text-secondary)'
+                      }}
+                    >
                       {line}
                     </p>
                   ))}

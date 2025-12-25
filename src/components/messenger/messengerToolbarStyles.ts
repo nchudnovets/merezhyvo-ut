@@ -8,7 +8,7 @@ export const messengerToolbarStyles = {
     justifyContent: 'space-between',
     gap: '12px',
     padding: '8px 16px',
-    backgroundColor: '#121826',
+    backgroundColor: 'var(--mzr-surface)',
     boxShadow: '0 1px 6px rgba(0, 0, 0, 0.35)',
     zIndex: 10
   } satisfies CSSProperties,
@@ -21,7 +21,7 @@ export const messengerToolbarStyles = {
     overflow: 'hidden',
     borderWidth: '1px',
     borderStyle: 'solid',
-    borderColor: 'rgba(148, 163, 184, 0.35)',
+    borderColor: 'var(--mzr-border)',
   } satisfies CSSProperties,
   button: {
     display: 'flex',
@@ -30,12 +30,12 @@ export const messengerToolbarStyles = {
     gap: '8px',
     borderWidth: '1px',
     borderStyle: 'solid',
-    borderColor: 'rgba(148, 163, 184, 0.35)',
+    borderColor: 'var(--mzr-border)',
     borderLeft: 'none',
     borderTop: 'none',
     borderBottom: 'none',
     backgroundColor: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     padding: '8px 14px',
     minHeight: '44px',
     minWidth: '0',
@@ -43,9 +43,9 @@ export const messengerToolbarStyles = {
     cursor: 'pointer',
   } satisfies CSSProperties,
   buttonActive: {
-    backgroundColor: '#2563eb',
-    borderColor: '#2563eb',
-    color: '#f8fafc',
+    backgroundColor: 'var(--mzr-accent)',
+    borderColor: 'var(--mzr-accent)',
+    color: 'var(--mzr-text-primary)',
     boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.25)'
   } satisfies CSSProperties,
   icon: {
@@ -68,13 +68,13 @@ export const messengerToolbarStyles = {
     padding: '8px 16px',
     border: 'none',
     backgroundColor: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     flexShrink: 0,
   } satisfies CSSProperties,
   exitButtonActive: {
     backgroundColor: '#1f2937',
-    borderColor: '#2563eb'
+    borderColor: 'var(--mzr-accent)'
   } satisfies CSSProperties
 };
 

@@ -6,8 +6,8 @@ export const styles = {
     height: '100vh',
     boxSizing: 'border-box',
     minHeight: 0,
-    backgroundColor: '#0f111a',
-    color: '#f8fafc',
+    backgroundColor: 'var(--mzr-bg)',
+    color: 'var(--mzr-text-primary)',
     overflow: 'hidden',
     WebkitTouchCallout: 'none'
   },
@@ -16,7 +16,7 @@ export const styles = {
     alignItems: 'center',
     gap: '12px',
     padding: '8px 16px',
-    backgroundColor: '#121826',
+    backgroundColor: 'var(--mzr-surface)',
     boxShadow: '0 1px 6px rgba(0, 0, 0, 0.35)',
     position: 'relative',
     zIndex: 10
@@ -32,7 +32,7 @@ export const styles = {
     borderRadius: '14px',
     border: 'none',
     backgroundColor: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '18px',
     display: 'flex',
     alignItems: 'center',
@@ -85,9 +85,9 @@ export const styles = {
     width: '100%',
     height: '36px',
     borderRadius: '10px',
-    border: '1px solid #3E4D6A',
-    backgroundColor: '#213e6dff',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-input-border)',
+    backgroundColor: 'var(--mzr-input-bg)',
+    color: 'var(--mzr-text-primary)',
     padding: '0 26px 0 14px',
     outline: 'none'
   },
@@ -97,7 +97,7 @@ export const styles = {
     height: '42px',
     border: 'none',
     backgroundColor: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -116,10 +116,10 @@ export const styles = {
     width: '26px',
     height: '26px',
     borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    backgroundColor: 'rgb(33, 62, 109)',
-    color: '#f8fafc',
-    boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.18)',
+    border: '1px solid var(--mzr-border-strong)',
+    backgroundColor: 'var(--mzr-surface)',
+    color: 'var(--mzr-text-primary)',
+    boxShadow: '0 0 0 1px var(--mzr-divider)',
     flexShrink: 0
   },
   tabsButtonCount: {
@@ -133,7 +133,7 @@ export const styles = {
     borderRadius: '14px',
     border: 'none',
     backgroundColor: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -174,7 +174,7 @@ export const styles = {
     flex: 1,
     minHeight: 0,
     border: 'none',
-    backgroundColor: '#05070f',
+    backgroundColor: 'var(--mzr-bg)',
     touchAction: 'pan-x pan-y pinch-zoom'
   },
   webviewMount: {
@@ -198,7 +198,7 @@ export const styles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '16px',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     background: 'linear-gradient(180deg, rgba(5,7,15,0.65), rgba(5,7,15,0.78))',
     pointerEvents: 'none',
     zIndex: 4
@@ -230,7 +230,7 @@ export const styles = {
     justifyContent: 'center',
     gap: '12px',
     padding: '24px',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     background: 'radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9))',
     textAlign: 'center',
     zIndex: 30
@@ -243,7 +243,7 @@ export const styles = {
   webviewErrorTitle: {
     fontSize: '18px',
     fontWeight: 700,
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   webviewErrorTitleMobile: {
     fontSize: 'clamp(34px, 4.6vw, 42px)'
@@ -262,9 +262,9 @@ export const styles = {
     marginTop: '8px',
     padding: '8px 12px',
     borderRadius: '10px',
-    backgroundColor: 'rgba(15, 23, 42, 0.65)',
+    backgroundColor: 'var(--mzr-surface-transparent)',
     border: '1px solid rgba(148,163,184,0.3)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '13px',
     wordBreak: 'break-all'
   },
@@ -278,7 +278,7 @@ export const styles = {
     borderRadius: '14px',
     border: '1px solid rgba(37,156,235,0.9)',
     backgroundColor: 'rgba(37,156,235,0.16)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '15px',
     cursor: 'pointer'
   },
@@ -301,8 +301,8 @@ export const styles = {
     alignItems: 'center',
     gap: '12px',
     padding: '6px 50px',
-    backgroundColor: '#121826',
-    borderTop: '1px solid rgba(148, 163, 184, 0.18)',
+    backgroundColor: 'var(--mzr-surface)',
+    borderTop: '1px solid var(--mzr-divider)',
     position: 'absolute',
     bottom:0,
     left: 0,
@@ -313,7 +313,7 @@ export const styles = {
   zoomLabel: {
     letterSpacing: '0.05em',
     textTransform: 'uppercase',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   zoomSliderContainer: {
     flex: 1,
@@ -323,16 +323,17 @@ export const styles = {
   zoomSlider: {
     flex: 1,
     minWidth: 0,
-    touchAction: 'none'
+    touchAction: 'none',
+    accentColor: 'var(--mzr-accent)'
   },
   zoomValue: {
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontVariantNumeric: 'tabular-nums'
   },
   modalBackdrop: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(5, 7, 15, 0.76)',
+    backgroundColor: 'var(--mzr-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -342,10 +343,10 @@ export const styles = {
   modal: {
     width: 'min(420px, 92vw)',
     borderRadius: '20px',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     padding: '24px',
@@ -364,7 +365,7 @@ export const styles = {
   },
   modalBody: {
     fontSize: '16px',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.5,
     margin: '8px 0'
   },
@@ -374,7 +375,7 @@ export const styles = {
     borderRadius: '12px',
     border: 'none',
     background: 'transparent',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -392,14 +393,14 @@ export const styles = {
   },
   modalLabel: {
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   modalInput: {
     height: '44px',
     borderRadius: '14px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     padding: '0 14px',
     fontSize: '16px',
     outline: 'none'
@@ -411,7 +412,7 @@ export const styles = {
     borderRadius: '14px',
     border: '1px solid rgba(59, 130, 246, 0.45)',
     backgroundColor: 'rgba(59, 130, 246, 0.12)',
-    color: '#bfdbfe',
+    color: 'var(--mzr-accent-tint)',
     padding: '12px 14px'
   },
   modalActions: {
@@ -423,9 +424,9 @@ export const styles = {
     minWidth: '120px',
     height: '42px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.65)',
-    color: '#e2e8f0',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     fontSize: '15px',
     fontWeight: 600,
     cursor: 'pointer'
@@ -433,7 +434,7 @@ export const styles = {
   modalButtonPrimary: {
     border: 'none',
     background: 'rgba(37, 99, 235, 0.92)',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   modalButtonDisabled: {
     opacity: 0.6,
@@ -445,10 +446,10 @@ export const styles = {
     minHeight: 0,
     maxHeight: '92vh',
     borderRadius: '28px 28px 0 0',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
-    backgroundColor: 'rgba(15, 23, 42, 0.98)',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     boxShadow: '0 -12px 50px rgba(2, 6, 23, 0.65)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     padding: 'calc(2vh) calc(4vw)',
@@ -480,7 +481,7 @@ export const styles = {
     borderRadius: '16px',
     border: 'none',
     background: 'transparent',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -499,13 +500,13 @@ export const styles = {
   },
   modalLabelMobile: {
     fontSize: 'clamp(36px, 5.4vw, 51px)',
-    color: '#e2e8f0'
+    color: 'var(--mzr-text-secondary)'
   },
   modalInputMobile: {
     borderRadius: '24px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
+    border: '1px solid var(--mzr-border)',
     backgroundColor: 'rgba(9, 12, 22, 0.92)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     padding: 'clamp(18px, 2.8vw, 24px)',
     fontSize: 'clamp(33px, 4.8vw, 42px)',
     outline: 'none'
@@ -529,9 +530,9 @@ export const styles = {
     minWidth: 'clamp(180px, 26vw, 240px)',
     height: 'clamp(72px, 10vw, 96px)',
     borderRadius: '24px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    background: 'rgba(15, 23, 42, 0.72)',
-    color: '#e2e8f0',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-secondary)',
     fontSize: 'clamp(33px, 4.8vw, 39px)',
     fontWeight: 600,
     cursor: 'pointer'
@@ -539,7 +540,7 @@ export const styles = {
   modalButtonPrimaryMobile: {
     border: 'none',
     background: 'rgba(37, 99, 235, 0.92)',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   modalButtonDisabledMobile: {
     opacity: 0.6,
@@ -558,10 +559,10 @@ export const styles = {
   torAlertCard: {
     width: '100%',
     borderRadius: '32px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: 'rgba(15, 23, 42, 0.96)',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.55)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
@@ -590,7 +591,7 @@ export const styles = {
     borderRadius: '24px',
     border: '1px solid rgba(59, 130, 246, 0.6)',
     background: 'rgba(37, 99, 235, 0.25)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer',
     padding: '0 24px'

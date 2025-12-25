@@ -13,8 +13,8 @@ export const licensesStyles: Record<string, CSSProperties> = {
     overflow: 'auto'
   },
   section: {
-    background: '#111829',
-    border: '1px solid rgba(148, 163, 184, 0.3)',
+    background: 'var(--mzr-surface-transparent)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '16px',
     padding: '16px',
     display: 'flex',
@@ -27,15 +27,15 @@ export const licensesStyles: Record<string, CSSProperties> = {
   },
   subtext: {
     fontSize: '16px',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.4
   },
   button: {
     alignSelf: 'flex-start',
-    background: 'rgba(37, 156, 255, 0.18)',
-    border: '1px solid rgba(37, 156, 255, 0.45)',
+    background: 'var(--mzr-accent)',
+    border: '1px solid var(--mzr-accent-strong)',
     borderRadius: '10px',
-    color: '#e0f2fe',
+    color: '#fff',
     padding: '10px 18px',
     fontSize: '16px',
     cursor: 'pointer'
@@ -44,8 +44,8 @@ export const licensesStyles: Record<string, CSSProperties> = {
     width: '95%',
     minHeight: '180px',
     maxHeight: '260px',
-    background: '#05070f',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
+    background: 'var(--mzr-surface-weak)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '12px',
     padding: '12px',
     fontFamily: 'monospace, monospace',

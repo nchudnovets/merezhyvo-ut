@@ -17,8 +17,8 @@ const overlayStyle: CSSProperties = {
 const sheetStyle: CSSProperties = {
   width: 'min(480px, 92vw)',
   borderRadius: '18px',
-  background: '#0f1729',
-  border: '1px solid rgba(148, 163, 184, 0.45)',
+  background: 'var(--mzr-surface-elevated)',
+  border: '1px solid var(--mzr-border-strong)',
   padding: '28px',
   boxShadow: '0 30px 60px rgba(0,0,0,.65)',
   display: 'flex',
@@ -28,7 +28,7 @@ const sheetStyle: CSSProperties = {
 
 const labelStyle: CSSProperties = {
   fontSize: '14px',
-  color: '#cbd5f5',
+  color: 'var(--mzr-text-secondary)',
   textTransform: 'uppercase',
   letterSpacing: '0.08em'
 };
@@ -38,9 +38,9 @@ const inputStyle: CSSProperties = {
   padding: '12px',
   fontSize: '18px',
   borderRadius: '12px',
-  border: '1px solid rgba(149, 156, 235, 0.4)',
-  background: '#0b1220',
-  color: '#f8fafc'
+  border: '1px solid var(--mzr-input-border)',
+  background: 'var(--mzr-surface)',
+  color: 'var(--mzr-text-primary)'
 };
 
 const footerStyle: CSSProperties = {
@@ -130,7 +130,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
 
   const paragraphStyle = {
     margin: '4px 0 0',
-    color: 'rgba(248,250,252,.7)',
+    color: 'var(--mzr-text-secondary)',
     fontSize: isMobile ? '38px' : '14px'
   };
 
@@ -143,7 +143,8 @@ const PasswordUnlockModal: React.FC<Props> = ({
     ...inputStyle,
     padding: isMobile ? '16px 18px' : inputStyle.padding,
     fontSize: isMobile ? '38px' : inputStyle.fontSize,
-    width: isMobile ? '96%' : inputStyle.width
+    width: isMobile ? '96%' : inputStyle.width,
+    color: 'var(--mzr-text-primary)'
   };
 
   const computedButtonStyle: CSSProperties = {
@@ -170,7 +171,7 @@ const PasswordUnlockModal: React.FC<Props> = ({
     transform: 'translateY(-50%)',
     background: 'transparent',
     border: 'none',
-    color: '#93c5fd',
+    color: 'var(--mzr-focus-ring)',
     cursor: 'pointer',
     fontSize: isMobile ? '38px' : '14px'
   };
@@ -218,14 +219,14 @@ const PasswordUnlockModal: React.FC<Props> = ({
         <div style={footerComputedStyle}>
           <button
             type="button"
-            style={{ ...computedButtonStyle, background: 'transparent', border: '1px solid rgba(148, 163, 184, 0.4)', color: '#cbd5f5' }}
+            style={{ ...computedButtonStyle, background: 'transparent', border: '1px solid var(--mzr-border)', color: 'var(--mzr-text-secondary)' }}
             onClick={onClose}
           >
             {t('passwords.cancel')}
           </button>
           <button
             type="button"
-            style={{ ...computedButtonStyle, background: '#2563eb', color: '#fff' }}
+            style={{ ...computedButtonStyle, background: 'var(--mzr-accent)', color: '#fff' }}
             onClick={handleUnlock}
             disabled={submitting || !master.trim()}
           >

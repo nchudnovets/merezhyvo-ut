@@ -5,7 +5,7 @@
   <title></title>
   <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self' 'unsafe-inline'">
   <style>
-    :root { color-scheme: dark light; }
+    :root { color-scheme: var(--ctx-color-scheme, dark); }
     html, body {
       margin: 0; padding: 0;
       background: transparent;
@@ -17,9 +17,9 @@
       box-sizing: border-box;
       min-width: 240px;
       max-width: 480px;
-      background: #0f1729;
-      color: #f8fafc;
-      border: 1px solid rgba(148, 163, 184, 0.45);
+      background: var(--ctx-bg, #0f1729);
+      color: var(--ctx-text, #f8fafc);
+      border: 1px solid var(--ctx-border, rgba(148, 163, 184, 0.45));
       border-radius: 12px;
       box-shadow: 0 20px 60px rgba(0,0,0,0.35);
       overflow: hidden;
@@ -39,11 +39,11 @@
       padding: 8px 14px;
       font-size: 12px;
       letter-spacing: 0.04em;
-      opacity: 0.7;
+      color: var(--ctx-muted, rgba(248, 250, 252, 0.7));
     }
     .item[disabled] { opacity: .45; pointer-events: none; }
-    .item:hover { background: rgba(255,255,255,0.06); }
-    .sep { height: 1px; background: rgba(148, 163, 184, 0.25); margin: 4px 0; }
+    .item:hover { background: var(--ctx-hover, rgba(255,255,255,0.06)); }
+    .sep { height: 1px; background: var(--ctx-sep, rgba(148, 163, 184, 0.25)); margin: 4px 0; }
     .kbd { margin-left: auto; opacity: .6; font-size: 12px; }
     html[data-mode="mobile"] .menu {
       min-width: 0;

@@ -33,9 +33,9 @@ export type DownloadSettingsSectionProps = {
     minHeight: buttonMinHeight,
     padding: '10px 18px',
     borderRadius: '10px',
-    border: '1px solid rgba(59, 130, 246, 0.6)',
-    background: 'rgba(59, 130, 246, 0.2)',
-    color: '#fff',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-transparent)',
+    color: 'var(--mzr-text-primary)',
     cursor: 'not-allowed',
     fontSize: labelFontSize
   };
@@ -45,17 +45,17 @@ export type DownloadSettingsSectionProps = {
     maxWidth: '100%',
     borderRadius: mode === 'mobile' ? 20 : 10,
     overflow: 'hidden',
-    border: '1px solid rgba(255, 255, 255, 0.25)',
-    background: 'rgba(255,255,255,0.06)'
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-weak)',
   };
   const radioButton = (value: 1 | 2 | 3, index: number): CSSProperties => ({
     flex: 1,
     minHeight: buttonMinHeight,
     padding: mode === 'mobile' ? '14px 12px' : '10px 12px',
     border: 'none',
-    borderLeft: index === 0 ? 'none' : '1px solid rgba(255,255,255,0.2)',
-    background: value === concurrent ? 'rgba(59, 130, 246, 0.25)' : 'transparent',
-    color: '#fff',
+    borderLeft: index === 0 ? 'none' : '1px solid var(--mzr-border)',
+    background: value === concurrent ? 'var(--mzr-accent-tint)' : 'transparent',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     fontSize: labelFontSize,
     fontWeight: 600
@@ -64,15 +64,15 @@ export type DownloadSettingsSectionProps = {
   const noteStyle: CSSProperties = {
     fontSize: noteFontSize,
     lineHeight: 1.4,
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     marginBottom: '12px',
     fontWeight: 300
   };
   const noticeBlockStyle: CSSProperties = {
     fontSize: noteFontSize,
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontFamily: 'SFMono-Regular, Consolas, Liberation Mono, Menlo, monospace',
-    background: 'rgba(255, 255, 255, 0.04)',
+    background: 'var(--mzr-surface-weak)',
     padding: '10px 12px',
     borderRadius: '8px',
     whiteSpace: 'pre-wrap',
@@ -100,7 +100,10 @@ export type DownloadSettingsSectionProps = {
     alignSelf: 'flex-end',
     display: 'inline-flex',
     alignItems: 'center',
-    gap: mode === 'mobile' ? 12 : 8
+    gap: mode === 'mobile' ? 12 : 8,
+    background: 'var(--mzr-accent)',
+    border: '1px solid var(--mzr-accent-strong)',
+    color: '#fff'
   };
 
   // const defaultFolderLabel = t('settings.downloads.defaultFolder');
@@ -135,7 +138,7 @@ export type DownloadSettingsSectionProps = {
         </div>
       </div>
       {/* <div>  //temorary hidden since it doesn't work yet
-        <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
+        <div style={{ fontSize: labelFontSize, color: 'var(--mzr-text-secondary)', marginBottom: '6px' }}>
           {defaultFolderLabel}
         </div>
         <div style={rowStyle}>
@@ -146,7 +149,7 @@ export type DownloadSettingsSectionProps = {
         </div>
       </div> */}
       <div>
-        <div style={{ fontSize: labelFontSize, color: '#cbd5f5', marginBottom: '6px' }}>
+        <div style={{ fontSize: labelFontSize, color: 'var(--mzr-text-secondary)', marginBottom: '6px' }}>
           {concurrentLabel}
         </div>
         <div style={{ display: 'flex', justifyContent: mode === 'mobile' ? 'stretch' : 'center' }}>

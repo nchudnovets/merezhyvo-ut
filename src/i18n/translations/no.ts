@@ -499,6 +499,10 @@ const no = {
   'settings.scale.decrease': 'Reduser UI-skala',
   'settings.scale.increase': 'Øk UI-skala',
   'settings.scale.reset': 'Tilbakestill',
+  'settings.theme.label': 'Tema',
+  'settings.theme.helper': 'Bytt mellom lys og mørk modus.',
+  'settings.theme.dark': 'Mørk',
+  'settings.theme.light': 'Lys',
 
   'passwords.heading.change': 'Endre hovedpassord',
   'passwords.heading.create': 'Opprett hovedpassord',
@@ -623,7 +627,8 @@ const no = {
   'privacyInfo.certs.body1':
     'For sikre https://-nettsteder sjekker nettleseren et digitalt sertifikat. Dette er en liten fil som sier «dette er virkelig dette nettstedet» og «tilkoblingen er kryptert riktig».',
   'privacyInfo.certs.body2': 'Merezhyvo viser et skjoldikon ved siden av adressen:',
-  'privacyInfo.certs.body3': '– Hvitt skjold – sertifikatet ser bra ut og tilkoblingen er kryptert.',
+    'privacyInfo.certs.body3': '– Hvitt skjold (mørk modus) eller svart skjold (lys modus) – sertifikatet er i orden og forbindelsen er kryptert.',
+
   'privacyInfo.certs.body4':
     '– Rødt skjold – noe er galt: sertifikatet mangler, er utløpt, ugyldig eller tilbakekalt, eller siden lastes over vanlig http://. Tilkoblingen er ikke fullt beskyttet og kan være utrygg.',
   'privacyInfo.certs.body5':

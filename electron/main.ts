@@ -39,6 +39,7 @@ import {
   sanitizeSettingsPayload,
   sanitizeHttpsMode,
   sanitizeSslExceptions,
+  type SettingsState,
   type WebrtcMode,
   type TrackerPrivacySettings,
   type BlockingMode
@@ -526,12 +527,15 @@ const openCtxWindowFor = async (
   const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
   const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
   let uiLanguage: string | undefined;
+  let uiTheme: 'light' | 'dark' = 'dark';
   try {
     const st = await readSettingsState();
     const lang = st?.ui?.language;
     uiLanguage = isValidLocale(lang) ? lang : DEFAULT_LOCALE;
+    uiTheme = st?.ui?.theme === 'light' ? 'light' : 'dark';
   } catch {
     uiLanguage = DEFAULT_LOCALE;
+    uiTheme = 'dark';
   }
 
   if (isTouchSource(params) && normalizedMode !== 'mobile') {
@@ -692,7 +696,8 @@ const openCtxWindowFor = async (
   });
 
   const langParam = uiLanguage ? `&lang=${encodeURIComponent(uiLanguage)}` : '';
-  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}${langParam}`;
+  const themeParam = uiTheme ? `&theme=${encodeURIComponent(uiTheme)}` : '';
+  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}${langParam}${themeParam}`;
   void ctxWin.loadURL(ctxUrl).catch(() => {});
 
   const askRender = () => {
@@ -1833,10 +1838,11 @@ ipcMain.handle('merezhyvo:ui:getScale', async () => {
     return {
       scale: state.ui?.scale ?? 1,
       hideFileDialogNote: state.ui?.hideFileDialogNote ?? false,
-      language: state.ui?.language ?? DEFAULT_LOCALE
+      language: state.ui?.language ?? DEFAULT_LOCALE,
+      theme: state.ui?.theme ?? 'dark'
     };
   } catch {
-    return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
+    return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark' };
   }
 });
 
@@ -1854,7 +1860,8 @@ ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
       ok: true,
       scale: nextState.ui?.scale ?? mergedUi.scale,
       hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote,
-      language: nextState.ui?.language ?? mergedUi.language
+      language: nextState.ui?.language ?? mergedUi.language,
+      theme: nextState.ui?.theme ?? mergedUi.theme
     };
   } catch (err) {
     console.error('[merezhyvo] ui scale update failed', err);

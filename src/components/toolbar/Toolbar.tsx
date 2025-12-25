@@ -193,12 +193,12 @@ const Toolbar: React.FC<ToolbarProps> = ({
         style={{
           ...toolbarStyles.navButton,
           ...(modeStyles.toolbarBtnRegular ?? {}),
-          border: torEnabled ? '1px solid #2563eb' : 'none',
+          border: torEnabled ? 'none' : 'none',
           backgroundColor: torEnabled ? '#259cebff' : 'transparent'
         }}
       >
         <svg
-          fill={torEnabled ? '#faf06aff' : '#ffffffff'}
+          fill={torEnabled ? '#faf06aff' : 'var(--mzr-text-primary)'}
           width="80%"
           height="80%"
           viewBox="0 0 32 32"

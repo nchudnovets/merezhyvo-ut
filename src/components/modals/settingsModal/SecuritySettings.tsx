@@ -28,7 +28,9 @@ const radioStyle = (mode: Mode): React.CSSProperties => ({
   alignItems: 'flex-start',
   gap: mode === 'mobile' ? 16 : 10,
   padding: mode === 'mobile' ? '28px 20px' : '15px 10px',
-  background: 'rgba(15,23,42,0.55)',
+  background: 'transparent',
+  border: 'none',
+  borderRadius: 14,
   cursor: 'pointer'
 });
 
@@ -97,7 +99,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <path
               d="M3 8.5 6.5 12 13 4"
               fill="none"
-              stroke="#2563ebeb"
+              stroke="var(--mzr-accent)"
               strokeWidth={mode === 'mobile' ? 4 : 3}
               strokeLinecap="round"
               strokeLinejoin="round"
@@ -129,8 +131,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           position: 'absolute',
           inset: 0,
           borderRadius: 999,
-          backgroundColor: checked ? '#2563ebeb' : 'transparent',
-          border: `1px solid #ACB2B7`,
+          backgroundColor: checked ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+          border: '1px solid var(--mzr-border)',
           transition: 'background-color 160ms ease, border-color 160ms ease'
         }}
       />
@@ -143,8 +145,8 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           width: toggleThumbSize,
           height: toggleThumbSize,
           borderRadius: '50%',
-          backgroundColor: checked ? '#ffffff' : '#ACB2B7',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+          backgroundColor: checked ? '#ffffff' : 'var(--mzr-border-strong)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
           transition: 'left 160ms ease'
         }}
       />
@@ -155,7 +157,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
     <div style={{...styles.block, ...{borderTop: 'none'}}}>
       <div style={styles.blockHeader}>
         <div>
-          <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+          <div style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
             {t('settings.https.label')}
           </div>
         </div>
@@ -167,7 +169,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.https.strict')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.https.strictDesc')}
             </div>
           </div>
@@ -178,14 +180,14 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.https.preferred')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.https.preferredDesc')}
             </div>
           </div>
         </label>
       </div>
       <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 12 : 8 }}>
-        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+        <div style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
           {t('settings.webrtc.label')}
         </div>
         <label style={radioStyle(mode)}>
@@ -194,7 +196,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.on')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.webrtc.onDesc')}
             </div>
           </div>
@@ -205,7 +207,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.off')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.webrtc.offDesc')}
             </div>
           </div>
@@ -216,14 +218,14 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.webrtc.offWithTor')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.webrtc.offWithTorDesc')}
             </div>
           </div>
         </label>
       </div>
       <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 10 }}>
-        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+        <div style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
           {t('settings.privacy.trackers.heading')}
         </div>
         <label
@@ -238,7 +240,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.privacy.trackers.title')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.privacy.trackers.helper')}
             </div>
             <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 6 }}>
@@ -258,7 +260,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.privacy.ads.title')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.privacy.ads.helper')}
             </div>
             <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 6 }}>
@@ -267,11 +269,11 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           </div>
         </label>
         <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 16 : 10, marginTop: mode === 'mobile' ? 18 : 12 }}>
-          <div style={{ fontSize: mode === 'mobile' ? '45px' : '16px', color: 'rgba(226,232,240,0.7)' }}>
+          <div style={{ fontSize: mode === 'mobile' ? '45px' : '16px', color: 'var(--mzr-text-muted)' }}>
             {t('settings.privacy.blockingMode.label')}
           </div>
           {!blockingEnabled && (
-            <div style={{ color: 'rgba(226,232,240,0.65)', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? '34px' : '13px', marginTop: 4 }}>
               {t('settings.privacy.blockingMode.disabledHelper')}
             </div>
           )}
@@ -289,7 +291,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
                 <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
                   {t(`settings.privacy.blockingMode.${val}.title`)}
                 </div>
-                <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+                <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
                   {t(`settings.privacy.blockingMode.${val}.desc`)}
                 </div>
               </div>
@@ -298,7 +300,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
         </div>
       </div>
       <div style={{ ...styles.blockBody, marginTop: mode === 'mobile' ? 20 : 8 }}>
-        <div style={{ color: 'rgba(226,232,240,0.7)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
+        <div style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? '45px' : '16px', marginTop: 4 }}>
           {t('settings.cookies.title')}
         </div>
         <label
@@ -313,7 +315,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '40px' : '15px' }}>
               {t('settings.cookies.blockThirdParty')}
             </div>
-            <div style={{ color: 'rgba(226,232,240,0.78)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
+            <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '38px' : '14px', marginTop: 4 }}>
               {t('settings.cookies.helper')}
             </div>
             <div style={{ color: '#fbbf24', fontSize: mode === 'mobile' ? '36px' : '13px', marginTop: mode === 'mobile' ? 6 : 4 }}>
@@ -330,7 +332,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
             padding: 0,
             background: 'transparent',
             border: 'none',
-            color: '#93c5fd',
+            color: 'var(--mzr-focus-ring)',
             cursor: 'pointer',
             textDecoration: 'underline',
             fontSize: mode === 'mobile' ? '35px' : '14px'
@@ -347,7 +349,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: '#93c5fd',
+          color: 'var(--mzr-focus-ring)',
           cursor: 'pointer',
           textDecoration: 'underline',
           fontSize: mode === 'mobile' ? '35px' : '14px'
@@ -364,7 +366,7 @@ const SecuritySettings: React.FC<SecuritySettingsProps> = ({
           padding: 0,
           background: 'transparent',
           border: 'none',
-          color: '#93c5fd',
+          color: 'var(--mzr-focus-ring)',
           cursor: 'pointer',
           textDecoration: 'underline',
           fontSize: mode === 'mobile' ? '35px' : '14px'

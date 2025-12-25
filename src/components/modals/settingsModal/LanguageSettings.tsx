@@ -44,7 +44,8 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
       <p
         style={{
           ...styles.settingsMessage,
-          ...(modeStyles.settingsMessage || {})
+          ...(modeStyles.settingsMessage || {}),
+          color: 'var(--mzr-text-primary)'
         }}
       >
         {t('settings.language.description')}
@@ -95,7 +96,7 @@ const LanguageSettings: React.FC<LanguageSettingsProps> = ({ mode }) => {
                     justifyContent: 'center'
                   }}
                 >
-                  <svg viewBox="0 0 16 16" width={radioSize * 0.9} height={radioSize * 0.9} fill="none" stroke="#2563ebeb" strokeWidth={mode === 'mobile' ? 4 : 3} strokeLinecap="round" strokeLinejoin="round">
+                  <svg viewBox="0 0 16 16" width={radioSize * 0.9} height={radioSize * 0.9} fill="none" stroke="var(--mzr-accent)" strokeWidth={mode === 'mobile' ? 4 : 3} strokeLinecap="round" strokeLinejoin="round">
                     <path d="M3 8.5 6.5 12 13 4" />
                   </svg>
                 </span>

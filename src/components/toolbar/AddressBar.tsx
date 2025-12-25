@@ -121,10 +121,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
     left: 0,
     right: 0,
     width: '100%',
-    backgroundColor: '#213e6dff',
-    border: '1px solid #3E4D6A',
+    backgroundColor: 'var(--mzr-surface)',
+    border: '1px solid var(--mzr-input-border)',
     borderRadius: '8px',
-    boxShadow: '0 8px 24px rgba(0,0,0,0.35)',
+    boxShadow: '0 8px 24px rgba(0,0,0,0.18)',
     padding: 0,
     margin: 0,
     listStyle: 'none',
@@ -177,10 +177,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
   }, [securityOpen]);
   const securityColor =
     securityState === 'warn'
-      ? '#ef4444'
+      ? 'var(--mzr-danger)'
       : securityState === 'notice'
-      ? '#fbbf24'
-      : '#ffffff';
+      ? 'var(--mzr-warning)'
+      : 'var(--mzr-text-primary)';
 
   const openTabsLabel = t('address.openTabs', { count: tabCount });
   return (
@@ -231,10 +231,10 @@ const AddressBar: React.FC<AddressBarProps> = ({
               minWidth: '360px',
               padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
               borderRadius: '12px',
-              background: '#121826',
-              border: '1px solid rgba(148,163,184,0.35)',
+              background: 'var(--mzr-surface)',
+              border: '1px solid var(--mzr-border)',
               boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-              color: '#e2e8f0',
+              color: 'var(--mzr-text-secondary)',
               zIndex: 60,
               fontSize: mode === 'mobile' ? '36px' : '14px',
               overflow: 'auto'
@@ -255,9 +255,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     gap: 12,
                     padding: mode === 'mobile' ? '18px 16px' : '12px 10px',
                     borderRadius: 10,
-                    border: `1px solid ${securityState === 'warn' ? '#ef4444' : 'rgba(148,163,184,0.35)'}`,
-                    background: 'rgba(15,23,42,0.6)',
-                    color: securityState === 'warn' ? '#ef4444' : '#e2e8f0',
+                    border: `1px solid ${securityState === 'warn' ? 'var(--mzr-danger)' : 'var(--mzr-border)'}`,
+                    background: 'var(--mzr-surface-transparent)',
+                    color: securityState === 'warn' ? 'var(--mzr-danger)' : 'var(--mzr-text-secondary)',
                     cursor: 'pointer'
                   }}
                 >
@@ -301,9 +301,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     gap: 12,
                     padding: mode === 'mobile' ? '18px 16px' : '12px 10px',
                     borderRadius: 10,
-                    border: `1px solid ${cookiePolicy?.exceptionAllowed ? '#fbbf24' : 'rgba(148,163,184,0.35)'}`,
-                    background: 'rgba(15,23,42,0.6)',
-                    color: cookiePolicy?.exceptionAllowed ? '#fbbf24' : '#e2e8f0',
+                    border: `1px solid ${cookiePolicy?.exceptionAllowed ? 'var(--mzr-warning)' : 'var(--mzr-border)'}`,
+                    background: 'var(--mzr-surface-transparent)',
+                    color: cookiePolicy?.exceptionAllowed ? 'var(--mzr-warning)' : 'var(--mzr-text-secondary)',
                     cursor: 'pointer'
                   }}
                 >
@@ -354,14 +354,14 @@ const AddressBar: React.FC<AddressBarProps> = ({
                   border:
                     ((trackerStatus?.trackersEnabledGlobal && trackerStatus?.trackersAllowedForSite) ||
                       (trackerStatus?.adsEnabledGlobal && trackerStatus?.adsAllowedForSite))
-                      ? '1px solid #fbbf24'
-                      : '1px solid rgba(148,163,184,0.35)',
-                  background: 'rgba(15,23,42,0.6)',
+                      ? '1px solid var(--mzr-warning)'
+                      : '1px solid var(--mzr-border)',
+                  background: 'var(--mzr-surface-transparent)',
                   color:
                     ((trackerStatus?.trackersEnabledGlobal && trackerStatus?.trackersAllowedForSite) ||
                       (trackerStatus?.adsEnabledGlobal && trackerStatus?.adsAllowedForSite))
-                      ? '#fbbf24'
-                      : '#e2e8f0',
+                      ? 'var(--mzr-warning)'
+                      : 'var(--mzr-text-secondary)',
                   cursor: 'pointer'
                 }}
               >
@@ -419,7 +419,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                   padding: 0,
                   background: 'transparent',
                   border: 'none',
-                  color: '#93c5fd',
+                  color: 'var(--mzr-focus-ring)',
                   cursor: 'pointer',
                   textDecoration: 'underline',
                   fontSize: mode === 'mobile' ? '35px' : '13px'
@@ -440,7 +440,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     style={{
                       background: 'transparent',
                       border: '1px solid rgba(148,163,184,0.35)',
-                      color: '#e2e8f0',
+                      color: 'var(--mzr-text-secondary)',
                       width: mode === 'mobile' ? 52 : 30,
                       height: mode === 'mobile' ? 52 : 30,
                       borderRadius: 8,
@@ -467,9 +467,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     {t('security.popup.connection')}
                   </div>
                 </div>
-                <div style={{ marginBottom: '4px', color: securityState === 'warn' ? '#fca5a5' : '#a7f3d0' }}>
-                  {securityState === 'warn' ? t('cert.info.status.problem') : t('cert.info.status.ok')}
-                </div>
+                  <div style={{ marginBottom: '4px', color: securityState === 'warn' ? 'var(--mzr-danger)' : 'var(--mzr-accent)' }}>
+                    {securityState === 'warn' ? t('cert.info.status.problem') : t('cert.info.status.ok')}
+                  </div>
                 {(securityInfo?.host || securityInfo?.url) && (
                   <div style={{ marginBottom: '6px', lineHeight: 1.3 }}>
                     <div style={{ opacity: 0.8 }}>{t('cert.info.url')}</div>
@@ -523,7 +523,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     padding: 0,
                     background: 'transparent',
                     border: 'none',
-                    color: '#93c5fd',
+                    color: 'var(--mzr-focus-ring)',
                     cursor: 'pointer',
                     textDecoration: 'underline',
                     fontSize: mode === 'mobile' ? '35px' : '13px'
@@ -544,7 +544,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     style={{
                       background: 'transparent',
                       border: '1px solid rgba(148,163,184,0.35)',
-                      color: '#e2e8f0',
+                      color: 'var(--mzr-text-secondary)',
                       width: mode === 'mobile' ? 52 : 30,
                       height: mode === 'mobile' ? 52 : 30,
                       borderRadius: 8,
@@ -607,11 +607,11 @@ const AddressBar: React.FC<AddressBarProps> = ({
                           position: 'absolute',
                           inset: 0,
                           borderRadius: 999,
-                          backgroundColor: cookiePolicy.exceptionAllowed ? '#2563ebeb' : 'transparent',
-                          border: '1px solid #ACB2B7',
-                          transition: 'background-color 160ms ease, border-color 160ms ease'
-                        }}
-                      />
+                                backgroundColor: cookiePolicy.exceptionAllowed ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+                                border: '1px solid var(--mzr-border-strong)',
+                                transition: 'background-color 160ms ease, border-color 160ms ease'
+                              }}
+                            />
                       <span
                         aria-hidden="true"
                         style={{
@@ -621,11 +621,11 @@ const AddressBar: React.FC<AddressBarProps> = ({
                           width: mode === 'mobile' ? 32 : 16,
                           height: mode === 'mobile' ? 32 : 16,
                           borderRadius: '50%',
-                          backgroundColor: cookiePolicy.exceptionAllowed ? '#ffffff' : '#ACB2B7',
-                          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
-                          transition: 'left 160ms ease'
-                        }}
-                      />
+                                backgroundColor: cookiePolicy.exceptionAllowed ? '#ffffff' : 'var(--mzr-border-strong)',
+                                boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
+                                transition: 'left 160ms ease'
+                              }}
+                            />
                     </span>
                     <span style={{ fontWeight: 600 }}>
                       {t('security.cookies.toggle')}
@@ -644,7 +644,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     padding: 0,
                     background: 'transparent',
                     border: 'none',
-                    color: '#93c5fd',
+                    color: 'var(--mzr-focus-ring)',
                     cursor: 'pointer',
                     textDecoration: 'underline',
                     fontSize: mode === 'mobile' ? '35px' : '13px'
@@ -672,7 +672,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                         style={{
                           background: 'transparent',
                           border: '1px solid rgba(148,163,184,0.35)',
-                          color: '#e2e8f0',
+                          color: 'var(--mzr-text-secondary)',
                           width: mode === 'mobile' ? 52 : 30,
                           height: mode === 'mobile' ? 52 : 30,
                           borderRadius: 8,
@@ -756,8 +756,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
                                 position: 'absolute',
                                 inset: 0,
                                 borderRadius: 999,
-                                backgroundColor: trackerStatus.trackersAllowedForSite ? '#2563ebeb' : 'transparent',
-                                border: '1px solid #ACB2B7',
+                                backgroundColor: trackerStatus.trackersAllowedForSite ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+                                border: '1px solid var(--mzr-border-strong)',
                                 transition: 'background-color 160ms ease, border-color 160ms ease'
                               }}
                             />
@@ -810,8 +810,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
                                 position: 'absolute',
                                 inset: 0,
                                 borderRadius: 999,
-                                backgroundColor: trackerStatus.adsAllowedForSite ? '#2563ebeb' : 'transparent',
-                                border: '1px solid #ACB2B7',
+                                backgroundColor: trackerStatus.adsAllowedForSite ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+                                border: '1px solid var(--mzr-border-strong)',
                                 transition: 'background-color 160ms ease, border-color 160ms ease'
                               }}
                             />
@@ -848,7 +848,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                         padding: 0,
                         background: 'transparent',
                         border: 'none',
-                        color: '#93c5fd',
+                        color: 'var(--mzr-focus-ring)',
                         cursor: 'pointer',
                         textDecoration: 'underline',
                         fontSize: mode === 'mobile' ? '35px' : '13px'
@@ -925,7 +925,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     <span
                       style={{
                         fontSize: baseFontSize,
-                        color: '#e2e8f0'
+                        color: 'var(--mzr-text-secondary)'
                       }}
                     >
                       {item.title}
@@ -933,7 +933,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     <span
                       style={{
                         fontSize: secondaryFontSize,
-                        color: 'rgba(226,232,240,0.75)',
+                        color: 'var(--mzr-text-muted)',
                         overflow: 'hidden',
                         textOverflow: 'ellipsis',
                         whiteSpace: 'nowrap'
@@ -947,7 +947,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
                   <span
                     style={{
                       fontSize: baseFontSize,
-                      color: '#e2e8f0',
+                      color: 'var(--mzr-text-secondary)',
                       overflow: 'hidden',
                       textOverflow: 'ellipsis',
                       whiteSpace: 'nowrap'

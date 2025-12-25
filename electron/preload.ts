@@ -264,12 +264,12 @@ const exposeApi: MerezhyvoAPI = {
       } catch (err) {
         console.error('[merezhyvo] settings.load failed', err);
         return {
-          schema: 6,
+          schema: 9,
           tor: { keepEnabled: false },
           keyboard: { enabledLayouts: ['en'], defaultLayout: 'en' },
           messenger: sanitizeMessengerSettings(null),
           downloads: { defaultDir: '', concurrent: 2 },
-          ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE },
+          ui: { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark' },
           httpsMode: 'strict',
           sslExceptions: [],
           webrtcMode: 'always_on',
@@ -879,18 +879,19 @@ const exposeApi: MerezhyvoAPI = {
           return {
             scale: result.scale,
             hideFileDialogNote: Boolean(result.hideFileDialogNote),
-            language: typeof result.language === 'string' ? result.language : DEFAULT_LOCALE
+            language: typeof result.language === 'string' ? result.language : DEFAULT_LOCALE,
+            theme: result.theme === 'light' ? 'light' : 'dark'
           };
         }
       } catch {
         // noop
       }
-      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
+      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark' };
     },
     set: async (payload) => {
       try {
         const normalized = (await ipcRenderer.invoke('merezhyvo:ui:setScale', payload ?? {})) as
-          | { ok: true; scale: number; hideFileDialogNote: boolean; language: string }
+          | { ok: true; scale: number; hideFileDialogNote: boolean; language: string; theme?: 'light' | 'dark' }
           | { ok: false; error: string };
         return normalized;
       } catch (err) {

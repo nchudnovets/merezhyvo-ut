@@ -589,14 +589,14 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
     style.id = styleId;
     style.textContent = `
       .tabs-modal-body::-webkit-scrollbar { width: 8px; height: 8px; }
-      .tabs-modal-body::-webkit-scrollbar-track { background: #111827; }
+      .tabs-modal-body::-webkit-scrollbar-track { background: var(--mzr-scrollbar-track); }
       .tabs-modal-body::-webkit-scrollbar-thumb {
         background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
         border-radius: 6px;
-        border: 1px solid rgba(15, 23, 42, 0.6);
+        border: 1px solid var(--mzr-surface-transparent);
       }
       .tabs-modal-body::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
-      .tabs-modal-body { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
+      .tabs-modal-body { scrollbar-color: rgba(59,130,246,0.85) var(--mzr-scrollbar-track); scrollbar-width: thin; }
     `;
     document.head.appendChild(style);
     return () => {

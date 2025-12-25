@@ -65,6 +65,7 @@ export interface MerezhyvoUISettings {
   scale: number;
   hideFileDialogNote: boolean;
   language: string;
+  theme?: 'dark' | 'light';
 }
 
 export interface MerezhyvoAppInfo {

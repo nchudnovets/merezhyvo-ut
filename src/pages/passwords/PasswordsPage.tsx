@@ -676,7 +676,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                 height: isMobile ? 56 : 36,
                 border: 'none',
                 background: 'rgba(15,23,42,0.6)',
-                color: '#e2e8f0',
+                color: 'var(--mzr-text-secondary)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -1113,7 +1113,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                 const extraStyle: CSSProperties = {
                   fontSize: isMobile ? '34px' : '14px',
                   borderColor:
-                    importCsvDialog.mode === modeOption ? '#2563eb' : 'rgba(148, 163, 184, 0.4)',
+                    importCsvDialog.mode === modeOption ? 'var(--mzr-accent)' : 'var(--mzr-border)',
                   backgroundColor: 'rgba(59, 130, 246, 0.15)'
                 };
                 return (

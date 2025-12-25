@@ -28,7 +28,7 @@ export type HistoryStyleKeys =
 
 export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   container: {
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     height: '100%',
@@ -49,16 +49,16 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
     borderRadius: '10px',
     border: '1px solid rgba(251, 113, 133, 0.8)',
     background: 'rgba(244, 63, 94, 0.22)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer'
   },
   searchInput: {
     padding: '10px 12px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border-strong)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     width: 'min(640px, 100%)',
     boxSizing: 'border-box'
   },
@@ -79,7 +79,7 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   groupTitle: {
     margin: 0,
     fontSize: '14px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   entry: {
     display: 'flex',
@@ -88,8 +88,8 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
     padding: '12px 14px',
     paddingRight: '20px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: 'rgba(15, 23, 42, 0.85)'
+    border: '1px solid var(--mzr-divider)',
+    background: 'var(--mzr-surface-weak)'
   },
   entryMain: {
     display: 'flex',
@@ -112,7 +112,7 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   },
   entryUrl: {
     fontSize: '12px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     width: '100%',
     overflow: 'hiiden'
   },
@@ -123,9 +123,9 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   actionToggle: {
     padding: '6px',
     borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
+    border: '1px solid var(--mzr-border-strong)',
     background: 'rgba(224, 231, 255, 0.08)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     display: 'inline-flex',
     alignItems: 'center',
@@ -134,9 +134,9 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   actionButton: {
     padding: '6px 10px',
     borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
+    border: '1px solid var(--mzr-border-strong)',
     background: 'rgba(224, 231, 255, 0.08)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   favicon: {
@@ -146,7 +146,7 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
     objectFit: 'cover'
   },
   placeholder: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   confirmBackdrop: {
     position: 'fixed',
@@ -160,8 +160,8 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   confirmPanel: {
     minWidth: '320px',
     width: 'min(520px, 90vw)',
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.25)',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '20px',
     padding: '24px',
     display: 'flex',
@@ -174,7 +174,7 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
   },
   confirmMessage: {
     fontSize: '16px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   confirmActions: {
     display: 'flex',
@@ -186,7 +186,7 @@ export const historyStyles: Record<HistoryStyleKeys, CSSProperties> = {
     borderRadius: '10px',
     border: '1px solid rgba(59, 130, 246, 0.8)',
     background: 'rgba(59, 130, 246, 0.25)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer'
   }

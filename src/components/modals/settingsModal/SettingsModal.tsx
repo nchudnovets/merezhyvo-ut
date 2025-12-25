@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode, BlockingMode } from '../../../types/models';
+import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode, BlockingMode, ThemeName } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
@@ -13,6 +13,7 @@ import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
 import DownloadSettingsSection from './DownloadSettingsSection';
 import UiScaleSetting from './UiScaleSetting';
+import ThemeSetting from './ThemeSetting';
 import LanguageSettings from './LanguageSettings';
 import { useI18n } from '../../../i18n/I18nProvider';
 import SecuritySettings from './SecuritySettings';
@@ -45,8 +46,10 @@ interface SettingsModalProps {
   onCopyDownloadsCommand: () => void;
   downloadsCommand: string;
   uiScale: number;
+  theme: ThemeName;
   onUiScaleChange: (value: number) => void;
   onUiScaleReset: () => void;
+  onThemeChange: (value: ThemeName) => void;
   onOpenTorLink: () => void;
   httpsMode: HttpsMode;
   onHttpsModeChange: (mode: HttpsMode) => void;
@@ -94,8 +97,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onCopyDownloadsCommand,
   downloadsCommand,
   uiScale,
+  theme,
   onUiScaleChange,
   onUiScaleReset,
+  onThemeChange,
   onOpenTorLink,
   httpsMode,
   onHttpsModeChange,
@@ -137,21 +142,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     if (document.getElementById(styleId)) return undefined;
     const style = document.createElement('style');
     style.id = styleId;
+    const track = 'var(--mzr-scrollbar-track)';
+    const thumb = 'var(--mzr-scrollbar-thumb)';
+    const thumbHover = 'var(--mzr-scrollbar-thumb-hover)';
     style.textContent = `
       .settings-modal-body::-webkit-scrollbar,
       .settings-keyboard-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
       .settings-modal-body::-webkit-scrollbar-track,
-      .settings-keyboard-scroll::-webkit-scrollbar-track { background: #111827; }
+      .settings-keyboard-scroll::-webkit-scrollbar-track { background: ${track}; }
       .settings-modal-body::-webkit-scrollbar-thumb,
       .settings-keyboard-scroll::-webkit-scrollbar-thumb {
-        background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
+        background: ${thumb};
         border-radius: 6px;
-        border: 1px solid rgba(15, 23, 42, 0.6);
+        border: 1px solid ${track};
       }
       .settings-modal-body::-webkit-scrollbar-thumb:hover,
-      .settings-keyboard-scroll::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
+      .settings-keyboard-scroll::-webkit-scrollbar-thumb:hover { background: ${thumbHover}; }
       .settings-modal-body,
-      .settings-keyboard-scroll { scrollbar-color: rgba(59,130,246,0.85) #111827; scrollbar-width: thin; }
+      .settings-keyboard-scroll { scrollbar-color: ${thumb} ${track}; scrollbar-width: thin; }
     `;
     document.head.appendChild(style);
     return () => {
@@ -257,12 +265,15 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             mode={mode}
             title={t('settings.section.appearance')}
             body={
-              <UiScaleSetting
-                mode={mode}
-                value={uiScale}
-                onChange={onUiScaleChange}
-                onReset={onUiScaleReset}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
+                <ThemeSetting mode={mode} value={theme} onChange={onThemeChange} />
+                <UiScaleSetting
+                  mode={mode}
+                  value={uiScale}
+                  onChange={onUiScaleChange}
+                  onReset={onUiScaleReset}
+                />
+              </div>
             }
           />
 

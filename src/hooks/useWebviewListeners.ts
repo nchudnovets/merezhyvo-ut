@@ -14,7 +14,7 @@ type WebviewFaviconEvent = {
 };
 
 type Params = {
-  baseCss: string;
+  baseCssRef: MutableRefObject<string>;
   updateMetaAction: (id: string, patch?: Partial<Tab>) => void;
   playingTabsRef: MutableRefObject<Set<string>>;
   updatePowerBlocker: () => void;
@@ -27,7 +27,7 @@ type Params = {
 };
 
 export const useWebviewListeners = ({
-  baseCss,
+  baseCssRef,
   updateMetaAction,
   playingTabsRef,
   updatePowerBlocker,
@@ -87,8 +87,10 @@ export const useWebviewListeners = ({
     };
 
     const injectBaseCss = () => {
+      const css = baseCssRef.current;
+      if (!css) return;
       try {
-        const maybe = view.insertCSS(baseCss);
+        const maybe = view.insertCSS(css);
         if (maybe && typeof maybe.catch === 'function') {
           maybe.catch(() => {});
         }
@@ -128,7 +130,7 @@ export const useWebviewListeners = ({
     };
   }, [
     backgroundTabRef,
-    baseCss,
+    baseCssRef,
     destroyTabView,
     fullscreenTabRef,
     isYouTubeTab,

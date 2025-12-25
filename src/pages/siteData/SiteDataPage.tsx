@@ -3,7 +3,7 @@ import type { ServicePageProps } from '../services/types';
 import type { Mode, SiteDataEntry } from '../../types/models';
 import { useI18n } from '../../i18n/I18nProvider';
 
-const rowBorder = '1px solid rgba(148,163,184,0.28)';
+const rowBorder = '1px solid var(--mzr-border)';
 const PAGE_SIZE = 50;
 
 type ClearFlags = {
@@ -33,7 +33,7 @@ const parseHostFromUrl = (url: string | undefined): string => {
 
 const formatLabel = (mode: Mode): React.CSSProperties => ({
   fontSize: mode === 'mobile' ? '34px' : '14px',
-  color: 'rgba(226,232,240,0.75)'
+  color: 'var(--mzr-text-primary)'
 });
 
 const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose }) => {
@@ -287,7 +287,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
         height: '100%',
         padding: mode === 'mobile' ? '28px 22px 40px' : '22px 26px',
         boxSizing: 'border-box',
-        color: '#e2e8f0'
+        color: 'var(--mzr-text-primary)',
+        background: 'var(--mzr-surface)'
       }}
     >
       <div style={{ maxWidth: mode === 'mobile' ? 'none' : 900, margin: '0 auto', display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
@@ -302,8 +303,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                   width: mode === 'mobile' ? 56 : 36,
                   height: mode === 'mobile' ? 56 : 36,
                   border: 'none',
-                  background: 'rgba(15,23,42,0.6)',
-                  color: '#e2e8f0',
+                  background: 'var(--mzr-surface-weak)',
+                  color: 'var(--mzr-text-primary)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -321,7 +322,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
         </div>
         <div
           style={{
-            background: 'rgba(15,23,42,0.55)',
+            background: 'var(--mzr-surface)',
             overflow: 'hidden'
           }}
         >
@@ -336,7 +337,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
               justifyContent: 'space-between',
               background: 'transparent',
               border: 'none',
-              color: '#e2e8f0',
+              color: 'var(--mzr-text-primary)',
               cursor: 'pointer'
             }}
           >
@@ -413,8 +414,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                         padding: mode === 'mobile' ? '14px 16px' : '9px 12px',
                         borderRadius: 10,
                         border: rowBorder,
-                        background: 'rgba(30,41,59,0.7)',
-                        color: '#e2e8f0',
+                        background: 'var(--mzr-surface-weak)',
+                        color: 'var(--mzr-text-primary)',
                         cursor: 'pointer',
                         width: mode === 'mobile' ? '100%' : '60%',
                         fontSize: mode === 'mobile' ? '36px' : '14px'
@@ -430,7 +431,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                         padding: mode === 'mobile' ? '14px 18px' : '9px 14px',
                         borderRadius: 10,
                         border: 'none',
-                        background: canClearGlobal ? '#2563eb' : 'rgba(37,99,235,0.35)',
+                        background: canClearGlobal ? 'var(--mzr-accent)' : 'var(--mzr-accent-tint)',
                         color: '#fff',
                         cursor: canClearGlobal ? 'pointer' : 'not-allowed',
                         width: mode === 'mobile' ? '100%' : '60%',
@@ -453,7 +454,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                       padding: mode === 'mobile' ? '14px 18px' : '9px 14px',
                       borderRadius: 10,
                       border: 'none',
-                      background: canClearGlobal ? '#2563eb' : 'rgba(37,99,235,0.35)',
+                      background: canClearGlobal ? 'var(--mzr-accent)' : 'var(--mzr-accent-tint)',
                       color: '#fff',
                       cursor: canClearGlobal ? 'pointer' : 'not-allowed',
                       width: mode === 'mobile' ? '100%' : '60%',
@@ -471,7 +472,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
 
         <div
           style={{
-            background: 'rgba(15,23,42,0.45)',
+            background: 'var(--mzr-surface)',
             padding: mode === 'mobile' ? '16px 16px 10px' : '12px 12px 8px',
             display: 'flex',
             flexDirection: 'column',
@@ -489,9 +490,9 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                 flex: 1,
                 padding: mode === 'mobile' ? '16px 14px' : '10px 12px',
                 borderRadius: 10,
-                border: '1px solid rgba(148,163,184,0.35)',
-                background: 'rgba(15,23,42,0.7)',
-                color: '#e2e8f0',
+                border: '1px solid var(--mzr-border)',
+                background: 'var(--mzr-surface-weak)',
+                color: 'var(--mzr-text-primary)',
                 fontSize: mode === 'mobile' ? '36px' : '14px'
               }}
             />
@@ -503,8 +504,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                   padding: mode === 'mobile' ? '12px 14px' : '8px 10px',
                   borderRadius: 10,
                   border: rowBorder,
-                  background: 'rgba(30,41,59,0.7)',
-                  color: '#e2e8f0',
+                  background: 'var(--mzr-surface-weak)',
+                  color: 'var(--mzr-text-primary)',
                   cursor: 'pointer',
                   fontSize: mode === 'mobile' ? '36px' : '14px',
                   display: 'inline-flex',
@@ -537,7 +538,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                 padding: mode === 'mobile' ? '16px 14px' : '10px 12px',
                 borderRadius: 10,
                 border: rowBorder,
-                background: 'rgba(34,197,94,0.15)',
+                background: 'var(--mzr-success-tint, rgba(34,197,94,0.15))',
                 color: '#bbf7d0',
                 fontSize: mode === 'mobile' ? '35px' : '13px'
               }}
@@ -548,7 +549,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
 
           <div
             style={{
-              background: 'rgba(15,23,42,0.5)',
+              background: 'var(--mzr-surface-transparent)',
               overflow: 'hidden'
             }}
           >
@@ -560,7 +561,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                 padding: mode === 'mobile' ? '14px 16px' : '10px 12px',
                 background: 'transparent',
                 border: 'none',
-                color: '#e2e8f0',
+                color: 'var(--mzr-text-primary)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'space-between',
@@ -581,7 +582,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
               </svg>
             </button>
             {aboutExpanded && (
-              <div style={{ padding: mode === 'mobile' ? '0 16px 14px' : '0 12px 12px', color: 'rgba(226,232,240,0.85)', display: 'flex', flexDirection: 'column', gap: 6 }}>
+              <div style={{ padding: mode === 'mobile' ? '0 16px 14px' : '0 12px 12px', color: 'var(--mzr-text-secondary)', display: 'flex', flexDirection: 'column', gap: 6 }}>
                 <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body1')}</div>
                 <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body2')}</div>
                 <div style={{ fontSize: mode === 'mobile' ? '35px' : '14px' }}>{t('siteData.about.body3')}</div>
@@ -622,7 +623,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                     }}>
                       {entry.host}
                     </div>
-                    <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
+                    <div style={{ display: 'flex', flexDirection: 'column' }}>
                       <div
                         style={{
                           display: 'flex',
@@ -632,7 +633,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                           gap: 10,
                           borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
-                          background: 'rgba(15,23,42,0.45)'
+                          background: 'var(--mzr-surface)',
+                          minHeight: mode === 'mobile' ? '80px' : '50px'
                         }}
                       >
                         <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
@@ -649,8 +651,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                     padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
                                     borderRadius: 10,
                                     border: rowBorder,
-                                    background: 'rgba(30,41,59,0.7)',
-                                    color: '#e2e8f0',
+                                    background: 'var(--mzr-surface-weak)',
+                                    color: 'var(--mzr-text-primary)',
                                     cursor: 'pointer',
                                     fontSize: mode === 'mobile' ? '36px' : '14px'
                                   }}
@@ -684,7 +686,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                   borderRadius: 10,
                                   border: rowBorder,
                                   background: 'transparent',
-                                  color: '#e2e8f0',
+                                  color: 'var(--mzr-text-primary)',
                                   cursor: 'pointer',
                                   fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
@@ -704,7 +706,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                           gap: 10,
                           borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
-                          background: 'rgba(15,23,42,0.45)'
+                          background: 'var(--mzr-surface)',
+                          minHeight: mode === 'mobile' ? '80px' : '50px'
                         }}
                       >
                         <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
@@ -721,8 +724,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                     padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
                                     borderRadius: 10,
                                     border: rowBorder,
-                                    background: 'rgba(30,41,59,0.7)',
-                                    color: '#e2e8f0',
+                                    background: 'var(--mzr-surface-weak)',
+                                    color: 'var(--mzr-text-primary)',
                                     cursor: 'pointer',
                                     fontSize: mode === 'mobile' ? '36px' : '14px'
                                   }}
@@ -756,7 +759,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                   borderRadius: 10,
                                   border: rowBorder,
                                   background: 'transparent',
-                                  color: '#e2e8f0',
+                                  color: 'var(--mzr-text-primary)',
                                   cursor: 'pointer',
                                   fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}
@@ -775,7 +778,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                           gap: 10,
                           borderBottom: mode === 'mobile' ? 'none' : rowBorder,
                           padding: mode === 'mobile' ? '12px 12px' : '8px 10px',
-                          background: 'rgba(15,23,42,0.45)'
+                          background: 'var(--mzr-surface)',
+                          minHeight: mode === 'mobile' ? '80px' : '50px'
                         }}
                       >
                         <div style={{ fontSize: mode === 'mobile' ? '32px' : '15px' }}>
@@ -792,8 +796,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                     padding: mode === 'mobile' ? '10px 12px' : '8px 10px',
                                     borderRadius: 10,
                                     border: rowBorder,
-                                    background: 'rgba(30,41,59,0.7)',
-                                    color: '#e2e8f0',
+                                    background: 'var(--mzr-surface-weak)',
+                                    color: 'var(--mzr-text-primary)',
                                     cursor: 'pointer',
                                     fontSize: mode === 'mobile' ? '36px' : '14px'
                                   }}
@@ -827,7 +831,7 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                                   borderRadius: 10,
                                   border: rowBorder,
                                   background: 'transparent',
-                                  color: '#e2e8f0',
+                                  color: 'var(--mzr-text-primary)',
                                   cursor: 'pointer',
                                   fontSize: mode === 'mobile' ? '36px' : '14px'
                                 }}

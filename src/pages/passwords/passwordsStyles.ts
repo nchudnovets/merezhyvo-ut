@@ -10,8 +10,8 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     width: '100%',
     maxWidth: '750px',
     height: '100%',
-    backgroundColor: '#05070f',
-    color: '#f8fafc',
+    backgroundColor: 'var(--mzr-bg)',
+    color: 'var(--mzr-text-primary)',
     overflow: 'hidden',
     margin: '0 auto'
   },
@@ -23,7 +23,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     padding: '20px 24px 14px',
-    borderBottom: '1px solid rgba(148, 163, 184, 0.25)'
+    borderBottom: '1px solid var(--mzr-border)'
   },
   headerTitle: {
     fontSize: '24px',
@@ -40,9 +40,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     width: '36px',
     height: '36px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '20px',
     display: 'flex',
     alignItems: 'center',
@@ -62,9 +62,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     width: '36px',
     height: '36px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '18px',
     display: 'flex',
     alignItems: 'center',
@@ -85,9 +85,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   searchInput: {
     width: '97%',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '16px',
     padding: '10px 12px',
     outline: 'none'
@@ -118,10 +118,10 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   groupMeta: {
     fontSize: '12px',
-    color: 'rgba(248, 250, 252, 0.65)'
+    color: 'var(--mzr-text-muted)'
   },
   entryRow: {
-    borderBottom: '1px solid rgba(148, 163, 184, 0.15)',
+    borderBottom: '1px solid var(--mzr-border)',
     padding: '14px 0'
   },
   entryHeader: {
@@ -144,15 +144,15 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     flexWrap: 'wrap'
   },
   entryActionButtonDanger: {
-    borderColor: 'rgba(248, 113, 113, 0.5)',
-    color: '#fecaca'
+    borderColor: 'var(--mzr-danger)',
+    color: 'var(--mzr-danger)'
   },
   entryActionButton: {
-    border: '1px solid rgba(148, 163, 184, 0.35)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '10px',
     padding: '6px 12px',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '12px',
     cursor: 'pointer'
   },
@@ -170,14 +170,14 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   entryDetailText: {
     fontSize: '14px',
-    color: 'rgba(248, 250, 252, 0.8)'
+    color: 'var(--mzr-text-secondary)'
   },
   entryDetailTextMobile: {
     fontSize: '35px'
   },
   notes: {
     fontSize: '13px',
-    color: 'rgba(148, 163, 184, 0.8)'
+    color: 'var(--mzr-text-muted)'
   },
   notesMobile: {
     fontSize: '34px'
@@ -185,8 +185,8 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   deleteConfirmation: {
     marginTop: '12px',
     padding: '14px',
-    border: '1px solid rgba(248, 113, 113, 0.4)',
-    backgroundColor: 'rgba(248, 113, 113, 0.08)',
+    border: '1px solid var(--mzr-danger)',
+    backgroundColor: 'var(--mzr-danger-tint)',
     borderRadius: '14px',
     display: 'flex',
     alignItems: 'center',
@@ -200,7 +200,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   deleteConfirmationText: {
     fontSize: '14px',
-    color: '#fecaca'
+    color: 'var(--mzr-danger)'
   },
   deleteConfirmationTextMobile: {
     fontSize: '34px'
@@ -211,14 +211,14 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     flexWrap: 'wrap'
   },
   deleteConfirmButton: {
-    borderColor: 'rgba(248, 113, 113, 0.8)',
-    backgroundColor: '#b91c1c',
-    color: '#fff'
+    borderColor: 'var(--mzr-danger)',
+    backgroundColor: 'var(--mzr-danger)',
+    color: 'var(--mzr-text-primary)'
   },
   deleteCancelButton: {
-    borderColor: 'rgba(255, 255, 255, 0.5)',
+    borderColor: 'var(--mzr-border)',
     backgroundColor: 'transparent',
-    color: '#fff'
+    color: 'var(--mzr-text-primary)'
   },
   deleteConfirmButtonMobile: {
     fontSize: '34px',
@@ -244,15 +244,15 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     marginTop: '8px',
     padding: '10px 18px',
     borderRadius: '10px',
-    border: '1px solid rgba(37, 99, 235, 0.5)',
-    backgroundColor: 'rgba(59, 130, 246, 0.08)',
-    color: '#a5b4fc',
+    border: '1px solid var(--mzr-accent)',
+    backgroundColor: 'var(--mzr-accent-tint)',
+    color: 'var(--mzr-accent-tint)',
     cursor: 'pointer'
   },
   loading: {
     marginTop: '32px',
     textAlign: 'center',
-    color: 'rgba(248, 250, 252, 0.7)'
+    color: 'var(--mzr-text-secondary)'
   },
   toast: {
     position: 'absolute',
@@ -261,11 +261,11 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     transform: 'translateX(-50%)',
     padding: '10px 18px',
     borderRadius: '14px',
-    background: 'rgba(15, 23, 42, 0.95)',
-    border: '1px solid rgba(59, 130, 246, 0.6)',
-    color: '#e0e7ff',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-accent)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '13px',
-    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.6)'
+    boxShadow: '0 12px 30px var(--mzr-surface-transparent)'
   },
   toastMobile: {
     fontSize: '35px',
@@ -274,9 +274,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     margin: '0 24px 12px',
     padding: '12px',
     borderRadius: '12px',
-    backgroundColor: 'rgba(239, 68, 68, 0.12)',
-    border: '1px solid rgba(239, 68, 68, 0.6)',
-    color: '#fee2e2',
+    backgroundColor: 'var(--mzr-danger-tint)',
+    border: '1px solid var(--mzr-danger)',
+    color: 'var(--mzr-danger)',
     fontSize: '14px',
     textAlign: 'center'
   },
@@ -289,17 +289,17 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     position: 'absolute',
     top: '48px',
     right: '0',
-    backgroundColor: '#0f1729',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
+    border: '1px solid var(--mzr-border)',
     padding: '8px 0',
-    boxShadow: '0 12px 30px rgba(15, 23, 42, 0.5)',
+    boxShadow: '0 12px 30px rgba(0,0,0,0.25)',
     zIndex: 10
   },
   overflowItem: {
     padding: '10px 20px',
     fontSize: '14px',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     whiteSpace: 'nowrap'
   },
@@ -310,7 +310,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   modalOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.75)',
+    backgroundColor: 'var(--mzr-surface-transparent)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -319,11 +319,11 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   modal: {
     width: 'min(520px, 90vw)',
-    backgroundColor: '#0f1729',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     borderRadius: '18px',
     padding: '24px',
-    boxShadow: '0 20px 50px rgba(0, 0, 0, 0.6)',
-    border: '1px solid rgba(148, 163, 184, 0.35)'
+    boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
+    border: '1px solid var(--mzr-border)'
   },
   modalMobile: {
     width: '90vw',
@@ -347,7 +347,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   modalClose: {
     background: 'transparent',
     border: 'none',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '18px',
     cursor: 'pointer'
   },
@@ -364,7 +364,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     fontSize: '12px',
     textTransform: 'uppercase',
     letterSpacing: '0.08em',
-    color: 'rgba(248, 250, 252, 0.6)'
+    color: 'var(--mzr-text-muted)'
   },
   modalLabelMobile: {
     fontSize: '38px'
@@ -372,9 +372,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   modalInput: {
     width: '100%',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.3)',
-    backgroundColor: '#0b1220',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface)',
+    color: 'var(--mzr-text-primary)',
     padding: '10px 12px',
     fontSize: '14px',
     outline: 'none'
@@ -403,8 +403,8 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     padding: '10px',
     borderRadius: '12px',
     border: 'none',
-    backgroundColor: '#2563eb',
-    color: '#f8fafc',
+    backgroundColor: 'var(--mzr-accent)',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer'
   },
@@ -416,9 +416,9 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     flex: 1,
     padding: '10px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    backgroundColor: '#0f1729',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   secondaryButtonMobile: {
@@ -429,15 +429,15 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     flex: 1,
     padding: '10px',
     borderRadius: '12px',
-    border: '1px solid rgba(248, 113, 113, 0.7)',
+    border: '1px solid var(--mzr-danger)',
     backgroundColor: '#7f1d1d',
-    color: '#fee2e2',
+    color: 'var(--mzr-danger)',
     cursor: 'pointer'
   },
   confirmOverlay: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(15, 23, 42, 0.85)',
+    backgroundColor: 'var(--mzr-surface-weak)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -445,11 +445,11 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   confirmBox: {
     width: 'min(360px, 90vw)',
-    backgroundColor: '#0f1729',
+    backgroundColor: 'var(--mzr-surface-elevated)',
     borderRadius: '16px',
-    border: '1px solid rgba(248, 113, 113, 0.6)',
+    border: '1px solid var(--mzr-danger)',
     padding: '22px',
-    boxShadow: '0 24px 60px rgba(0,0,0,0.6)'
+    boxShadow: '0 24px 60px rgba(0,0,0,0.35)'
   },
   confirmTitle: {
     fontSize: '18px',

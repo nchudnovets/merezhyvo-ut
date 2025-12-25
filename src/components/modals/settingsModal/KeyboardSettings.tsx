@@ -178,7 +178,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                             width: size,
                             height: size,
                             borderRadius: 6,
-                            border: '1px solid #2563ebeb',
+                            border: '1px solid var(--mzr-accent)',
                             display: 'inline-flex',
                             alignItems: 'center',
                             justifyContent: 'center'
@@ -189,7 +189,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                             width={size * 0.8}
                             height={size * 0.8}
                             fill="none"
-                            stroke="#2563ebeb"
+                            stroke="var(--mzr-accent)"
                             strokeWidth={mode === 'mobile' ? 4 : 3}
                             strokeLinecap="round"
                             strokeLinejoin="round"
@@ -250,7 +250,7 @@ export const KeyboardSettings: React.FC<KeyboardSettingsProps> = ({ mode }): Rea
                                 justifyContent: 'center'
                               }}
                             >
-                              <svg viewBox="0 0 16 16" width={radioSize * 0.85} height={radioSize * 0.85} fill="none" stroke="#2563ebeb" strokeWidth={mode === 'mobile' ? 3.5 : 3} strokeLinecap="round" strokeLinejoin="round">
+                              <svg viewBox="0 0 16 16" width={radioSize * 0.85} height={radioSize * 0.85} fill="none" stroke="var(--mzr-accent)" strokeWidth={mode === 'mobile' ? 3.5 : 3} strokeLinecap="round" strokeLinejoin="round">
                                 <path d="M3 8.5 6.5 12 13 4" />
                               </svg>
                             </span>

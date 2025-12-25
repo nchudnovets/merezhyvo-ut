@@ -201,10 +201,10 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
   const confirmStyleBase: React.CSSProperties = {
     marginTop: 10,
     padding: mode === 'mobile' ? '18px' : '12px',
-    background: 'rgba(15,23,42,0.9)',
+    background: 'var(--mzr-surface-transparent)',
     border: rowBorder,
     borderRadius: 12,
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     maxWidth: mode === 'mobile' ? '100%' : 420,
     width: mode === 'mobile' ? '100%' : 'auto'
   };
@@ -246,8 +246,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           position: 'absolute',
           inset: 0,
           borderRadius: 999,
-          backgroundColor: checked ? '#2563ebeb' : 'transparent',
-          border: '1px solid #ACB2B7',
+          backgroundColor: checked ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+          border: '1px solid var(--mzr-border-strong)',
           transition: 'background-color 160ms ease, border-color 160ms ease'
         }}
       />
@@ -260,8 +260,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           width: toggleThumbSize,
           height: toggleThumbSize,
           borderRadius: '50%',
-          backgroundColor: checked ? '#ffffff' : '#ACB2B7',
-          boxShadow: '0 2px 6px rgba(0,0,0,0.25)',
+          backgroundColor: checked ? '#ffffff' : 'var(--mzr-border-strong)',
+          boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
           transition: 'left 160ms ease'
         }}
       />
@@ -275,7 +275,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
         height: '100%',
         padding: mode === 'mobile' ? '28px 22px 40px' : '24px 28px',
         boxSizing: 'border-box',
-        color: '#e2e8f0'
+        color: 'var(--mzr-text-secondary)',
+        background: 'var(--mzr-surface)'
       }}
       className="service-scroll"
     >
@@ -291,8 +292,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                   width: mode === 'mobile' ? 56 : 36,
                   height: mode === 'mobile' ? 56 : 36,
                   border: 'none',
-                  background: 'rgba(15,23,42,0.6)',
-                  color: '#e2e8f0',
+                  background: 'var(--mzr-surface-weak)',
+                  color: 'var(--mzr-text-primary)',
                   display: 'inline-flex',
                   alignItems: 'center',
                   justifyContent: 'center',
@@ -314,7 +315,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           {t('securityExceptions.description')}
         </p>
         {!blockThirdParty && (
-          <p style={{ fontSize: mode === 'mobile' ? '36px' : '14px', color: '#fbbf24', marginTop: 6 }}>
+          <p style={{ fontSize: mode === 'mobile' ? '36px' : '14px', color: 'var(--mzr-warning)', marginTop: 6 }}>
             {t('securityExceptions.globalAllow')}
           </p>
         )}
@@ -329,8 +330,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                 padding: mode === 'mobile' ? '16px 18px' : '10px 14px',
                 borderRadius: 12,
                 border: rowBorder,
-                background: hasEntries ? 'rgba(15,23,42,0.6)' : 'rgba(15,23,42,0.3)',
-                color: hasEntries ? '#e2e8f0' : 'rgba(226,232,240,0.5)',
+                background: hasEntries ? 'var(--mzr-surface-weak)' : 'var(--mzr-surface-muted)',
+                color: hasEntries ? 'var(--mzr-text-secondary)' : 'rgba(226,232,240,0.5)',
                 cursor: hasEntries ? 'pointer' : 'not-allowed',
                 fontSize: mode === 'mobile' ? '38px' : '15px'
               }}
@@ -352,17 +353,17 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                   <button
                     type="button"
                     onClick={() => setShowConfirm(false)}
-                    style={{
-                      padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
-                      borderRadius: 10,
-                      border: rowBorder,
-                      background: 'rgba(30,41,59,0.7)',
-                      color: '#e2e8f0',
-                      cursor: 'pointer',
-                      fontSize: mode === 'mobile' ? '38px' : '15px',
-                      minWidth: mode === 'mobile' ? '100%' : 'none'
-                    }}
-                  >
+                  style={{
+                    padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
+                    borderRadius: 10,
+                    border: rowBorder,
+                    background: 'var(--mzr-surface-weak)',
+                    color: 'var(--mzr-text-primary)',
+                    cursor: 'pointer',
+                    fontSize: mode === 'mobile' ? '38px' : '15px',
+                    minWidth: mode === 'mobile' ? '100%' : 'none'
+                  }}
+                >
                     {t('global.close')}
                   </button>
                   <button
@@ -372,7 +373,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                       padding: mode === 'mobile' ? '14px 18px' : '8px 12px',
                       borderRadius: 10,
                       border: rowBorder,
-                      background: '#ef4444',
+                      background: 'var(--mzr-danger)',
                       color: '#fff',
                       cursor: 'pointer',
                       fontSize: mode === 'mobile' ? '38px' : '15px',
@@ -389,14 +390,12 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
 
         <div
           style={{
-            borderRadius: 16,
-            border: rowBorder,
             overflow: 'hidden',
-          background: 'rgba(15,23,42,0.45)',
-          minHeight: 120
-        }}
-      >
-        {loading ? (
+            background: 'var(--mzr-surface-transparent)',
+            minHeight: 120
+          }}
+        >
+          {loading ? (
             <div style={{ padding: 18, textAlign: 'center', fontSize: mode === 'mobile' ? '38px' : '15px' }}>{t('global.loading')}</div>
           ) : !hasEntries ? (
             <div style={{ padding: 18, textAlign: 'center', opacity: 0.8, fontSize: mode === 'mobile' ? '38px' : '15px' }}>
@@ -455,7 +454,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                 style={{
                   background: 'transparent',
                   border: rowBorder,
-                  color: '#e2e8f0',
+                  color: 'var(--mzr-text-secondary)',
                   padding: mode === 'mobile' ? '14px 20px' : '10px 14px',
                   borderRadius: 10,
                   cursor: 'pointer'
@@ -476,7 +475,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     style={{
                       background: 'transparent',
                       border: rowBorder,
-                      color: '#e2e8f0',
+                      color: 'var(--mzr-text-secondary)',
                       padding: '8px 14px',
                       borderRadius: 8,
                       cursor: 'pointer'
@@ -488,7 +487,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     type="button"
                     onClick={handleClearAllTrackers}
                     style={{
-                      background: '#ef4444',
+                      background: 'var(--mzr-danger)',
                       border: 'none',
                       color: '#fff',
                       padding: '8px 14px',
@@ -503,7 +502,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
             </div>
           )}
           {hasTrackerEntries ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, overflow: 'hidden', background: 'rgba(15,23,42,0.45)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, overflow: 'hidden', background: 'var(--mzr-surface-transparent)' }}>
               {trackerExceptions.map((host) => (
                 <div
                   key={host}
@@ -539,7 +538,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
               <div style={{ height: 1, background: 'transparent' }} />
             </div>
           ) : (
-            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'rgba(15,23,42,0.45)' }}>
+            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'var(--mzr-surface-transparent)' }}>
               <div style={{ padding: mode === 'mobile' ? '18px 20px' : '12px 14px', textAlign: 'center', opacity: 0.8, fontSize: mode === 'mobile' ? '38px' : '15px' }}>
                 {t('exceptions.trackers.noEntries')}
               </div>
@@ -564,7 +563,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                 style={{
                   background: 'transparent',
                   border: rowBorder,
-                  color: '#e2e8f0',
+                  color: 'var(--mzr-text-secondary)',
                   padding: mode === 'mobile' ? '14px 20px' : '10px 14px',
                   borderRadius: 10,
                   cursor: 'pointer'
@@ -585,7 +584,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     style={{
                       background: 'transparent',
                       border: rowBorder,
-                      color: '#e2e8f0',
+                      color: 'var(--mzr-text-secondary)',
                       padding: '8px 14px',
                       borderRadius: 8,
                       cursor: 'pointer'
@@ -597,7 +596,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     type="button"
                     onClick={handleClearAllAds}
                     style={{
-                      background: '#ef4444',
+                      background: 'var(--mzr-danger)',
                       border: 'none',
                       color: '#fff',
                       padding: '8px 14px',
@@ -612,7 +611,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
             </div>
           )}
           {hasAdsEntries ? (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, overflow: 'hidden', background: 'rgba(15,23,42,0.45)' }}>
+            <div style={{ display: 'flex', flexDirection: 'column', gap: 0, marginTop: mode === 'mobile' ? 12 : 10, overflow: 'hidden', background: 'var(--mzr-surface-transparent)' }}>
               {adsExceptions.map((host) => (
                 <div
                   key={host}
@@ -648,7 +647,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
               <div style={{ height: 1, background: 'transparent' }} />
             </div>
           ) : (
-            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'rgba(15,23,42,0.45)' }}>
+            <div style={{ marginTop: mode === 'mobile' ? 12 : 10, borderRadius: 16, border: rowBorder, background: 'var(--mzr-surface-transparent)' }}>
               <div style={{ padding: mode === 'mobile' ? '18px 20px' : '12px 14px', textAlign: 'center', opacity: 0.8, fontSize: mode === 'mobile' ? '38px' : '15px' }}>
                 {t('exceptions.ads.noEntries')}
               </div>
@@ -660,7 +659,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           <div style={{ fontSize: mode === 'mobile' ? 38 : 18, fontWeight: 700, marginBottom: mode === 'mobile' ? 10 : 6 }}>
             {t('securityExceptions.certsTitle')}
           </div>
-          <div style={{ color: 'rgba(226,232,240,0.75)', fontSize: mode === 'mobile' ? '35px' : '14px', marginBottom: mode === 'mobile' ? 10 : 6 }}>
+          <div style={{ color: 'var(--mzr-text-secondary)', fontSize: mode === 'mobile' ? '35px' : '14px', marginBottom: mode === 'mobile' ? 10 : 6 }}>
             {t('securityExceptions.certsDesc')}
           </div>
           <div style={{ display: 'flex', justifyContent: 'flex-end', marginBottom: mode === 'mobile' ? 10 : 6 }}>
@@ -673,8 +672,8 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                   padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
                   borderRadius: 12,
                   border: rowBorder,
-                  background: hasSslEntries ? 'rgba(15,23,42,0.6)' : 'rgba(15,23,42,0.3)',
-                  color: hasSslEntries ? '#e2e8f0' : 'rgba(226,232,240,0.5)',
+                  background: hasSslEntries ? 'var(--mzr-surface-weak)' : 'var(--mzr-surface-muted)',
+                  color: hasSslEntries ? 'var(--mzr-text-secondary)' : 'rgba(226,232,240,0.5)',
                   cursor: hasSslEntries ? 'pointer' : 'not-allowed',
                   fontSize: mode === 'mobile' ? '38px' : '15px',
                   marginBottom: mode === 'mobile' ? '25px' : '10px',
@@ -697,17 +696,17 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                     <button
                       type="button"
                       onClick={() => setShowConfirmSsl(false)}
-                      style={{
-                        padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
-                        borderRadius: 10,
-                        border: rowBorder,
-                        background: 'rgba(30,41,59,0.7)',
-                        color: '#e2e8f0',
-                        cursor: 'pointer',
-                        fontSize: mode === 'mobile' ? '38px' : '15px',
-                        minWidth: mode === 'mobile' ? '100%' : 'none'
-                      }}
-                    >
+                    style={{
+                      padding: mode === 'mobile' ? '14px 16px' : '8px 12px',
+                      borderRadius: 10,
+                      border: rowBorder,
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: 'pointer',
+                      fontSize: mode === 'mobile' ? '38px' : '15px',
+                      minWidth: mode === 'mobile' ? '100%' : 'none'
+                    }}
+                  >
                       {t('global.close')}
                     </button>
                     <button
@@ -717,7 +716,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                         padding: mode === 'mobile' ? '14px 18px' : '8px 12px',
                         borderRadius: 10,
                         border: rowBorder,
-                        background: '#ef4444',
+                        background: 'var(--mzr-danger)',
                         color: '#fff',
                         cursor: 'pointer',
                         fontSize: mode === 'mobile' ? '38px' : '15px',
@@ -733,10 +732,10 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
           </div>
           <div
             style={{
-              borderRadius: 16,
-              border: rowBorder,
+              // borderRadius: 16,
+              // border: rowBorder,
               overflow: 'hidden',
-              background: 'rgba(15,23,42,0.45)',
+              background: 'var(--mzr-surface-transparent)',
               minHeight: 120
             }}
           >
@@ -770,7 +769,7 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
                       style={{
                         border: rowBorder,
                         background: 'transparent',
-                        color: '#e2e8f0',
+                        color: 'var(--mzr-text-secondary)',
                         borderRadius: 10,
                         padding: mode === 'mobile' ? '12px 16px' : '8px 10px',
                         cursor: 'pointer',

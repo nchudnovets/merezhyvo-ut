@@ -55,7 +55,7 @@ const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ favi
       style={{
         ...historyStyles.favicon,
         ...historyModeStyles[mode].favicon,
-        background: 'rgba(148, 163, 184, 0.2)',
+        background: 'var(--mzr-divider)',
         display: 'inline-flex',
         alignItems: 'center',
         justifyContent: 'center'
@@ -323,8 +323,8 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
                 width: mode === 'mobile' ? 56 : 36,
                 height: mode === 'mobile' ? 56 : 36,
                 border: 'none',
-                background: 'rgba(15,23,42,0.6)',
-                color: '#e2e8f0',
+                background: 'var(--mzr-surface-weak)',
+                color: 'var(--mzr-text-primary)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',

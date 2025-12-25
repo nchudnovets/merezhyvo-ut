@@ -12,10 +12,13 @@ export interface MessengerSettings {
   order: MessengerId[];
 }
 
+export type ThemeName = 'dark' | 'light';
+
 export interface UISettings {
   scale: number;
   hideFileDialogNote: boolean;
   language: string;
+  theme?: ThemeName;
 }
 
 export type TabKind = 'browser' | 'messenger';

@@ -1,3 +1,37 @@
+:root {
+  --mzr-color-scheme: dark;
+  --mzr-bg: #0F1525;
+  --mzr-surface: #121826;
+  --mzr-surface-elevated: #0E1629;
+  --mzr-surface-muted: #0b1020;
+  --mzr-surface-weak: rgba(15, 23, 42, 0.85);
+  --mzr-surface-transparent: rgba(15, 23, 42, 0.65);
+  --mzr-border: rgba(148, 163, 184, 0.25);
+  --mzr-border-strong: #3E4D6A;
+  --mzr-divider: rgba(148, 163, 184, 0.2);
+  --mzr-text-primary: #EAF0FF;
+  --mzr-text-secondary: #B9C3D8;
+  --mzr-text-muted: #7F8AA3;
+  --mzr-text-disabled: #6B7280;
+  --mzr-accent: #235CDC;
+  --mzr-accent-strong: #1d4ed8;
+  --mzr-accent-tint: rgba(37, 99, 235, 0.12);
+  --mzr-link: #8CBBF1;
+  --mzr-warning: #B48D25;
+  --mzr-warning-tint: rgba(180, 141, 37, 0.16);
+  --mzr-danger: #D05A5A;
+  --mzr-danger-tint: rgba(208, 90, 90, 0.16);
+  --mzr-overlay: rgba(0, 0, 0, 0.45);
+  --mzr-scrollbar-track: #111827;
+  --mzr-scrollbar-thumb: #2563eb;
+  --mzr-scrollbar-thumb-hover: #1d4ed8;
+  --mzr-input-bg: #213e6dff;
+  --mzr-input-border: #3E4D6A;
+  --mzr-selection-bg: rgba(125,211,252,.3);
+  --mzr-selection-fg: #0a0f1f;
+  --mzr-focus-ring: #93c5fd;
+}
+
 html,
 body {
   height: 100%;
@@ -5,12 +39,18 @@ body {
 
 body {
   margin: 0;
-  background: #0f111a;
-  color: #e5e7eb;
+  background: var(--mzr-bg);
+  color: var(--mzr-text-primary);
+  color-scheme: var(--mzr-color-scheme, dark);
 }
 
 #root {
   height: 100%;
+}
+
+::selection {
+  background: var(--mzr-selection-bg, rgba(125,211,252,.3));
+  color: var(--mzr-selection-fg, #0a0f1f);
 }
 
 /* Scrollbar styling parity with WEBVIEW_BASE_CSS */
@@ -20,22 +60,22 @@ body {
 }
 
 ::-webkit-scrollbar-track {
-  background: #111827;
+  background: var(--mzr-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb {
-  background: #2563eb;
+  background: var(--mzr-scrollbar-thumb);
   border-radius: 999px;
-  border: 2px solid #111827;
+  border: 2px solid var(--mzr-scrollbar-track);
 }
 
 ::-webkit-scrollbar-thumb:hover {
-  background: #1d4ed8;
+  background: var(--mzr-scrollbar-thumb-hover);
 }
 
 .service-scroll {
   scrollbar-width: thin;
-  scrollbar-color: #2563eb #111827;
+  scrollbar-color: var(--mzr-scrollbar-thumb) var(--mzr-scrollbar-track);
 }
 
 .service-scroll::-webkit-scrollbar {
@@ -44,23 +84,23 @@ body {
 }
 
 .service-scroll::-webkit-scrollbar-track {
-  background: #111827;
+  background: var(--mzr-scrollbar-track);
 }
 
 .service-scroll::-webkit-scrollbar-thumb {
-  background: #2563eb;
+  background: var(--mzr-scrollbar-thumb);
   border-radius: 999px;
-  border: 2px solid #111827;
+  border: 2px solid var(--mzr-scrollbar-track);
 }
 
 .service-scroll::-webkit-scrollbar-thumb:hover {
-  background: #1d4ed8;
+  background: var(--mzr-scrollbar-thumb-hover);
 }
 
 .modal-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(0, 0, 0, 0.45);
+  background: var(--mzr-overlay);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -68,9 +108,9 @@ body {
 }
 
 .modal {
-  background: #0f1729;
-  color: #e5e7eb;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: var(--mzr-surface-elevated);
+  color: var(--mzr-text-primary);
+  border: 1px solid var(--mzr-border);
   border-radius: 12px;
   padding: 16px;
   width: min(520px, 92vw);
@@ -78,9 +118,9 @@ body {
 }
 
 .modal input {
-  background: #0b1020;
-  color: #e5e7eb;
-  border: 1px solid rgba(148, 163, 184, 0.25);
+  background: var(--mzr-input-bg);
+  color: var(--mzr-text-primary);
+  border: 1px solid var(--mzr-input-border);
   border-radius: 10px;
   padding: 10px 12px;
   outline: none;
@@ -93,8 +133,8 @@ body {
   right: 0;
   bottom: 0;
   height: 260px;
-  background: #0b1020;
-  border-top: 1px solid rgba(148, 163, 184, 0.2);
+  background: var(--mzr-surface-muted);
+  border-top: 1px solid var(--mzr-border);
   z-index: 40;
   touch-action: manipulation;
 }
@@ -109,8 +149,8 @@ body {
   flex: 1 1 auto;
   padding: 10px 0;
   border-radius: 10px;
-  border: 1px solid rgba(148, 163, 184, 0.25);
-  background: #121826;
-  color: #e5e7eb;
+  border: 1px solid var(--mzr-border);
+  background: var(--mzr-surface);
+  color: var(--mzr-text-primary);
   font-size: 16px;
 }

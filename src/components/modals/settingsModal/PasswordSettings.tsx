@@ -250,7 +250,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
                       position: 'absolute',
                       inset: 0,
                       borderRadius: 999,
-                      backgroundColor: checked ? '#2563ebeb' : 'transparent',
+                      backgroundColor: checked ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
                       border: `1px solid #ACB2B7`,
                       transition: 'background-color 160ms ease, border-color 160ms ease'
                     }}
@@ -342,7 +342,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         <p
           style={{
             ...styles.settingsMessage,
-            ...(modeStyles.settingsMessage || {})
+            ...(modeStyles.settingsMessage || {}),
+            color: 'var(--mzr-text-primary)'
           }}
           role="status"
         >

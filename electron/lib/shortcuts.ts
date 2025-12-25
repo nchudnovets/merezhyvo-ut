@@ -13,7 +13,7 @@ import { INTERNAL_BASE_FOLDER } from './internal-paths';
 import { getSiteKey } from './site-key';
 
 export const BUNDLED_ICON_PATH = path.resolve(__dirname, '..', 'merezhyvo_256.png');
-export const SETTINGS_SCHEMA = 8;
+export const SETTINGS_SCHEMA = 9;
 
 export type KeyboardSettings = {
   enabledLayouts: string[];
@@ -33,6 +33,7 @@ export type UISettings = {
   scale: number;
   hideFileDialogNote: boolean;
   language: string;
+  theme?: 'dark' | 'light';
 };
 
 export type HttpsMode = 'strict' | 'preferred';
@@ -164,7 +165,8 @@ const DEFAULT_DOWNLOADS_SETTINGS: DownloadsSettings = {
 const DEFAULT_UI_SETTINGS: UISettings = {
   scale: 1.0,
   hideFileDialogNote: false,
-  language: DEFAULT_LOCALE
+  language: DEFAULT_LOCALE,
+  theme: 'dark'
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
@@ -234,7 +236,11 @@ export const sanitizeUiSettings = (raw: unknown): UISettings => {
     typeof source.language === 'string' && isValidLocale(source.language)
       ? source.language
       : DEFAULT_UI_SETTINGS.language;
-  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language };
+  const theme =
+    source.theme === 'light' || source.theme === 'dark'
+      ? source.theme
+      : DEFAULT_UI_SETTINGS.theme;
+  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language, theme };
 };
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {

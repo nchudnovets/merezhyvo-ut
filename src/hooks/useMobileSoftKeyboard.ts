@@ -157,7 +157,7 @@ export const useMobileSoftKeyboard = ({
                 var body = doc.body || doc.documentElement;
                 var cs = win.getComputedStyle ? win.getComputedStyle(el) : null;
                 var fg = cs ? cs.color : '#f9fafb';
-                var bg = cs && cs.color ? cs.backgroundColor : '#111827';
+                var bg = cs && cs.color ? cs.backgroundColor : 'var(--mzr-scrollbar-track)';
 
                 closeSelectOverlay(doc);
 

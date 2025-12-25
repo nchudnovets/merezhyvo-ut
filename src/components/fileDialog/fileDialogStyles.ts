@@ -38,7 +38,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(3, 7, 18, 0.75)',
+    background: 'var(--mzr-overlay)',
     zIndex: 4000,
     display: 'flex',
     alignItems: 'center',
@@ -49,8 +49,8 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
     width: 'min(640px, 100%)',
     height: '95%',
     maxHeight: 'min(90vh, 760px)',
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '18px',
     boxSizing: 'border-box',
     padding: '20px',
@@ -70,7 +70,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   subtitle: {
     margin: 0,
     fontSize: '14px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   pathRow: {
     display: 'flex',
@@ -80,7 +80,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   pathText: {
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   breadcrumb: {
     display: 'flex',
@@ -105,8 +105,8 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   entryRow: {
     padding: '12px 14px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: 'rgba(15, 23, 42, 0.85)',
+    border: '1px solid var(--mzr-divider)',
+    background: 'var(--mzr-surface-weak)',
     display: 'flex',
     justifyContent: 'space-between',
     alignItems: 'center',
@@ -117,7 +117,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   entryMeta: {
     fontSize: '12px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   footer: {
     display: 'flex',
@@ -127,15 +127,15 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   button: {
     padding: '10px 18px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    background: 'rgba(24, 37, 66, 0.8)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   buttonPrimary: {
     borderColor: 'rgba(37, 99, 235, 0.8)',
     background: 'rgba(37, 99, 235, 0.65)',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   buttonDisabled: {
     opacity: 0.5,
@@ -145,34 +145,34 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
     color: '#f87171'
   },
   loading: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   fileInfo: {
     fontSize: '14px',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   filterHint: {
     fontSize: '12px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   placeholder: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   }
   ,
   notice: {
-    background: 'rgba(15, 23, 42, 0.9)',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
+    background: 'var(--mzr-surface-weak)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '14px',
     padding: '14px',
     display: 'flex',
     flexDirection: 'column',
     gap: '6px',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   noticeText: {
     fontSize: '14px',
     lineHeight: 1.6,
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     margin: 0,
     whiteSpace: 'pre-wrap'
   },
@@ -186,7 +186,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   noticeCheckboxLabel: {
     fontSize: '14px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     display: 'flex',
     alignItems: 'center',
     gap: '10px',
@@ -207,7 +207,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
     borderRadius: '8px',
     border: '1px solid rgba(59, 130, 246, 0.6)',
     background: 'rgba(59, 130, 246, 0.2)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     fontSize: '14px'
   }
@@ -219,7 +219,7 @@ export const fileDialogStyles: Record<FileDialogStyleKeys, CSSProperties> = {
   },
   hiddenToggleLabel: {
     fontSize: '12px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     display: 'flex',
     alignItems: 'center',
     gap: '6px'

@@ -27,8 +27,8 @@ const overlayStyle: CSSProperties = {
 
 const sheetBaseStyle: CSSProperties = {
   borderRadius: '18px',
-  border: '1px solid rgba(148, 163, 184, 0.45)',
-  background: '#0f1729',
+  border: '1px solid var(--mzr-border-strong)',
+  background: 'var(--mzr-surface-elevated)',
   padding: '30px',
   boxShadow: '0 30px 60px rgba(0,0,0,.65)',
   display: 'flex',
@@ -40,15 +40,15 @@ const sheetBaseStyle: CSSProperties = {
 const labelStyle: CSSProperties = {
   letterSpacing: '0.08em',
   textTransform: 'uppercase',
-  color: '#cbd5f5'
+  color: 'var(--mzr-text-secondary)'
 };
 
 const inputBaseStyle: CSSProperties = {
   width: '95%',
   borderRadius: '14px',
-  border: '1px solid rgba(148, 163, 184, 0.4)',
+  border: '1px solid var(--mzr-border)',
   background: '#0b1220',
-  color: '#f8fafc',
+  color: 'var(--mzr-text-primary)',
   padding: '14px 12px'
 };
 
@@ -167,7 +167,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
     transform: 'translateY(-50%)',
     background: 'transparent',
     border: 'none',
-    color: '#93c5fd',
+    color: 'var(--mzr-focus-ring)',
     cursor: 'pointer',
     fontSize: toggleFontSize
   };
@@ -182,7 +182,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
   const strengthBarStyle: CSSProperties = {
     height: '6px',
     borderRadius: '4px',
-    background: 'rgba(148, 163, 184, 0.4)',
+    background: 'var(--mzr-border)',
     overflow: 'hidden',
     marginTop: '6px'
   };
@@ -205,7 +205,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
       <div style={sheetStyle}>
         <div>
           <h2 style={{ margin: 0, fontSize: isMobile ? '38px' : '22px' }}>{headingText}</h2>
-          <p style={{ margin: '6px 0 0', color: '#cbd5f5', fontSize: isMobile ? '38px' : '14px' }}>
+          <p style={{ margin: '6px 0 0', color: 'var(--mzr-text-secondary)', fontSize: isMobile ? '38px' : '14px' }}>
             {descriptionText}
           </p>
         </div>
@@ -241,7 +241,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
               {showNext ? t('passwords.hide') : t('passwords.show')}
             </button>
           </div>
-          <div style={{ marginTop: '6px', color: '#cbd5f5', fontSize: isMobile ? '38px' : '12px' }}>
+          <div style={{ marginTop: '6px', color: 'var(--mzr-text-secondary)', fontSize: isMobile ? '38px' : '12px' }}>
             {t('passwords.strength', { label: t(strength.labelKey) })}
           </div>
           <div style={strengthBarStyle}>
@@ -272,8 +272,8 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
             style={{
               ...buttonBaseStyle,
               background: 'transparent',
-              border: '1px solid rgba(148, 163, 184, 0.4)',
-              color: '#cbd5f5',
+              border: '1px solid var(--mzr-border)',
+              color: 'var(--mzr-text-secondary)',
               fontSize: isMobile ? '38px' : '14px'
             }}
           >
@@ -284,7 +284,7 @@ const ChangeMasterPasswordModal: React.FC<Props> = ({
             onClick={handleSubmit}
             style={{
               ...buttonBaseStyle,
-              background: '#2563eb',
+              background: 'var(--mzr-accent)',
               color: '#fff',
               fontSize: isMobile ? '38px' : '14px'
             }}

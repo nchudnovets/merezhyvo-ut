@@ -24,6 +24,7 @@ import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
 import WebViewHost from './components/webview/WebViewHost';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
 import { styles } from './styles/styles';
+import { getThemeVars } from './styles/theme';
 import BookmarksPage from './pages/bookmarks/BookmarksPage';
 import HistoryPage from './pages/history/HistoryPage';
 import LicensesPage from './pages/licenses/LicensesPage';
@@ -69,7 +70,8 @@ import type {
   HttpsMode,
   SslException,
   WebrtcMode,
-  CookiePrivacySettings
+  CookiePrivacySettings,
+  ThemeName
 } from './types/models';
 import type { TabViewEntry } from './types/tabView';
 import { sanitizeMessengerSettings } from './shared/messengers';
@@ -81,6 +83,7 @@ import { WebviewLoadingOverlay } from './components/overlays/WebviewLoadingOverl
 import { CertOverlay } from './components/overlays/CertOverlay';
 import { useUiScale } from './hooks/useUiScale';
 import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
+import { useTheme } from './hooks/useTheme';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -100,10 +103,6 @@ type CreateWebviewOptions = {
   mode: Mode;
 };
 
-type DestroyTabOptions = {
-  keepMeta?: boolean;
-};
-
 type LastLoadedInfo = {
   id: string | null;
   url: string | null;
@@ -121,27 +120,25 @@ type MainBrowserAppProps = {
 
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
 
-const WEBVIEW_BASE_CSS = `
-  :root, html { color-scheme: dark; color:#0f111a; background:#e5e7eb; }
-  @media (prefers-color-scheme: light) {
-  }
+const buildWebviewBaseCss = (vars: Record<string, string>) => `
+  :root, html { color-scheme: ${vars['color-scheme'] ?? 'dark'}; color:#0f111a; background:#e5e7eb; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
-  ::-webkit-scrollbar-track { background: #111827; }
+  ::-webkit-scrollbar-track { background: ${vars['scrollbar-track'] ?? 'var(--mzr-scrollbar-track)'}; }
   ::-webkit-scrollbar-thumb {
-    background: #2563eb;
+    background: ${vars['scrollbar-thumb'] ?? 'var(--mzr-accent)'};
     border-radius: 999px;
-    border: 2px solid #111827;
+    border: 2px solid ${vars['scrollbar-track'] ?? 'var(--mzr-scrollbar-track)'};
   }
-  ::-webkit-scrollbar-thumb:hover { background: #1d4ed8; }
+  ::-webkit-scrollbar-thumb:hover { background: ${vars['scrollbar-thumb-hover'] ?? vars['scrollbar-thumb'] ?? 'var(--mzr-accent-strong)'}; }
   input, textarea, [contenteditable='true'] {
-    caret-color: #1d4ed8; !important;
+    caret-color: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'}; !important;
     caret-shape: block !important;
   }
   :root {
-    --mzr-caret-accent: #1d4ed8;
-    --mzr-focus-ring:   #60a5fa;
-    --mzr-sel-bg:       rgba(34,211,238,.28);
-    --mzr-sel-fg:       #0b1020;
+    --mzr-caret-accent: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'};
+    --mzr-focus-ring:   ${vars['focus-ring'] ?? '#60a5fa'};
+    --mzr-sel-bg:       ${vars['selection-bg'] ?? 'rgba(34,211,238,.28)'};
+    --mzr-sel-fg:       ${vars['selection-fg'] ?? 'var(--mzr-surface-muted)'};
   }
   html, body, * {
     -webkit-touch-callout: none !important;
@@ -149,22 +146,6 @@ const WEBVIEW_BASE_CSS = `
   input, textarea, [contenteditable="true"] {
     -webkit-user-select: text !important;
     user-select: text !important;
-  }
-  @media (prefers-color-scheme: dark) {
-    :root {
-      --mzr-caret-accent: #1d4ed8;
-      --mzr-sel-bg:       rgba(125,211,252,.3);
-      --mzr-sel-fg:       #0a0f1f;
-      --mzr-focus-ring:   #93c5fd;
-    }
-  }
-  @media (prefers-color-scheme: light) {
-    :root {
-      --mzr-caret-accent: #1d4ed8;
-      --mzr-sel-bg:       rgba(14,165,233,.25);
-      --mzr-sel-fg:       #0b1020;
-      --mzr-focus-ring:   #3b82f6;
-    }
   }
   input[type="text"],
   input[type="search"],
@@ -192,7 +173,7 @@ const WEBVIEW_BASE_CSS = `
 const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
   position: 'absolute',
   inset: 0,
-  background: 'rgba(3, 8, 20, 0.96)',
+  background: 'var(--mzr-overlay)',
   padding: '24px',
   overflow: 'auto',
   zIndex: 5
@@ -288,6 +269,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
+  const { theme, setTheme } = useTheme('dark');
+  const themeVars = useMemo(() => getThemeVars(theme), [theme]);
+  const webviewBaseCss = useMemo(() => buildWebviewBaseCss(themeVars), [themeVars]);
+  const webviewBaseCssRef = useRef<string>(webviewBaseCss);
+  useEffect(() => { webviewBaseCssRef.current = webviewBaseCss; }, [webviewBaseCss]);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
 
   const oskPressGuardRef = useRef(false);
@@ -310,7 +296,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     webviewHandleRef,
     webviewRef
   } = useTabRefs();
-  const { powerBlockerIdRef, updatePowerBlocker } = usePowerBlocker(playingTabsRef);
+  const { updatePowerBlocker } = usePowerBlocker(playingTabsRef);
   const {
     mountInBackgroundHost,
     applyActiveStyles,
@@ -357,7 +343,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       fullscreenTabRef.current = null;
       setIsHtmlFullscreen(false);
     }
-  }, [activeId]);
+  }, [activeId, fullscreenTabRef]);
   const handleDownloadsConcurrentChange = useCallback(
     async (value: 1 | 2 | 3) => {
       const clamped = Math.min(3, Math.max(1, value)) as 1 | 2 | 3;
@@ -472,6 +458,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     void copyCommand(command);
   }, [copyCommand, showGlobalToast]);
 
+  const handleThemeChange = useCallback(
+    (value: ThemeName) => {
+      setTheme(value);
+    },
+    [setTheme]
+  );
+
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -486,6 +479,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
         );
         setUiScale(state.ui?.scale ?? 1);
+        const themePref = state.ui?.theme === 'light' ? 'light' : 'dark';
+        setTheme(themePref);
         setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
         setSslExceptions(Array.isArray(state.sslExceptions) ? state.sslExceptions : []);
         const wm = state.webrtcMode;
@@ -504,6 +499,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setTorKeepEnabledDraft(false);
           setDownloadsConcurrent(2);
           setUiScale(1);
+          setTheme('dark');
           setHttpsMode('strict');
           setSslExceptions([]);
           setWebrtcMode('always_on');
@@ -520,6 +516,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setTorKeepEnabledDraft,
     setDownloadsConcurrent,
     setUiScale,
+    setTheme,
     setHttpsMode,
     setSslExceptions,
     setWebrtcMode,
@@ -533,7 +530,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (element) return element;
     }
     return webviewRef.current ?? null;
-  }, []);
+  }, [webviewHandleRef, webviewRef]);
 
   const {
     injectTextToWeb,
@@ -774,7 +771,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     await injectArrowToWeb(dir);
   }, [focusLastMainEditable, injectArrowToMain, injectArrowToWeb, isEditableMainNow]);
 
-  const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, []);
+  const getActiveWebviewHandle = useCallback((): WebViewHandle | null => webviewHandleRef.current, [webviewHandleRef]);
   const destroyTabView = useTabDestroy({
     tabViewsRef,
     playingTabsRef,
@@ -805,10 +802,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setCanGoBack(false);
       setCanGoForward(false);
     }
-  }, []);
+  }, [webviewHandleRef, webviewRef]);
 
   const attachWebviewListeners = useWebviewListeners({
-    baseCss: WEBVIEW_BASE_CSS,
+    baseCssRef: webviewBaseCssRef,
     updateMetaAction,
     playingTabsRef,
     updatePowerBlocker,
@@ -819,6 +816,23 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setIsHtmlFullscreen,
     webviewFocusedRef
   });
+
+  useEffect(() => {
+    tabViewsRef.current.forEach((entry) => {
+      const view = (entry.handle && typeof entry.handle.getWebView === 'function')
+        ? entry.handle.getWebView()
+        : entry.view;
+      if (!view) return;
+      try {
+        const maybe = view.insertCSS(webviewBaseCss);
+        if (maybe && typeof maybe.catch === 'function') {
+          maybe.catch(() => {});
+        }
+      } catch {
+        // ignore
+      }
+    });
+  }, [tabViewsRef, webviewBaseCss]);
 
   const forceNavigateTab = useCallback((tabId: string, targetUrl: string) => {
     if (!tabId || !targetUrl) return;
@@ -842,7 +856,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
-  }, [updateMetaAction]);
+  }, [tabViewsRef, updateMetaAction]);
 
   const handleNavigationStart = useCallback((tabId: string, payload: { url: string; isInPage: boolean }) => {
     if (!tabId || !payload || payload.isInPage) return;
@@ -1073,7 +1087,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         // ignore transient failures
       }
     })();
-  }, [ensureSelectionCssInjected]);
+  }, [activeIdRef, ensureSelectionCssInjected, tabViewsRef]);
   
   useEffect(() => {
     const run = async () => {
@@ -1227,7 +1241,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         entry.render?.(mode, targetZoom);
       } catch {}
     }
-  }, [mode, getStoredZoomForTab]);
+  }, [mode, getStoredZoomForTab, tabViewsRef]);
 
   const refreshCertStatus = useCallback(
     async (wcId: number | null) => {
@@ -1457,7 +1471,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         try { off(); } catch {}
       }
     };
-  }, [getWebContentsIdSafe, updateMetaAction, shouldBlockCert, hasSslException]);
+  }, [getWebContentsIdSafe, hasSslException, shouldBlockCert, tabViewsRef, updateMetaAction]);
 
   const blockingActive =
     blockingCertRef.current &&
@@ -1646,7 +1660,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     container.style.inset = '0';
     container.style.width = '100%';
     container.style.height = '100%';
-    container.style.backgroundColor = '#05070f';
+    container.style.backgroundColor = 'var(--mzr-bg)';
     container.style.opacity = '0';
     container.style.pointerEvents = 'none';
     try {
@@ -1726,7 +1740,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     getWebContentsIdSafe,
     refreshCertStatus,
     handleNavigationStart,
-    handleNavigationError
+    handleNavigationError,
+    tabViewsRef,
+    webviewHandleRef,
+    webviewRef,
+    webviewHostRef
   ]);
 
   const loadUrlIntoView = useCallback((tab: Tab, entry?: TabViewEntry | null) => {
@@ -1828,7 +1846,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setActiveViewRevision,
     updateMetaAction,
     getWebContentsIdSafe,
-    refreshCertStatus
+    refreshCertStatus,
+    tabViewsRef,
+    backgroundTabRef,
+    webviewHostRef,
+    webviewHandleRef,
+    webviewRef
   ]);
 
   const demoteTabView = useCallback((tab: Tab | null) => {
@@ -1855,7 +1878,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } else {
       destroyTabView(tab.id);
     }
-  }, [destroyTabView, mountInBackgroundHost, updateMetaAction]);
+  }, [backgroundTabRef, destroyTabView, mountInBackgroundHost, tabViewsRef, updateMetaAction]);
 
   useEffect(() => {
     const off = ipc.onOpenUrl((arg) => {
@@ -1880,7 +1903,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         destroyTabView(tabId, { keepMeta: true });
       }
     }
-  }, [destroyTabView, tabs]);
+  }, [destroyTabView, tabViewsRef, tabs]);
 
   useEffect(() => {
     if (!tabsReady) return;
@@ -1915,7 +1938,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     for (const tabId of Array.from(tabViewsRef.current.keys())) {
       destroyTabView(tabId, { keepMeta: true });
     }
-  }, [destroyTabView]);
+  }, [destroyTabView, tabViewsRef]);
 
   const hostnameFromUrl = useCallback((value: string | null | undefined) => {
     if (!value) return '';
@@ -2473,7 +2496,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('mzr-close-tab' as unknown as keyof WindowEventMap, handleClose as EventListener);
     };
-  }, [closeTabAction]);
+  }, [closeTabAction, tabViewsRef]);
 
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;
@@ -2572,10 +2595,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   );
   const openTrackersExceptionsFromPopover = useCallback(() => {
     openInNewTab('mzr://security-exceptions#trackers');
-    setSecurityPopoverOpen(false);
-  }, [openInNewTab]);
-  const openSecurityExceptionsFromPopover = useCallback(() => {
-    openInNewTab('mzr://security-exceptions');
     setSecurityPopoverOpen(false);
   }, [openInNewTab]);
   const openPrivacyInfoFromPopover = useCallback(() => {
@@ -2679,7 +2698,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       closeTabAction(id);
       return false;
     }
-  }, [tabs, closeTabAction]);
+  }, [closeTabAction, tabViewsRef, tabs]);
 
   const handleTogglePin = useCallback((id: string) => {
     if (!id) return;
@@ -2798,7 +2817,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const subtitle = t('webview.error.subtitle');
     const urlDisplayValue = pageError.url || lastFailedUrlRef.current || '';
     const urlDisplay = urlDisplayValue
-      ? `<div style="margin-top:12px;padding:10px 14px;border-radius:12px;background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.4);font-size:14px;word-break:break-all;color:#f8fafc;">${urlDisplayValue}</div>`
+      ? `<div style="margin-top:12px;padding:10px 14px;border-radius:12px;background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.4);font-size:14px;word-break:break-all;color:var(--mzr-text-primary);">${urlDisplayValue}</div>`
       : '';
     const reloadLabel = t('webview.error.retry');
     const html = `
@@ -2819,7 +2838,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             justify-content:center;
             background: radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9));
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
-            color:#e2e8f0;
+            color:var(--mzr-text-secondary);
             padding:20px;
             text-align:center;
           }
@@ -2835,7 +2854,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           h1 {
             margin: 0 0 12px;
             font-size: 22px;
-            color: #f8fafc;
+            color: var(--mzr-text-primary);
           }
           p {
             margin: 0;
@@ -2849,7 +2868,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             border-radius: 12px;
             border: 1px solid rgba(37,156,235,0.9);
             background: rgba(37,156,235,0.16);
-            color: #f8fafc;
+            color: var(--mzr-text-primary);
             font-size: 15px;
             cursor: pointer;
           }
@@ -2871,7 +2890,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } catch {
       // ignore
     }
-  }, [pageError, status, t]);
+  }, [pageError, status, t, webviewRef]);
 
   const {
     toolbarRef,
@@ -3037,8 +3056,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onCopyDownloadsCommand={handleCopyDownloadsCommand}
               downloadsCommand={downloadsCommand}
               uiScale={uiScale}
+              theme={theme}
               onUiScaleChange={applyUiScale}
               onUiScaleReset={handleUiScaleReset}
+              onThemeChange={handleThemeChange}
               onOpenTorLink={handleOpenTorProjectLink}
               httpsMode={httpsMode}
               onHttpsModeChange={handleHttpsModeChange}

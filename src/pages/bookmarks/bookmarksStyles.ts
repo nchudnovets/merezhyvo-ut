@@ -78,7 +78,7 @@ export type BookmarksStyleKeys =
 
 export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   container: {
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     display: 'flex',
     flexDirection: 'column',
     gap: '18px',
@@ -103,9 +103,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   badge: {
     padding: '6px 14px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
+    border: '1px solid var(--mzr-border-strong)',
     background: 'rgba(59, 130, 246, 0.18)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   badgeActive: {
@@ -131,7 +131,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     fontSize: '12px',
     textTransform: 'uppercase',
     letterSpacing: '0.1em',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   form: {
     display: 'flex',
@@ -141,9 +141,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   input: {
     padding: '10px 12px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border-strong)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     flex: 1,
     minWidth: '180px',
     width: 'min(640px, 100%)',
@@ -154,7 +154,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     borderRadius: '10px',
     border: '1px solid rgba(37, 99, 235, 0.8)',
     background: 'rgba(37, 99, 235, 0.25)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer'
   },
@@ -174,8 +174,8 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     position: 'absolute',
     top: '40px',
     right: 0,
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border-strong)',
     borderRadius: '12px',
     padding: '10px',
     display: 'flex',
@@ -187,14 +187,14 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     padding: '6px 14px',
     background: 'transparent',
     border: 'none',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     textAlign: 'left',
     cursor: 'pointer'
   },
   contextMenu: {
     position: 'fixed',
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border-strong)',
     borderRadius: '12px',
     padding: '10px',
     display: 'flex',
@@ -207,7 +207,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     padding: '8px 12px',
     background: 'transparent',
     border: 'none',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     textAlign: 'left',
     cursor: 'pointer',
     borderRadius: '8px'
@@ -215,7 +215,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   clearButton: {
     background: 'transparent',
     border: 'none',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '18px',
     marginLeft: '8px',
     cursor: 'pointer'
@@ -226,9 +226,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     gap: '6px',
     borderRadius: '999px',
     padding: '6px 12px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border-strong)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '14px',
     cursor: 'pointer'
   },
@@ -236,7 +236,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     marginLeft: '6px',
     background: 'transparent',
     border: 'none',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     fontSize: '16px',
     padding: 0
@@ -261,7 +261,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     fontSize: '14px'
   },
   crumbSeparator: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   banner: {
     background: 'rgba(220, 38, 38, 0.15)',
@@ -271,7 +271,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     color: '#fecaca'
   },
   emptyState: {
-    border: '1px dashed rgba(148, 163, 184, 0.45)',
+    border: '1px dashed var(--mzr-border-strong)',
     borderRadius: '12px',
     padding: '40px',
     textAlign: 'center'
@@ -284,7 +284,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     padding: '12px',
     borderRadius: '12px',
     border: '1px solid rgba(148, 163, 184, 0.3)',
-    background: 'rgba(15, 23, 42, 0.9)',
+    background: 'var(--mzr-surface-weak)',
     cursor: 'pointer',
     boxSizing: 'border-box',
     minWidth: 0
@@ -300,7 +300,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     overflowWrap: 'break-word'
   },
   folderMeta: {
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     flexShrink: 0
   },
   folderChevron: {
@@ -314,7 +314,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     padding: '12px',
     borderRadius: '12px',
     border: '1px solid rgba(148, 163, 184, 0.3)',
-    background: 'rgba(15, 23, 42, 0.9)',
+    background: 'var(--mzr-surface-weak)',
     cursor: 'pointer',
     boxSizing: 'border-box',
     minWidth: 0
@@ -336,7 +336,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   },
   bookmarkSubtitle: {
     fontSize: '12px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   tagGroup: {
     display: 'flex',
@@ -358,9 +358,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   tagMore: {
     padding: '4px 8px',
     borderRadius: '999px',
-    background: 'rgba(148, 163, 184, 0.25)',
+    background: 'var(--mzr-border)',
     fontSize: '12px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   starButton: {
     background: 'transparent',
@@ -383,8 +383,8 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     alignItems: 'center',
     padding: '12px 14px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.2)',
-    background: 'rgba(15, 23, 42, 0.8)'
+    border: '1px solid var(--mzr-divider)',
+    background: 'var(--mzr-surface-weak)'
   },
   nodeMain: {
     display: 'flex',
@@ -401,7 +401,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   },
   nodeUrl: {
     fontSize: '12px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   nodeActionsMobile: {
     flexDirection: 'column',
@@ -414,34 +414,34 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   searchInput: {
     padding: '10px 12px',
     borderRadius: '10px',
-    border: '1px solid rgba(148, 163, 184, 0.45)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border-strong)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     width: 'min(640px, 100%)',
     boxSizing: 'border-box'
   },
   placeholder: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   smallButton: {
     padding: '6px 10px',
     borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
+    border: '1px solid var(--mzr-border)',
     background: 'rgba(224, 231, 255, 0.08)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer'
   },
   select: {
     padding: '6px 10px',
     borderRadius: '8px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    background: 'rgba(15, 23, 42, 0.95)',
-    color: '#f8fafc'
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-elevated)',
+    color: 'var(--mzr-text-primary)'
   },
   overlay: {
     position: 'fixed',
     inset: 0,
-    background: 'rgba(0, 0, 0, 0.45)',
+    background: 'var(--mzr-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -449,8 +449,8 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     padding: '16px'
   },
   dialog: {
-    background: '#0f1729',
-    border: '1px solid rgba(148, 163, 184, 0.35)',
+    background: 'var(--mzr-surface-elevated)',
+    border: '1px solid var(--mzr-border)',
     borderRadius: '16px',
     padding: '24px',
     width: 'min(520px, 92vw)',
@@ -472,14 +472,14 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     display: 'flex',
     gap: '6px',
     fontSize: '14px',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   dialogInput: {
     padding: '10px 12px',
     borderRadius: '10px',
     border: '1px solid rgba(148, 163, 184, 0.5)',
-    background: '#0b1020',
-    color: '#f8fafc',
+    background: 'var(--mzr-surface-muted)',
+    color: 'var(--mzr-text-primary)',
     width: '100%',
     boxSizing: 'border-box'
   },
@@ -508,12 +508,12 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     paddingRight: '6px'
   },
   folderPickerRow: {
-    background: 'rgba(15, 23, 42, 0.9)',
+    background: 'var(--mzr-surface-weak)',
     border: '1px solid rgba(148, 163, 184, 0.3)',
     borderRadius: '10px',
     padding: '10px 14px',
     textAlign: 'left',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     width: '96%',
     display: 'flex',
@@ -526,7 +526,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   },
   folderPickerLabel: {
     fontSize: '14px',
-    color: '#cbd5f5'
+    color: 'var(--mzr-text-secondary)'
   },
   folderPickerActions: {
     display: 'flex',
@@ -534,12 +534,12 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   },
   folderPickerValue: {
     fontSize: '14px',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     marginLeft: '8px'
   },
   fileHint: {
     fontSize: '12px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     marginTop: '4px'
   },
   bottomBar: {
@@ -547,7 +547,7 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     bottom: 0,
     left: 0,
     right: 0,
-    background: '#0f1729',
+    background: 'var(--mzr-surface-elevated)',
     borderTop: '1px solid rgba(148, 163, 184, 0.3)',
     display: 'flex',
     justifyContent: 'space-around',
@@ -557,9 +557,9 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   bottomButton: {
     padding: '10px 20px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
+    border: '1px solid var(--mzr-border)',
     background: 'rgba(37, 99, 235, 0.25)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontWeight: 600,
     cursor: 'pointer'
   },

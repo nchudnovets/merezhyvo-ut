@@ -11,6 +11,8 @@ import it from '../src/i18n/translations/it';
 import nl from '../src/i18n/translations/nl';
 import no from '../src/i18n/translations/no';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
+import { getThemeVars } from '../src/styles/theme';
+import type { ThemeName } from '../src/types/models';
 
 let renderLock = false;
 let currentLanguage = (() => {
@@ -42,6 +44,7 @@ const t = (key: string): string => {
 };
 
 type ContextMode = 'desktop' | 'mobile';
+type ThemeMode = 'dark' | 'light';
 
 type MenuItemOptions = {
   disabled?: boolean;
@@ -87,6 +90,36 @@ try {
 } catch {
   // ignore dataset errors
 }
+
+const THEME: ThemeMode = (() => {
+  try {
+    const params = new URLSearchParams(window.location.search ?? '');
+    return params.get('theme') === 'light' ? 'light' : 'dark';
+  } catch {
+    return 'dark';
+  }
+})();
+
+const applyThemeVars = (theme: ThemeMode): void => {
+  try {
+    const vars = getThemeVars(theme as ThemeName);
+    const rootStyle = document.documentElement.style;
+    const set = (key: string, value: string | undefined, fallback: string) => {
+      rootStyle.setProperty(key, value ?? fallback);
+    };
+    set('--ctx-color-scheme', vars['color-scheme'], theme);
+    set('--ctx-bg', vars['surface'] ?? vars['surface-elevated'], theme === 'light' ? '#ffffff' : '#0f1729');
+    set('--ctx-border', vars['border'], theme === 'light' ? '#CBD5E4' : 'rgba(148, 163, 184, 0.45)');
+    set('--ctx-text', vars['text-primary'], theme === 'light' ? '#0F1525' : '#f8fafc');
+    set('--ctx-muted', vars['text-muted'], theme === 'light' ? '#6B7A96' : 'rgba(248, 250, 252, 0.7)');
+    set('--ctx-hover', vars['accent-tint'], theme === 'light' ? '#E6EEFF' : 'rgba(255,255,255,0.06)');
+    set('--ctx-sep', vars['divider'], theme === 'light' ? '#E2E8F3' : 'rgba(148, 163, 184, 0.25)');
+  } catch {
+    // ignore theme application issues
+  }
+};
+
+applyThemeVars(THEME);
 
 function el<K extends keyof HTMLElementTagNameMap>(
   tag: K,

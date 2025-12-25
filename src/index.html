@@ -46,17 +46,17 @@
       will-change: transform;
       transform-origin: 50% 50%;
     }
-    .service-scroll::-webkit-scrollbar { width: 5px; height: 5px; }
-    .service-scroll::-webkit-scrollbar-track { background: #111827; }
+    .service-scroll::-webkit-scrollbar { width: 8px; height: 8px; }
+    .service-scroll::-webkit-scrollbar-track { background: var(--mzr-scrollbar-track); }
     .service-scroll::-webkit-scrollbar-thumb {
-      background: linear-gradient(180deg, rgba(59,130,246,0.85), rgba(79,70,229,0.8));
-      border-radius: 6px;
-      border: 1px solid rgba(15, 23, 42, 0.6);
+      background: var(--mzr-scrollbar-thumb);
+      border-radius: 999px;
+      border: 2px solid var(--mzr-scrollbar-track);
     }
-    .service-scroll::-webkit-scrollbar-thumb:hover { background: rgba(59,130,246,0.95); }
+    .service-scroll::-webkit-scrollbar-thumb:hover { background: var(--mzr-scrollbar-thumb-hover); }
     .service-scroll {
-      scrollbar-color: rgba(59,130,246,0.85) #111827;
-      scrollbar-width: 5px;
+      scrollbar-color: var(--mzr-scrollbar-thumb) var(--mzr-scrollbar-track);
+      scrollbar-width: thin;
       overflow: auto;
     }
 

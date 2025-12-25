@@ -6,7 +6,7 @@ export const tabsPanelStyles: StyleRecord = {
   backdrop: {
     position: 'fixed',
     inset: 0,
-    backgroundColor: 'rgba(10, 12, 22, 0.72)',
+    backgroundColor: 'var(--mzr-overlay)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -18,7 +18,7 @@ export const tabsPanelStyles: StyleRecord = {
     maxHeight: 'min(620px, 90vh)',
     borderRadius: '28px',
     border: '1px solid rgba(59, 130, 246, 0.35)',
-    background: 'rgba(15, 23, 42, 0.96)',
+    background: 'var(--mzr-surface-elevated)',
     boxShadow: '0 24px 60px rgba(2, 6, 23, 0.6)',
     display: 'flex',
     flexDirection: 'column',
@@ -31,7 +31,7 @@ export const tabsPanelStyles: StyleRecord = {
     height: '93vh',
     borderRadius: '28px',
     border: '1px solid rgba(59, 130, 246, 0.35)',
-    background: 'rgba(15, 23, 42, 0.96)',
+    background: 'var(--mzr-surface-elevated)',
     boxShadow: '0 -18px 50px rgba(2, 6, 23, 0.65)',
     display: 'flex',
     flexDirection: 'column',
@@ -64,7 +64,7 @@ export const tabsPanelStyles: StyleRecord = {
     padding: '6px 12px',
     // background: 'rgba(17, 24, 39, 0.6)',
     background: 'transparent',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '13px',
     fontWeight: 600,
     cursor: 'pointer',
@@ -86,7 +86,7 @@ export const tabsPanelStyles: StyleRecord = {
     borderRadius: '14px',
     border: '1px solid rgba(59, 130, 246, 0.45)',
     background: 'rgba(37, 99, 235, 0.15)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     fontSize: '14px',
     fontWeight: 600,
     cursor: 'pointer'
@@ -121,9 +121,9 @@ export const tabsPanelStyles: StyleRecord = {
     height: '38px',
     padding: '0 12px',
     borderRadius: '12px',
-    border: '1px solid rgba(148, 163, 184, 0.4)',
-    background: 'rgba(15, 23, 42, 0.85)',
-    color: '#f8fafc',
+    border: '1px solid var(--mzr-border)',
+    background: 'var(--mzr-surface-weak)',
+    color: 'var(--mzr-text-primary)',
     fontSize: '14px',
     fontWeight: 500,
     boxSizing: 'border-box'
@@ -134,7 +134,7 @@ export const tabsPanelStyles: StyleRecord = {
     borderRadius: '12px',
     border: 'none',
     background: 'rgba(148, 163, 184, 0.1)',
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     cursor: 'pointer',
     display: 'flex',
     alignItems: 'center',
@@ -162,7 +162,7 @@ export const tabsPanelStyles: StyleRecord = {
     fontSize: '15px',
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     marginTop: '10px'
   },
   list: {
@@ -177,13 +177,13 @@ export const tabsPanelStyles: StyleRecord = {
     alignItems: 'center',
     gap: '12px',
     padding: '20px 14px',
-    borderTop: '1px solid rgba(148, 163, 184, 0.2)',
+    borderTop: '1px solid var(--mzr-divider)',
     cursor: 'pointer',
   },
   tabRowActive: {
-    borderColor: 'rgb(62, 77, 106)',
-    backgroundColor: 'rgb(33, 62, 109)',
-    boxShadow: '0 0 0 1px rgba(59, 130, 246, 0.25)'
+    borderColor: 'var(--mzr-border-strong)',
+    backgroundColor: 'var(--mzr-accent-tint)',
+    boxShadow: '0 0 0 1px rgba(37, 99, 235, 0.35)'
   },
   tabInfo: {
     flex: 1,
@@ -210,7 +210,7 @@ export const tabsPanelStyles: StyleRecord = {
   },
   faviconFallback: {
     fontSize: '11px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     fontWeight: 600
   },
   tabTexts: {
@@ -222,14 +222,14 @@ export const tabsPanelStyles: StyleRecord = {
   tabTitle: {
     fontSize: '14px',
     fontWeight: 600,
-    color: '#f8fafc',
+    color: 'var(--mzr-text-primary)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
   },
   tabSubtitle: {
     fontSize: '12px',
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     whiteSpace: 'nowrap',
     overflow: 'hidden',
     textOverflow: 'ellipsis'
@@ -245,7 +245,7 @@ export const tabsPanelStyles: StyleRecord = {
     borderRadius: '10px',
     border: 'none',
     background: 'transparent',
-    color: '#cbd5f5',
+    color: 'var(--mzr-text-secondary)',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
@@ -274,7 +274,7 @@ export const tabsPanelStyles: StyleRecord = {
   activeSeparator: {
     height: '1px',
     width: '100%',
-    backgroundColor: 'rgba(148, 163, 184, 0.35)',
+    backgroundColor: 'var(--mzr-border)',
     margin: '6px 0'
   }
 } as const;

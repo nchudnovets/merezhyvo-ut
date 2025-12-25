@@ -66,13 +66,13 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
     fontSize: 12,
     letterSpacing: '0.08em',
     textTransform: 'uppercase',
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   title: {
     fontSize: 18,
     fontWeight: 700,
     letterSpacing: '-0.01em',
-    color: '#f8fafc'
+    color: 'var(--mzr-text-primary)'
   },
   metaColumn: {
     display: 'flex',
@@ -81,19 +81,19 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
   },
   siteText: {
     fontSize: 14,
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     lineHeight: 1.45
   },
   sitePrefix: {
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   requestList: {
     fontStyle: 'italic',
-    color: '#bfdbfe'
+    color: 'var(--mzr-accent-tint)'
   },
   multiNote: {
     fontSize: 12,
-    color: '#94a3b8',
+    color: 'var(--mzr-text-muted)',
     lineHeight: 1.5
   },
   permissionsList: {
@@ -110,7 +110,7 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 12,
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     cursor: 'default'
   },
   permissionRowSelected: {
@@ -127,12 +127,12 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
   },
   permissionHint: {
     fontSize: 12,
-    color: '#94a3b8'
+    color: 'var(--mzr-text-muted)'
   },
   checkbox: {
     width: 18,
     height: 18,
-    accentColor: '#2563eb',
+    accentColor: 'var(--mzr-accent)',
     cursor: 'pointer'
   },
   rememberRow: {
@@ -143,7 +143,7 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
   },
   rememberLabel: {
     fontSize: 13,
-    color: '#e2e8f0'
+    color: 'var(--mzr-text-secondary)'
   },
   actions: {
     padding: '18px 20px',
@@ -157,7 +157,7 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
     borderRadius: 12,
     border: '1px solid rgba(148,163,184,0.28)',
     background: 'rgba(15,23,42,0.6)',
-    color: '#e2e8f0',
+    color: 'var(--mzr-text-secondary)',
     fontSize: 14,
     fontWeight: 600,
     letterSpacing: '0.02em',
@@ -171,7 +171,7 @@ export const permissionPromptStyles: Record<StyleKeys, CSSProperties> = {
   actionButtonOutline: {},
   actionButtonPrimary: {
     border: '1px solid rgba(37,99,235,0.65)',
-    background: '#2563eb',
+    background: 'var(--mzr-accent)',
     color: '#ffffff'
   },
   actionButtonMuted: {
