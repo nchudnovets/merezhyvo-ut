@@ -438,6 +438,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
     },
     settingsLinkButton: {
       fontSize: '38px'
+    },
+    themeOption: {
+      fontSize: '42px'
     }
   }
 };
