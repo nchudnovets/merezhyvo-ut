@@ -54,11 +54,19 @@ export async function setThirdPartyException(host: string | null | undefined, al
   const normalizedHost = normalizeHost(host);
   const state = await getCookiePrivacyState();
   const nextMap = { ...(state.exceptions.thirdPartyAllow ?? {}) };
+  const matchesHost = (a: string, b: string): boolean => {
+    if (a === b) return true;
+    return a.endsWith(`.${b}`) || b.endsWith(`.${a}`);
+  };
   if (normalizedHost) {
     if (allow) {
       nextMap[normalizedHost] = true;
     } else {
-      delete nextMap[normalizedHost];
+      for (const key of Object.keys(nextMap)) {
+        if (matchesHost(key, normalizedHost)) {
+          delete nextMap[key];
+        }
+      }
     }
   }
   const next: CookiePrivacyState = {

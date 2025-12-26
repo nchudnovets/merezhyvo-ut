@@ -269,6 +269,7 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
   const blockThirdParty = typeof source.blockThirdParty === 'boolean' ? source.blockThirdParty : DEFAULT_COOKIE_PRIVACY.blockThirdParty;
   const exceptionsRaw = (source.exceptions && typeof source.exceptions === 'object') ? source.exceptions : {};
   const thirdPartyAllow = (exceptionsRaw as { thirdPartyAllow?: unknown }).thirdPartyAllow;
+  const hasProvidedExceptions = thirdPartyAllow !== undefined;
   const map: Record<string, boolean> = {};
   if (thirdPartyAllow && typeof thirdPartyAllow === 'object') {
     for (const [key, val] of Object.entries(thirdPartyAllow as Record<string, unknown>)) {
@@ -278,9 +279,11 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
       }
     }
   }
-  for (const host of MESSENGER_HOST_EXCEPTIONS) {
-    if (!(host in map)) {
-      map[host] = true;
+  if (!hasProvidedExceptions) {
+    for (const host of MESSENGER_HOST_EXCEPTIONS) {
+      if (!(host in map)) {
+        map[host] = true;
+      }
     }
   }
   return {
@@ -292,6 +295,7 @@ export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
 export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<TrackerPrivacySettings> : {};
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_TRACKER_PRIVACY.enabled;
+  const hasProvidedExceptions = Array.isArray(source.exceptions);
   const exceptions = Array.isArray(source.exceptions)
     ? Array.from(new Set(source.exceptions
       .map((item) => {
@@ -301,9 +305,11 @@ export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => 
       })
       .filter((item) => item.length > 0)))
     : [];
-  for (const host of MESSENGER_HOST_EXCEPTIONS) {
-    if (!exceptions.includes(host)) {
-      exceptions.push(host);
+  if (!hasProvidedExceptions) {
+    for (const host of MESSENGER_HOST_EXCEPTIONS) {
+      if (!exceptions.includes(host)) {
+        exceptions.push(host);
+      }
     }
   }
   return { enabled, exceptions };
@@ -312,6 +318,7 @@ export const sanitizeTrackerPrivacy = (raw: unknown): TrackerPrivacySettings => 
 export const sanitizeAdsPrivacy = (raw: unknown): AdsPrivacySettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<AdsPrivacySettings> : {};
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_ADS_PRIVACY.enabled;
+  const hasProvidedExceptions = Array.isArray(source.exceptions);
   const exceptions = Array.isArray(source.exceptions)
     ? Array.from(new Set(source.exceptions
       .map((item) => {
@@ -321,9 +328,11 @@ export const sanitizeAdsPrivacy = (raw: unknown): AdsPrivacySettings => {
       })
       .filter((item) => item.length > 0)))
     : [];
-  for (const host of MESSENGER_HOST_EXCEPTIONS) {
-    if (!exceptions.includes(host)) {
-      exceptions.push(host);
+  if (!hasProvidedExceptions) {
+    for (const host of MESSENGER_HOST_EXCEPTIONS) {
+      if (!exceptions.includes(host)) {
+        exceptions.push(host);
+      }
     }
   }
   return { enabled, exceptions };
