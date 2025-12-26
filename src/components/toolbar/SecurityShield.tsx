@@ -1,4 +1,5 @@
 import React from 'react';
+import type { CSSProperties } from 'react';
 import type { Mode, TrackerStatus } from '../../types/models';
 import { useI18n } from '../../i18n/I18nProvider';
 
@@ -36,6 +37,8 @@ type Props = {
   onToggleTrackerException?: (next: boolean) => void;
   onToggleAdsException?: (next: boolean) => void;
   onOpenTrackersExceptions?: () => void;
+  renderAnchor?: (params: { securityColor: string; toggle: () => void; mode: Mode }) => React.ReactNode;
+  popupStyle?: CSSProperties;
 };
 
 export const SecurityShield: React.FC<Props> = ({
@@ -55,7 +58,9 @@ export const SecurityShield: React.FC<Props> = ({
   onToggleTrackerException,
   onToggleAdsException,
   onOpenTrackersExceptions,
-  translate
+  translate,
+  renderAnchor,
+  popupStyle
 }) => {
   const { t: tContext } = useI18n();
   const t = translate ?? tContext;
@@ -73,6 +78,28 @@ export const SecurityShield: React.FC<Props> = ({
       : securityState === 'notice'
       ? 'var(--mzr-warning)'
       : 'var(--mzr-text-primary)';
+  const mergedPopupStyle = React.useMemo(
+    () =>
+      ({
+        position: 'absolute',
+        top: mode === 'mobile' ? '110%' : '105%',
+        left: mode === 'mobile' ? '0' : '0',
+        right: mode === 'mobile' ? '-40%' : '50%',
+        maxWidth: mode === 'mobile' ? '700px' : '460px',
+        minWidth: '360px',
+        padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
+        borderRadius: '12px',
+        background: 'var(--mzr-surface)',
+        border: '1px solid var(--mzr-border)',
+        boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
+        color: 'var(--mzr-text-secondary)',
+        zIndex: 60,
+        fontSize: mode === 'mobile' ? '36px' : '15px',
+        overflow: 'auto',
+        ...popupStyle
+      }) satisfies CSSProperties,
+    [mode, popupStyle]
+  );
 
   const linkStyle: React.CSSProperties = {
     alignSelf: 'flex-start',
@@ -85,56 +112,48 @@ export const SecurityShield: React.FC<Props> = ({
     textDecoration: 'underline'
   };
 
+  const anchor = renderAnchor ? (
+    renderAnchor({ securityColor, toggle: () => onToggleSecurity?.(), mode })
+  ) : (
+    <button
+      type="button"
+      onClick={() => onToggleSecurity?.()}
+      style={{
+        position: 'absolute',
+        left: mode === 'mobile' ? '14px' : '10px',
+        top: '50%',
+        transform: 'translateY(-50%)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        color: securityColor,
+        background: 'transparent',
+        border: 'none',
+        padding: 0,
+        cursor: 'pointer'
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width={mode === 'mobile' ? 60 : 18}
+        height={mode === 'mobile' ? 60 : 18}
+        fill="currentColor"
+        xmlns="http://www.w3.org/2000/svg"
+      >
+        <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
+      </svg>
+    </button>
+  );
+
   return (
     <>
-      <button
-        type="button"
-        onClick={() => onToggleSecurity?.()}
-        style={{
-          position: 'absolute',
-          left: mode === 'mobile' ? '14px' : '10px',
-          top: '50%',
-          transform: 'translateY(-50%)',
-          display: 'flex',
-          alignItems: 'center',
-          justifyContent: 'center',
-          color: securityColor,
-          background: 'transparent',
-          border: 'none',
-          padding: 0,
-          cursor: 'pointer'
-        }}
-      >
-        <svg
-          viewBox="0 0 24 24"
-          width={mode === 'mobile' ? 60 : 18}
-          height={mode === 'mobile' ? 60 : 18}
-          fill="currentColor"
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path d="M12 2 4 5v6c0 5.55 3.84 10.74 8 11 4.16-.26 8-5.45 8-11V5l-8-3Zm0 2.18 6 2.25v4.71c0 4.18-2.88 8.16-6 8.39-3.12-.23-6-4.21-6-8.39V6.43l6-2.25Zm0 3.07-2.4 2.4a3 3 0 0 0 4.8 0L12 7.25Z" />
-        </svg>
-      </button>
+      {anchor}
       {securityOpen && (
+        <>
+        <div style={{ position: 'fixed', inset: 0, zIndex: 59 }} onClick={() => onToggleSecurity?.()} />
         <div
           className="service-scroll"
-          style={{
-            position: 'absolute',
-            top: mode === 'mobile' ? '110%' : '105%',
-            left: mode === 'mobile' ? '0' : '0',
-            right: mode === 'mobile' ? '-40%' : '50%',
-            maxWidth: mode === 'mobile' ? '700px' : '460px',
-            minWidth: '360px',
-            padding: mode === 'mobile' ? '18px 18px 14px' : '12px 12px 10px',
-            borderRadius: '12px',
-            background: 'var(--mzr-surface)',
-            border: '1px solid var(--mzr-border)',
-            boxShadow: '0 12px 32px rgba(0,0,0,0.35)',
-            color: 'var(--mzr-text-secondary)',
-            zIndex: 60,
-            fontSize: mode === 'mobile' ? '36px' : '15px',
-            overflow: 'auto'
-          }}
+          style={mergedPopupStyle}
         >
           {securityView === 'root' && (
               <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 12 : 8 }}>
@@ -658,6 +677,7 @@ export const SecurityShield: React.FC<Props> = ({
             </div>
           )}
         </div>
+        </>
       )}
     </>
   );

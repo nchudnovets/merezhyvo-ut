@@ -28,6 +28,7 @@ export const messengerToolbarStyles = {
     alignItems: 'center',
     justifyContent: 'center',
     gap: '8px',
+    position: 'relative',
     borderWidth: '1px',
     borderStyle: 'solid',
     borderColor: 'var(--mzr-border)',
@@ -46,7 +47,8 @@ export const messengerToolbarStyles = {
     backgroundColor: 'var(--mzr-accent)',
     borderColor: 'var(--mzr-accent)',
     color: 'var(--mzr-text-primary)',
-    boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.25)'
+    boxShadow: '0 0 0 2px rgba(37, 99, 235, 0.25)',
+    paddingLeft: '34px'
   } satisfies CSSProperties,
   icon: {
     display: 'flex',
@@ -114,6 +116,9 @@ export const messengerToolbarModeStyles: Record<Mode, MessengerToolbarModeStyles
       padding: '6px 12px',
       fontSize: '30px',
       minHeight: '90px',
-    }
+    },
+    buttonActive: {
+      paddingLeft: '84px'
+    } satisfies CSSProperties,
   }
 };

@@ -2990,6 +2990,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onSelectMessenger={handleMessengerSelect}
               onExit={exitMessengerMode}
               toolbarRef={messengerToolbarRef}
+              securityState={securityState}
+              securityInfo={securityInfo}
+              certExceptionAllowed={certExceptionAllowed}
+              onToggleCertException={handleToggleCertException}
+              cookiePolicy={siteCookiePolicy}
+              onToggleCookieException={handleToggleCookieException}
+              onOpenSiteData={openSiteDataPage}
+              onOpenPrivacyInfo={openPrivacyInfoFromPopover}
+              onOpenSecurityExceptions={() => openInNewTab('mzr://security-exceptions')}
+              trackerStatus={trackerStatus}
+              onToggleTrackerException={handleToggleTrackerException}
+              onToggleAdsException={handleToggleAdsException}
+              onOpenTrackersExceptions={openTrackersExceptionsFromPopover}
             />
           )}
 
