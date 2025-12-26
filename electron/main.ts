@@ -84,11 +84,14 @@ if (!requireWithExtensions.extensions['.ts']) {
   requireWithExtensions.extensions['.ts'] = requireWithExtensions.extensions['.js'];
 }
 
-try {
-  nativeTheme.themeSource = 'dark';
-} catch {
-  // noop
-}
+const setNativeThemeSource = (theme: 'light' | 'dark'): void => {
+  try {
+    nativeTheme.themeSource = theme;
+  } catch {
+    // noop
+  }
+};
+setNativeThemeSource('dark');
 
 // Default environment values (for launches without wrapper scripts)
 if (!process.env.XCURSOR_SIZE) {
@@ -150,6 +153,11 @@ void (async () => {
     if (state?.downloads) {
       downloads.setDefaultDir(state.downloads.defaultDir);
       downloads.setConcurrent(state.downloads.concurrent);
+    }
+    if (state?.ui?.theme === 'light') {
+      setNativeThemeSource('light');
+    } else {
+      setNativeThemeSource('dark');
     }
     await ensureBlockingModeSaved(state);
     try {
@@ -1850,16 +1858,17 @@ ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
   try {
     const currentState = await readSettingsState();
     const existingUi = currentState?.ui ?? {};
-    const patch =
-      typeof payload === 'object' && payload && !Array.isArray(payload)
-        ? (payload as Partial<UISettings>)
-        : {};
-    const mergedUi = sanitizeUiSettings({ ...existingUi, ...patch });
-    const nextState = await writeSettingsState({ ui: mergedUi });
-    return {
-      ok: true,
-      scale: nextState.ui?.scale ?? mergedUi.scale,
-      hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote,
+  const patch =
+    typeof payload === 'object' && payload && !Array.isArray(payload)
+      ? (payload as Partial<UISettings>)
+      : {};
+  const mergedUi = sanitizeUiSettings({ ...existingUi, ...patch });
+    setNativeThemeSource(mergedUi.theme ?? 'dark');
+  const nextState = await writeSettingsState({ ui: mergedUi });
+  return {
+    ok: true,
+    scale: nextState.ui?.scale ?? mergedUi.scale,
+    hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote,
       language: nextState.ui?.language ?? mergedUi.language,
       theme: nextState.ui?.theme ?? mergedUi.theme
     };

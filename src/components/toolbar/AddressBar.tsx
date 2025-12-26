@@ -376,27 +376,40 @@ const AddressBar: React.FC<AddressBarProps> = ({
                     <path d="M4 5h16v2H4zm0 6h16v2H4zm0 6h10v2H4z" />
                   </svg>
                   <div style={{ textAlign: 'left' }}>
-                    <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '14px' }}>{t('security.trackers.menuTitle')}</div>
-                    <div
-                      style={{
-                        opacity: 0.9,
-                        fontSize: mode === 'mobile' ? '33px' : '13px',
-                        color:
-                          ((trackerStatus?.trackersEnabledGlobal && trackerStatus?.trackersAllowedForSite) ||
-                            (trackerStatus?.adsEnabledGlobal && trackerStatus?.adsAllowedForSite))
-                            ? '#fbbf24'
-                            : undefined
-                      }}
-                    >
-                      {!trackerStatus?.trackersEnabledGlobal && !trackerStatus?.adsEnabledGlobal
-                        ? t('security.trackers.statusDisabled')
-                        : (trackerStatus?.trackersAllowedForSite && trackerStatus.trackersEnabledGlobal) ||
-                            (trackerStatus?.adsAllowedForSite && trackerStatus.adsEnabledGlobal)
-                          ? t('security.trackers.statusAllowed')
-                          : t('security.trackers.statusBlocked', { count: trackerStatus?.blockedTotal ?? 0 })}
+                      <div style={{ fontWeight: 700, fontSize: mode === 'mobile' ? '36px' : '14px' }}>{t('security.trackers.menuTitle')}</div>
+                      <div
+                        style={{
+                          opacity: 0.9,
+                          fontSize: mode === 'mobile' ? '33px' : '13px',
+                          color:
+                            ((trackerStatus?.trackersEnabledGlobal && trackerStatus?.trackersAllowedForSite) ||
+                              (trackerStatus?.adsEnabledGlobal && trackerStatus?.adsAllowedForSite))
+                              ? '#fbbf24'
+                              : undefined
+                        }}
+                      >
+                        {(() => {
+                          const trackersAllowed =
+                            trackerStatus?.trackersEnabledGlobal && trackerStatus?.trackersAllowedForSite;
+                          const adsAllowed =
+                            trackerStatus?.adsEnabledGlobal && trackerStatus?.adsAllowedForSite;
+                          if (!trackerStatus?.trackersEnabledGlobal && !trackerStatus?.adsEnabledGlobal) {
+                            return t('security.trackers.statusDisabled');
+                          }
+                          if (trackersAllowed && adsAllowed) {
+                            return t('security.trackers.statusAllowedBoth');
+                          }
+                          if (trackersAllowed) {
+                            return t('security.trackers.statusAllowedTrackers');
+                          }
+                          if (adsAllowed) {
+                            return t('security.trackers.statusAllowedAds');
+                          }
+                          return t('security.trackers.statusBlocked', { count: trackerStatus?.blockedTotal ?? 0 });
+                        })()}
+                      </div>
                     </div>
                   </div>
-                </div>
                 <svg
                   viewBox="0 0 16 16"
                   width={mode === 'mobile' ? 28 : 14}
