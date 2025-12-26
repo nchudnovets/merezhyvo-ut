@@ -99,6 +99,7 @@ const pl = {
   'settings.messenger.empty': 'Brak dostępnych komunikatorów.',
   'settings.messenger.moveUp': 'Przesuń {title} w górę',
   'settings.messenger.moveDown': 'Przesuń {title} w dół',
+  'settings.messenger.hideToolbar': 'Ukryj pasek komunikatorów',
   'toolbar.openMessenger': 'Otwórz tryb komunikatora',
   'toolbar.openSettings': 'Otwórz ustawienia',
   'toolbar.tor.enable': 'Włącz Tor',

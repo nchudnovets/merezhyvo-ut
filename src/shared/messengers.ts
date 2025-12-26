@@ -48,14 +48,15 @@ export const sanitizeMessengerOrder = (raw: unknown): MessengerId[] => {
 };
 
 export const sanitizeMessengerSettings = (raw: unknown): MessengerSettings => {
-  const source = (typeof raw === 'object' && raw !== null) ? raw as { order?: unknown } : {};
+  const source = (typeof raw === 'object' && raw !== null) ? raw as { order?: unknown; hideToolbar?: unknown } : {};
   const order = sanitizeMessengerOrder(source.order);
-  return { order };
+  const hideToolbar = typeof source.hideToolbar === 'boolean' ? source.hideToolbar : false;
+  return { order, hideToolbar };
 };
 
 export const buildMessengerSettings = (order: MessengerId[] | null | undefined): MessengerSettings => {
   const sanitized = sanitizeMessengerOrder(order);
-  return { order: sanitized };
+  return { order: sanitized, hideToolbar: false };
 };
 
 export const getMessengerDefinitionsById = (): Record<MessengerId, MessengerDefinition> => {

@@ -99,6 +99,7 @@ const nl = {
   'settings.messenger.empty': 'Geen messengers beschikbaar.',
   'settings.messenger.moveUp': 'Verplaats {title} omhoog',
   'settings.messenger.moveDown': 'Verplaats {title} omlaag',
+  'settings.messenger.hideToolbar': 'Messengerbalk verbergen',
   'toolbar.openMessenger': 'Messenger-modus openen',
   'toolbar.openSettings': 'Instellingen openen',
   'toolbar.tor.enable': 'Tor inschakelen',

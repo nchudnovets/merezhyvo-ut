@@ -91,6 +91,7 @@ const it = {
   'settings.messenger.empty': 'Nessun messenger disponibile.',
   'settings.messenger.moveUp': 'Sposta {title} su',
   'settings.messenger.moveDown': 'Sposta {title} giù',
+  'settings.messenger.hideToolbar': 'Nascondi la barra messenger',
   'toolbar.openMessenger': 'Apri modalità messenger',
   'toolbar.openSettings': 'Apri impostazioni',
   'toolbar.tor.enable': 'Attiva Tor',

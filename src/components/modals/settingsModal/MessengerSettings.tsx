@@ -11,6 +11,8 @@ type MessengerSettingsProps = {
   saving: boolean;
   message: string;
   onMove: (id: MessengerId, direction: 'up' | 'down') => void;
+  hideToolbar: boolean;
+  onToggleHideToolbar: (hide: boolean) => void;
 };
 
 export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
@@ -18,7 +20,9 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
   items,
   saving,
   message,
-  onMove
+  onMove,
+  hideToolbar,
+  onToggleHideToolbar
 }) => {
   // const [expanded, setExpanded] = useState<boolean>(false);
 
@@ -31,6 +35,9 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
   };
   const actionIconWidth = (modeStyles.settingsMessengerActionIcn?.width ?? 14) as number | string;
   const actionIconHeight = (modeStyles.settingsMessengerActionIcn?.height ?? actionIconWidth) as number | string;
+  const toggleTrackWidth = mode === 'mobile' ? 90 : 46;
+  const toggleTrackHeight = mode === 'mobile' ? 48 : 24;
+  const toggleThumbSize = mode === 'mobile' ? 40 : 18;
 
   return (
     <div style={blockBodyStyle}>
@@ -136,6 +143,75 @@ export const MessengerSettings: React.FC<MessengerSettingsProps> = ({
           })}
         </ul>
       )}
+
+      <div
+        style={{
+          marginTop: 16,
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: 12
+        }}
+      >
+        <span
+          style={{
+            ...styles.messengerHint,
+            ...(modeStyles.settingsMessengerHint || {}),
+            margin: 0
+          }}
+        >
+          {t('settings.messenger.hideToolbar')}
+        </span>
+        <label
+          style={{
+            position: 'relative',
+            width: toggleTrackWidth,
+            height: toggleTrackHeight,
+            display: 'inline-block',
+            cursor: 'pointer',
+            flexShrink: 0
+          }}
+        >
+          <input
+            type="checkbox"
+            checked={hideToolbar}
+            onChange={(event) => onToggleHideToolbar(event.target.checked)}
+            style={{
+              position: 'absolute',
+              inset: 0,
+              opacity: 0,
+              margin: 0,
+              cursor: 'pointer',
+              zIndex: 2
+            }}
+          />
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              inset: 0,
+              borderRadius: 999,
+              backgroundColor: hideToolbar ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+              border: '1px solid var(--mzr-border)',
+              transition: 'background-color 160ms ease, border-color 160ms ease'
+            }}
+          />
+          <span
+            aria-hidden="true"
+            style={{
+              position: 'absolute',
+              top: (toggleTrackHeight - toggleThumbSize) / 2,
+              left: hideToolbar ? toggleTrackWidth - toggleThumbSize - 4 : 4,
+              width: toggleThumbSize,
+              height: toggleThumbSize,
+              borderRadius: 999,
+              backgroundColor: '#fff',
+              boxShadow: '0 2px 6px rgba(0,0,0,0.2)',
+              transition: 'left 160ms ease'
+            }}
+          />
+        </label>
+      </div>
 
       {message && (
         <p

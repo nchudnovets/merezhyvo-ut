@@ -99,6 +99,7 @@ const es = {
   'settings.messenger.empty': 'No hay mensajeros disponibles.',
   'settings.messenger.moveUp': 'Mover {title} arriba',
   'settings.messenger.moveDown': 'Mover {title} abajo',
+  'settings.messenger.hideToolbar': 'Ocultar barra de mensajería',
   'toolbar.openMessenger': 'Abrir modo mensajero',
   'toolbar.openSettings': 'Abrir configuración',
   'toolbar.tor.enable': 'Activar Tor',

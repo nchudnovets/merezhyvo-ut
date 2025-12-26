@@ -99,6 +99,7 @@ const de = {
   'settings.messenger.empty': 'Keine Messenger verfügbar.',
   'settings.messenger.moveUp': '{title} nach oben',
   'settings.messenger.moveDown': '{title} nach unten',
+  'settings.messenger.hideToolbar': 'Messenger-Leiste ausblenden',
   'toolbar.openMessenger': 'Messenger-Modus öffnen',
   'toolbar.openSettings': 'Einstellungen öffnen',
   'toolbar.tor.enable': 'Tor aktivieren',

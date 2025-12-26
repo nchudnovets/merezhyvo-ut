@@ -2008,13 +2008,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!moved) return;
     nextOrder.splice(targetIndex, 0, moved);
 
-    messengerSettingsRef.current = { order: nextOrder };
-    setMessengerSettingsState({ order: nextOrder });
+    const nextSettings = { ...currentSettings, order: nextOrder };
+    messengerSettingsRef.current = nextSettings;
+    setMessengerSettingsState(nextSettings);
     setMessengerOrderSaving(true);
     setMessengerOrderMessage('');
 
     try {
-      const saved = await ipc.settings.messenger.update(nextOrder);
+      const saved = await ipc.settings.messenger.update({ order: nextOrder, hideToolbar: nextSettings?.hideToolbar });
       if (saved && Array.isArray(saved.order)) {
         messengerSettingsRef.current = saved;
         setMessengerSettingsState(saved);
@@ -2023,13 +2024,31 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setMessengerOrderMessage('Unable to save messenger order');
       }
     } catch {
-      messengerSettingsRef.current = { order: previousOrder };
-      setMessengerSettingsState({ order: previousOrder });
+      const rollback = { ...(currentSettings ?? {}), order: previousOrder };
+      messengerSettingsRef.current = rollback;
+      setMessengerSettingsState(rollback);
       setMessengerOrderMessage('Failed to save messenger order');
     } finally {
       setMessengerOrderSaving(false);
     }
   }, [messengerSettingsRef, setMessengerOrderMessage, setMessengerOrderSaving, setMessengerSettingsState]);
+
+  const handleToggleMessengerToolbarVisibility = useCallback(
+    async (hide: boolean) => {
+      const currentSettings = messengerSettingsRef.current;
+      const nextSettings = { ...(currentSettings ?? {}), hideToolbar: hide };
+      messengerSettingsRef.current = nextSettings;
+      setMessengerSettingsState(nextSettings);
+      try {
+        const saved = await ipc.settings.messenger.update(nextSettings);
+        messengerSettingsRef.current = saved;
+        setMessengerSettingsState(saved);
+      } catch {
+        // keep optimistic state
+      }
+    },
+    [messengerSettingsRef, setMessengerSettingsState]
+  );
 
   useEffect(() => {
     if (mainViewMode !== 'messenger') return;
@@ -2959,6 +2978,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onToggleTor={handleToggleTor}
               onOpenSettings={openSettingsModal}
               onEnterMessengerMode={handleEnterMessengerMode}
+              showMessengerButton={!messengerSettingsState?.hideToolbar}
               downloadIndicatorState={downloadIndicatorState}
               onDownloadIndicatorClick={handleDownloadIndicatorClick}
               toolbarRef={toolbarRef}
@@ -3059,6 +3079,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               messengerOrderSaving={messengerOrderSaving}
               messengerOrderMessage={messengerOrderMessage}
               onMessengerMove={handleMessengerMove}
+              hideMessengerToolbar={Boolean(messengerSettingsState?.hideToolbar)}
+              onToggleMessengerToolbar={handleToggleMessengerToolbarVisibility}
               onRequestPasswordUnlock={requestPasswordUnlock}
               scrollToSection={settingsScrollTarget}
               onScrollSectionHandled={() => setSettingsScrollTarget(null)}

@@ -122,6 +122,7 @@ const no = {
   'settings.messenger.empty': 'Ingen meldingsapper tilgjengelige.',
   'settings.messenger.moveUp': 'Flytt {title} opp',
   'settings.messenger.moveDown': 'Flytt {title} ned',
+  'settings.messenger.hideToolbar': 'Skjul meldingslinjen',
 
   'toolbar.openMessenger': 'Åpne meldingsmodus',
   'toolbar.openSettings': 'Åpne innstillinger',

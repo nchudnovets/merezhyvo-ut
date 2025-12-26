@@ -10,6 +10,7 @@ export interface MessengerDefinition {
 
 export interface MessengerSettings {
   order: MessengerId[];
+  hideToolbar?: boolean;
 }
 
 export type ThemeName = 'dark' | 'light';

@@ -33,6 +33,7 @@ interface ToolbarProps {
   onToggleTor: () => void;
   onOpenSettings: () => void;
   onEnterMessengerMode: () => void;
+  showMessengerButton?: boolean;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
   onDownloadIndicatorClick: () => void;
   toolbarRef?: RefObject<HTMLDivElement>;
@@ -93,6 +94,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onToggleTor,
   onOpenSettings,
   onEnterMessengerMode,
+  showMessengerButton = true,
   downloadIndicatorState,
   onDownloadIndicatorClick,
   toolbarRef,
@@ -120,7 +122,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
 
   return (
     <div ref={toolbarRef} style={toolbarStyles.toolbar} className="toolbar">
-    {!compact && (
+    {!compact && showMessengerButton && (
       <button
         type="button"
         aria-label={t('toolbar.openMessenger')}

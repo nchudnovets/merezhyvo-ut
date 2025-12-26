@@ -103,13 +103,13 @@ export const ipc = {
           return sanitizeMessengerSettings(null);
         }
       },
-      async update(order: MessengerSettings['order']): Promise<MessengerSettings> {
+      async update(payload: Partial<MessengerSettings>): Promise<MessengerSettings> {
         try {
-          const res = await getApi()?.settings?.messenger?.update?.(order ?? []);
+          const res = await getApi()?.settings?.messenger?.update?.(payload ?? {});
           return sanitizeMessengerSettings(res);
         } catch (err) {
           console.error('settings.messenger.update failed', err);
-          return sanitizeMessengerSettings({ order });
+          return sanitizeMessengerSettings(payload);
         }
       }
     },

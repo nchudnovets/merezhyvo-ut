@@ -253,7 +253,7 @@ export interface MerezhyvoAPI {
     };
     messenger: {
       get(): Promise<MessengerSettings>;
-      update(order: MessengerSettings['order']): Promise<MessengerSettings>;
+      update(payload: Partial<MessengerSettings>): Promise<MessengerSettings>;
     };
     https: {
       get(): Promise<{ httpsMode: HttpsMode; sslExceptions: SslException[] }>;

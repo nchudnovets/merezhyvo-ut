@@ -378,14 +378,14 @@ const exposeApi: MerezhyvoAPI = {
           return sanitizeMessengerSettings(null);
         }
       },
-      update: async (order) => {
+      update: async (payload) => {
         try {
-          const payload = Array.isArray(order) ? order : [];
-          const result = await ipcRenderer.invoke('merezhyvo:settings:messenger:update', payload);
+          const normalized = payload && typeof payload === 'object' ? payload : { order: Array.isArray(payload) ? payload : [] };
+          const result = await ipcRenderer.invoke('merezhyvo:settings:messenger:update', normalized);
           return sanitizeMessengerSettings(result);
         } catch (err) {
           console.error('[merezhyvo] settings.messenger.update failed', err);
-          return sanitizeMessengerSettings({ order });
+          return sanitizeMessengerSettings(payload);
         }
       }
     },

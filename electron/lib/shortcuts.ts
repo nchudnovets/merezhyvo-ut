@@ -170,7 +170,8 @@ const DEFAULT_UI_SETTINGS: UISettings = {
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
-  order: [...DEFAULT_MESSENGER_ORDER]
+  order: [...DEFAULT_MESSENGER_ORDER],
+  hideToolbar: false
 };
 
 const MESSENGER_HOST_EXCEPTIONS = [

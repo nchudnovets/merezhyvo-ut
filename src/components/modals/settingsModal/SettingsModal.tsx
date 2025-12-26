@@ -40,6 +40,8 @@ interface SettingsModalProps {
   messengerOrderSaving: boolean;
   messengerOrderMessage: string;
   onMessengerMove: (id: MessengerId, direction: 'up' | 'down') => void;
+  hideMessengerToolbar: boolean;
+  onToggleMessengerToolbar: (hide: boolean) => void;
   downloadsConcurrent: 1 | 2 | 3;
   downloadsSaving: boolean;
   onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
@@ -89,7 +91,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   messengerItems,
   messengerOrderSaving,
   messengerOrderMessage,
-  onMessengerMove
+  onMessengerMove,
+  hideMessengerToolbar,
+  onToggleMessengerToolbar
   ,
   downloadsConcurrent,
   downloadsSaving,
@@ -327,7 +331,9 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
               items: messengerItems,
               saving: messengerOrderSaving,
               message: messengerOrderMessage,
-              onMove: onMessengerMove
+              onMove: onMessengerMove,
+              hideToolbar: hideMessengerToolbar,
+              onToggleHideToolbar: onToggleMessengerToolbar
             }) as ReactNode}
           />
 
