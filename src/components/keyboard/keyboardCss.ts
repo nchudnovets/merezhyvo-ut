@@ -7,7 +7,9 @@ const pick = (vars: Record<string, string>, key: string, fallback: string): stri
   (typeof vars?.[key] === 'string' && vars[key].trim().length > 0 ? vars[key] : fallback);
 
 const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
-  const bg = theme === 'light' ? 'rgba(255,255,255,0.92)' : 'rgba(24,24,24,0.95)';
+  const bg = theme === 'light'
+    ? 'rgba(255,255,255,0.92)'
+    : pick(vars, 'surface-weak', '#1b2f55');
   const text = pick(vars, 'text-primary', theme === 'light' ? '#0F1525' : '#f8fafc');
   const muted = pick(vars, 'text-muted', theme === 'light' ? '#6B7A96' : 'rgba(248,250,252,0.7)');
   const border = pick(vars, 'border', theme === 'light' ? '#CBD5E4' : 'rgba(148, 163, 184, 0.45)');
@@ -85,7 +87,8 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
   }
   .mzr-osk .hg-button:active,
   .mzr-osk .hg-button.mzr-osk-pressed {
-    filter: brightness(1.05);
+    filter: brightness(1.06);
+    background: var(--mzr-osk-hover) !important;
     border-color: var(--mzr-osk-accent);
     transform: translateX(-2px) translateY(2px);
   }
