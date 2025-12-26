@@ -512,12 +512,165 @@ export function makeWebInjects(
     return sendCharsTrusted(value);
   };
 
+  const detectEnterMode = async (): Promise<'newline' | 'submit'> => {
+    const wv = getActiveWebview();
+    if (!wv) return 'submit';
+    const probe = `
+      (function () {
+        try {
+          const nonText = { button:1, submit:1, reset:1, checkbox:1, radio:1, range:1, color:1, file:1, image:1, hidden:1 };
+          const singleLineRoles = { searchbox:1, combobox:1, textbox:1 };
+          function isSingleLineEditable(el) {
+            if (!el) return false;
+            const tag = (el.tagName || '').toLowerCase();
+            if (tag === 'textarea') {
+              const rows = Number(el.getAttribute('rows') || 0);
+              if (rows > 1) return false;
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              if (aria === 'true') return false;
+              return true;
+            }
+            if (tag === 'input') {
+              const type = (el.getAttribute('type') || '').toLowerCase();
+              if (nonText[type]) return false;
+              const role = (el.getAttribute('role') || '').toLowerCase();
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              const dataSingle = (el.getAttribute('data-singleline') || '').toLowerCase();
+              if (aria === 'true') return false;
+              if (role && singleLineRoles[role]) return true;
+              if (dataSingle === 'true') return true;
+              const inputMode = (el.getAttribute('inputmode') || '').toLowerCase();
+              if (inputMode === 'search') return true;
+              return true;
+            }
+            if (el.isContentEditable) {
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              const dataSingle = (el.getAttribute('data-singleline') || '').toLowerCase();
+              if (aria === 'false' || dataSingle === 'true') return true;
+              return false;
+            }
+            return true;
+          }
+          function isMultilineEditable(el) {
+            if (!el) return false;
+            const tag = (el.tagName || '').toLowerCase();
+            if (tag === 'textarea') {
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              if (aria === 'false') return false;
+              const rows = Number(el.getAttribute('rows') || 0);
+              return rows !== 1;
+            }
+            if (el.isContentEditable) {
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              const dataSingle = (el.getAttribute('data-singleline') || '').toLowerCase();
+              if (aria === 'false' || dataSingle === 'true') return false;
+              const ws = getComputedStyle(el).whiteSpace;
+              if (ws === 'pre' || ws === 'pre-wrap' || ws === 'break-spaces') return true;
+              return true;
+            }
+            if (tag === 'input') {
+              const type = (el.getAttribute('type') || '').toLowerCase();
+              if (nonText[type]) return false;
+              const aria = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              if (aria === 'true') return true;
+              return false;
+            }
+            return false;
+          }
+
+          let el = document.activeElement;
+          try {
+            if (el && el.tagName === 'IFRAME' && el.contentWindow && el.contentWindow.document) {
+              el = el.contentWindow.document.activeElement || el;
+            }
+          } catch (_) {}
+
+          if (!el) return 'submit';
+          if (isMultilineEditable(el) && !isSingleLineEditable(el)) return 'newline';
+          if (isMultilineEditable(el) && el.tagName === 'TEXTAREA') return 'newline';
+
+          return 'submit';
+        } catch (e) {
+          return 'submit';
+        }
+      })();
+    `;
+    try {
+      const mode = await wv.executeJavaScript(probe, false);
+      return mode === 'newline' ? 'newline' : 'submit';
+    } catch {
+      return 'submit';
+    }
+  };
+
+  const insertNewlineDom = async (): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const code = `
+      (function(){
+        try{
+          var el = document.activeElement;
+          try {
+            if (el && el.tagName === 'IFRAME' && el.contentWindow && el.contentWindow.document) {
+              el = el.contentWindow.document.activeElement || el;
+            }
+          } catch(_) {}
+          if(!el) return false;
+          var tag = (el.tagName||'').toLowerCase();
+          if(tag==='textarea'){
+            var ip = el;
+            var val = String(ip.value||'');
+            var s = typeof ip.selectionStart==='number' ? ip.selectionStart : val.length;
+            var e = typeof ip.selectionEnd==='number' ? ip.selectionEnd : s;
+            var nl = '\\n';
+            if(typeof ip.setRangeText==='function'){
+              ip.setRangeText(nl,s,e,'end');
+            } else {
+              ip.value = val.slice(0,s) + nl + val.slice(e);
+              var pos = s + nl.length;
+              if (ip.setSelectionRange) ip.setSelectionRange(pos,pos);
+            }
+            ip.dispatchEvent(new InputEvent('input',{inputType:'insertLineBreak',data:'\\n',bubbles:true}));
+            document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+            try{ ip.focus({preventScroll:true}); }catch(_){ try{ ip.focus(); }catch(__){} }
+            return true;
+          }
+          if(el.isContentEditable){
+            var sel = window.getSelection && window.getSelection();
+            if(sel){
+              var range = sel.rangeCount>0 ? sel.getRangeAt(0) : null;
+              if(range){
+                range.deleteContents();
+                range.insertNode(document.createTextNode('\\n'));
+                range.collapse(false);
+                el.dispatchEvent(new InputEvent('input',{inputType:'insertLineBreak',data:'\\n',bubbles:true}));
+                document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+                try{ el.focus({preventScroll:true}); }catch(_){ try{ el.focus(); }catch(__){} }
+                return true;
+              }
+            }
+          }
+          return false;
+        }catch(e){ return false; }
+      })();
+    `;
+    try {
+      return Boolean(await wv.executeJavaScript(code, false));
+    } catch {
+      return false;
+    }
+  };
+
   const backspace = async (): Promise<boolean> => {
     return sendKeyTrusted('Backspace');
   };
 
   const enter = async (): Promise<boolean> => {
-    // Real Enter key: on textarea inserts newline; on "search" fields triggers site submit.
+    const mode = await detectEnterMode();
+    if (mode === 'newline') {
+      const inserted = await insertNewlineDom();
+      if (inserted) return true;
+    }
     return sendKeyTrusted('Enter');
   };
 
