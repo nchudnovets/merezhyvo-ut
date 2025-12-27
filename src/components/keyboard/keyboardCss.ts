@@ -124,7 +124,7 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
 
   .mzr-osk-popup {
     position: fixed;
-    transform: translate(-50%, -100%);
+    transform: translateY(-100%);
     background: var(--mzr-osk-popup-bg);
     color: var(--mzr-osk-text);
     padding: 8px 10px;

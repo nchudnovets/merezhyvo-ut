@@ -1847,10 +1847,12 @@ ipcMain.handle('merezhyvo:ui:getScale', async () => {
       scale: state.ui?.scale ?? 1,
       hideFileDialogNote: state.ui?.hideFileDialogNote ?? false,
       language: state.ui?.language ?? DEFAULT_LOCALE,
-      theme: state.ui?.theme ?? 'dark'
+      theme: state.ui?.theme ?? 'dark',
+      webZoomMobile: state.ui?.webZoomMobile ?? 2.3,
+      webZoomDesktop: state.ui?.webZoomDesktop ?? 1.0
     };
   } catch {
-    return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark' };
+    return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark', webZoomMobile: 2.3, webZoomDesktop: 1.0 };
   }
 });
 
@@ -1870,7 +1872,9 @@ ipcMain.handle('merezhyvo:ui:setScale', async (_event, payload: unknown) => {
     scale: nextState.ui?.scale ?? mergedUi.scale,
     hideFileDialogNote: nextState.ui?.hideFileDialogNote ?? mergedUi.hideFileDialogNote,
       language: nextState.ui?.language ?? mergedUi.language,
-      theme: nextState.ui?.theme ?? mergedUi.theme
+      theme: nextState.ui?.theme ?? mergedUi.theme,
+      webZoomMobile: nextState.ui?.webZoomMobile ?? mergedUi.webZoomMobile,
+      webZoomDesktop: nextState.ui?.webZoomDesktop ?? mergedUi.webZoomDesktop
     };
   } catch (err) {
     console.error('[merezhyvo] ui scale update failed', err);

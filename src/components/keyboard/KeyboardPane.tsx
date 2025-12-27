@@ -560,13 +560,19 @@ const KeyboardPane: React.FC<Props> = (p) => {
           holdActivated.current = true;
           setActiveButton(null);
           const viewportW = (typeof window !== 'undefined' ? window.innerWidth : 0) * inv;
-          const minX = 24;
-          const maxX = viewportW ? Math.max(minX, viewportW - 24) : undefined;
-          const rawX = Math.round((rect.left + rect.width / 2) * inv);
+          const rawCenter = Math.round((rect.left + rect.width / 2) * inv);
+          const estimatedWidth = Math.min(
+            viewportW > 0 ? viewportW - 16 : alts.length * 72 + 24,
+            Math.max(150, alts.length * 72 + 24)
+          );
+          let left = rawCenter - estimatedWidth / 2;
+          if (viewportW > 0) {
+            left = Math.max(8, Math.min(left, viewportW - estimatedWidth - 8));
+          }
           setPopup({
             key: btn,
             alts,
-            x: maxX ? Math.min(maxX, Math.max(minX, rawX)) : rawX,
+            x: left,
             y: Math.round((rect.top - 10) * inv),
           });
         }, LONGPRESS_MS);

@@ -29,8 +29,8 @@ const ThemeSetting: React.FC<ThemeSettingProps> = ({ mode, value, onChange }) =>
   return (
     <div style={merge('themeContainer')}>
       <div style={merge('themeHeader')}>
-        <span style={{ ...merge('themeLabel'), ...(isMobile ? { fontSize: 42 } : {}) }}>{t('settings.theme.label')}</span>
-        <span style={{ ...merge('themeHelper'), ...(isMobile ? { fontSize: 37 } : {}) }}>{t('settings.theme.helper')}</span>
+        <span style={{ ...merge('themeLabel'), ...(isMobile ? { fontSize: 42 } : {fontSize: 16}) }}>{t('settings.theme.label')}</span>
+        <span style={{ ...merge('themeHelper'), ...(isMobile ? { fontSize: 37 } : {fontSize: 14}) }}>{t('settings.theme.helper')}</span>
       </div>
       <div style={merge('themeOptions')}>
         {options.map((opt) => {

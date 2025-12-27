@@ -465,6 +465,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     [setTheme]
   );
 
+  const handleWebZoomMobileChange = useCallback(async (value: number) => {
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
+    setWebZoomDefaults((prev) => ({ ...prev, mobile: clamped }));
+    try {
+      await ipc.ui.update({ webZoomMobile: clamped });
+    } catch {
+      // ignore persistence failure
+    }
+  }, []);
+
+  const handleWebZoomDesktopChange = useCallback(async (value: number) => {
+    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, Math.round(value * 100) / 100));
+    setWebZoomDefaults((prev) => ({ ...prev, desktop: clamped }));
+    try {
+      await ipc.ui.update({ webZoomDesktop: clamped });
+    } catch {
+      // ignore persistence failure
+    }
+  }, []);
+
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -479,6 +499,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           downloads.concurrent === 1 || downloads.concurrent === 3 ? downloads.concurrent : 2
         );
         setUiScale(state.ui?.scale ?? 1);
+        setWebZoomDefaults({
+          mobile: typeof state.ui?.webZoomMobile === 'number' ? state.ui.webZoomMobile : 2.3,
+          desktop: typeof state.ui?.webZoomDesktop === 'number' ? state.ui.webZoomDesktop : 1.0
+        });
         const themePref = state.ui?.theme === 'light' ? 'light' : 'dark';
         setTheme(themePref);
         setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
@@ -499,6 +523,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setTorKeepEnabledDraft(false);
           setDownloadsConcurrent(2);
           setUiScale(1);
+          setWebZoomDefaults({ mobile: 2.3, desktop: 1.0 });
           setTheme('dark');
           setHttpsMode('strict');
           setSslExceptions([]);
@@ -1104,10 +1129,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     void run();
   }, [activeViewRevision, ensureSelectionCssInjected, getActiveWebview]);
 
-  const zoomRef = useRef(mode === 'mobile' ? 2.3 : 1.0);
+  const [webZoomDefaults, setWebZoomDefaults] = useState<{ mobile: number; desktop: number }>({ mobile: 2.3, desktop: 1.0 });
+  const zoomRef = useRef(mode === 'mobile' ? webZoomDefaults.mobile : webZoomDefaults.desktop);
   const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
-  const baseZoomForMode = useCallback((m: Mode) => (m === 'mobile' ? 2.3 : 1.0), []);
+  const baseZoomForMode = useCallback((m: Mode) => (m === 'mobile' ? webZoomDefaults.mobile : webZoomDefaults.desktop), [webZoomDefaults]);
 
   const getStoredZoomForTab = useCallback(
     (tab: Tab | null | undefined, m: Mode): number => {
@@ -1169,6 +1195,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     });
     return () => cancelAnimationFrame(frame);
   }, [activeTab, mode, getStoredZoomForTab, applyZoomToView]);
+
+  useEffect(() => {
+    if (!activeId || !tabsReady) return;
+    const current = tabs.find((t) => t.id === activeId) ?? activeTab;
+    const target = getStoredZoomForTab(current, mode);
+    const frame = requestAnimationFrame(() => {
+      applyZoomToView(target);
+    });
+    return () => cancelAnimationFrame(frame);
+  }, [activeId, tabs, tabsReady, mode, getStoredZoomForTab, applyZoomToView, activeTab]);
 
   const applyZoomPolicy = useCallback(() => {
     const view = getActiveWebview();
@@ -3091,6 +3127,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onCopyDownloadsCommand={handleCopyDownloadsCommand}
               downloadsCommand={downloadsCommand}
               uiScale={uiScale}
+              webZoomMobileDefault={webZoomDefaults.mobile}
+              webZoomDesktopDefault={webZoomDefaults.desktop}
+              onWebZoomMobileChange={handleWebZoomMobileChange}
+              onWebZoomDesktopChange={handleWebZoomDesktopChange}
               theme={theme}
               onUiScaleChange={applyUiScale}
               onUiScaleReset={handleUiScaleReset}

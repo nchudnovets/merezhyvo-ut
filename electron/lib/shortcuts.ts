@@ -166,7 +166,9 @@ const DEFAULT_UI_SETTINGS: UISettings = {
   scale: 1.0,
   hideFileDialogNote: false,
   language: DEFAULT_LOCALE,
-  theme: 'dark'
+  theme: 'dark',
+  webZoomMobile: 2.3,
+  webZoomDesktop: 1.0
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
@@ -241,7 +243,16 @@ export const sanitizeUiSettings = (raw: unknown): UISettings => {
     source.theme === 'light' || source.theme === 'dark'
       ? source.theme
       : DEFAULT_UI_SETTINGS.theme;
-  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language, theme };
+  const clampZoom = (v: number | undefined): number | undefined => {
+    if (typeof v !== 'number' || !Number.isFinite(v)) return undefined;
+    const rounded = Math.round(v * 100) / 100;
+    return Math.min(3.5, Math.max(0.5, rounded));
+  };
+  const mobileRaw = typeof source.webZoomMobile === 'number' ? source.webZoomMobile : DEFAULT_UI_SETTINGS.webZoomMobile;
+  const desktopRaw = typeof source.webZoomDesktop === 'number' ? source.webZoomDesktop : DEFAULT_UI_SETTINGS.webZoomDesktop;
+  const webZoomMobile = clampZoom(mobileRaw) ?? DEFAULT_UI_SETTINGS.webZoomMobile;
+  const webZoomDesktop = clampZoom(desktopRaw) ?? DEFAULT_UI_SETTINGS.webZoomDesktop;
+  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language, theme, webZoomMobile, webZoomDesktop };
 };
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {

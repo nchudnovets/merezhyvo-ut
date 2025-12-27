@@ -66,6 +66,8 @@ export interface MerezhyvoUISettings {
   hideFileDialogNote: boolean;
   language: string;
   theme?: 'dark' | 'light';
+  webZoomMobile?: number;
+  webZoomDesktop?: number;
 }
 
 export interface MerezhyvoAppInfo {

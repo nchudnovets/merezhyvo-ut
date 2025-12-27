@@ -93,7 +93,7 @@ export const settingsModalStyles: StyleRecord = {
   blockBody: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '14px'
+    gap: '18px'
   },
   keyboardToggleButton: {
     border: '1px solid var(--mzr-border)',
@@ -344,7 +344,8 @@ export const settingsModalStyles: StyleRecord = {
   },
   themeLabel: {
     fontSize: '14px',
-    fontWeight: 600
+    fontWeight: 600,
+    color: 'var(--mzr-text-primary)'
   },
   themeHelper: {
     fontSize: '13px',
@@ -375,21 +376,22 @@ export const settingsModalStyles: StyleRecord = {
   scaleContainer: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
+    gap: '14px',
     padding: '16px 18px',
   },
   scaleRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '10px'
   },
   scaleLabel: {
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: 600,
     color: 'var(--mzr-text-primary)'
   },
   scaleValue: {
-    fontSize: '18px',
+    fontSize: '16px',
     fontWeight: 600,
     color: 'var(--mzr-accent)'
   },

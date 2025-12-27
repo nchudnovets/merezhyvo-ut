@@ -880,13 +880,15 @@ const exposeApi: MerezhyvoAPI = {
             scale: result.scale,
             hideFileDialogNote: Boolean(result.hideFileDialogNote),
             language: typeof result.language === 'string' ? result.language : DEFAULT_LOCALE,
-            theme: result.theme === 'light' ? 'light' : 'dark'
+            theme: result.theme === 'light' ? 'light' : 'dark',
+            webZoomMobile: typeof result.webZoomMobile === 'number' ? result.webZoomMobile : 2.3,
+            webZoomDesktop: typeof result.webZoomDesktop === 'number' ? result.webZoomDesktop : 1.0
           };
         }
       } catch {
         // noop
       }
-      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark' };
+      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, theme: 'dark', webZoomMobile: 2.3, webZoomDesktop: 1.0 };
     },
     set: async (payload) => {
       try {

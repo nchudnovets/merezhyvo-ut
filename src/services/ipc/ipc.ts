@@ -218,7 +218,7 @@ export const ipc = {
         const res = await getApi()?.ui?.get?.();
         if (res) return res;
       } catch {}
-      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE };
+      return { scale: 1, hideFileDialogNote: false, language: DEFAULT_LOCALE, webZoomMobile: 2.3, webZoomDesktop: 1.0 };
     },
     async update(patch: Partial<MerezhyvoUISettings>) {
       try {

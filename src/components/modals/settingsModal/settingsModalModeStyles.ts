@@ -194,7 +194,7 @@ export const settingsModalModeStyles: ModeStyleMap = {
       gap: 'clamp(18px, 3vw, 26px)'
     },
     scaleRow: {
-      gap: 'clamp(16px, 2.5vw, 22px)'
+      gap: 'clamp(26px, 4vw, 32px)'
     },
     scaleLabel: {
       fontSize: '40px'

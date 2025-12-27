@@ -20,6 +20,8 @@ export interface UISettings {
   hideFileDialogNote: boolean;
   language: string;
   theme?: ThemeName;
+  webZoomMobile?: number;
+  webZoomDesktop?: number;
 }
 
 export type TabKind = 'browser' | 'messenger';

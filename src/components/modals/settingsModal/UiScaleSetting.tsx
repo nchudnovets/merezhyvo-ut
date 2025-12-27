@@ -42,42 +42,44 @@ const UiScaleSetting: React.FC<UiScaleSettingProps> = ({ mode, value, onChange, 
   };
 
   return (
-    <div style={mergeStyle('scaleContainer')}>
+    <div style={{marginTop: mode === 'mobile' ? '60px' : '30px'}}>
       <div style={mergeStyle('scaleRow')}>
         <span style={mergeStyle('scaleLabel')}>{t('settings.scale.label')}</span>
         <span style={mergeStyle('scaleValue')}>{value.toFixed(2)}</span>
       </div>
-      <input
-        type="range"
-        min={MIN_SCALE}
-        max={MAX_SCALE}
-        step={STEP}
-        value={value}
-        onChange={handleSlider}
-        style={mergeStyle('scaleRange')}
-        aria-label="UI scale"
-      />
-      <p style={mergeStyle('scaleHelper')}>{t('settings.scale.helper')}</p>
-      <div style={mergeStyle('scaleButtons')}>
-        <button
-          type="button"
-          style={mergeStyle('scaleButton')}
-          onClick={() => handleStepper(-1)}
-          aria-label={t('settings.scale.decrease')}
-        >
-          −
-        </button>
-        <button type="button" style={mergeStyle('scaleButton')} onClick={onReset}>
-          {t('settings.scale.reset')}
-        </button>
-        <button
-          type="button"
-          style={mergeStyle('scaleButton')}
-          onClick={() => handleStepper(1)}
-          aria-label={t('settings.scale.increase')}
-        >
-          +
-        </button>
+        <div style={mergeStyle('scaleContainer')}>
+          <input
+            type="range"
+            min={MIN_SCALE}
+            max={MAX_SCALE}
+            step={STEP}
+            value={value}
+            onChange={handleSlider}
+            style={mergeStyle('scaleRange')}
+            aria-label="UI scale"
+          />
+          <p style={mergeStyle('scaleHelper')}>{t('settings.scale.helper')}</p>
+          <div style={mergeStyle('scaleButtons')}>
+            <button
+              type="button"
+              style={mergeStyle('scaleButton')}
+              onClick={() => handleStepper(-1)}
+              aria-label={t('settings.scale.decrease')}
+            >
+              −
+            </button>
+            <button type="button" style={mergeStyle('scaleButton')} onClick={onReset}>
+              {t('settings.scale.reset')}
+            </button>
+            <button
+              type="button"
+              style={mergeStyle('scaleButton')}
+              onClick={() => handleStepper(1)}
+              aria-label={t('settings.scale.increase')}
+            >
+              +
+            </button>
+        </div>
       </div>
     </div>
   );

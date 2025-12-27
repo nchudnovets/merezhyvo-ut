@@ -17,6 +17,7 @@ import ThemeSetting from './ThemeSetting';
 import LanguageSettings from './LanguageSettings';
 import { useI18n } from '../../../i18n/I18nProvider';
 import SecuritySettings from './SecuritySettings';
+import WebZoomSetting from './WebZoomSetting';
 // import { PermissionsSettings } from './PermissionsSettings';
 
 interface SettingsModalProps {
@@ -51,6 +52,10 @@ interface SettingsModalProps {
   theme: ThemeName;
   onUiScaleChange: (value: number) => void;
   onUiScaleReset: () => void;
+  webZoomMobileDefault: number;
+  webZoomDesktopDefault: number;
+  onWebZoomMobileChange: (value: number) => void;
+  onWebZoomDesktopChange: (value: number) => void;
   onThemeChange: (value: ThemeName) => void;
   onOpenTorLink: () => void;
   httpsMode: HttpsMode;
@@ -102,6 +107,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   downloadsCommand,
   uiScale,
   theme,
+  webZoomMobileDefault,
+  webZoomDesktopDefault,
+  onWebZoomMobileChange,
+  onWebZoomDesktopChange,
   onUiScaleChange,
   onUiScaleReset,
   onThemeChange,
@@ -270,16 +279,24 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             title={t('settings.section.appearance')}
             body={
               <div style={{ display: 'flex', flexDirection: 'column', gap: '14px' }}>
-                <ThemeSetting mode={mode} value={theme} onChange={onThemeChange} />
-                <UiScaleSetting
-                  mode={mode}
-                  value={uiScale}
-                  onChange={onUiScaleChange}
-                  onReset={onUiScaleReset}
-                />
-              </div>
-            }
-          />
+              <ThemeSetting mode={mode} value={theme} onChange={onThemeChange} />
+              <UiScaleSetting
+                mode={mode}
+                value={uiScale}
+                onChange={onUiScaleChange}
+                onReset={onUiScaleReset}
+              />
+              <div style={{ height: mode === 'mobile' ? 12 : 6 }} />
+              <WebZoomSetting
+                mode={mode}
+                mobileValue={webZoomMobileDefault}
+                desktopValue={webZoomDesktopDefault}
+                onMobileChange={onWebZoomMobileChange}
+                onDesktopChange={onWebZoomDesktopChange}
+              />
+            </div>
+          }
+        />
 
           <SettingsSection
             mode={mode}
