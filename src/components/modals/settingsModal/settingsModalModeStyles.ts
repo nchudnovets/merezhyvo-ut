@@ -439,6 +439,9 @@ export const settingsModalModeStyles: ModeStyleMap = {
     settingsLinkButton: {
       fontSize: '38px'
     },
+    themeOptions: {
+      gap: '25px'
+    },
     themeOption: {
       fontSize: '42px'
     }
