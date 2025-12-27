@@ -47,6 +47,15 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Page zoom is persisted per tab across sessions, separately for mobile and desktop modes.
 
+ - **Default webview zoom**
+  - You can set a default page zoom level for all sites and separately from per-tab zoom.
+  Useful if you prefer larger/smaller text by default on phone or external displays.
+
+ - **Optional messenger panel**
+  - Quick-access panel for messengers / web apps.
+  - Can be hidden in Settings → Messengers if you don’t use it.
+  - Includes a security shield button that opens the site security popup.
+
 
 - ### Privacy & security features
 
@@ -56,6 +65,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   Yellow shield: you have enabled a per-site privacy/security exception for this site (for example cookies, trackers/ads, or certificate overrides).
     *   Red shield: the connection is not secure (HTTP only, invalid/expired/revoked certificate, etc.).
     *   Tapping the shield opens a popover with a short summary, certificate details, and links to manage site data or exceptions.
+    *   The same shield indicator is also available on the messenger panel, with the same color meanings and a quick security popup.
 
 *   **Configurable HTTPS mode (Strict / Preferred)**
     *   **Preferred**: Merezhyvo first tries to load a site via HTTPS; if that fails, it can fall back to HTTP.
@@ -68,7 +78,10 @@ This repository contains the full source code and build scripts for the Ubuntu T
     *   Exceptions are visible both on the internal **“Manage security exceptions”** page and in the shield popover for the current site.
 
 *   **Tracker & ads blocking (domain-based)**
-    *   Two separate global toggles under **Settings → Privacy & Security**: block trackers (recommended) and block ads.
+    *   Global settings under Settings → Privacy & Security let you block trackers and ads.
+    *   Blocking has two modes:
+        * Basic: blocks common tracking/ads domains while aiming to minimize site breakage.
+        * Strict: blocks more aggressively for better privacy, but may break some sites.
     *   Per-site exceptions: you can allow trackers and/or ads for individual sites if something breaks.
     *   The shield popover shows counters for the current site: blocked total / ads / trackers.
 
@@ -318,7 +331,7 @@ clickable build \--arch arm64 \--accept\-review\-errors
 
 Internal settings are stored in a JSON file under the user's `~/.config` directory (for example `~/.config/merezhyvo.naz.r/settings.json`).
 
-This includes UI preferences (theme, scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting, tracker/ad blocking), and per-site exception lists.
+This includes UI preferences (theme (dark/light), scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting, tracker/ad blocking), and per-site exception lists.
 
 
 - - -
