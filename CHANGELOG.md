@@ -1,4 +1,30 @@
 # Changelog
+
+----
+
+## 0.4.6 — 2025-12-27
+
+### New
+
+- Added a Light theme.
+
+- Added a Security shield icon and site security popup on the messenger panel.
+
+- Added an option to hide the messenger panel if you don’t use it.
+
+- Added an option to set a default webview zoom.
+
+
+### Updated
+
+- Improved tracker & ad blocking.
+
+- Added blocking modes: Basic and Strict.
+
+### Fixed
+
+- Fixed an issue where it was not possible to insert a new line in textareas when typing with the on-screen keyboard.
+
 ----
 ## 0.4.5.1 - 2025-12-20
 
