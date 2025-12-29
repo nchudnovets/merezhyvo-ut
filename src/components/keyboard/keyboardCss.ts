@@ -13,7 +13,7 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
   const text = pick(vars, 'text-primary', theme === 'light' ? '#0F1525' : '#f8fafc');
   const muted = pick(vars, 'text-muted', theme === 'light' ? '#6B7A96' : 'rgba(248,250,252,0.7)');
   const border = pick(vars, 'border', theme === 'light' ? '#CBD5E4' : 'rgba(148, 163, 184, 0.45)');
-  const hover = pick(vars, 'accent-tint', theme === 'light' ? '#E6EEFF' : 'rgba(255,255,255,0.06)');
+  const hover = theme === 'light' ? '#94a3b833' : pick(vars, 'accent-tint', '#94a3b833');
   const sep = pick(vars, 'divider', theme === 'light' ? '#E2E8F3' : 'rgba(148,163,184,0.25)');
   const accent = pick(vars, 'accent-strong', '#3b82f6');
   const buttonBg = pick(vars, 'surface-muted', theme === 'light' ? 'rgba(248,250,252,0.9)' : 'rgba(255,255,255,0.08)');
