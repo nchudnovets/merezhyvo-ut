@@ -13,7 +13,6 @@ import type {
   FormEvent
 } from 'react';
 import type { WebviewTag } from 'electron';
-import { createRoot } from 'react-dom/client';
 import Toolbar from './components/toolbar/Toolbar';
 import { MessengerToolbar } from './components/messenger/MessengerToolbar';
 import WebViewPane from './components/webview/WebViewPane';
@@ -21,7 +20,6 @@ import ZoomBar from './components/zoom/ZoomBar';
 import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
 import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
-import WebViewHost from './components/webview/WebViewHost';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
 import { styles } from './styles/styles';
 import { getThemeVars } from './styles/theme';
@@ -51,6 +49,7 @@ import { useTabRefs } from './hooks/useTabRefs';
 import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useWebviewListeners } from './hooks/useWebviewListeners';
+import { useTabViewLifecycle } from './hooks/useTabViewLifecycle';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { windowHelpers } from './services/window/window';
@@ -73,7 +72,7 @@ import type {
   CookiePrivacySettings,
   ThemeName
 } from './types/models';
-import type { TabViewEntry } from './types/tabView';
+import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
 import { isCtxtExcludedSite } from './helpers/websiteCtxtExclusions';
@@ -84,24 +83,12 @@ import { CertOverlay } from './components/overlays/CertOverlay';
 import { useUiScale } from './hooks/useUiScale';
 import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
 import { useTheme } from './hooks/useTheme';
+import { useWebviewZoom } from './hooks/useWebviewZoom';
+import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './utils/zoom';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
-const ZOOM_MIN = 0.5;
-const ZOOM_MAX = 3.5;
-const ZOOM_STEP = 0.1;
-
 type ActiveInputTarget = 'url' | null;
-
-type NavigationState = {
-  back?: boolean;
-  forward?: boolean;
-};
-
-type CreateWebviewOptions = {
-  zoom: number;
-  mode: Mode;
-};
 
 type LastLoadedInfo = {
   id: string | null;
@@ -1130,133 +1117,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [activeViewRevision, ensureSelectionCssInjected, getActiveWebview]);
 
   const [webZoomDefaults, setWebZoomDefaults] = useState<{ mobile: number; desktop: number }>({ mobile: 2.3, desktop: 1.0 });
-  const zoomRef = useRef(mode === 'mobile' ? webZoomDefaults.mobile : webZoomDefaults.desktop);
-  const [zoomLevel, setZoomLevel] = useState(zoomRef.current);
 
-  const baseZoomForMode = useCallback((m: Mode) => (m === 'mobile' ? webZoomDefaults.mobile : webZoomDefaults.desktop), [webZoomDefaults]);
-
-  const getStoredZoomForTab = useCallback(
-    (tab: Tab | null | undefined, m: Mode): number => {
-      if (!tab) return baseZoomForMode(m);
-      const stored = m === 'mobile' ? tab.zoomMobile : tab.zoomDesktop;
-      return typeof stored === 'number' && Number.isFinite(stored) ? stored : baseZoomForMode(m);
-    },
-    [baseZoomForMode]
-  );
-
-  const applyZoomToView = useCallback(
-    (factor: number, view?: WebviewTag | null) => {
-      const target = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, factor));
-      zoomRef.current = target;
-      setZoomLevel(target);
-      const node = view ?? getActiveWebview();
-      if (!node) return;
-      try {
-        if (typeof node.setZoomFactor === 'function') {
-          node.setZoomFactor(target);
-        } else {
-          node.executeJavaScript(`require('electron').webFrame.setZoomFactor(${target})`).catch(() => {});
-        }
-      } catch {
-        // noop
-      }
-    },
-    [getActiveWebview]
-  );
-
-  const setZoomClamped = useCallback((val: number | string) => {
-    const numeric = Number(val);
-    if (!Number.isFinite(numeric)) return;
-    const clamped = Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, numeric));
-    const rounded = Math.round(clamped * 100) / 100;
-    applyZoomToView(rounded);
-    const activeTabId = activeIdRef.current;
-    if (activeTabId) {
-      if (mode === 'mobile') {
-        updateMetaAction(activeTabId, { zoomMobile: rounded });
-      } else {
-        updateMetaAction(activeTabId, { zoomDesktop: rounded });
-      }
-    }
-  }, [applyZoomToView, mode, updateMetaAction]);
-
-  useEffect(() => {
-    const target = getStoredZoomForTab(activeTabRef.current, mode);
-    const frame = requestAnimationFrame(() => {
-      applyZoomToView(target);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [mode, applyZoomToView, getStoredZoomForTab]);
-
-  useEffect(() => {
-    const target = getStoredZoomForTab(activeTab, mode);
-    const frame = requestAnimationFrame(() => {
-      applyZoomToView(target);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [activeTab, mode, getStoredZoomForTab, applyZoomToView]);
-
-  useEffect(() => {
-    if (!activeId || !tabsReady) return;
-    const current = tabs.find((t) => t.id === activeId) ?? activeTab;
-    const target = getStoredZoomForTab(current, mode);
-    const frame = requestAnimationFrame(() => {
-      applyZoomToView(target);
-    });
-    return () => cancelAnimationFrame(frame);
-  }, [activeId, tabs, tabsReady, mode, getStoredZoomForTab, applyZoomToView, activeTab]);
-
-  const applyZoomPolicy = useCallback(() => {
-    const view = getActiveWebview();
-    if (!view) return;
-    const tab = activeTabRef.current;
-    const target = getStoredZoomForTab(tab, mode);
-    zoomRef.current = target;
-    setZoomLevel(target);
-    try {
-      if (typeof view.setVisualZoomLevelLimits === 'function') {
-        view.setVisualZoomLevelLimits(1, 3);
-      }
-      if (typeof view.setZoomFactor === 'function') {
-        view.setZoomFactor(target);
-      } else {
-        view.executeJavaScript(`require('electron').webFrame.setZoomFactor(${target})`).catch(() => {});
-      }
-    } catch {
-      // ignore
-    }
-  }, [getActiveWebview, getStoredZoomForTab, mode]);
-
-  useEffect(() => {
-    const view = getActiveWebview();
-    if (!view) return;
-
-    const onReady = () => applyZoomPolicy();
-    const onNavigate = () => applyZoomPolicy();
-    const onZoomChanged = () => {
-      const raw = typeof view.getZoomFactor === 'function' ? view.getZoomFactor() : undefined;
-      if (typeof raw !== 'number' || Number.isNaN(raw)) return;
-      const normalized = Math.round(Math.min(ZOOM_MAX, Math.max(ZOOM_MIN, raw)) * 100) / 100;
-      zoomRef.current = normalized;
-      setZoomLevel(normalized);
-    };
-
-    view.addEventListener('dom-ready', onReady);
-    view.addEventListener('did-frame-finish-load', onReady);
-    view.addEventListener('did-navigate', onNavigate);
-    view.addEventListener('did-navigate-in-page', onNavigate);
-    view.addEventListener('zoom-changed', onZoomChanged);
-
-    onReady();
-
-    return () => {
-      view.removeEventListener('dom-ready', onReady);
-      view.removeEventListener('did-frame-finish-load', onReady);
-      view.removeEventListener('did-navigate', onNavigate);
-      view.removeEventListener('did-navigate-in-page', onNavigate);
-      view.removeEventListener('zoom-changed', onZoomChanged);
-    };
-  }, [activeId, activeViewRevision, applyZoomPolicy, getActiveWebview, webviewReady]);
+  const {
+    zoomLevel,
+    zoomDisplay,
+    setZoomClamped,
+    applyZoomToView,
+    getStoredZoomForTab
+  } = useWebviewZoom({
+    mode,
+    activeTab,
+    activeId,
+    tabs,
+    tabsReady,
+    activeTabRef,
+    activeViewRevision,
+    webviewReady,
+    getActiveWebview,
+    updateTabZoom: (tabId, patch) => updateMetaAction(tabId, patch),
+    defaults: webZoomDefaults
+  });
 
   useEffect(() => {
     void refreshTrackerStatus(activeWcIdRef.current ?? null);
@@ -1322,6 +1202,50 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     },
     []
   );
+
+  useTabViewLifecycle({
+    mode,
+    tabs,
+    activeTab,
+    tabsReady,
+    refs: {
+      tabViewsRef,
+      webviewHostRef,
+      backgroundTabRef,
+      webviewHandleRef,
+      webviewRef,
+      activeIdRef,
+      activeWcIdRef,
+      lastLoadedRef,
+      previousActiveTabRef,
+      webviewReadyRef,
+      tabsRef
+    },
+    handlers: {
+      handleHostCanGo,
+      handleHostStatus,
+      handleHostUrlChange,
+      handleHostDomReady,
+      handleNavigationStart,
+      handleNavigationError,
+      attachWebviewListeners,
+      installShadowStyles,
+      applyActiveStyles,
+      mountInBackgroundHost,
+      refreshNavigationState,
+      refreshCertStatus,
+      updateMetaAction,
+      applyZoomToView,
+      getStoredZoomForTab,
+      getWebContentsIdSafe,
+      destroyTabView
+    },
+    setters: {
+      setStatus,
+      setWebviewReady,
+      setActiveViewRevision
+    }
+  });
 
   const upsertSslException = useCallback(
     async (host: string | null | undefined, errorType: string | null | undefined, enabled: boolean) => {
@@ -1677,245 +1601,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [httpsMode, sslExceptions, refreshCertStatus]);
 
-  const ensureHostReady = useCallback((): boolean => {
-    return webviewHostRef.current != null;
-  }, []);
-
-  const createWebviewForTab = useCallback(
-    (tab: Tab, { zoom: _zoomFactor, mode: currentMode }: CreateWebviewOptions): WebviewTag | null => {
-    if (!ensureHostReady()) return null;
-    const host = webviewHostRef.current;
-    if (!host) {
-      return null;
-    }
-    const initialZoom = getStoredZoomForTab(tab, currentMode);
-    zoomRef.current = initialZoom;
-    setZoomLevel(initialZoom);
-    const container = document.createElement('div');
-    container.style.position = 'absolute';
-    container.style.inset = '0';
-    container.style.width = '100%';
-    container.style.height = '100%';
-    container.style.backgroundColor = 'var(--mzr-bg)';
-    container.style.opacity = '0';
-    container.style.pointerEvents = 'none';
-    try {
-      host.appendChild(container);
-    } catch {}
-    const root = createRoot(container);
-    const entry: TabViewEntry = {
-      container,
-      root,
-      cleanup: () => {},
-      isBackground: false,
-      handle: null,
-      view: null,
-      render: () => {}
-    };
-    const refCallback = (instance: WebViewHandle | null) => {
-      const prevView = entry.view;
-      entry.handle = instance || null;
-      entry.view = instance?.getWebView?.() || null;
-      const viewChanged = prevView !== entry.view;
-      if (viewChanged) {
-        try { entry.cleanup?.(); } catch {}
-        if (entry.view) {
-          const listenersCleanup = attachWebviewListeners(entry.view, tab.id);
-          const shadowCleanup = installShadowStyles(entry.view);
-          entry.cleanup = () => {
-            try { listenersCleanup?.(); } catch {}
-            try { shadowCleanup?.(); } catch {}
-          };
-        } else {
-          entry.cleanup = () => {};
-        }
-      }
-      if (activeIdRef.current === tab.id) {
-        webviewHandleRef.current = entry.handle;
-        webviewRef.current = entry.view;
-        activeWcIdRef.current = getWebContentsIdSafe(entry.view);
-        if (viewChanged) {
-          setActiveViewRevision((rev) => rev + 1);
-          void refreshCertStatus(activeWcIdRef.current);
-        }
-      }
-    };
-    entry.render = (modeOverride: Mode = currentMode, zoomOverride: number = initialZoom) => {
-      const initialUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
-      root.render(
-        <WebViewHost
-          ref={refCallback}
-          initialUrl={initialUrl}
-          mode={modeOverride}
-          zoom={zoomOverride}
-          onCanGo={(state: NavigationState | null) => handleHostCanGo(tab.id, state)}
-          onStatus={(nextStatus: StatusState) => handleHostStatus(tab.id, nextStatus)}
-          onUrlChange={(url: string) => handleHostUrlChange(tab.id, url)}
-          onDomReady={() => handleHostDomReady(tab.id)}
-          onNavigationStart={(payload: { url: string; isInPage: boolean }) => handleNavigationStart(tab.id, payload)}
-          onNavigationError={(payload: { errorCode: number; errorDescription: string; validatedURL: string; isMainFrame: boolean }) =>
-            handleNavigationError(tab.id, payload)}
-          style={{ width: '100%', height: '100%' }}
-        />
-      );
-    };
-    tabViewsRef.current.set(tab.id, entry);
-    entry.render();
-    return entry.view;
-  }, [
-    attachWebviewListeners,
-    ensureHostReady,
-    handleHostCanGo,
-    handleHostDomReady,
-    handleHostStatus,
-    handleHostUrlChange,
-    installShadowStyles,
-    getStoredZoomForTab,
-    setZoomLevel,
-    setActiveViewRevision,
-    getWebContentsIdSafe,
-    refreshCertStatus,
-    handleNavigationStart,
-    handleNavigationError,
-    tabViewsRef,
-    webviewHandleRef,
-    webviewRef,
-    webviewHostRef
-  ]);
-
-  const loadUrlIntoView = useCallback((tab: Tab, entry?: TabViewEntry | null) => {
-    if (!entry) return;
-    const targetUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
-    if (targetUrl.toLowerCase().startsWith('mzr://')) {
-      return;
-    }
-    const last = lastLoadedRef.current;
-    if (last.id === tab.id && last.url === targetUrl) return;
-    lastLoadedRef.current = { id: tab.id, url: targetUrl };
-    webviewReadyRef.current = false;
-    setWebviewReady(false);
-    setStatus('loading');
-    updateMetaAction(tab.id, { isLoading: true });
-    if (entry.handle) {
-      entry.handle.loadURL(targetUrl);
-      return;
-    }
-    const view = entry.view;
-    if (!view) return;
-    try {
-      const result = view.loadURL(targetUrl);
-      if (result && typeof result.catch === 'function') {
-        result.catch(() => {});
-      }
-    } catch {
-      try { view.setAttribute('src', targetUrl); } catch {}
-    }
-  }, [updateMetaAction]);
-
-  const activateTabView = useCallback((tab: Tab | null) => {
-    if (!tab) return;
-    updateMetaAction(tab.id, { discarded: false });
-    let entry = tabViewsRef.current.get(tab.id);
-    if (!entry) {
-      const targetZoom = getStoredZoomForTab(tab, mode);
-      zoomRef.current = targetZoom;
-      setZoomLevel(targetZoom);
-      const created = createWebviewForTab(tab, { zoom: targetZoom, mode });
-      if (!created) {
-        requestAnimationFrame(() => activateTabView(tab));
-        return;
-      }
-      entry = tabViewsRef.current.get(tab.id);
-    } else {
-      const targetZoom = getStoredZoomForTab(tab, mode);
-      applyZoomToView(targetZoom, entry.view);
-      entry.render?.(mode, targetZoom);
-    }
-    if (!entry) return;
-
-    entry.isBackground = false;
-    if (backgroundTabRef.current === tab.id) {
-      backgroundTabRef.current = null;
-    }
-    const container = entry.container;
-    const view = entry.view;
-    if (!container || !view) {
-      requestAnimationFrame(() => activateTabView(tab));
-      return;
-    }
-    const host = webviewHostRef.current;
-    if (host && container.parentElement !== host) {
-      try { host.appendChild(container); } catch {}
-    }
-    applyActiveStyles(container, view);
-    webviewHandleRef.current = entry.handle;
-    webviewRef.current = view;
-    const wcId = getWebContentsIdSafe(view);
-    activeWcIdRef.current = wcId;
-    void refreshCertStatus(wcId);
-    setActiveViewRevision((rev) => rev + 1);
-    
-    const current = (() => {
-      if (entry.handle && typeof entry.handle.getURL === 'function') {
-        const got = entry.handle.getURL();
-        return typeof got === 'string' ? got : '';
-      }
-      try { return view.getURL?.(); } catch { return ''; }
-    })();
-    const target = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
-    if (!current || current !== target) {
-      loadUrlIntoView(tab, entry);
-    } else {
-      setStatus('ready');
-      webviewReadyRef.current = true;
-      setWebviewReady(true);
-      refreshNavigationState();
-    }
-  }, [
-    applyActiveStyles,
-    applyZoomToView,
-    createWebviewForTab,
-    getStoredZoomForTab,
-    loadUrlIntoView,
-    mode,
-    refreshNavigationState,
-    setActiveViewRevision,
-    updateMetaAction,
-    getWebContentsIdSafe,
-    refreshCertStatus,
-    tabViewsRef,
-    backgroundTabRef,
-    webviewHostRef,
-    webviewHandleRef,
-    webviewRef
-  ]);
-
-  const demoteTabView = useCallback((tab: Tab | null) => {
-    if (!tab) return;
-    const entry = tabViewsRef.current.get(tab.id);
-    if (!entry) return;
-    if (tab.isYouTube && tab.isPlaying) {
-      if (backgroundTabRef.current && backgroundTabRef.current !== tab.id) {
-        const previousId = backgroundTabRef.current;
-        updateMetaAction(previousId, { isPlaying: false, keepAlive: false });
-        destroyTabView(previousId, { keepMeta: true });
-      }
-      backgroundTabRef.current = tab.id;
-      entry.isBackground = true;
-      if (entry.container) {
-        mountInBackgroundHost(entry.container);
-        entry.container.style.pointerEvents = 'none';
-        entry.container.style.opacity = '0';
-      }
-      if (entry.view) {
-        entry.view.style.pointerEvents = 'none';
-        entry.view.style.opacity = '0';
-      }
-    } else {
-      destroyTabView(tab.id);
-    }
-  }, [backgroundTabRef, destroyTabView, mountInBackgroundHost, tabViewsRef, updateMetaAction]);
-
   useEffect(() => {
     const off = ipc.onOpenUrl((arg) => {
       const { url } =
@@ -1933,15 +1618,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [newTabAction]);
 
   useEffect(() => {
-    const validIds = new Set(tabs.map((tab) => tab.id));
-    for (const tabId of Array.from(tabViewsRef.current.keys())) {
-      if (!validIds.has(tabId)) {
-        destroyTabView(tabId, { keepMeta: true });
-      }
-    }
-  }, [destroyTabView, tabViewsRef, tabs]);
-
-  useEffect(() => {
     if (!tabsReady) return;
     if (isEditingRef.current) return;
     setInputValue(activeUrl);
@@ -1955,26 +1631,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!trimmed) return;
     navigateActiveAction(trimmed);
   }, [tabsReady, hasStartParam, initialUrl, navigateActiveAction]);
-
-  useEffect(() => {
-    if (!tabsReady) return;
-    const next = tabsRef.current.find((tab) => tab.id === activeIdRef.current) || activeTab;
-    if (!next) return;
-
-    const prev = previousActiveTabRef.current;
-    if (prev && prev.id !== next.id) {
-      demoteTabView(prev);
-    }
-
-    activateTabView(next);
-    previousActiveTabRef.current = next;
-  }, [activateTabView, activeTab, demoteTabView, tabsReady]);
-
-  useEffect(() => () => {
-    for (const tabId of Array.from(tabViewsRef.current.keys())) {
-      destroyTabView(tabId, { keepMeta: true });
-    }
-  }, [destroyTabView, tabViewsRef]);
 
   const hostnameFromUrl = useCallback((value: string | null | undefined) => {
     if (!value) return '';
@@ -2774,7 +2430,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     ready: 'Ready',
     error: 'Failed to load'
   };
-  const zoomDisplay = `${Math.round(zoomLevel * 100)}%`;
   const tabLoadingOverlay = (
     <WebviewLoadingOverlay
       mode={mode}

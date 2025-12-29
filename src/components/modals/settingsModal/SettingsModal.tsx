@@ -286,7 +286,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 onChange={onUiScaleChange}
                 onReset={onUiScaleReset}
               />
-              <div style={{ height: mode === 'mobile' ? 12 : 6 }} />
+              <div style={{ height: mode === 'mobile' ? 18 : 8 }} />
               <WebZoomSetting
                 mode={mode}
                 mobileValue={webZoomMobileDefault}
