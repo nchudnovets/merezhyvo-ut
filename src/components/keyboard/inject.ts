@@ -281,6 +281,32 @@ export function makeMainInjects() {
         : (dir === 'ArrowLeft' ? Math.max(0, s - 1) : Math.min(val.length, s + 1));
 
       ip.setSelectionRange?.(pos, pos);
+      try {
+        const style = getComputedStyle(ip);
+        const canvas: HTMLCanvasElement = (window as any).__mzrCaretCanvas || ((window as any).__mzrCaretCanvas = document.createElement('canvas'));
+        const ctx = canvas?.getContext && canvas.getContext('2d');
+        if (ctx) {
+          const font = `${style.fontWeight || ''} ${style.fontSize || ''} ${style.fontFamily || ''}`.trim();
+          if (font) ctx.font = font;
+          const text = ip.value.slice(0, pos);
+          const width = ctx.measureText(text).width;
+          const padL = parseFloat(style.paddingLeft || '0') || 0;
+          const padR = parseFloat(style.paddingRight || '0') || 0;
+          const borderL = parseFloat(style.borderLeftWidth || '0') || 0;
+          const borderR = parseFloat(style.borderRightWidth || '0') || 0;
+          const caretX = width + padL + borderL;
+          const viewLeft = ip.scrollLeft;
+          const viewRight = viewLeft + ip.clientWidth - padR - borderR;
+          if (caretX < viewLeft) {
+            ip.scrollLeft = Math.max(0, caretX - 4);
+          } else if (caretX > viewRight) {
+            const visibleWidth = ip.clientWidth - padR - borderR;
+            ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+          }
+        }
+      } catch {
+        // best-effort; ignore failures
+      }
       document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
       refocus(ip);
       return;
@@ -674,7 +700,132 @@ export function makeWebInjects(
     return sendKeyTrusted('Enter');
   };
 
+  const moveCaretDom = async (dir: ArrowDir): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const dirVal = dir === 'ArrowLeft' ? 'ArrowLeft' : 'ArrowRight';
+    const code = `
+      (function(){
+        try{
+          var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
+          function isEditable(el){
+            if(!el) return false;
+            if(el.isContentEditable) return true;
+            var tag = (el.tagName||'').toLowerCase();
+            if(tag==='textarea') return !el.disabled && !el.readOnly;
+            if(tag==='input'){
+              var type = (el.getAttribute('type')||'').toLowerCase();
+              if(nonText[type]) return false;
+              return !el.disabled && !el.readOnly;
+            }
+            return false;
+          }
+          var el = document.activeElement;
+          try {
+            if (el && el.tagName === 'IFRAME' && el.contentWindow && el.contentWindow.document) {
+              el = el.contentWindow.document.activeElement || el;
+            }
+          } catch(_) {}
+          if(!isEditable(el)) return false;
+
+          function refocus(target){
+            try { target.focus({ preventScroll: true }); }
+            catch(_) { try { target.focus(); } catch(__) {} }
+          }
+
+          var tag = (el.tagName||'').toLowerCase();
+          if(tag==='textarea' || tag==='input'){
+            var ip = el;
+            var val = String(ip.value||'');
+            var s = typeof ip.selectionStart==='number' ? ip.selectionStart : val.length;
+            var e = typeof ip.selectionEnd==='number'   ? ip.selectionEnd   : s;
+            var pos = s !== e
+              ? (${dirVal}==='ArrowLeft' ? Math.min(s,e) : Math.max(s,e))
+              : (${dirVal}==='ArrowLeft' ? Math.max(0, s-1) : Math.min(val.length, s+1));
+            if (typeof ip.setSelectionRange === 'function') {
+              ip.setSelectionRange(pos, pos);
+              try {
+                var style = getComputedStyle(ip);
+                var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+                var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+                if (ctx) {
+                  var font = ((style.fontWeight||'') + ' ' + (style.fontSize||'') + ' ' + (style.fontFamily||'')).trim();
+                  if (font) ctx.font = font;
+                  var text = ip.value.slice(0, pos);
+                  var width = ctx.measureText(text).width;
+                  var padL = parseFloat(style.paddingLeft || '0') || 0;
+                  var padR = parseFloat(style.paddingRight || '0') || 0;
+                  var borderL = parseFloat(style.borderLeftWidth || '0') || 0;
+                  var borderR = parseFloat(style.borderRightWidth || '0') || 0;
+                  var caretX = width + padL + borderL;
+                  var viewLeft = ip.scrollLeft;
+                  var viewRight = viewLeft + ip.clientWidth - padR - borderR;
+                  if (caretX < viewLeft) {
+                    ip.scrollLeft = Math.max(0, caretX - 4);
+                  } else if (caretX > viewRight) {
+                    var visibleWidth = ip.clientWidth - padR - borderR;
+                    ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+                  }
+                }
+              } catch(_) {}
+              ip.dispatchEvent(new Event('select',{bubbles:true}));
+              document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+              refocus(ip);
+              try { window.__mzrLastEditable = ip; } catch(_) {}
+              return true;
+            }
+            return false;
+          }
+
+          if (el.isContentEditable) {
+            var sel = window.getSelection && window.getSelection();
+            if (!sel) return false;
+            if (sel.rangeCount === 0) {
+              var r = document.createRange();
+              r.selectNodeContents(el);
+              r.collapse(${dirVal}==='ArrowLeft');
+              sel.removeAllRanges(); sel.addRange(r);
+              document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+              refocus(el);
+              try { window.__mzrLastEditable = el; } catch(_) {}
+              return true;
+            }
+            if (!sel.isCollapsed) {
+              if (${dirVal}==='ArrowLeft') sel.collapseToStart(); else sel.collapseToEnd();
+              document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+              refocus(el);
+              try { window.__mzrLastEditable = el; } catch(_) {}
+              return true;
+            }
+            var range = sel.getRangeAt(0);
+            var node = range.startContainer;
+            var off = range.startOffset + (${dirVal}==='ArrowLeft' ? -1 : 1);
+            if (node.nodeType === Node.TEXT_NODE) {
+              var len = node.textContent ? node.textContent.length : 0;
+              off = Math.max(0, Math.min(len, off));
+              range.setStart(node, off);
+              range.collapse(true);
+              sel.removeAllRanges(); sel.addRange(range);
+              document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
+              refocus(el);
+              try { window.__mzrLastEditable = el; } catch(_) {}
+              return true;
+            }
+          }
+          return false;
+        }catch(e){ return false; }
+      })();
+    `;
+    try {
+      return Boolean(await wv.executeJavaScript(code, false));
+    } catch {
+      return false;
+    }
+  };
+
   const arrow = async (dir: ArrowDir): Promise<boolean> => {
+    const handled = await moveCaretDom(dir);
+    if (handled) return true;
     return sendKeyTrusted(dir);
   };
 
