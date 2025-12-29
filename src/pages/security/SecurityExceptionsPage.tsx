@@ -208,19 +208,6 @@ const SecurityExceptionsPage: React.FC<ServicePageProps> = ({ mode, onClose }) =
     maxWidth: mode === 'mobile' ? '100%' : 420,
     width: mode === 'mobile' ? '100%' : 'auto'
   };
-  const noEntriesCard = (
-    <div
-      style={{
-        padding: mode === 'mobile' ? '18px 20px' : '14px 12px',
-        textAlign: 'center',
-        opacity: 0.8,
-        fontSize: mode === 'mobile' ? '38px' : '15px'
-      }}
-    >
-      {t('securityExceptions.empty')}
-    </div>
-  );
-
   const toggleTrackWidth = mode === 'mobile' ? 90 : 60;
   const toggleTrackHeight = mode === 'mobile' ? 46 : 26;
   const toggleThumbSize = mode === 'mobile' ? 38 : 18;

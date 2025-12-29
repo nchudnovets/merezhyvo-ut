@@ -34,6 +34,8 @@ export type UISettings = {
   hideFileDialogNote: boolean;
   language: string;
   theme?: 'dark' | 'light';
+  webZoomMobile?: number;
+  webZoomDesktop?: number;
 };
 
 export type HttpsMode = 'strict' | 'preferred';

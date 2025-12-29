@@ -89,7 +89,7 @@ export const useTrackerBlocking = () => {
       console.error('[merezhyvo] trackers setSiteAllowed failed', err);
       return null;
     }
-  }, []);
+  }, [normalizeStatus]);
 
   const setAdsSiteAllowed = useCallback(async (siteHost: string | null | undefined, allowed: boolean) => {
     const host = (siteHost ?? '').trim().toLowerCase();
@@ -104,7 +104,7 @@ export const useTrackerBlocking = () => {
       console.error('[merezhyvo] trackers setAdsAllowed failed', err);
       return null;
     }
-  }, []);
+  }, [normalizeStatus]);
 
   useEffect(() => {
     const off = window.merezhyvo?.trackers?.onStats?.((payload) => {

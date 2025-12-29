@@ -53,8 +53,7 @@ import {
   setAdsEnabledGlobal,
   setAdsSiteAllowed,
   clearAdsExceptions,
-  setBlockingMode,
-  getBlockingMode
+  setBlockingMode
 } from './lib/tracker-blocker';
 import { DEFAULT_LOCALE, isValidLocale } from '../src/i18n/locales';
 import { attachCertificateTracking, getCertificateInfo, allowCertificate } from './lib/certificates';
