@@ -196,6 +196,19 @@ export interface MerezhyvoFaviconsApi {
   getPath(faviconId: string): Promise<string | null>;
 }
 
+export interface MerezhyvoJsDialogApi {
+  attach(webContentsId: number): void;
+  onOpen(
+    handler: (payload: {
+      requestId?: string;
+      webContentsId?: number;
+      type?: 'alert' | 'confirm' | 'beforeunload';
+      message?: string;
+    }) => void
+  ): Unsubscribe;
+  respond(payload: { requestId: string; webContentsId: number; accept?: boolean; promptText?: string | null }): void;
+}
+
 export type MerezhyvoSettingsState = SettingsState;
 
 export type CookiePrivacyState = {
@@ -311,6 +324,7 @@ export interface MerezhyvoAPI {
   ua?: {
     setMode(mode: 'desktop' | 'mobile' | 'auto'): Promise<void>;
   };
+  jsDialog?: MerezhyvoJsDialogApi;
   tabs?: MerezhyvoTabsAPI;
   osk: {
     char(

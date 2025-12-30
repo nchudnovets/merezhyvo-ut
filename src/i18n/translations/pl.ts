@@ -3,6 +3,8 @@ const pl = {
   'global.close': 'Zamknij',
   'global.cancel': 'Anuluj',
   'global.clear': 'Wyczyść',
+  'jsDialog.ok': 'OK',
+  'jsDialog.cancel': 'Anuluj',
   'tabs.title': 'Karty',
   'tabs.openBookmarks': 'Zakładki',
   'tabs.openHistory': 'Historia',

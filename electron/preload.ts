@@ -655,6 +655,56 @@ const exposeApi: MerezhyvoAPI = {
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ) => ipcRenderer.invoke('mzr:osk:key', { wcId, key, modifiers }),
   },
+  jsDialog: {
+    attach: (webContentsId: number) => {
+      try {
+        ipcRenderer.send('mzr:js-dialog:attach', { webContentsId });
+      } catch {
+        // noop
+      }
+    },
+    onOpen: (
+      handler: (payload: {
+        requestId?: string;
+        webContentsId?: number;
+        type?: 'alert' | 'confirm' | 'beforeunload';
+        message?: string;
+      }) => void
+    ) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'mzr:js-dialog:open';
+      const listener = (
+        _event: IpcRendererEvent,
+        payload:
+          | {
+              requestId?: string;
+              webContentsId?: number;
+              type?: 'alert' | 'confirm' | 'beforeunload';
+              message?: string;
+            }
+          | null
+          | undefined
+      ) => {
+        if (!payload || typeof payload !== 'object') return;
+        handler(payload);
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    },
+    respond: (payload: { requestId: string; webContentsId: number; accept?: boolean; promptText?: string | null }) => {
+      try {
+        ipcRenderer.send('mzr:js-dialog:respond', payload);
+      } catch {
+        // noop
+      }
+    }
+  },
   permissions: {
     onPrompt(handler: (req: { id: string; origin: string; types: Array<'camera' | 'microphone' | 'geolocation' | 'notifications'> }) => void): () => void {
       const channel = 'merezhyvo:permission:prompt';

@@ -430,6 +430,21 @@ export interface FileDialogRequestDetail {
   source: FileDialogSource;
 }
 
+export type JsDialogType = 'alert' | 'confirm';
+
+export interface JsDialogRequestDetail {
+  id: string;
+  type: JsDialogType;
+  message: string;
+  source: FileDialogSource;
+}
+
+export interface JsDialogResult {
+  id: string;
+  type: JsDialogType;
+  value: boolean | string | null;
+}
+
 export interface ZoomState {
   level: number;
   min: number;

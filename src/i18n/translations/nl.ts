@@ -3,6 +3,8 @@ const nl = {
   'global.close': 'Sluiten',
   'global.cancel': 'Annuleren',
   'global.clear': 'Wissen',
+  'jsDialog.ok': 'OK',
+  'jsDialog.cancel': 'Annuleren',
   'tabs.title': 'Tabbladen',
   'tabs.openBookmarks': 'Bladwijzers',
   'tabs.openHistory': 'Geschiedenis',

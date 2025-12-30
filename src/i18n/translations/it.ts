@@ -3,6 +3,8 @@ const it = {
   'global.close': 'Chiudi',
   'global.cancel': 'Annulla',
   'global.clear': 'Pulisci',
+  'jsDialog.ok': 'OK',
+  'jsDialog.cancel': 'Annulla',
   'tabs.title': 'Schede',
   'tabs.openBookmarks': 'Preferiti',
   'tabs.openHistory': 'Cronologia',

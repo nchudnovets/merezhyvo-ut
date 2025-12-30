@@ -11,6 +11,7 @@ import type { WebviewTag, WebContents } from 'electron';
 import type { FileDialogOptions } from '../../types/models';
 import { requestFileDialog } from '../../services/fileDialog/fileDialogService';
 import type { FileDialogResponsePayload } from '../../types/models';
+import { dispatchExternalJsDialogRequest } from '../../services/jsDialog/jsDialogService';
 import { isCtxtExcludedSite } from '../../helpers/websiteCtxtExclusions';
 
 export type StatusState = 'loading' | 'ready' | 'error';
@@ -159,6 +160,8 @@ const WebViewHost = forwardRef(function WebViewHost(
   const lastFailedRef = useRef(false);
   const initialUrlAppliedRef = useRef(false);
   const zoomRef = useRef(zoom);
+  const jsDialogAttachedRef = useRef(false);
+  const jsDialogStopRef = useRef<(() => void) | null>(null);
 
   useEffect(() => {
     callbacksRef.current = { onCanGo, onStatus, onUrlChange, onDomReady, onNavigationStart, onNavigationError };
@@ -442,6 +445,86 @@ const WebViewHost = forwardRef(function WebViewHost(
   useEffect(() => {
     emitNavigationState();
   }, [emitNavigationState]);
+
+  useEffect(() => {
+    const api = window.merezhyvo?.jsDialog;
+    const node = webviewRef.current;
+    if (!api || !node) return undefined;
+
+    const setupBridge = () => {
+      let wcId: number | null = null;
+      try {
+        wcId = typeof node.getWebContentsId === 'function' ? node.getWebContentsId() : null;
+      } catch {
+        return;
+      }
+      if (wcId === null || wcId === undefined) return;
+
+      if (!jsDialogAttachedRef.current) {
+        try {
+          api.attach(wcId);
+          jsDialogAttachedRef.current = true;
+        } catch {
+          // noop
+        }
+      }
+
+      if (!jsDialogStopRef.current) {
+        jsDialogStopRef.current = api.onOpen((payload) => {
+          if (!payload || payload.webContentsId !== wcId || !payload.requestId || !payload.type) return;
+          const type = payload.type === 'beforeunload' || payload.type === 'confirm' ? 'confirm' : 'alert';
+          dispatchExternalJsDialogRequest(
+            {
+              id: payload.requestId,
+              type,
+              message: payload.message ?? '',
+              source: 'external'
+            },
+            (result) => {
+              const accept =
+                type === 'alert'
+                  ? true
+                  : result?.value !== false;
+              try {
+                api.respond({
+                  requestId: payload.requestId!,
+                  webContentsId: wcId,
+                  accept
+                });
+              } catch {
+                // noop
+              }
+            }
+          );
+        });
+      }
+    };
+
+    const handleReady = () => {
+      setupBridge();
+    };
+
+    node.addEventListener('dom-ready', handleReady);
+    // Try immediately in case dom-ready already fired before effect ran
+    handleReady();
+
+    return () => {
+      try {
+        node.removeEventListener('dom-ready', handleReady);
+      } catch {
+        // noop
+      }
+      if (jsDialogStopRef.current) {
+        try {
+          jsDialogStopRef.current();
+        } catch {
+          // noop
+        }
+        jsDialogStopRef.current = null;
+      }
+      jsDialogAttachedRef.current = false;
+    };
+  }, []);
 
   useEffect(() => {
     const el = webviewRef.current;

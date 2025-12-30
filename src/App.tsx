@@ -50,6 +50,7 @@ import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useWebviewListeners } from './hooks/useWebviewListeners';
 import { useTabViewLifecycle } from './hooks/useTabViewLifecycle';
+import { JsDialogHost } from './components/modals/jsDialog/JsDialogHost';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { windowHelpers } from './services/window/window';
@@ -2884,6 +2885,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             }}
           />
       <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />
+      <JsDialogHost mode={mode} />
         </div>
       </div>
 

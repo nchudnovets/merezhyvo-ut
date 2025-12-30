@@ -3,6 +3,8 @@ const uk = {
   'global.close': 'Закрити',
   'global.cancel': 'Скасувати',
   'global.clear': 'Очистити',
+  'jsDialog.ok': 'ОК',
+  'jsDialog.cancel': 'Скасувати',
   'tabs.title': 'Вкладки',
   'tabs.openBookmarks': 'Закладки',
   'tabs.openHistory': 'Історія',

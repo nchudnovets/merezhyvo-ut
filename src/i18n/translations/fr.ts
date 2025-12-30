@@ -3,6 +3,8 @@ const fr = {
   'global.close': 'Fermer',
   'global.cancel': 'Annuler',
   'global.clear': 'Effacer',
+  'jsDialog.ok': 'OK',
+  'jsDialog.cancel': 'Annuler',
   'tabs.title': 'Onglets',
   'tabs.openBookmarks': 'Favoris',
   'tabs.openHistory': 'Historique',

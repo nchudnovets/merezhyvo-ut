@@ -24,6 +24,7 @@ import {
   promptForPaths,
   unlinkGuestWebContents
 } from './file-dialog-ipc';
+import '../js-dialog-handler';
 import { DOCUMENTS_FOLDER } from './internal-paths';
 import * as downloads from './downloads';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';

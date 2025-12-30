@@ -3,6 +3,8 @@ const no = {
   'global.close': 'Lukk',
   'global.cancel': 'Avbryt',
   'global.clear': 'Tøm',
+  'jsDialog.ok': 'OK',
+  'jsDialog.cancel': 'Avbryt',
 
   'tabs.title': 'Faner',
   'tabs.openBookmarks': 'Bokmerker',
