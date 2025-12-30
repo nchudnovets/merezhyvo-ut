@@ -426,20 +426,26 @@ const readJsonIfExists = async (file: string): Promise<unknown | null> => {
   }
 };
 
+const writeJsonAtomic = async (file: string, value: unknown): Promise<void> => {
+  const dir = path.dirname(file);
+  const tmpFile = `${file}.${process.pid}.${Date.now()}_${Math.random().toString(36).slice(2, 8)}.tmp`;
+  await fsp.mkdir(dir, { recursive: true });
+  await fsp.writeFile(tmpFile, JSON.stringify(value, null, 2), 'utf8');
+  await fsp.rename(tmpFile, file);
+};
+
 export async function readSettingsState(): Promise<SettingsState> {
   const targetFile = getSettingsFilePath();
   const backupFile = getBackupSettingsFilePath();
 
   const attemptPersist = async (value: SettingsState) => {
     try {
-      await fsp.mkdir(path.dirname(targetFile), { recursive: true });
-      await fsp.writeFile(targetFile, JSON.stringify(value, null, 2), 'utf8');
+      await writeJsonAtomic(targetFile, value);
     } catch (writeErr) {
       console.error('[merezhyvo] settings write failed', writeErr);
     }
     try {
-      await fsp.mkdir(path.dirname(backupFile), { recursive: true });
-      await fsp.writeFile(backupFile, JSON.stringify(value, null, 2), 'utf8');
+      await writeJsonAtomic(backupFile, value);
     } catch {
       // backup best-effort
     }
@@ -467,10 +473,12 @@ export async function readSettingsState(): Promise<SettingsState> {
   const legacyState = await readJsonIfExists(getLegacySettingsFilePath());
   const legacyTor = await readJsonIfExists(getLegacyTorSettingsFilePath());
 
+  const legacyPayload = typeof legacyState === 'object' && legacyState !== null ? legacyState : {};
+  const backupPayload = typeof backupState === 'object' && backupState !== null ? backupState : {};
   const merged = {
-    ...(typeof backupState === 'object' && backupState !== null ? backupState : {}),
-    ...(typeof legacyState === 'object' && legacyState !== null ? legacyState : {}),
-    ...(legacyTor ? { tor: legacyTor } : {})
+    ...legacyPayload,
+    ...backupPayload,
+    ...(!('tor' in backupPayload) && legacyTor ? { tor: legacyTor } : {})
   };
 
   const sanitized = sanitizeSettingsPayload(merged);
@@ -505,11 +513,9 @@ export async function writeSettingsState(patch: SettingsLike | SettingsState): P
   });
 
   // 3) Persist merged result.
-  await fs.promises.mkdir(path.dirname(file), { recursive: true });
-  await fs.promises.writeFile(file, JSON.stringify(merged, null, 2), 'utf8');
+  await writeJsonAtomic(file, merged);
   try {
-    await fs.promises.mkdir(path.dirname(backupFile), { recursive: true });
-    await fs.promises.writeFile(backupFile, JSON.stringify(merged, null, 2), 'utf8');
+    await writeJsonAtomic(backupFile, merged);
   } catch {
     // best-effort backup
   }
