@@ -105,6 +105,63 @@ export function makeMainInjects() {
     }
   };
 
+  const ensureCaretVisible = (ip: HTMLInputElement | HTMLTextAreaElement, pos: number): void => {
+    try {
+      const style = getComputedStyle(ip);
+      const padL = parseFloat(style.paddingLeft || '0') || 0;
+      const padR = parseFloat(style.paddingRight || '0') || 0;
+      const borderL = parseFloat(style.borderLeftWidth || '0') || 0;
+      const borderR = parseFloat(style.borderRightWidth || '0') || 0;
+      const canvas: HTMLCanvasElement =
+        (window as any).__mzrCaretCanvas || ((window as any).__mzrCaretCanvas = document.createElement('canvas'));
+      const ctx = canvas?.getContext && canvas.getContext('2d');
+      if (ctx) {
+        const font = `${style.fontWeight || ''} ${style.fontSize || ''} ${style.fontFamily || ''}`.trim();
+        if (font) ctx.font = font;
+        const before = ip.value.slice(0, pos);
+        const lineText = (ip.tagName || '').toLowerCase() === 'textarea'
+          ? (before.split('\n').pop() || '')
+          : before;
+        const width = ctx.measureText(lineText).width;
+        const caretX = width + padL + borderL;
+        const viewLeft = ip.scrollLeft;
+        const viewRight = viewLeft + ip.clientWidth - padR - borderR;
+        if (caretX < viewLeft) {
+          ip.scrollLeft = Math.max(0, caretX - 4);
+        } else if (caretX > viewRight) {
+          const visibleWidth = ip.clientWidth - padR - borderR;
+          ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+        }
+      }
+
+      if ((ip.tagName || '').toLowerCase() === 'textarea') {
+        const padT = parseFloat(style.paddingTop || '0') || 0;
+        const padB = parseFloat(style.paddingBottom || '0') || 0;
+        const borderT = parseFloat(style.borderTopWidth || '0') || 0;
+        const borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+        const lineHeightRaw = style.lineHeight;
+        let lineHeight = parseFloat(lineHeightRaw || '');
+        if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+          const fontSize = parseFloat(style.fontSize || '16') || 16;
+          lineHeight = Math.round(fontSize * 1.3);
+        }
+        const textBefore = ip.value.slice(0, pos);
+        const lineIndex = textBefore.split('\n').length - 1;
+        const caretTop = lineIndex * lineHeight + padT + borderT;
+        const viewTop = ip.scrollTop;
+        const viewBottom = viewTop + ip.clientHeight - padB - borderB;
+        if (caretTop < viewTop) {
+          ip.scrollTop = Math.max(0, caretTop - 4);
+        } else if (caretTop + lineHeight > viewBottom) {
+          const visibleHeight = ip.clientHeight - padB - borderB;
+          ip.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+        }
+      }
+    } catch {
+      // best-effort
+    }
+  };
+
   const text = async (s: string): Promise<void> => {
     const el = getActive();
     if (!isTextual(el) || !el) return;
@@ -125,6 +182,8 @@ export function makeMainInjects() {
         ip.setSelectionRange?.(pos, pos);
       }
 
+      const caretPos = typeof ip.selectionStart === 'number' ? ip.selectionStart : start + s.length;
+      ensureCaretVisible(ip, caretPos);
       ip.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: s, bubbles: true }));
 
       if ((ip.type || '').toLowerCase() === 'email') {
@@ -174,6 +233,8 @@ export function makeMainInjects() {
         ip.setSelectionRange?.(before.length, before.length);
       }
 
+      const caretPos = typeof ip.selectionStart === 'number' ? ip.selectionStart : delStart;
+      ensureCaretVisible(ip, caretPos);
       ip.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
 
       if ((ip.type || '').toLowerCase() === 'email') {
@@ -251,6 +312,8 @@ export function makeMainInjects() {
         ip.value = val.slice(0, s) + '\n' + val.slice(e);
         ip.setSelectionRange?.(s + 1, s + 1);
       }
+      const caretPos = typeof ip.selectionStart === 'number' ? ip.selectionStart : s + 1;
+      ensureCaretVisible(ip, caretPos);
       ip.dispatchEvent(new InputEvent('input', { inputType: 'insertLineBreak', bubbles: true }));
       document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
       refocus(ip);
@@ -281,32 +344,7 @@ export function makeMainInjects() {
         : (dir === 'ArrowLeft' ? Math.max(0, s - 1) : Math.min(val.length, s + 1));
 
       ip.setSelectionRange?.(pos, pos);
-      try {
-        const style = getComputedStyle(ip);
-        const canvas: HTMLCanvasElement = (window as any).__mzrCaretCanvas || ((window as any).__mzrCaretCanvas = document.createElement('canvas'));
-        const ctx = canvas?.getContext && canvas.getContext('2d');
-        if (ctx) {
-          const font = `${style.fontWeight || ''} ${style.fontSize || ''} ${style.fontFamily || ''}`.trim();
-          if (font) ctx.font = font;
-          const text = ip.value.slice(0, pos);
-          const width = ctx.measureText(text).width;
-          const padL = parseFloat(style.paddingLeft || '0') || 0;
-          const padR = parseFloat(style.paddingRight || '0') || 0;
-          const borderL = parseFloat(style.borderLeftWidth || '0') || 0;
-          const borderR = parseFloat(style.borderRightWidth || '0') || 0;
-          const caretX = width + padL + borderL;
-          const viewLeft = ip.scrollLeft;
-          const viewRight = viewLeft + ip.clientWidth - padR - borderR;
-          if (caretX < viewLeft) {
-            ip.scrollLeft = Math.max(0, caretX - 4);
-          } else if (caretX > viewRight) {
-            const visibleWidth = ip.clientWidth - padR - borderR;
-            ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
-          }
-        }
-      } catch {
-        // best-effort; ignore failures
-      }
+      ensureCaretVisible(ip, pos);
       document.dispatchEvent(new Event('selectionchange', { bubbles: true }));
       refocus(ip);
       return;
