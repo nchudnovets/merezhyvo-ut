@@ -229,6 +229,8 @@ export interface MerezhyvoAPI {
   tor: {
     toggle(): Promise<MerezhyvoTorState>;
     getState(): Promise<MerezhyvoTorState>;
+    clearSession(): Promise<{ ok: boolean; error?: string }>;
+    getIp(): Promise<{ ok: boolean; ip?: string; error?: string }>;
     onState(handler: (enabled: boolean, reason: string | null) => void): MerezhyvoUnsubscribe;
   };
   openContextMenuAt(x: number, y: number, dpr?: number): void;

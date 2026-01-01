@@ -7,6 +7,7 @@ import type { Mode, Tab } from '../types/models';
 import type { TabViewEntry } from '../types/tabView';
 import type { NavigationState, CreateWebviewOptions } from '../types/navigation';
 import { DEFAULT_URL } from '../utils/navigation';
+import { TOR_PARTITION } from '../utils/tor';
 
 type Handlers = {
   handleHostCanGo: (tabId: string, state?: NavigationState | null) => void;
@@ -56,6 +57,7 @@ type Params = {
   tabs: Tab[];
   activeTab: Tab | null;
   tabsReady: boolean;
+  torEnabled: boolean;
   refs: Refs;
   handlers: Handlers;
   setters: Setters;
@@ -66,6 +68,7 @@ export const useTabViewLifecycle = ({
   tabs,
   activeTab,
   tabsReady,
+  torEnabled,
   refs,
   handlers,
   setters
@@ -105,6 +108,8 @@ export const useTabViewLifecycle = ({
   } = handlers;
 
   const { setStatus, setWebviewReady, setActiveViewRevision } = setters;
+  const partitionKey = torEnabled ? TOR_PARTITION : 'default';
+  const partitionValue = torEnabled ? TOR_PARTITION : undefined;
 
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
@@ -135,6 +140,7 @@ export const useTabViewLifecycle = ({
         root,
         cleanup: () => {},
         isBackground: false,
+        partitionKey,
         handle: null,
         view: null,
         render: () => {}
@@ -171,10 +177,12 @@ export const useTabViewLifecycle = ({
         const initialUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
         root.render(
           <WebViewHost
+            key={`${tab.id}:${partitionKey}`}
             ref={refCallback}
             initialUrl={initialUrl}
             mode={modeOverride}
             zoom={zoomOverride}
+            partition={partitionValue}
             onCanGo={(state: NavigationState | null) => handleHostCanGo(tab.id, state)}
             onStatus={(nextStatus: StatusState) => handleHostStatus(tab.id, nextStatus)}
             onUrlChange={(url: string) => handleHostUrlChange(tab.id, url)}
@@ -209,7 +217,9 @@ export const useTabViewLifecycle = ({
       webviewRef,
       activeWcIdRef,
       ensureHostReady,
-      handleHostDomReady
+      handleHostDomReady,
+      partitionKey,
+      partitionValue
     ]
   );
 
@@ -250,6 +260,10 @@ export const useTabViewLifecycle = ({
       if (!tab) return;
       updateMetaAction(tab.id, { discarded: false });
       let entry = tabViewsRef.current.get(tab.id);
+      if (entry && (entry.partitionKey ?? 'default') !== partitionKey) {
+        destroyTabView(tab.id, { keepMeta: true });
+        entry = null;
+      }
       if (!entry) {
         const targetZoom = getStoredZoomForTab(tab, mode);
         const created = createWebviewForTab(tab, { zoom: targetZoom, mode });
@@ -324,7 +338,8 @@ export const useTabViewLifecycle = ({
       webviewHandleRef,
       webviewRef,
       activeWcIdRef,
-      webviewReadyRef
+      webviewReadyRef,
+      partitionKey
     ]
   );
 
@@ -365,6 +380,16 @@ export const useTabViewLifecycle = ({
       }
     }
   }, [destroyTabView, tabViewsRef, tabs]);
+
+  useEffect(() => {
+    const entries = Array.from(tabViewsRef.current.entries());
+    for (const [tabId, entry] of entries) {
+      const entryKey = entry.partitionKey ?? 'default';
+      if (entryKey !== partitionKey) {
+        destroyTabView(tabId, { keepMeta: true });
+      }
+    }
+  }, [destroyTabView, partitionKey, tabViewsRef]);
 
   useEffect(() => {
     if (!tabsReady) return;

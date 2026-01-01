@@ -39,12 +39,21 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
     const requestId = Date.now();
     torIpRequestRef.current = requestId;
     setTorIpLoading(true);
-    try {
+    const fetchIpDirect = async (): Promise<string> => {
       const response = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
       if (!response.ok) throw new Error('Failed to fetch IP');
       const data = (await response.json().catch(() => ({}))) as { ip?: string };
+      return typeof data.ip === 'string' ? data.ip : '';
+    };
+    try {
+      let ip = '';
+      const torResult = await torService.getIp();
+      if (torResult?.ok && typeof torResult.ip === 'string') {
+        ip = torResult.ip;
+      } else {
+        ip = await fetchIpDirect();
+      }
       if (torIpRequestRef.current === requestId) {
-        const ip = typeof data.ip === 'string' ? data.ip : '';
         setTorIp(ip);
         evaluateAccessRestriction(ip);
       }

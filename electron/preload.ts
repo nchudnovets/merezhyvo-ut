@@ -176,6 +176,8 @@ const exposeApi: MerezhyvoAPI = {
     toggle: () =>
       ipcRenderer.invoke('tor:toggle') as Promise<MerezhyvoTorState>,
     getState: () => ipcRenderer.invoke('tor:get-state') as Promise<MerezhyvoTorState>,
+    clearSession: () => ipcRenderer.invoke('tor:clear-session') as Promise<{ ok: boolean; error?: string }>,
+    getIp: () => ipcRenderer.invoke('tor:get-ip') as Promise<{ ok: boolean; ip?: string; error?: string }>,
     onState: (handler) => {
       if (typeof handler !== 'function') return noopUnsubscribe;
       const channel = 'tor:state';

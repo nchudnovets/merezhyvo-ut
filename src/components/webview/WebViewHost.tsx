@@ -23,6 +23,7 @@ declare global {
       // Minimal typing to let TSX render the Electron webview tag.
       webview: React.DetailedHTMLProps<React.HTMLAttributes<WebviewTag>, WebviewTag> & {
         allowpopups?: string;
+        partition?: string;
       };
     }
   }
@@ -42,6 +43,7 @@ export type WebViewHostProps = {
   initialUrl: string;
   mode: 'mobile' | 'desktop';
   zoom: number;
+  partition?: string;
   onCanGo: (state: { back: boolean; forward: boolean }) => void;
   onStatus: (state: StatusState) => void;
   onUrlChange: (url: string) => void;
@@ -144,7 +146,8 @@ const WebViewHost = forwardRef(function WebViewHost(
     onNavigationStart,
     onNavigationError,
     className,
-    style
+    style,
+    partition
   }: WebViewHostProps,
   ref: ForwardedRef<WebViewHandle>
 ) {
@@ -683,6 +686,7 @@ const WebViewHost = forwardRef(function WebViewHost(
       ref={webviewRef}
       className={className}
       style={composedStyle}
+      partition={partition}
       //@ts-expect-error expexted
       // eslint-disable-next-line react/no-unknown-property
       allowpopups="true"

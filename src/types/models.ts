@@ -362,6 +362,17 @@ export interface TorConfigResult {
   error?: string;
 }
 
+export interface TorClearResult {
+  ok: boolean;
+  error?: string;
+}
+
+export interface TorIpResult {
+  ok: boolean;
+  ip?: string;
+  error?: string;
+}
+
 export interface OpenUrlPayload {
   url: string;
   activate: boolean;

@@ -5,12 +5,13 @@ import path from 'path';
 import os from 'os';
 import { spawn } from 'child_process';
 import net from 'net';
-import { session, BrowserWindow } from 'electron';
+import { session, BrowserWindow, net as electronNet } from 'electron';
 import {
   getMainWindow,
   getOrCreateMainWindow
 } from './windows';
 import { broadcastWebrtcPolicy } from './webrtc-policy';
+import { getTorState, setTorState, updateTorState } from './tor-state';
 
 import type { BrowserWindow as TBrowserWindow, IpcMain, IpcMainInvokeEvent, Session } from 'electron';
 import type { ChildProcess } from 'child_process';
@@ -19,25 +20,22 @@ const TOR_HOST = '127.0.0.1';
 const TOR_PORT = 9050;
 const APP_ID = 'merezhyvo.naz.r';
 
-type TorState = {
-  enabled: boolean;
-  starting: boolean;
-  reason: string | null;
-};
+export { getTorState };
 
 type StartOptions = {
   // Kept for API compatibility; currently unused.
   containerId?: string;
 };
 
+const TOR_PARTITION = 'mzr-tor';
 let torChild: ChildProcess | null = null;
-let torState: TorState = { enabled: false, starting: false, reason: null };
 
-export const getTorState = (): TorState => ({ ...torState });
+const getTorSession = (): Session => session.fromPartition(TOR_PARTITION);
 
 /** Send current tor state to a window (or main window if not provided). */
 export function sendTorState(win?: TBrowserWindow | null): void {
   const target: TBrowserWindow | null | undefined = win || getMainWindow?.();
+  const torState = getTorState();
   if (target && !target.isDestroyed?.()) {
     try {
       target.webContents.send('tor:state', {
@@ -141,7 +139,7 @@ function waitForPort(
 /** Apply or clear Electron proxy to route traffic via tor SOCKS5. */
 async function applyProxy(enabled: boolean): Promise<void> {
   const rules = enabled ? `socks5://${TOR_HOST}:${TOR_PORT}` : '';
-  const targetSession: Session = session.defaultSession;
+  const targetSession: Session = getTorSession();
   await targetSession.setProxy({
     proxyRules: rules,
     proxyBypassRules: 'localhost,127.0.0.1'
@@ -153,22 +151,23 @@ export async function startTorAndProxy(
   winForFeedback?: TBrowserWindow | null,
   _options: StartOptions = {}
 ): Promise<void> {
-  if (torState.enabled || torState.starting) return;
+  const current = getTorState();
+  if (current.enabled || current.starting) return;
 
   const cmd = resolveTorCommand();
   if (!cmd) {
-    torState = {
+    setTorState({
       enabled: false,
       starting: false,
       reason: 'Tor binary not found (embedded tor is missing).'
-    };
+    });
     sendTorState(winForFeedback ?? null);
     return;
   }
 
   const dataDir = ensureTorDataDir();
 
-  torState = { enabled: false, starting: true, reason: null };
+  setTorState({ enabled: false, starting: true, reason: null });
   sendTorState(winForFeedback ?? null);
 
   // Quick check if tor is already up
@@ -205,7 +204,7 @@ export async function startTorAndProxy(
       });
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : String(err);
-      torState = { enabled: false, starting: false, reason: `Failed to spawn tor: ${msg}` };
+      setTorState({ enabled: false, starting: false, reason: `Failed to spawn tor: ${msg}` });
       sendTorState(winForFeedback ?? null);
       return;
     }
@@ -219,7 +218,7 @@ export async function startTorAndProxy(
         // noop
       }
       torChild = null;
-      torState = { enabled: false, starting: false, reason: 'Tor did not open 9050 in time' };
+      setTorState({ enabled: false, starting: false, reason: 'Tor did not open 9050 in time' });
       sendTorState(winForFeedback ?? null);
       return;
     }
@@ -227,7 +226,7 @@ export async function startTorAndProxy(
 
   try {
     await applyProxy(true);
-    torState = { enabled: true, starting: false, reason: null };
+    setTorState({ enabled: true, starting: false, reason: null });
     sendTorState(winForFeedback ?? null);
 
     const target: TBrowserWindow | null =
@@ -238,14 +237,14 @@ export async function startTorAndProxy(
     }
   } catch (err: unknown) {
     const msg = err instanceof Error ? err.message : String(err);
-    torState = { enabled: false, starting: false, reason: `Proxy error: ${msg}` };
+    setTorState({ enabled: false, starting: false, reason: `Proxy error: ${msg}` });
     sendTorState(winForFeedback ?? null);
   }
 }
 
 /** Stop tor proxy and kill tor process (if we spawned it). */
 export async function stopTorAndProxy(winForFeedback?: TBrowserWindow | null): Promise<void> {
-  torState.starting = false;
+  updateTorState({ starting: false });
   try {
     await applyProxy(false);
   } catch {
@@ -259,8 +258,59 @@ export async function stopTorAndProxy(winForFeedback?: TBrowserWindow | null): P
     }
     torChild = null;
   }
-  torState = { enabled: false, starting: false, reason: null };
+  setTorState({ enabled: false, starting: false, reason: null });
   sendTorState(winForFeedback ?? null);
+}
+
+export async function clearTorSessionData(): Promise<{ ok: boolean; error?: string }> {
+  try {
+    const torSession = getTorSession();
+    await torSession.clearStorageData({
+      storages: [
+        'cookies',
+        'localstorage',
+        'indexdb',
+        'cachestorage',
+        'serviceworkers'
+      ]
+    });
+    try {
+      await torSession.clearCache();
+    } catch {
+      // ignore cache clear failures
+    }
+    return { ok: true };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
+  }
+}
+
+async function fetchTorIp(): Promise<string> {
+  const torSession = getTorSession();
+  return new Promise((resolve, reject) => {
+    const request = electronNet.request({
+      url: 'https://api.ipify.org?format=json',
+      session: torSession
+    });
+    let buffer = '';
+    request.on('response', (response) => {
+      response.on('data', (chunk) => {
+        buffer += chunk.toString();
+      });
+      response.on('end', () => {
+        try {
+          const data = JSON.parse(buffer) as { ip?: unknown };
+          resolve(typeof data.ip === 'string' ? data.ip : '');
+        } catch {
+          resolve('');
+        }
+      });
+    });
+    request.on('error', (err) => {
+      reject(err);
+    });
+    request.end();
+  });
 }
 
 /** Wire IPC handlers for tor controls. */
@@ -269,18 +319,32 @@ export function registerTorHandlers(ipcMain: IpcMain): void {
     const win =
       BrowserWindow.fromWebContents(event.sender) || getMainWindow?.();
 
-    if (torState.enabled || torState.starting) {
+    const current = getTorState();
+    if (current.enabled || current.starting) {
       await stopTorAndProxy(win);
     } else {
       await startTorAndProxy(win);
     }
-    return { ...torState };
+    return { ...getTorState() };
   });
 
   ipcMain.handle('tor:get-state', (event: IpcMainInvokeEvent) => {
     const win =
       BrowserWindow.fromWebContents(event.sender) || getMainWindow?.();
     sendTorState(win);
-    return { ...torState };
+    return { ...getTorState() };
+  });
+
+  ipcMain.handle('tor:clear-session', async () => {
+    return clearTorSessionData();
+  });
+
+  ipcMain.handle('tor:get-ip', async () => {
+    try {
+      const ip = await fetchTorIp();
+      return { ok: true, ip };
+    } catch (err) {
+      return { ok: false, error: err instanceof Error ? err.message : String(err) };
+    }
   });
 }

@@ -32,6 +32,7 @@ import SiteDataPage from './pages/siteData/SiteDataPage';
 import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
+import TorDisableDialog from './components/modals/TorDisableDialog';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { useDownloadIndicators } from './hooks/useDownloadIndicators';
 import { useAppInfo } from './hooks/useAppInfo';
@@ -53,6 +54,7 @@ import { useTabViewLifecycle } from './hooks/useTabViewLifecycle';
 import { JsDialogHost } from './components/modals/jsDialog/JsDialogHost';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
+import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
 import { useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
@@ -211,6 +213,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     handleTorKeepChange,
     handleToggleTor
   } = useTorSettings({ showGlobalToast });
+  const [showTorDisableDialog, setShowTorDisableDialog] = useState<boolean>(false);
+  const [torDisableBusy, setTorDisableBusy] = useState<boolean>(false);
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
@@ -306,6 +310,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const {
     newTab: newTabAction,
     closeTab: closeTabAction,
+    closeAllTabs: closeAllTabsAction,
     activateTab: activateTabAction,
     pinTab: pinTabAction,
     navigateActive: navigateActiveAction,
@@ -1209,6 +1214,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     tabs,
     activeTab,
     tabsReady,
+    torEnabled,
     refs: {
       tabViewsRef,
       webviewHostRef,
@@ -1815,6 +1821,69 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     newTabAction('https://www.torproject.org');
   }, [closeSettingsModal, newTabAction]);
 
+  const handleTorToggleRequest = useCallback(() => {
+    if (torEnabled) {
+      if (!torDisableBusy) {
+        setShowTorDisableDialog(true);
+      }
+      return;
+    }
+    void handleToggleTor();
+  }, [handleToggleTor, torDisableBusy, torEnabled]);
+
+  const handleTorDisableCancel = useCallback(() => {
+    if (torDisableBusy) return;
+    setShowTorDisableDialog(false);
+  }, [torDisableBusy]);
+
+  const wipeTorSession = useCallback(async (): Promise<boolean> => {
+    const result = await torService.clearSession();
+    if (!result?.ok) {
+      showGlobalToast(t('tor.disable.wipeFailed'));
+      return false;
+    }
+    return true;
+  }, [showGlobalToast, t]);
+
+  const handleTorDisableChoice = useCallback(
+    async (modeChoice: 'close' | 'keep') => {
+      if (torDisableBusy) return;
+      setTorDisableBusy(true);
+      const wiped = await wipeTorSession();
+      if (!wiped) {
+        setTorDisableBusy(false);
+        return;
+      }
+      try {
+        const state = await torService.toggle();
+        if (state?.enabled) {
+          showGlobalToast(t('tor.disable.toggleFailed'));
+          setTorDisableBusy(false);
+          return;
+        }
+      } catch (err) {
+        console.error('[merezhyvo] tor disable failed', err);
+        showGlobalToast(t('tor.disable.toggleFailed'));
+        setTorDisableBusy(false);
+        return;
+      }
+      if (modeChoice === 'close') {
+        closeAllTabsAction();
+      }
+      setShowTorDisableDialog(false);
+      setTorDisableBusy(false);
+    },
+    [closeAllTabsAction, showGlobalToast, t, torDisableBusy, wipeTorSession]
+  );
+
+  const handleTorDisableCloseAll = useCallback(() => {
+    void handleTorDisableChoice('close');
+  }, [handleTorDisableChoice]);
+
+  const handleTorDisableKeepTabs = useCallback(() => {
+    void handleTorDisableChoice('keep');
+  }, [handleTorDisableChoice]);
+
   const {
     passwordStatus,
     passwordPrompt,
@@ -1859,6 +1928,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       window.removeEventListener('keydown', handleKeyDown);
     };
   }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp, setTorConfigFeedback, setTorKeepEnabledDraft]);
+
+  useEffect(() => {
+    if (torEnabled) return;
+    setShowTorDisableDialog(false);
+    setTorDisableBusy(false);
+  }, [torEnabled]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -2667,7 +2742,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onInputBlur={handleInputBlur}
               onOpenTabsPanel={openTabsPanel}
               onNewTab={handleNewTab}
-              onToggleTor={handleToggleTor}
+              onToggleTor={handleTorToggleRequest}
               onOpenSettings={openSettingsModal}
               onEnterMessengerMode={handleEnterMessengerMode}
               showMessengerButton={!messengerSettingsState?.hideToolbar}
@@ -2810,6 +2885,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenTrackersExceptions={openSecurityExceptionsFromSettings}
             />
           )}
+
+          <TorDisableDialog
+            open={showTorDisableDialog}
+            mode={mode}
+            busy={torDisableBusy}
+            onCloseAll={handleTorDisableCloseAll}
+            onKeepTabs={handleTorDisableKeepTabs}
+            onCancel={handleTorDisableCancel}
+          />
 
           <PasswordCapturePrompt
             open={Boolean(passwordPrompt)}

@@ -631,9 +631,17 @@ function reloadActive(): void {
   });
 }
 
+function closeAllTabs(): void {
+  setState(() => {
+    const initial = createInitialState();
+    return { ...initial, ready: true };
+  });
+}
+
 const tabsActions = Object.freeze({
   newTab,
   closeTab,
+  closeAllTabs,
   activateTab,
   pinTab,
   updateMeta,

@@ -4,6 +4,8 @@ import type {
   SettingsState,
   TorState,
   TorConfigResult,
+  TorClearResult,
+  TorIpResult,
   Unsubscribe,
   MessengerSettings,
   KeyboardSettings,
@@ -265,6 +267,28 @@ export const ipc = {
       } catch {
         return null;
       }
+    },
+    async clearSession(): Promise<TorClearResult> {
+      try {
+        const res = await getApi()?.tor?.clearSession?.();
+        if (res && typeof res === 'object') {
+          return res as TorClearResult;
+        }
+      } catch {
+        // ignore
+      }
+      return { ok: false, error: 'Tor session clear failed.' };
+    },
+    async getIp(): Promise<TorIpResult> {
+      try {
+        const res = await getApi()?.tor?.getIp?.();
+        if (res && typeof res === 'object') {
+          return res as TorIpResult;
+        }
+      } catch {
+        // ignore
+      }
+      return { ok: false, error: 'Tor IP lookup failed.' };
     },
     onState(handler: (enabled: boolean, reason: string | null) => void): Unsubscribe {
       const api = getApi();

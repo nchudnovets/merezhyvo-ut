@@ -8,6 +8,7 @@ export type TabViewEntry = {
   root: Root | { unmount: () => void } | null;
   cleanup?: () => void;
   isBackground?: boolean;
+  partitionKey?: string;
   handle: WebViewHandle | null;
   view: WebviewTag | null;
   render?: (mode?: Mode, zoom?: number) => void;

@@ -19,6 +19,7 @@ import type { FileDialogOptions } from '../../src/types/models';
 import { resolveMode } from '../mode';
 import { addVisit, updateTitle, updateFavicon } from './history';
 import { saveFromBuffer } from './favicons';
+import { getTorState } from './tor-state';
 import {
   linkGuestWebContentsToHost,
   promptForPaths,
@@ -965,7 +966,10 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       }
     };
 
+    const isTorEnabled = (): boolean => getTorState().enabled;
+
     const safeAddVisit = async (navUrl: string | undefined, transition: string): Promise<void> => {
+      if (isTorEnabled()) return;
       const target = navUrl?.trim();
       if (!target) return;
       try {
@@ -989,6 +993,7 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     };
 
     const safeUpdateTitle = async (title: string | undefined): Promise<void> => {
+      if (isTorEnabled()) return;
       const value = typeof title === 'string' ? title.trim() : '';
       const url = getCurrentUrl();
       if (!url || !value) return;
@@ -1040,6 +1045,7 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     };
 
     const safeUpdateFavicon = async (icons: unknown): Promise<void> => {
+      if (isTorEnabled()) return;
       const url = getCurrentUrl();
       if (!url) return;
       const list = Array.isArray(icons) ? icons : [];

@@ -9,7 +9,7 @@ import {
   sanitizeSettingsPayload,
   type WebrtcMode
 } from './shortcuts';
-import { getTorState } from './tor';
+import { getTorState } from './tor-state';
 
 export type WebrtcPolicyPayload = {
   mode: WebrtcMode;
