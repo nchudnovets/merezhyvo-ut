@@ -122,14 +122,15 @@ export function makeMainInjects() {
         const lineText = (ip.tagName || '').toLowerCase() === 'textarea'
           ? (before.split('\n').pop() || '')
           : before;
-        const width = ctx.measureText(lineText).width;
-        const caretX = width + padL + borderL;
+        const caretX = ctx.measureText(lineText).width;
         const viewLeft = ip.scrollLeft;
-        const viewRight = viewLeft + ip.clientWidth - padR - borderR;
-        if (caretX < viewLeft) {
+        const visibleWidth = Math.max(0, ip.clientWidth - padL - padR);
+        const viewRight = viewLeft + visibleWidth;
+        if (caretX <= 1) {
+          ip.scrollLeft = 0;
+        } else if (caretX < viewLeft + 2) {
           ip.scrollLeft = Math.max(0, caretX - 4);
-        } else if (caretX > viewRight) {
-          const visibleWidth = ip.clientWidth - padR - borderR;
+        } else if (caretX > viewRight - 2) {
           ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
         }
       }
@@ -793,15 +794,15 @@ export function makeWebInjects(
                   var width = ctx.measureText(text).width;
                   var padL = parseFloat(style.paddingLeft || '0') || 0;
                   var padR = parseFloat(style.paddingRight || '0') || 0;
-                  var borderL = parseFloat(style.borderLeftWidth || '0') || 0;
-                  var borderR = parseFloat(style.borderRightWidth || '0') || 0;
-                  var caretX = width + padL + borderL;
+                  var caretX = width;
                   var viewLeft = ip.scrollLeft;
-                  var viewRight = viewLeft + ip.clientWidth - padR - borderR;
-                  if (caretX < viewLeft) {
+                  var visibleWidth = Math.max(0, ip.clientWidth - padL - padR);
+                  var viewRight = viewLeft + visibleWidth;
+                  if (caretX <= 1) {
+                    ip.scrollLeft = 0;
+                  } else if (caretX < viewLeft + 2) {
                     ip.scrollLeft = Math.max(0, caretX - 4);
-                  } else if (caretX > viewRight) {
-                    var visibleWidth = ip.clientWidth - padR - borderR;
+                  } else if (caretX > viewRight - 2) {
                     ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
                   }
                 }
