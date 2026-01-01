@@ -60,7 +60,7 @@ export const JsDialogHost: React.FC<Props> = ({ mode }) => {
         gap: mode === 'mobile' ? 20 : 16
       },
       message: {
-        fontSize: mode === 'mobile' ? 38 : 15,
+        fontSize: mode === 'mobile' ? 40 : 15,
         lineHeight: 1.35,
         color: text
       },
@@ -75,7 +75,7 @@ export const JsDialogHost: React.FC<Props> = ({ mode }) => {
         border: `1px solid ${border}`,
         padding: mode === 'mobile' ? '16px 26px' : '10px 14px',
         minWidth: mode === 'mobile' ? 160 : 100,
-        fontSize: mode === 'mobile' ? 28 : 16,
+        fontSize: mode === 'mobile' ? 40 : 16,
         fontWeight: 600,
         cursor: 'pointer',
         background: 'var(--mzr-surface-muted)',
