@@ -2602,8 +2602,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const title = t('webview.error.title');
     const subtitle = t('webview.error.subtitle');
     const urlDisplayValue = pageError.url || lastFailedUrlRef.current || '';
+    const baseBg = themeVars['bg'] ?? '#0F1525';
+    const accentTint = themeVars['accent-tint'] ?? 'rgba(37, 99, 235, 0.12)';
+    const borderStrong = themeVars['border-strong'] ?? themeVars['border'] ?? 'rgba(148,163,184,0.35)';
+    const textPrimary = themeVars['text-primary'] ?? '#EAF0FF';
+    const textSecondary = themeVars['text-secondary'] ?? '#B9C3D8';
+    const surface = themeVars['surface'] ?? '#121826';
+    const surfaceMuted = themeVars['surface-muted'] ?? '#0b1020';
+    const accent = themeVars['accent'] ?? '#235CDC';
+    const accentStrong = themeVars['accent-strong'] ?? '#1d4ed8';
     const urlDisplay = urlDisplayValue
-      ? `<div style="margin-top:12px;padding:10px 14px;border-radius:12px;background:rgba(15,23,42,0.7);border:1px solid rgba(148,163,184,0.4);font-size:14px;word-break:break-all;color:var(--mzr-text-primary);">${urlDisplayValue}</div>`
+      ? `<div style="margin-top:12px;padding:10px 14px;border-radius:12px;background:${surfaceMuted};border:1px solid ${borderStrong};font-size:14px;word-break:break-all;color:${textPrimary};">${urlDisplayValue}</div>`
       : '';
     const reloadLabel = t('webview.error.retry');
     const html = `
@@ -2614,7 +2623,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
         <style>
           :root {
-            color-scheme: dark;
+            color-scheme: ${themeVars['color-scheme'] ?? 'dark'};
+            --mzr-bg: ${baseBg};
+            --mzr-surface: ${surface};
+            --mzr-border: ${borderStrong};
+            --mzr-text-primary: ${textPrimary};
+            --mzr-text-secondary: ${textSecondary};
+            --mzr-accent: ${accent};
+            --mzr-accent-strong: ${accentStrong};
+            --mzr-accent-tint: ${accentTint};
           }
           body {
             margin:0;
@@ -2622,7 +2639,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             display:flex;
             align-items:center;
             justify-content:center;
-            background: radial-gradient(circle at 20% 20%, rgba(37,156,235,0.08), rgba(5,7,15,0.9));
+            background: radial-gradient(circle at 20% 20%, var(--mzr-accent-tint), var(--mzr-bg));
             font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
             color:var(--mzr-text-secondary);
             padding:20px;
@@ -2631,8 +2648,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           .card {
             max-width: 640px;
             width: 100%;
-            background: rgba(5,7,15,0.65);
-            border: 1px solid rgba(148,163,184,0.35);
+            background: var(--mzr-surface);
+            border: 1px solid var(--mzr-border);
             border-radius: 18px;
             padding: 28px;
             box-shadow: 0 14px 42px rgba(0,0,0,0.35);
@@ -2646,17 +2663,21 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             margin: 0;
             font-size: 15px;
             line-height: 1.6;
-            color: rgba(226,232,240,0.85);
+            color: var(--mzr-text-secondary);
           }
           button {
             margin-top: 18px;
             padding: 12px 18px;
             border-radius: 12px;
-            border: 1px solid rgba(37,156,235,0.9);
-            background: rgba(37,156,235,0.16);
+            border: 1px solid var(--mzr-accent-strong);
+            background: var(--mzr-accent-tint);
             color: var(--mzr-text-primary);
             font-size: 15px;
             cursor: pointer;
+          }
+          button:hover {
+            background: var(--mzr-accent);
+            color: #f8fafc;
           }
         </style>
       </head>
@@ -2676,7 +2697,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } catch {
       // ignore
     }
-  }, [pageError, status, t, webviewRef]);
+  }, [pageError, status, t, themeVars, webviewRef]);
 
   const {
     toolbarRef,
