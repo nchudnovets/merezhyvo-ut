@@ -262,7 +262,7 @@ export const useTabViewLifecycle = ({
       let entry = tabViewsRef.current.get(tab.id);
       if (entry && (entry.partitionKey ?? 'default') !== partitionKey) {
         destroyTabView(tab.id, { keepMeta: true });
-        entry = null;
+        entry = undefined;
       }
       if (!entry) {
         const targetZoom = getStoredZoomForTab(tab, mode);
@@ -326,6 +326,7 @@ export const useTabViewLifecycle = ({
       getStoredZoomForTab,
       loadUrlIntoView,
       mode,
+      destroyTabView,
       refreshNavigationState,
       setActiveViewRevision,
       setStatus,

@@ -110,8 +110,6 @@ export function makeMainInjects() {
       const style = getComputedStyle(ip);
       const padL = parseFloat(style.paddingLeft || '0') || 0;
       const padR = parseFloat(style.paddingRight || '0') || 0;
-      const borderL = parseFloat(style.borderLeftWidth || '0') || 0;
-      const borderR = parseFloat(style.borderRightWidth || '0') || 0;
       const canvas: HTMLCanvasElement =
         (window as any).__mzrCaretCanvas || ((window as any).__mzrCaretCanvas = document.createElement('canvas'));
       const ctx = canvas?.getContext && canvas.getContext('2d');

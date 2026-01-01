@@ -686,6 +686,7 @@ const WebViewHost = forwardRef(function WebViewHost(
       ref={webviewRef}
       className={className}
       style={composedStyle}
+      // eslint-disable-next-line react/no-unknown-property
       partition={partition}
       //@ts-expect-error expexted
       // eslint-disable-next-line react/no-unknown-property
