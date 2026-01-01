@@ -84,7 +84,7 @@ const pl = {
   'siteData.row.storageNone': 'Brak zapisanych danych witryny',
   'siteData.row.clearStorage': 'Wyczyść dane',
   'siteData.row.confirm': 'Potwierdź',
-  'siteData.toast.cleared': 'Wyczyszczono ciasteczka dla {host}',
+  'siteData.toast.cookiesCleared': 'Wyczyszczono ciasteczka dla {host}',
   'siteData.toast.storageCleared': 'Wyczyszczono dane witryny dla {host}',
   'siteData.toast.historyCleared': 'Wyczyszczono historię dla {host}',
   'siteData.toast.globalCleared': 'Dane przeglądania wyczyszczone',

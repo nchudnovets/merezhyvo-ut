@@ -100,7 +100,7 @@ const no = {
   'siteData.row.clearStorage': 'Tøm data',
   'siteData.row.confirm': 'Bekreft',
 
-  'siteData.toast.cleared': 'Informasjonskapsler tømt for {host}',
+  'siteData.toast.cookiesCleared': 'Informasjonskapsler tømt for {host}',
   'siteData.toast.storageCleared': 'Nettstedlagring tømt for {host}',
   'siteData.toast.historyCleared': 'Historikk tømt for {host}',
   'siteData.toast.globalCleared': 'Nettleserdata tømt',

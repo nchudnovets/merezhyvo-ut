@@ -86,7 +86,7 @@ const en = {
   'siteData.row.storageNone': 'No site storage saved',
   'siteData.row.clearStorage': 'Clear data',
   'siteData.row.confirm': 'Confirm',
-  'siteData.toast.cleared': 'Cleared cookies for {host}',
+  'siteData.toast.cookiesCleared': 'Cleared cookies for {host}',
   'siteData.toast.storageCleared': 'Cleared site storage for {host}',
   'siteData.toast.historyCleared': 'Cleared history for {host}',
   'siteData.toast.globalCleared': 'Browsing data cleared',

@@ -539,8 +539,8 @@ const SiteDataPage: React.FC<ServicePageProps> = ({ mode, serviceUrl, onClose })
                 borderRadius: 10,
                 border: rowBorder,
                 background: 'var(--mzr-success-tint, rgba(34,197,94,0.15))',
-                color: '#bbf7d0',
-                fontSize: mode === 'mobile' ? '35px' : '13px'
+                color: 'var(--mzr-text-primary)',
+                fontSize: mode === 'mobile' ? '38px' : '15px'
               }}
             >
               {toast}

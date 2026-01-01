@@ -76,7 +76,7 @@ const it = {
   'siteData.row.storageNone': 'Nessun storage salvato',
   'siteData.row.clearStorage': 'Cancella dati',
   'siteData.row.confirm': 'Conferma',
-  'siteData.toast.cleared': 'Cookie cancellati per {host}',
+  'siteData.toast.cookiesCleared': 'Cookie cancellati per {host}',
   'siteData.toast.storageCleared': 'Storage cancellato per {host}',
   'siteData.toast.historyCleared': 'Cronologia cancellata per {host}',
   'siteData.toast.globalCleared': 'Dati di navigazione cancellati',

@@ -84,7 +84,7 @@ const es = {
   'siteData.row.storageNone': 'No hay almacenamiento guardado',
   'siteData.row.clearStorage': 'Borrar datos',
   'siteData.row.confirm': 'Confirmar',
-  'siteData.toast.cleared': 'Cookies borradas para {host}',
+  'siteData.toast.cookiesCleared': 'Cookies borradas para {host}',
   'siteData.toast.storageCleared': 'Almacenamiento borrado para {host}',
   'siteData.toast.historyCleared': 'Historial borrado para {host}',
   'siteData.toast.globalCleared': 'Datos de navegación borrados',

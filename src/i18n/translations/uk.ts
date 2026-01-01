@@ -84,7 +84,7 @@ const uk = {
   'siteData.row.storageNone': 'Немає збережених даних сайту',
   'siteData.row.clearStorage': 'Очистити дані',
   'siteData.row.confirm': 'Підтвердити',
-  'siteData.toast.cleared': 'Куки для {host} очищено',
+  'siteData.toast.cookiesCleared': 'Куки для {host} очищено',
   'siteData.toast.storageCleared': 'Дані сайту для {host} очищено',
   'siteData.toast.historyCleared': 'Історію для {host} очищено',
   'siteData.toast.globalCleared': 'Дані перегляду очищено',

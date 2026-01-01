@@ -84,7 +84,7 @@ const nl = {
   'siteData.row.storageNone': 'Geen siteopslag opgeslagen',
   'siteData.row.clearStorage': 'Gegevens wissen',
   'siteData.row.confirm': 'Bevestigen',
-  'siteData.toast.cleared': 'Cookies gewist voor {host}',
+  'siteData.toast.cookiesCleared': 'Cookies gewist voor {host}',
   'siteData.toast.storageCleared': 'Siteopslag gewist voor {host}',
   'siteData.toast.historyCleared': 'Geschiedenis gewist voor {host}',
   'siteData.toast.globalCleared': 'Browsegegevens gewist',
