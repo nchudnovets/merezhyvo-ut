@@ -58,6 +58,7 @@ interface SettingsModalProps {
   onWebZoomDesktopChange: (value: number) => void;
   onThemeChange: (value: ThemeName) => void;
   onOpenTorLink: () => void;
+  onOpenTorInfo: () => void;
   httpsMode: HttpsMode;
   onHttpsModeChange: (mode: HttpsMode) => void;
   webrtcMode: WebrtcMode;
@@ -115,6 +116,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUiScaleReset,
   onThemeChange,
   onOpenTorLink,
+  onOpenTorInfo,
   httpsMode,
   onHttpsModeChange,
   webrtcMode,
@@ -243,6 +245,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torConfigSaving={torConfigSaving}
                 torConfigFeedback={torConfigFeedback}
                 onTorKeepChange={onTorKeepChange}
+                onOpenTorInfo={onOpenTorInfo}
               />
             }
           />

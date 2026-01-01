@@ -30,6 +30,7 @@ import PasswordsPage from './pages/passwords/PasswordsPage';
 import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import SiteDataPage from './pages/siteData/SiteDataPage';
 import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
+import TorInfoPage from './pages/torInfo/TorInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
 import TorDisableDialog from './components/modals/TorDisableDialog';
@@ -2371,6 +2372,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openInNewTab('mzr://privacy-info');
   }, [closeSettingsModal, openInNewTab]);
+  const openTorInfoFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://tor-info');
+  }, [closeSettingsModal, openInNewTab]);
   const openSiteDataPage = useCallback(
     (host?: string | null) => {
       const targetHost = normalizeSiteDataHost(host);
@@ -2402,9 +2407,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isSecurityExceptionsService = serviceUrl.startsWith('mzr://security-exceptions');
   const isSiteDataService = serviceUrl.startsWith('mzr://site-data');
   const isPrivacyInfoService = serviceUrl.startsWith('mzr://privacy-info');
+  const isTorInfoService = serviceUrl.startsWith('mzr://tor-info');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService);
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService || isTorInfoService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -2437,6 +2443,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       );
     } else if (isPrivacyInfoService) {
       serviceContent = <PrivacyInfoPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} serviceUrl={activeTab?.url} onClose={closeServicePage} />;
+    } else if (isTorInfoService) {
+      serviceContent = <TorInfoPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} serviceUrl={activeTab?.url} onClose={closeServicePage} />;
     }
   }
 
@@ -2888,6 +2896,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onUiScaleReset={handleUiScaleReset}
               onThemeChange={handleThemeChange}
               onOpenTorLink={handleOpenTorProjectLink}
+              onOpenTorInfo={openTorInfoFromSettings}
               httpsMode={httpsMode}
               onHttpsModeChange={handleHttpsModeChange}
               webrtcMode={webrtcMode}
