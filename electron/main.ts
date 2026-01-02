@@ -37,6 +37,7 @@ import {
   sanitizeDownloadsSettings,
   sanitizeUiSettings,
   sanitizeSettingsPayload,
+  sanitizeSecureDnsSettings,
   sanitizeHttpsMode,
   sanitizeSslExceptions,
   type SettingsState,
@@ -77,7 +78,7 @@ import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
 import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
 import { installCookiePolicy } from './lib/cookie-policy';
-import { applySecureDnsFromSettings } from './lib/secure-dns';
+import { applySecureDnsFromSettings, resolveSecureDnsConfig, type SecureDnsResolvedConfig } from './lib/secure-dns';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
 
@@ -852,63 +853,97 @@ const parseLaunchConfig = (): LaunchConfig => {
 };
 
 const launchConfig = parseLaunchConfig();
-windows.setLaunchConfig({
-  url: launchConfig.url,
-  fullscreen: launchConfig.fullscreen,
-  devtools: launchConfig.devtools,
-  modeOverride: launchConfig.modeOverride ?? undefined,
-  startProvided: launchConfig.startProvided
-});
 
-const featureFlags: string[] = [];
-if (launchConfig.forceDark) {
-  featureFlags.push('WebContentsForceDark');
-}
-if (featureFlags.length > 0) {
-  app.commandLine.appendSwitch('enable-features', featureFlags.join(','));
-}
+const resolveStartupSecureDnsConfig = async (): Promise<SecureDnsResolvedConfig> => {
+  try {
+    const state = await readSettingsState();
+    const settings = sanitizeSecureDnsSettings(state.network?.secureDns);
+    return resolveSecureDnsConfig(settings, getTorState().enabled);
+  } catch {
+    return resolveSecureDnsConfig(sanitizeSecureDnsSettings(null), getTorState().enabled);
+  }
+};
 
-app.commandLine.appendSwitch('disable-gpu');
-app.commandLine.appendSwitch('disable-gpu-compositing');
-app.commandLine.appendSwitch('disable-gpu-sandbox');
+const applySecureDnsCommandLine = (resolved: SecureDnsResolvedConfig): void => {
+  app.commandLine.appendSwitch('dns-over-https-mode', resolved.mode);
+  if (resolved.servers && resolved.servers.length > 0) {
+    app.commandLine.appendSwitch('dns-over-https-servers', resolved.servers.join(','));
+  }
+};
 
-app.commandLine.appendSwitch('no-sandbox');
-app.commandLine.appendSwitch('disable-setuid-sandbox');
-
-app.commandLine.appendSwitch('use-gl', 'egl');
-app.commandLine.appendSwitch('enable-pinch');
-tor.registerTorHandlers(ipcMain);
-registerKeyboardSettingsIPC();
-registerMessengerSettingsIPC();
-registerHistoryIpc(ipcMain);
-registerBookmarksIpc(ipcMain);
-registerFaviconsIpc(ipcMain);
-registerFileDialogIpc(ipcMain);
-registerCookieSettingsIPC();
-registerSecureDnsIpc(ipcMain);
-registerPasswordsIpc(ipcMain);
-registerSiteDataIpc();
-
-app.whenReady().then(() => {
-  // installPermissionHandlers();
-  // installGeoHandlers();
-  const initialMode = resolveMode();
-  windows.setCurrentMode(initialMode);
-  windows.installUserAgentOverride(session.defaultSession);
-  installCookiePolicy(session.defaultSession);
-  void applySecureDnsFromSettings(getTorState().enabled);
-  windows.createMainWindow();
-
-  screen.on('display-added', () => windows.rebalanceMainWindow());
-  screen.on('display-removed', () => windows.rebalanceMainWindow());
-  screen.on('display-metrics-changed', () => windows.rebalanceMainWindow());
-
-  app.on('activate', () => {
-    if (BrowserWindow.getAllWindows().length === 0) {
-      windows.createMainWindow();
-    }
+const startApp = async (): Promise<void> => {
+  windows.setLaunchConfig({
+    url: launchConfig.url,
+    fullscreen: launchConfig.fullscreen,
+    devtools: launchConfig.devtools,
+    modeOverride: launchConfig.modeOverride ?? undefined,
+    startProvided: launchConfig.startProvided
   });
-});
+
+  const secureDnsResolved = await resolveStartupSecureDnsConfig();
+
+  const featureFlags = new Set<string>();
+  const existingFeatures = app.commandLine.getSwitchValue('enable-features');
+  if (existingFeatures) {
+    existingFeatures.split(',').map((value) => value.trim()).filter(Boolean).forEach((value) => featureFlags.add(value));
+  }
+  if (launchConfig.forceDark) {
+    featureFlags.add('WebContentsForceDark');
+  }
+  if (secureDnsResolved.mode !== 'off') {
+    featureFlags.add('DnsOverHttps');
+    featureFlags.add('AsyncDns');
+  }
+  if (featureFlags.size > 0) {
+    app.commandLine.appendSwitch('enable-features', Array.from(featureFlags).join(','));
+  }
+
+  applySecureDnsCommandLine(secureDnsResolved);
+
+  app.commandLine.appendSwitch('disable-gpu');
+  app.commandLine.appendSwitch('disable-gpu-compositing');
+  app.commandLine.appendSwitch('disable-gpu-sandbox');
+
+  app.commandLine.appendSwitch('no-sandbox');
+  app.commandLine.appendSwitch('disable-setuid-sandbox');
+
+  app.commandLine.appendSwitch('use-gl', 'egl');
+  app.commandLine.appendSwitch('enable-pinch');
+  tor.registerTorHandlers(ipcMain);
+  registerKeyboardSettingsIPC();
+  registerMessengerSettingsIPC();
+  registerHistoryIpc(ipcMain);
+  registerBookmarksIpc(ipcMain);
+  registerFaviconsIpc(ipcMain);
+  registerFileDialogIpc(ipcMain);
+  registerCookieSettingsIPC();
+  registerSecureDnsIpc(ipcMain);
+  registerPasswordsIpc(ipcMain);
+  registerSiteDataIpc();
+
+  app.whenReady().then(() => {
+    // installPermissionHandlers();
+    // installGeoHandlers();
+    const initialMode = resolveMode();
+    windows.setCurrentMode(initialMode);
+    windows.installUserAgentOverride(session.defaultSession);
+    installCookiePolicy(session.defaultSession);
+    void applySecureDnsFromSettings(getTorState().enabled);
+    windows.createMainWindow();
+
+    screen.on('display-added', () => windows.rebalanceMainWindow());
+    screen.on('display-removed', () => windows.rebalanceMainWindow());
+    screen.on('display-metrics-changed', () => windows.rebalanceMainWindow());
+
+    app.on('activate', () => {
+      if (BrowserWindow.getAllWindows().length === 0) {
+        windows.createMainWindow();
+      }
+    });
+  });
+};
+
+void startApp();
 
 app.on('browser-window-created', (_event: Event, win: BrowserWindow) => {
   windows.applyBrowserWindowPolicies(win);

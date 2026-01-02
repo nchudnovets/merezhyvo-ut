@@ -1,4 +1,4 @@
-import { session, type Session } from 'electron';
+import { app, type ConfigureHostResolverOptions } from 'electron';
 
 import {
   readSettingsState,
@@ -7,7 +7,7 @@ import {
   type SecureDnsSettings
 } from './shortcuts';
 
-const TOR_PARTITION = 'mzr-tor';
+type HostResolverOptions = ConfigureHostResolverOptions;
 
 const PRESET_SERVERS: Record<string, string> = {
   cloudflare: 'https://cloudflare-dns.com/dns-query',
@@ -28,62 +28,84 @@ const normalizeHttpsUrl = (raw: string): string | null => {
   }
 };
 
+const ensureDohTemplate = (raw: string): string => {
+  if (raw.includes('{')) return raw;
+  try {
+    const url = new URL(raw);
+    const suffix = url.search ? '{&dns}' : '{?dns}';
+    return `${url.toString()}${suffix}`;
+  } catch {
+    return raw;
+  }
+};
+
 const resolveSecureDnsServers = (settings: SecureDnsSettings): string[] | null => {
   if (settings.provider === 'auto') return null;
   const preset = PRESET_SERVERS[settings.provider as keyof typeof PRESET_SERVERS];
   if (preset) {
-    return [preset];
+    return [ensureDohTemplate(preset)];
   }
   if (settings.provider === 'nextdns') {
     const id = (settings.nextdnsId || '').trim();
     if (!id) return [];
-    return [`https://dns.nextdns.io/${encodeURIComponent(id)}`];
+    return [ensureDohTemplate(`https://dns.nextdns.io/${encodeURIComponent(id)}`)];
   }
   if (settings.provider === 'custom') {
     const url = normalizeHttpsUrl(settings.customUrl || '');
-    return url ? [url] : [];
+    return url ? [ensureDohTemplate(url)] : [];
   }
   return null;
 };
 
-type HostResolverSession = Session & {
-  configureHostResolver?: (config: { secureDnsMode: 'off' | 'automatic' | 'secure'; secureDnsServers?: string[] }) => void;
+export type SecureDnsResolvedConfig = {
+  mode: 'off' | 'automatic' | 'secure';
+  servers: string[] | null;
 };
 
-const applyHostResolver = (target: Session | null, config: { secureDnsMode: 'off' | 'automatic' | 'secure'; secureDnsServers?: string[] }): void => {
-  const resolverSession = target as HostResolverSession | null;
-  if (!resolverSession?.configureHostResolver) return;
-  try {
-    resolverSession.configureHostResolver(config);
-  } catch (err) {
-    console.error('[merezhyvo] secure DNS apply failed', err);
-  }
-};
-
-export const applySecureDnsSettings = async (
+export const resolveSecureDnsConfig = (
   settings: SecureDnsSettings,
   torEnabled: boolean
-): Promise<void> => {
+): SecureDnsResolvedConfig => {
   const useDns = settings.enabled && !torEnabled;
   const mode: 'off' | 'automatic' | 'secure' = useDns
     ? (settings.mode === 'secure' ? 'secure' : 'automatic')
     : 'off';
   const servers = useDns ? resolveSecureDnsServers(settings) : null;
 
-  const config: { secureDnsMode: 'off' | 'automatic' | 'secure'; secureDnsServers?: string[] } = {
-    secureDnsMode: mode
-  };
-  if (useDns && servers && servers.length > 0) {
-    config.secureDnsServers = servers;
-  }
   if (useDns && servers && servers.length === 0 && settings.provider !== 'auto') {
-    config.secureDnsMode = 'off';
-    delete config.secureDnsServers;
+    return { mode: 'off', servers: null };
   }
 
-  applyHostResolver(session.defaultSession ?? null, config);
-  const torSession = session.fromPartition(TOR_PARTITION);
-  applyHostResolver(torSession, { secureDnsMode: 'off' });
+  return { mode, servers };
+};
+
+const applyHostResolver = async (options: HostResolverOptions): Promise<void> => {
+  try {
+    await app.whenReady();
+    await app.configureHostResolver(options);
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  } catch (error) {
+    // ignore configure failures
+  }
+};
+
+export const applySecureDnsSettings = async (settings: SecureDnsSettings, torEnabled: boolean): Promise<void> => {
+  const resolved = resolveSecureDnsConfig(settings, torEnabled);
+
+  const hostResolver: HostResolverOptions = {
+    secureDnsMode: resolved.mode,
+    enableBuiltInResolver: resolved.mode !== 'off',
+  };
+
+  if (resolved.mode === 'off') {
+    hostResolver.secureDnsServers = [];
+  } else if (resolved.servers === null) {
+    hostResolver.secureDnsServers = [];
+  } else {
+    hostResolver.secureDnsServers = resolved.servers;
+  }
+
+  await applyHostResolver(hostResolver);
 };
 
 export const getSecureDnsSettings = async (): Promise<SecureDnsSettings> => {
