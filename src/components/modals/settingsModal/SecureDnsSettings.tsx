@@ -3,6 +3,7 @@ import React, { type CSSProperties } from 'react';
 import { useI18n } from '../../../i18n/I18nProvider';
 import type { Mode, SecureDnsMode, SecureDnsProvider } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
+import { settingsModalModeStyles } from './settingsModalModeStyles';
 
 type SecureDnsSettingsProps = {
   mode: Mode;
@@ -40,9 +41,11 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
   onCustomUrlCommit
 }) => {
   const styles = settingsModalStyles;
+  const modeStyles = settingsModalModeStyles[mode] || {};
   const { t } = useI18n();
   const isMobile = mode === 'mobile';
   const controlDisabled = torEnabled || !enabled;
+  const radioSize = isMobile ? 42 : 18;
 
   const toggleTrackWidth = isMobile ? 90 : 48;
   const toggleTrackHeight = isMobile ? 48 : 24;
@@ -100,14 +103,6 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
     marginTop: 4
   };
 
-  const selectStyle: CSSProperties = {
-    ...styles.torInput,
-    height: isMobile ? '64px' : '38px',
-    fontSize: isMobile ? '38px' : '14px',
-    cursor: controlDisabled ? 'not-allowed' : 'pointer',
-    opacity: controlDisabled ? 0.6 : 1
-  };
-
   const inputStyle: CSSProperties = {
     ...styles.torInput,
     height: isMobile ? '64px' : '38px',
@@ -118,6 +113,75 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
   const sectionDisabledStyle: CSSProperties = torEnabled
     ? { opacity: 0.6, pointerEvents: 'none' }
     : {};
+
+  const optionRowStyle: CSSProperties = {
+    ...styles.keyboardLayoutRow,
+    ...(modeStyles.settingsKeyboardLayoutRow || {}),
+    gridTemplateColumns: 'auto 1fr',
+    opacity: controlDisabled ? 0.6 : 1,
+    cursor: controlDisabled ? 'not-allowed' : 'pointer'
+  };
+
+  const optionListStyle: CSSProperties = {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: isMobile ? 16 : 10
+  };
+
+  const renderOption = (
+    groupName: string,
+    value: string,
+    checked: boolean,
+    label: string,
+    onChange: (value: string) => void
+  ): React.ReactElement => (
+    <label style={optionRowStyle}>
+      <span style={{ position: 'relative', width: radioSize, height: radioSize, flexShrink: 0 }}>
+        <input
+          type="radio"
+          name={groupName}
+          value={value}
+          checked={checked}
+          disabled={controlDisabled}
+          onChange={() => onChange(value)}
+          style={{
+            position: 'absolute',
+            inset: 0,
+            margin: 0,
+            opacity: 0,
+            cursor: controlDisabled ? 'not-allowed' : 'pointer'
+          }}
+        />
+        {checked && (
+          <span
+            aria-hidden="true"
+            style={{
+              width: radioSize,
+              height: radioSize,
+              borderRadius: 10,
+              display: 'inline-flex',
+              alignItems: 'center',
+              justifyContent: 'center'
+            }}
+          >
+            <svg
+              viewBox="0 0 16 16"
+              width={radioSize * 0.9}
+              height={radioSize * 0.9}
+              fill="none"
+              stroke="var(--mzr-accent)"
+              strokeWidth={isMobile ? 4 : 3}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              <path d="M3 8.5 6.5 12 13 4" />
+            </svg>
+          </span>
+        )}
+      </span>
+      <span>{label}</span>
+    </label>
+  );
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 22 : 12 }}>
@@ -139,33 +203,77 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 28 : 10, ...sectionDisabledStyle }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 28 : 10 }}>
           <span style={labelStyle}>{t('settings.network.secureDns.mode.label')}</span>
-          <select
-            value={dnsMode}
-            onChange={(event) => onModeChange(event.target.value as SecureDnsMode)}
-            disabled={controlDisabled}
-            style={selectStyle}
-          >
-            <option value="automatic">{t('settings.network.secureDns.mode.automatic')}</option>
-            <option value="secure">{t('settings.network.secureDns.mode.secure')}</option>
-          </select>
+          <div style={optionListStyle}>
+            {renderOption(
+              'secure-dns-mode',
+              'automatic',
+              dnsMode === 'automatic',
+              t('settings.network.secureDns.mode.automatic'),
+              (value) => onModeChange(value as SecureDnsMode)
+            )}
+            {renderOption(
+              'secure-dns-mode',
+              'secure',
+              dnsMode === 'secure',
+              t('settings.network.secureDns.mode.secure'),
+              (value) => onModeChange(value as SecureDnsMode)
+            )}
+          </div>
         </div>
 
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 28 : 10 }}>
           <span style={labelStyle}>{t('settings.network.secureDns.provider.label')}</span>
-          <select
-            value={provider}
-            onChange={(event) => onProviderChange(event.target.value as SecureDnsProvider)}
-            disabled={controlDisabled}
-            style={selectStyle}
-          >
-            <option value="auto">{t('settings.network.secureDns.provider.auto')}</option>
-            <option value="cloudflare">{t('settings.network.secureDns.provider.cloudflare')}</option>
-            <option value="quad9">{t('settings.network.secureDns.provider.quad9')}</option>
-            <option value="google">{t('settings.network.secureDns.provider.google')}</option>
-            <option value="mullvad">{t('settings.network.secureDns.provider.mullvad')}</option>
-            <option value="nextdns">{t('settings.network.secureDns.provider.nextdns')}</option>
-            <option value="custom">{t('settings.network.secureDns.provider.custom')}</option>
-          </select>
+          <div style={optionListStyle}>
+            {renderOption(
+              'secure-dns-provider',
+              'auto',
+              provider === 'auto',
+              t('settings.network.secureDns.provider.auto'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'cloudflare',
+              provider === 'cloudflare',
+              t('settings.network.secureDns.provider.cloudflare'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'quad9',
+              provider === 'quad9',
+              t('settings.network.secureDns.provider.quad9'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'google',
+              provider === 'google',
+              t('settings.network.secureDns.provider.google'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'mullvad',
+              provider === 'mullvad',
+              t('settings.network.secureDns.provider.mullvad'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'nextdns',
+              provider === 'nextdns',
+              t('settings.network.secureDns.provider.nextdns'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+            {renderOption(
+              'secure-dns-provider',
+              'custom',
+              provider === 'custom',
+              t('settings.network.secureDns.provider.custom'),
+              (value) => onProviderChange(value as SecureDnsProvider)
+            )}
+          </div>
         </div>
 
         {provider === 'nextdns' && (
