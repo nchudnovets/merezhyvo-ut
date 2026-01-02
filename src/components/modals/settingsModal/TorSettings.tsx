@@ -13,7 +13,6 @@ type TorSettingsProps = {
   torConfigSaving: boolean;
   torConfigFeedback: string;
   onTorKeepChange: (value: boolean) => void;
-  onOpenTorInfo: () => void;
 };
 
 const TorSettings: React.FC<TorSettingsProps> = ({
@@ -24,8 +23,7 @@ const TorSettings: React.FC<TorSettingsProps> = ({
   torKeepEnabledDraft,
   torConfigSaving,
   torConfigFeedback,
-  onTorKeepChange,
-  onOpenTorInfo
+  onTorKeepChange
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
@@ -143,23 +141,6 @@ const TorSettings: React.FC<TorSettingsProps> = ({
           </p>
         )}
       </div>
-      <button
-        type="button"
-        onClick={onOpenTorInfo}
-        style={{
-          marginTop: mode === 'mobile' ? 16 : 10,
-          alignSelf: 'flex-start',
-          padding: 0,
-          background: 'transparent',
-          border: 'none',
-          color: 'var(--mzr-focus-ring)',
-          cursor: 'pointer',
-          textDecoration: 'underline',
-          fontSize: mode === 'mobile' ? '35px' : '14px'
-        }}
-      >
-        {t('torInfo.link')}
-      </button>
     </>
   );
 };

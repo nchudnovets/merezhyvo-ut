@@ -11,7 +11,7 @@ const cardStyle = {
   gap: 12
 };
 
-const TorInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
+const NetworkInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
   const { t } = useI18n();
   const textSize = mode === 'mobile' ? '40px' : '16px';
   const headingSize = mode === 'mobile' ? '44px' : '18px';
@@ -61,6 +61,9 @@ const TorInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
         </div>
 
         <div style={cardStyle}>
+          <div style={{ fontSize: headingSize, fontWeight: 800, color: 'var(--mzr-text-primary)' }}>
+            {t('settings.network.subsection.tor')}
+          </div>
           <p style={{ margin: 0, fontSize: textSize, lineHeight: 1.5 }}>
             {t('torInfo.body1')}
           </p>
@@ -86,6 +89,15 @@ const TorInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
                 <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('torInfo.expect.on.item4')}</li>
                 <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('torInfo.expect.on.item5')}</li>
                 <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('torInfo.expect.on.item6')}</li>
+              </ul>
+            </div>
+            <div style={{ marginTop: 12 }}>
+              <div style={{ fontSize: subHeadingSize, fontWeight: 700, color: 'var(--mzr-text-primary)' }}>
+                {t('torInfo.expect.dns.heading')}
+              </div>
+              <ul style={{ margin: '8px 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('torInfo.expect.dns.item1')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('torInfo.expect.dns.item2')}</li>
               </ul>
             </div>
             <div style={{ marginTop: 12 }}>
@@ -127,10 +139,63 @@ const TorInfoPage: React.FC<ServicePageProps> = ({ mode, onClose }) => {
               {t('torInfo.important.body')}
             </p>
           </div>
+
+          <div style={{ marginTop: 16 }}>
+            <div style={{ fontSize: headingSize, fontWeight: 800, color: 'var(--mzr-text-primary)' }}>
+              {t('networkInfo.dns.heading')}
+            </div>
+            <p style={{ margin: '6px 0 0', fontSize: textSize, lineHeight: 1.5 }}>
+              {t('networkInfo.dns.body1')}
+            </p>
+            <p style={{ margin: '6px 0 0', fontSize: textSize, lineHeight: 1.5 }}>
+              {t('networkInfo.dns.body2')}
+            </p>
+
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: subHeadingSize, fontWeight: 700, color: 'var(--mzr-text-primary)' }}>
+                {t('networkInfo.dns.what.heading')}
+              </div>
+              <ul style={{ margin: '8px 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.what.item1')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.what.item2')}</li>
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: subHeadingSize, fontWeight: 700, color: 'var(--mzr-text-primary)' }}>
+                {t('networkInfo.dns.not.heading')}
+              </div>
+              <ul style={{ margin: '8px 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.not.item1')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.not.item2')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.not.item3')}</li>
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: subHeadingSize, fontWeight: 700, color: 'var(--mzr-text-primary)' }}>
+                {t('networkInfo.dns.modes.heading')}
+              </div>
+              <ul style={{ margin: '8px 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.modes.item1')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.modes.item2')}</li>
+              </ul>
+            </div>
+
+            <div style={{ marginTop: 10 }}>
+              <div style={{ fontSize: subHeadingSize, fontWeight: 700, color: 'var(--mzr-text-primary)' }}>
+                {t('networkInfo.dns.tor.heading')}
+              </div>
+              <ul style={{ margin: '8px 0 0 20px', padding: 0, display: 'flex', flexDirection: 'column', gap: 6 }}>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.tor.item1')}</li>
+                <li style={{ fontSize: textSize, lineHeight: 1.5 }}>{t('networkInfo.dns.tor.item2')}</li>
+              </ul>
+            </div>
+          </div>
         </div>
       </div>
     </div>
   );
 };
 
-export default TorInfoPage;
+export default NetworkInfoPage;

@@ -14,7 +14,7 @@ type NetworkSettingsProps = {
   torConfigSaving: boolean;
   torConfigFeedback: string;
   onTorKeepChange: (value: boolean) => void;
-  onOpenTorInfo: () => void;
+  onOpenNetworkInfo: () => void;
   secureDnsEnabled: boolean;
   secureDnsMode: SecureDnsMode;
   secureDnsProvider: SecureDnsProvider;
@@ -39,7 +39,7 @@ const NetworkSettings: React.FC<NetworkSettingsProps> = ({
   torConfigSaving,
   torConfigFeedback,
   onTorKeepChange,
-  onOpenTorInfo,
+  onOpenNetworkInfo,
   secureDnsEnabled,
   secureDnsMode,
   secureDnsProvider,
@@ -78,7 +78,6 @@ const NetworkSettings: React.FC<NetworkSettingsProps> = ({
           torConfigSaving={torConfigSaving}
           torConfigFeedback={torConfigFeedback}
           onTorKeepChange={onTorKeepChange}
-          onOpenTorInfo={onOpenTorInfo}
         />
       </div>
 
@@ -104,6 +103,24 @@ const NetworkSettings: React.FC<NetworkSettingsProps> = ({
           onCustomUrlCommit={onSecureDnsCustomUrlCommit}
         />
       </div>
+
+      <button
+        type="button"
+        onClick={onOpenNetworkInfo}
+        style={{
+          marginTop: isMobile ? 6 : 4,
+          alignSelf: 'flex-start',
+          padding: 0,
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--mzr-focus-ring)',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          fontSize: isMobile ? '35px' : '14px'
+        }}
+      >
+        {t('torInfo.link')}
+      </button>
     </div>
   );
 };

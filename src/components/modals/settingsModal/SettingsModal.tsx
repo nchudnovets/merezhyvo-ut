@@ -41,6 +41,7 @@ interface SettingsModalProps {
   torConfigSaving: boolean;
   torConfigFeedback: string;
   onTorKeepChange: (value: boolean) => void;
+  onOpenNetworkInfo: () => void;
   onClose: () => void;
   onOpenPasswords: () => void;
   onOpenLicenses: () => void;
@@ -68,7 +69,6 @@ interface SettingsModalProps {
   onWebZoomDesktopChange: (value: number) => void;
   onThemeChange: (value: ThemeName) => void;
   onOpenTorLink: () => void;
-  onOpenTorInfo: () => void;
   secureDnsEnabled: boolean;
   secureDnsMode: SecureDnsMode;
   secureDnsProvider: SecureDnsProvider;
@@ -111,6 +111,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torConfigSaving,
   torConfigFeedback,
   onTorKeepChange,
+  onOpenNetworkInfo,
   onClose,
   onOpenPasswords,
   onOpenLicenses,
@@ -139,7 +140,6 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onUiScaleReset,
   onThemeChange,
   onOpenTorLink,
-  onOpenTorInfo,
   secureDnsEnabled,
   secureDnsMode,
   secureDnsProvider,
@@ -281,7 +281,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torConfigSaving={torConfigSaving}
                 torConfigFeedback={torConfigFeedback}
                 onTorKeepChange={onTorKeepChange}
-                onOpenTorInfo={onOpenTorInfo}
+                onOpenNetworkInfo={onOpenNetworkInfo}
                 secureDnsEnabled={secureDnsEnabled}
                 secureDnsMode={secureDnsMode}
                 secureDnsProvider={secureDnsProvider}
