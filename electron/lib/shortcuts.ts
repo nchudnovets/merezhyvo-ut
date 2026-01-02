@@ -66,6 +66,20 @@ export type AdsPrivacySettings = {
 
 export type BlockingMode = 'basic' | 'strict';
 
+export type SecureDnsMode = 'automatic' | 'secure';
+export type SecureDnsProvider = 'auto' | 'cloudflare' | 'quad9' | 'google' | 'mullvad' | 'nextdns' | 'custom';
+export type SecureDnsSettings = {
+  enabled: boolean;
+  mode: SecureDnsMode;
+  provider: SecureDnsProvider;
+  nextdnsId?: string;
+  customUrl?: string;
+};
+
+export type NetworkSettings = {
+  secureDns: SecureDnsSettings;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -76,6 +90,7 @@ export type SettingsState = {
   httpsMode: HttpsMode;
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
+  network?: NetworkSettings;
   permissions?: unknown;
   privacy?: {
     cookies?: CookiePrivacySettings;
@@ -95,6 +110,7 @@ type SettingsLike = {
   httpsMode?: unknown;
   sslExceptions?: unknown;
   webrtcMode?: unknown;
+  network?: unknown;
   privacy?: unknown;
   permissions?: unknown;
 };
@@ -207,6 +223,13 @@ const DEFAULT_ADS_PRIVACY: AdsPrivacySettings = {
   exceptions: [...MESSENGER_HOST_EXCEPTIONS]
 };
 const DEFAULT_BLOCKING_MODE: BlockingMode = 'basic';
+const DEFAULT_SECURE_DNS: SecureDnsSettings = {
+  enabled: false,
+  mode: 'automatic',
+  provider: 'auto',
+  nextdnsId: '',
+  customUrl: ''
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -220,6 +243,7 @@ export const createDefaultSettingsState = (): SettingsState => ({
   httpsMode: DEFAULT_HTTPS_MODE,
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
   webrtcMode: DEFAULT_WEBRTC_MODE,
+  network: { secureDns: { ...DEFAULT_SECURE_DNS } },
   privacy: {
     blockingMode: DEFAULT_BLOCKING_MODE,
     cookies: { ...DEFAULT_COOKIE_PRIVACY },
@@ -276,6 +300,36 @@ export const sanitizeHttpsMode = (raw: unknown): HttpsMode => {
     if (lowered === 'strict') return 'strict';
   }
   return DEFAULT_HTTPS_MODE;
+};
+
+export const sanitizeSecureDnsSettings = (raw: unknown): SecureDnsSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<SecureDnsSettings> : {};
+  const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_SECURE_DNS.enabled;
+  const mode: SecureDnsMode =
+    source.mode === 'secure' || source.mode === 'automatic'
+      ? source.mode
+      : DEFAULT_SECURE_DNS.mode;
+  const provider: SecureDnsProvider =
+    source.provider === 'auto' ||
+    source.provider === 'cloudflare' ||
+    source.provider === 'quad9' ||
+    source.provider === 'google' ||
+    source.provider === 'mullvad' ||
+    source.provider === 'nextdns' ||
+    source.provider === 'custom'
+      ? source.provider
+      : DEFAULT_SECURE_DNS.provider;
+  const nextdnsId =
+    typeof source.nextdnsId === 'string' ? source.nextdnsId.trim() : DEFAULT_SECURE_DNS.nextdnsId;
+  const customUrl =
+    typeof source.customUrl === 'string' ? source.customUrl.trim() : DEFAULT_SECURE_DNS.customUrl;
+  return {
+    enabled,
+    mode,
+    provider,
+    nextdnsId,
+    customUrl
+  };
 };
 
 export const sanitizeCookiePrivacy = (raw: unknown): CookiePrivacySettings => {
@@ -398,6 +452,8 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
   const sslExceptions = sanitizeSslExceptions(source.sslExceptions);
+  const networkSource = (source.network && typeof source.network === 'object') ? source.network as Record<string, unknown> : {};
+  const secureDns = sanitizeSecureDnsSettings((networkSource as { secureDns?: unknown }).secureDns);
   const wm = typeof source.webrtcMode === 'string' ? source.webrtcMode : null;
   const webrtcMode: WebrtcMode =
     wm === 'always_off' || wm === 'off_with_tor' ? wm : 'always_on';
@@ -412,6 +468,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     httpsMode,
     sslExceptions,
     webrtcMode,
+    network: { secureDns },
     ...(permissions ? { permissions } : {}),
     privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds, blockingMode }
   };

@@ -12,6 +12,7 @@ import {
 } from './windows';
 import { broadcastWebrtcPolicy } from './webrtc-policy';
 import { getTorState, setTorState, updateTorState } from './tor-state';
+import { applySecureDnsFromSettings } from './secure-dns';
 
 import type { BrowserWindow as TBrowserWindow, IpcMain, IpcMainInvokeEvent, Session } from 'electron';
 import type { ChildProcess } from 'child_process';
@@ -228,6 +229,11 @@ export async function startTorAndProxy(
     await applyProxy(true);
     setTorState({ enabled: true, starting: false, reason: null });
     sendTorState(winForFeedback ?? null);
+    try {
+      await applySecureDnsFromSettings(true);
+    } catch {
+      // ignore secure DNS apply failures
+    }
 
     const target: TBrowserWindow | null =
       getMainWindow?.() || (await getOrCreateMainWindow?.({ activate: true }));
@@ -260,6 +266,11 @@ export async function stopTorAndProxy(winForFeedback?: TBrowserWindow | null): P
   }
   setTorState({ enabled: false, starting: false, reason: null });
   sendTorState(winForFeedback ?? null);
+  try {
+    await applySecureDnsFromSettings(false);
+  } catch {
+    // ignore secure DNS apply failures
+  }
 }
 
 export async function clearTorSessionData(): Promise<{ ok: boolean; error?: string }> {

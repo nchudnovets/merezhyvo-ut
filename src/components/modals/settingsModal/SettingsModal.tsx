@@ -1,6 +1,16 @@
 import React, { useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
-import type { Mode, MessengerDefinition, MessengerId, HttpsMode, WebrtcMode, BlockingMode, ThemeName } from '../../../types/models';
+import type {
+  Mode,
+  MessengerDefinition,
+  MessengerId,
+  HttpsMode,
+  WebrtcMode,
+  BlockingMode,
+  ThemeName,
+  SecureDnsMode,
+  SecureDnsProvider
+} from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import { styles as baseStyles } from '../../../styles/styles';
@@ -8,7 +18,7 @@ import MessengerSettings from './MessengerSettings';
 import SettingsSection from './SettingsSection';
 import KeyboardSettings from './KeyboardSettings';
 import type { SettingsAppInfo } from './settingsModalTypes';
-import TorSettings from './TorSettings';
+import NetworkSettings from './NetworkSettings';
 import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
 import DownloadSettingsSection from './DownloadSettingsSection';
@@ -59,6 +69,19 @@ interface SettingsModalProps {
   onThemeChange: (value: ThemeName) => void;
   onOpenTorLink: () => void;
   onOpenTorInfo: () => void;
+  secureDnsEnabled: boolean;
+  secureDnsMode: SecureDnsMode;
+  secureDnsProvider: SecureDnsProvider;
+  secureDnsNextdnsId: string;
+  secureDnsCustomUrl: string;
+  secureDnsError: string;
+  onSecureDnsEnabledChange: (value: boolean) => void;
+  onSecureDnsModeChange: (value: SecureDnsMode) => void;
+  onSecureDnsProviderChange: (value: SecureDnsProvider) => void;
+  onSecureDnsNextdnsIdChange: (value: string) => void;
+  onSecureDnsNextdnsIdCommit: () => void;
+  onSecureDnsCustomUrlChange: (value: string) => void;
+  onSecureDnsCustomUrlCommit: () => void;
   httpsMode: HttpsMode;
   onHttpsModeChange: (mode: HttpsMode) => void;
   webrtcMode: WebrtcMode;
@@ -117,6 +140,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onThemeChange,
   onOpenTorLink,
   onOpenTorInfo,
+  secureDnsEnabled,
+  secureDnsMode,
+  secureDnsProvider,
+  secureDnsNextdnsId,
+  secureDnsCustomUrl,
+  secureDnsError,
+  onSecureDnsEnabledChange,
+  onSecureDnsModeChange,
+  onSecureDnsProviderChange,
+  onSecureDnsNextdnsIdChange,
+  onSecureDnsNextdnsIdCommit,
+  onSecureDnsCustomUrlChange,
+  onSecureDnsCustomUrlCommit,
   httpsMode,
   onHttpsModeChange,
   webrtcMode,
@@ -233,10 +269,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
         <div style={styles.sections} className="settings-modal-body">
           <SettingsSection
             mode={mode}
-            title={t('settings.section.tor')}
+            title={t('settings.section.network')}
             expandedDefault
             body={
-              <TorSettings
+              <NetworkSettings
                 mode={mode}
                 torEnabled={torEnabled}
                 torCurrentIp={torCurrentIp}
@@ -246,6 +282,19 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 torConfigFeedback={torConfigFeedback}
                 onTorKeepChange={onTorKeepChange}
                 onOpenTorInfo={onOpenTorInfo}
+                secureDnsEnabled={secureDnsEnabled}
+                secureDnsMode={secureDnsMode}
+                secureDnsProvider={secureDnsProvider}
+                secureDnsNextdnsId={secureDnsNextdnsId}
+                secureDnsCustomUrl={secureDnsCustomUrl}
+                secureDnsError={secureDnsError}
+                onSecureDnsEnabledChange={onSecureDnsEnabledChange}
+                onSecureDnsModeChange={onSecureDnsModeChange}
+                onSecureDnsProviderChange={onSecureDnsProviderChange}
+                onSecureDnsNextdnsIdChange={onSecureDnsNextdnsIdChange}
+                onSecureDnsNextdnsIdCommit={onSecureDnsNextdnsIdCommit}
+                onSecureDnsCustomUrlChange={onSecureDnsCustomUrlChange}
+                onSecureDnsCustomUrlCommit={onSecureDnsCustomUrlCommit}
               />
             }
           />

@@ -16,6 +16,7 @@ import type {
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 import { DEFAULT_LOCALE } from '../../i18n/locales';
 import type { MerezhyvoUISettings } from '../../types/preload';
+import type { SecureDnsSettings } from '../../types/models';
 
 type Bridge = NonNullable<Window['merezhyvo']>;
 
@@ -72,6 +73,29 @@ export const ipc = {
         return { ok: false, error: String(err) };
       }
       return { ok: false, error: 'Unknown error' };
+    },
+    secureDns: {
+      async get(): Promise<SecureDnsSettings> {
+        try {
+          const res = await getApi()?.settings?.secureDns?.get?.();
+          return (res ?? null) as SecureDnsSettings;
+        } catch (err) {
+          console.error('settings.secureDns.get failed', err);
+          return { enabled: false, mode: 'automatic', provider: 'auto', nextdnsId: '', customUrl: '' };
+        }
+      },
+      async update(payload: Partial<SecureDnsSettings>): Promise<{ ok: boolean; settings?: SecureDnsSettings; error?: string }> {
+        try {
+          const res = await getApi()?.settings?.secureDns?.update?.(payload ?? {});
+          if (res && typeof res === 'object') {
+            return res as { ok: boolean; settings?: SecureDnsSettings; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.secureDns.update failed', err);
+          return { ok: false, error: String(err) };
+        }
+        return { ok: false, error: 'Unknown error' };
+      }
     },
     keyboard: {
       async get(): Promise<{ enabledLayouts: string[]; defaultLayout: string }> {

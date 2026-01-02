@@ -43,7 +43,8 @@ import type {
   WebrtcMode,
   TrackerPrivacySettings,
   TrackerStatus,
-  AdsPrivacySettings
+  AdsPrivacySettings,
+  SecureDnsSettings
 } from './models';
 
 export interface PasswordFieldFocusPayload {
@@ -233,7 +234,7 @@ export interface MerezhyvoAPI {
     getIp(): Promise<{ ok: boolean; ip?: string; error?: string }>;
     onState(handler: (enabled: boolean, reason: string | null) => void): MerezhyvoUnsubscribe;
   };
-  openContextMenuAt(x: number, y: number, dpr?: number): void;
+  openContextMenuAt(x: number, y: number, dpr?: number, webContentsId?: number): void;
   session: {
     load(): Promise<MerezhyvoSessionState | null>;
     save(data: MerezhyvoSessionState): Promise<{ ok: boolean; error?: string } | null>;
@@ -263,6 +264,10 @@ export interface MerezhyvoAPI {
     };
     tor: {
       setKeepEnabled(keepEnabled: boolean): Promise<TorConfigResult>;
+    };
+    secureDns: {
+      get(): Promise<SecureDnsSettings>;
+      update(payload: Partial<SecureDnsSettings>): Promise<{ ok: boolean; settings?: SecureDnsSettings; error?: string }>;
     };
     keyboard: {
       get(): Promise<KeyboardSettings>;

@@ -74,7 +74,10 @@ import type {
   SslException,
   WebrtcMode,
   CookiePrivacySettings,
-  ThemeName
+  ThemeName,
+  SecureDnsMode,
+  SecureDnsProvider,
+  SecureDnsSettings
 } from './types/models';
 import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
@@ -214,6 +217,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     handleTorKeepChange,
     handleToggleTor
   } = useTorSettings({ showGlobalToast });
+  const [secureDnsEnabled, setSecureDnsEnabled] = useState<boolean>(false);
+  const [secureDnsMode, setSecureDnsMode] = useState<SecureDnsMode>('automatic');
+  const [secureDnsProvider, setSecureDnsProvider] = useState<SecureDnsProvider>('auto');
+  const [secureDnsNextdnsId, setSecureDnsNextdnsId] = useState<string>('');
+  const [secureDnsCustomUrl, setSecureDnsCustomUrl] = useState<string>('');
+  const [secureDnsError, setSecureDnsError] = useState<string>('');
   const [showTorDisableDialog, setShowTorDisableDialog] = useState<boolean>(false);
   const [torDisableBusy, setTorDisableBusy] = useState<boolean>(false);
   const [kbVisible, setKbVisible] = useState<boolean>(false);
@@ -511,6 +520,23 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const thirdPartyBlock = typeof cookies?.blockThirdParty === 'boolean' ? cookies.blockThirdParty : false;
         const exceptions = cookies?.exceptions?.thirdPartyAllow ?? {};
         setCookiePrivacy({ blockThirdParty: thirdPartyBlock, exceptions: { thirdPartyAllow: { ...exceptions } } });
+        const secureDns = state.network?.secureDns;
+        setSecureDnsEnabled(Boolean(secureDns?.enabled));
+        setSecureDnsMode(secureDns?.mode === 'secure' ? 'secure' : 'automatic');
+        const provider = secureDns?.provider;
+        setSecureDnsProvider(
+          provider === 'cloudflare' ||
+          provider === 'quad9' ||
+          provider === 'google' ||
+          provider === 'mullvad' ||
+          provider === 'nextdns' ||
+          provider === 'custom'
+            ? provider
+            : 'auto'
+        );
+        setSecureDnsNextdnsId(typeof secureDns?.nextdnsId === 'string' ? secureDns.nextdnsId : '');
+        setSecureDnsCustomUrl(typeof secureDns?.customUrl === 'string' ? secureDns.customUrl : '');
+        setSecureDnsError('');
       } catch {
         if (!cancelled) {
           setTorKeepEnabled(false);
@@ -523,6 +549,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setSslExceptions([]);
           setWebrtcMode('always_on');
           setCookiePrivacy({ blockThirdParty: false, exceptions: { thirdPartyAllow: {} } });
+          setSecureDnsEnabled(false);
+          setSecureDnsMode('automatic');
+          setSecureDnsProvider('auto');
+          setSecureDnsNextdnsId('');
+          setSecureDnsCustomUrl('');
+          setSecureDnsError('');
         }
       }
     };
@@ -539,7 +571,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setHttpsMode,
     setSslExceptions,
     setWebrtcMode,
-    setCookiePrivacy
+    setCookiePrivacy,
+    setSecureDnsEnabled,
+    setSecureDnsMode,
+    setSecureDnsProvider,
+    setSecureDnsNextdnsId,
+    setSecureDnsCustomUrl,
+    setSecureDnsError
   ]);
 
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
@@ -2090,6 +2128,111 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [getActiveWebview, getActiveWebviewHandle, reloadActiveAction]);
 
+  const validateSecureDnsSettings = useCallback((settings: SecureDnsSettings): string => {
+    if (!settings.enabled) return '';
+    if (settings.provider === 'nextdns' && !(settings.nextdnsId ?? '').trim()) {
+      return t('settings.network.secureDns.error.nextdns');
+    }
+    if (settings.provider === 'custom') {
+      const rawUrl = (settings.customUrl ?? '').trim();
+      if (!rawUrl) return t('settings.network.secureDns.error.custom');
+      try {
+        const url = new URL(rawUrl);
+        if (url.protocol !== 'https:') {
+          return t('settings.network.secureDns.error.custom');
+        }
+      } catch {
+        return t('settings.network.secureDns.error.custom');
+      }
+    }
+    return '';
+  }, [t]);
+
+  const applySecureDnsUpdate = useCallback(
+    async (patch: Partial<SecureDnsSettings>) => {
+      const next: SecureDnsSettings = {
+        enabled: patch.enabled ?? secureDnsEnabled,
+        mode: patch.mode ?? secureDnsMode,
+        provider: patch.provider ?? secureDnsProvider,
+        nextdnsId: patch.nextdnsId ?? secureDnsNextdnsId,
+        customUrl: patch.customUrl ?? secureDnsCustomUrl
+      };
+      const validationError = validateSecureDnsSettings(next);
+      if (validationError) {
+        setSecureDnsError(validationError);
+        return;
+      }
+      setSecureDnsError('');
+      try {
+        const res = await ipc.settings.secureDns.update(patch);
+        if (res?.ok) {
+          const settings = res.settings ?? next;
+          setSecureDnsEnabled(settings.enabled);
+          setSecureDnsMode(settings.mode);
+          setSecureDnsProvider(settings.provider);
+          setSecureDnsNextdnsId(settings.nextdnsId ?? '');
+          setSecureDnsCustomUrl(settings.customUrl ?? '');
+          showGlobalToast(t('settings.network.applied'));
+          handleReload();
+          return;
+        }
+        if (res?.error) {
+          console.error('[merezhyvo] secure dns update failed', res.error);
+        }
+      } catch (err) {
+        console.error('[merezhyvo] secure dns update failed', err);
+      }
+    },
+    [
+      handleReload,
+      secureDnsCustomUrl,
+      secureDnsEnabled,
+      secureDnsMode,
+      secureDnsNextdnsId,
+      secureDnsProvider,
+      showGlobalToast,
+      t,
+      validateSecureDnsSettings
+    ]
+  );
+
+  const handleSecureDnsEnabledChange = useCallback((value: boolean) => {
+    setSecureDnsEnabled(value);
+    void applySecureDnsUpdate({ enabled: value });
+  }, [applySecureDnsUpdate]);
+
+  const handleSecureDnsModeChange = useCallback((value: SecureDnsMode) => {
+    setSecureDnsMode(value);
+    void applySecureDnsUpdate({ mode: value });
+  }, [applySecureDnsUpdate]);
+
+  const handleSecureDnsProviderChange = useCallback((value: SecureDnsProvider) => {
+    setSecureDnsProvider(value);
+    void applySecureDnsUpdate({ provider: value });
+  }, [applySecureDnsUpdate]);
+
+  const handleSecureDnsNextdnsIdChange = useCallback((value: string) => {
+    setSecureDnsNextdnsId(value);
+    if (secureDnsError) {
+      setSecureDnsError('');
+    }
+  }, [secureDnsError]);
+
+  const handleSecureDnsNextdnsIdCommit = useCallback(() => {
+    void applySecureDnsUpdate({ nextdnsId: secureDnsNextdnsId });
+  }, [applySecureDnsUpdate, secureDnsNextdnsId]);
+
+  const handleSecureDnsCustomUrlChange = useCallback((value: string) => {
+    setSecureDnsCustomUrl(value);
+    if (secureDnsError) {
+      setSecureDnsError('');
+    }
+  }, [secureDnsError]);
+
+  const handleSecureDnsCustomUrlCommit = useCallback(() => {
+    void applySecureDnsUpdate({ customUrl: secureDnsCustomUrl });
+  }, [applySecureDnsUpdate, secureDnsCustomUrl]);
+
   const handleToggleCookieException = useCallback(
     async (allow: boolean) => {
       const host = activeSecurityHost;
@@ -2869,6 +3012,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               torConfigSaving={torConfigSaving}
               torConfigFeedback={torConfigFeedback}
               onTorKeepChange={handleTorKeepChange}
+              secureDnsEnabled={secureDnsEnabled}
+              secureDnsMode={secureDnsMode}
+              secureDnsProvider={secureDnsProvider}
+              secureDnsNextdnsId={secureDnsNextdnsId}
+              secureDnsCustomUrl={secureDnsCustomUrl}
+              secureDnsError={secureDnsError}
+              onSecureDnsEnabledChange={handleSecureDnsEnabledChange}
+              onSecureDnsModeChange={handleSecureDnsModeChange}
+              onSecureDnsProviderChange={handleSecureDnsProviderChange}
+              onSecureDnsNextdnsIdChange={handleSecureDnsNextdnsIdChange}
+              onSecureDnsNextdnsIdCommit={handleSecureDnsNextdnsIdCommit}
+              onSecureDnsCustomUrlChange={handleSecureDnsCustomUrlChange}
+              onSecureDnsCustomUrlCommit={handleSecureDnsCustomUrlCommit}
               onClose={closeSettingsModal}
               onOpenPasswords={openPasswordsFromSettings}
               messengerItems={orderedMessengers}

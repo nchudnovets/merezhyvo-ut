@@ -60,6 +60,7 @@ import { attachCertificateTracking, getCertificateInfo, allowCertificate } from 
 import * as downloads from './lib/downloads';
 import * as tor from './lib/tor';
 import { updateTorConfig } from './lib/tor-settings';
+import { getTorState } from './lib/tor-state';
 import type { UISettings } from './lib/shortcuts';
 import { registerKeyboardSettingsIPC } from './lib/keyboard-settings-ipc';
 import { registerMessengerSettingsIPC } from './lib/messenger-settings-ipc';
@@ -67,6 +68,7 @@ import { registerHistoryIpc } from './lib/history-ipc';
 import { registerBookmarksIpc } from './lib/bookmarks-ipc';
 import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { registerFileDialogIpc } from './lib/file-dialog-ipc';
+import { registerSecureDnsIpc } from './lib/secure-dns-ipc';
 import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
 import { registerSiteDataIpc } from './lib/site-data-ipc';
@@ -75,6 +77,7 @@ import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
 import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
 import { installCookiePolicy } from './lib/cookie-policy';
+import { applySecureDnsFromSettings } from './lib/secure-dns';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
 
@@ -882,6 +885,7 @@ registerBookmarksIpc(ipcMain);
 registerFaviconsIpc(ipcMain);
 registerFileDialogIpc(ipcMain);
 registerCookieSettingsIPC();
+registerSecureDnsIpc(ipcMain);
 registerPasswordsIpc(ipcMain);
 registerSiteDataIpc();
 
@@ -892,6 +896,7 @@ app.whenReady().then(() => {
   windows.setCurrentMode(initialMode);
   windows.installUserAgentOverride(session.defaultSession);
   installCookiePolicy(session.defaultSession);
+  void applySecureDnsFromSettings(getTorState().enabled);
   windows.createMainWindow();
 
   screen.on('display-added', () => windows.rebalanceMainWindow());

@@ -225,6 +225,20 @@ export type AdsPrivacySettings = {
 
 export type BlockingMode = 'basic' | 'strict';
 
+export type SecureDnsMode = 'automatic' | 'secure';
+export type SecureDnsProvider = 'auto' | 'cloudflare' | 'quad9' | 'google' | 'mullvad' | 'nextdns' | 'custom';
+export type SecureDnsSettings = {
+  enabled: boolean;
+  mode: SecureDnsMode;
+  provider: SecureDnsProvider;
+  nextdnsId?: string;
+  customUrl?: string;
+};
+
+export type NetworkSettings = {
+  secureDns: SecureDnsSettings;
+};
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -235,6 +249,7 @@ export interface SettingsState {
   httpsMode: HttpsMode;
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
+  network?: NetworkSettings;
   privacy?: {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;

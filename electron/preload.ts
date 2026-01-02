@@ -36,7 +36,8 @@ import type {
   WebrtcMode,
   TrackerStatus,
   TrackerPrivacySettings,
-  AdsPrivacySettings
+  AdsPrivacySettings,
+  SecureDnsSettings
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
 import type { PermissionsState } from './lib/permissions-settings';
@@ -229,9 +230,9 @@ const exposeApi: MerezhyvoAPI = {
     }
   },
 
-  openContextMenuAt: (x: number, y: number, dpr = 1) => {
+  openContextMenuAt: (x: number, y: number, dpr = 1, webContentsId?: number) => {
     try {
-      ipcRenderer.send('mzr:ctxmenu:open', { x, y, dpr });
+      ipcRenderer.send('mzr:ctxmenu:open', { x, y, dpr, webContentsId });
     } catch {
       // noop
     }
@@ -275,6 +276,15 @@ const exposeApi: MerezhyvoAPI = {
           httpsMode: 'strict',
           sslExceptions: [],
           webrtcMode: 'always_on',
+          network: {
+            secureDns: {
+              enabled: false,
+              mode: 'automatic',
+              provider: 'auto',
+              nextdnsId: '',
+              customUrl: ''
+            }
+          },
           privacy: {
             cookies: { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } },
             trackers: { enabled: false, exceptions: [] },
@@ -346,6 +356,28 @@ const exposeApi: MerezhyvoAPI = {
           )) as TorConfigResult;
         } catch (err) {
           console.error('[merezhyvo] settings.tor.setKeepEnabled failed', err);
+          return { ok: false, error: String(err) };
+        }
+      }
+    },
+    secureDns: {
+      get: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:secure-dns:get')) as SecureDnsSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.secureDns.get failed', err);
+          return { enabled: false, mode: 'automatic', provider: 'auto', nextdnsId: '', customUrl: '' };
+        }
+      },
+      update: async (payload: Partial<SecureDnsSettings>) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:secure-dns:update', payload)) as {
+            ok: boolean;
+            settings?: SecureDnsSettings;
+            error?: string;
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.secureDns.update failed', err);
           return { ok: false, error: String(err) };
         }
       }
