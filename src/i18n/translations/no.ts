@@ -49,6 +49,7 @@ const no = {
   'settings.network.secureDns.customUrl': 'DoH-URL',
   'settings.network.secureDns.customPlaceholder': 'https://example.com/dns-query',
   'settings.network.secureDns.note1': 'Sikker DNS krypterer DNS-oppslag, men skjuler ikke IP-adressen din for nettsteder.',
+  'settings.network.secureDns.note3': 'Hvis du bruker systemomfattende annonseblokkere, kan DNS-testnettsteder vise inkonsistente resultater. Prøv å deaktivere blokkeren kort når du tester sikker DNS.',
   'settings.network.secureDns.note2': 'Kun sikker kan bryte noen nettverk.',
   'settings.network.secureDns.disabledWhileTor': 'Sikker DNS er deaktivert når Tor er på.',
   'settings.network.secureDns.error.nextdns': 'Skriv inn en gyldig NextDNS-ID.',

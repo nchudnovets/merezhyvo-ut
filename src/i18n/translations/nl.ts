@@ -45,6 +45,7 @@ const nl = {
   'settings.network.secureDns.customUrl': 'DoH-URL',
   'settings.network.secureDns.customPlaceholder': 'https://example.com/dns-query',
   'settings.network.secureDns.note1': 'Beveiligde DNS versleutelt DNS-zoekopdrachten, maar verbergt je IP niet voor websites.',
+  'settings.network.secureDns.note3': 'Als je systeemwijde advertentieblokkers gebruikt, kunnen DNS-testsites inconsistente resultaten tonen. Probeer de blokker kort uit te schakelen wanneer je Secure DNS test.',
   'settings.network.secureDns.note2': 'Alleen beveiligd kan sommige netwerken breken.',
   'settings.network.secureDns.disabledWhileTor': 'Beveiligde DNS is uitgeschakeld zolang Tor aanstaat.',
   'settings.network.secureDns.error.nextdns': 'Voer een geldige NextDNS-ID in.',

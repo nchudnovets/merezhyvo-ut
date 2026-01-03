@@ -200,6 +200,11 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
         </div>
       </label>
 
+      <div style={{ display: 'flex', flexDirection: 'column', gap: 4 }}>
+        <div style={helperStyle}>{t('settings.network.secureDns.note1')}</div>
+        <div style={helperStyle}>{t('settings.network.secureDns.note3')}</div>
+      </div>
+
       <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 28 : 10, ...sectionDisabledStyle }}>
         <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 28 : 10 }}>
           <span style={labelStyle}>{t('settings.network.secureDns.mode.label')}</span>
@@ -330,7 +335,6 @@ const SecureDnsSettings: React.FC<SecureDnsSettingsProps> = ({
         </div>
       )}
 
-      <div style={helperStyle}>{t('settings.network.secureDns.note1')}</div>
       <div style={helperStyle}>{t('settings.network.secureDns.note2')}</div>
     </div>
   );

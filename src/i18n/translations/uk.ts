@@ -45,6 +45,7 @@ const uk = {
   'settings.network.secureDns.customUrl': 'DoH URL',
   'settings.network.secureDns.customPlaceholder': 'https://example.com/dns-query',
   'settings.network.secureDns.note1': 'Захищений DNS шифрує DNS-запити, але не приховує вашу IP-адресу від сайтів.',
+  'settings.network.secureDns.note3': 'Якщо ви використовуєте системні блокувальники реклами, сайти перевірки DNS можуть показувати непослідовні результати. Спробуйте тимчасово вимкнути блокувальник під час тестування Secure DNS.',
   'settings.network.secureDns.note2': 'Режим «лише захищений» може не працювати в деяких мережах.',
   'settings.network.secureDns.disabledWhileTor': 'Захищений DNS вимкнено, поки Tor увімкнено.',
   'settings.network.secureDns.error.nextdns': 'Введіть коректний NextDNS ID.',

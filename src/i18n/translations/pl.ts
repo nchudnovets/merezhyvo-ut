@@ -45,6 +45,7 @@ const pl = {
   'settings.network.secureDns.customUrl': 'URL DoH',
   'settings.network.secureDns.customPlaceholder': 'https://example.com/dns-query',
   'settings.network.secureDns.note1': 'Bezpieczny DNS szyfruje zapytania DNS, ale nie ukrywa Twojego IP przed stronami.',
+  'settings.network.secureDns.note3': 'Jeśli używasz systemowych blokad reklam, strony testujące DNS mogą pokazywać niespójne wyniki. Spróbuj na chwilę wyłączyć blokadę podczas testowania Secure DNS.',
   'settings.network.secureDns.note2': 'Tryb tylko bezpieczny może nie działać w niektórych sieciach.',
   'settings.network.secureDns.disabledWhileTor': 'Bezpieczny DNS jest wyłączony, gdy Tor jest włączony.',
   'settings.network.secureDns.error.nextdns': 'Wpisz prawidłowy identyfikator NextDNS.',

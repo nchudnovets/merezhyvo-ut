@@ -45,6 +45,7 @@ const de = {
   'settings.network.secureDns.customUrl': 'DoH-URL',
   'settings.network.secureDns.customPlaceholder': 'https://example.com/dns-query',
   'settings.network.secureDns.note1': 'Sicheres DNS verschlüsselt DNS-Anfragen, verbirgt aber nicht Ihre IP vor Websites.',
+  'settings.network.secureDns.note3': 'Wenn Sie systemweite Werbeblocker verwenden, können DNS-Testseiten inkonsistente Ergebnisse anzeigen. Deaktivieren Sie den Blocker kurz, wenn Sie Secure DNS testen.',
   'settings.network.secureDns.note2': 'Nur sicher kann in manchen Netzwerken Probleme verursachen.',
   'settings.network.secureDns.disabledWhileTor': 'Sicheres DNS ist deaktiviert, solange Tor aktiv ist.',
   'settings.network.secureDns.error.nextdns': 'Bitte eine gültige NextDNS-ID eingeben.',
