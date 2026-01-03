@@ -1,6 +1,25 @@
 # Changelog
 
 ----
+## 0.4.7 - 2026-01-03
+
+### New
+
+- Custom in-app JavaScript dialogs for alert() and confirm() (better usability on small screens).
+
+- Separate storage partitions for Tor vs non-Tor browsing (no cookie/site-data crossover).
+
+- DNS switcher (Secure DNS / DNS-over-HTTPS) with multiple providers and custom endpoint support.
+
+### Improved
+
+- Better pressed-state visibility for on-screen keyboard keys in the Light theme.
+
+### Fixed
+
+- Fixed caret visibility issues when typing in internal pages, browser dialogs, and the address bar.
+
+----
 
 ## 0.4.6 — 2025-12-27
 
