@@ -8,7 +8,8 @@ export const bookmarksModeStyles: Record<Mode, Partial<Record<string, CSSPropert
   mobile: {
     container: {
       padding: '28px',
-      fontSize: '35px'
+      fontSize: '35px',
+      maxWidth: 'none'
     },
     hero: {
       marginBottom: '30px'

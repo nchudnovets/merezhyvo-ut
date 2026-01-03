@@ -311,7 +311,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   };
 
   return (
-    <div style={styles.container}>
+    <div style={{ ...styles.container, ...(modeStyles.container ?? {}) }}>
       <div style={styles.header}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
           {onClose && (

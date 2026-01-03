@@ -15,7 +15,8 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
   },
   mobile: {
     container: {
-      padding: '28px'
+      padding: '28px',
+      maxWidth: 'none'
     },
     header: {
       marginBottom: '30px'
