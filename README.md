@@ -47,6 +47,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Page zoom is persisted per tab across sessions, separately for mobile and desktop modes.
 
+  - Mobile-friendly dialogs that scale properly on phone screens and on external monitors.
+
  - **Default webview zoom**
   - You can set a default page zoom level for all sites and separately from per-tab zoom.
   Useful if you prefer larger/smaller text by default on phone or external displays.
@@ -93,6 +95,20 @@ This repository contains the full source code and build scripts for the Ubuntu T
         *   **Blocked when Tor is enabled**.
     *   Blocking WebRTC can reduce some IP leak surface for privacy-sensitive use, but it is not a magic “anonymous mode”.
 
+    * Secure DNS (DNS-over-HTTPS) switcher
+
+        * Merezhyvo can use Secure DNS (DoH) to encrypt DNS lookups and reduce DNS visibility for your ISP/network.
+
+        * Modes:
+
+          - Automatic (recommended): uses Secure DNS when possible, with fallback to regular DNS if needed.
+
+          - Secure only: uses Secure DNS only (may break some networks, e.g. captive portals).
+
+        * Multiple providers are available, including a custom DoH endpoint.
+
+        * Secure DNS is automatically disabled when Tor is enabled (to avoid DNS requests outside of Tor).
+
 *   **Site data management**
     *   Internal **“Site data”** page where you can inspect and clear cookies and stored data per site.
     *   Includes a global **“Clear all data”** option, plus per-site actions to remove cookies, site data, or both.
@@ -106,6 +122,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 - **Optional Tor integration**
 
   - Built-in Tor binary, with a simple toggle to route traffic through Tor.
+
+  - Tor and normal browsing use separate storage partitions (cookies, local storage, cache and other site data do not mix between Tor and non-Tor mode).
 
   - Optional “keep Tor enabled” behaviour and a Tor-check tab when you turn it on.
 
@@ -331,7 +349,7 @@ clickable build \--arch arm64 \--accept\-review\-errors
 
 Internal settings are stored in a JSON file under the user's `~/.config` directory (for example `~/.config/merezhyvo.naz.r/settings.json`).
 
-This includes UI preferences (theme (dark/light), scaling, keyboard layouts), privacy and security options (HTTPS mode, WebRTC policy, third-party cookie setting, tracker/ad blocking), and per-site exception lists.
+This includes UI preferences (theme (dark/light), scaling, keyboard layouts), privacy, security and network options (HTTPS mode, WebRTC policy, third-party cookies, tracker/ad blocking, Tor and Secure DNS), and per-site exception lists..
 
 
 - - -
