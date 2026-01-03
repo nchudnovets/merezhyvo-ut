@@ -16,19 +16,6 @@ import { isCtxtExcludedSite } from '../../helpers/websiteCtxtExclusions';
 
 export type StatusState = 'loading' | 'ready' | 'error';
 
-declare global {
-  // eslint-disable-next-line @typescript-eslint/no-namespace
-  namespace JSX {
-    interface IntrinsicElements {
-      // Minimal typing to let TSX render the Electron webview tag.
-      webview: React.DetailedHTMLProps<React.HTMLAttributes<WebviewTag>, WebviewTag> & {
-        allowpopups?: string;
-        partition?: string;
-      };
-    }
-  }
-}
-
 export type WebViewHandle = {
   goBack: () => void;
   goForward: () => void;
@@ -688,9 +675,8 @@ const WebViewHost = forwardRef(function WebViewHost(
       style={composedStyle}
       // eslint-disable-next-line react/no-unknown-property
       partition={partition}
-      //@ts-expect-error expexted
       // eslint-disable-next-line react/no-unknown-property
-      allowpopups="true"
+      allowpopups={true}
     />
   );
 });
