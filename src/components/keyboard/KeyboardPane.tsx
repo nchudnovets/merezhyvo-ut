@@ -318,8 +318,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
 
   // Full rows with service keys for default & shift
   const showLanguageToggle = useMemo(
-    () => enabledLayouts.filter((id) => !isSymbols(id)).length > 1,
-    [enabledLayouts]
+    () => !isSymbols(layoutId) && enabledLayouts.filter((id) => !isSymbols(id)).length > 1,
+    [enabledLayouts, layoutId]
   );
 
   const fullDefaultRows = useMemo<Rows>(

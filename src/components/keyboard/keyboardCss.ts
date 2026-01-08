@@ -110,11 +110,12 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
   .mzr-osk .hg-button[data-skbtn="."],
   .mzr-osk .hg-button[data-skbtn=","] {
     max-width: 60px !important;
+    min-width: 40px !important;
   }
 
   .mzr-osk .hg-button.hg-button-space {
     flex: 2 1 0 !important;
-    min-width: 30vw !important;
+    min-width: 25vw !important;
   }
 
   .mzr-osk .hg-button.hg-button-shift.hg-button-active {
