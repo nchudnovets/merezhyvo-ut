@@ -703,7 +703,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                   width={mode === 'mobile' ? '54' : '16'}
                   height={mode === 'mobile' ? '54' : '16'}
                   viewBox="0 0 24 24"
-                  fill="#ffffff"
+                  fill="currentColor"
                   style={{ flexShrink: 0 }}
                   xmlns="http://www.w3.org/2000/svg"
                 >
@@ -733,7 +733,7 @@ export const TabsPanel: React.FC<TabsPanelProps> = ({
                   width={mode === 'mobile' ? '54' : '16'}
                   height={mode === 'mobile' ? '54' : '16'}
                   viewBox="0 0 24 24"
-                  fill="#ffffff"
+                  fill="currentColor"
                   style={{ flexShrink: 0 }}
                   xmlns="http://www.w3.org/2000/svg"
                 >
