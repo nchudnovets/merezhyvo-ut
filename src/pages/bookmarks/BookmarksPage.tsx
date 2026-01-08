@@ -132,6 +132,7 @@ const BookmarksPage: React.FC<ServicePageProps> = ({ mode, openInTab, onClose })
   const [importDialog, setImportDialog] = useState<ImportDialogState | null>(null);
   const searchTimer = useRef<number | null>(null);
   const importContentRef = useRef<string | null>(null);
+  const errorBannerTimerRef = useRef<number | null>(null);
 
   const getBookmarksApi = useCallback(() => {
     if (typeof window === 'undefined') return undefined;
@@ -167,6 +168,18 @@ const refreshTree = useCallback(async () => {
       void refreshTree();
     });
   }, [refreshTree]);
+
+  useEffect(() => {
+    if (errorBannerTimerRef.current) {
+      window.clearTimeout(errorBannerTimerRef.current);
+      errorBannerTimerRef.current = null;
+    }
+    if (!errorBanner) return;
+    errorBannerTimerRef.current = window.setTimeout(() => {
+      setErrorBanner(null);
+      errorBannerTimerRef.current = null;
+    }, 3000);
+  }, [errorBanner]);
 
   useEffect(() => {
     if (!tree) return;

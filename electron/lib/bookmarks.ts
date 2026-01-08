@@ -263,21 +263,23 @@ type UpdateParams = {
 export const update = async ({ id, title, url, tags }: UpdateParams): Promise<boolean> => {
   const tree = await loadTree();
   const node = tree.nodes[id];
-  if (!node || node.type !== 'bookmark') return false;
+  if (!node) return false;
   if (title !== undefined) {
     node.title = sanitizeTitle(title);
   }
-  if (url !== undefined && url !== null) {
-    const normalized = normalizeUrl(url);
-    if (normalized) {
-      node.url = normalized;
+  if (node.type === 'bookmark') {
+    if (url !== undefined && url !== null) {
+      const normalized = normalizeUrl(url);
+      if (normalized) {
+        node.url = normalized;
+      }
     }
-  }
-  const normalizedTags = sanitizeTags(tags);
-  if (normalizedTags !== undefined) {
-    node.tags = normalizedTags;
-  } else if (tags && tags.length === 0) {
-    delete node.tags;
+    const normalizedTags = sanitizeTags(tags);
+    if (normalizedTags !== undefined) {
+      node.tags = normalizedTags;
+    } else if (tags && tags.length === 0) {
+      delete node.tags;
+    }
   }
   node.updatedAt = Date.now();
   await writeAtomicJson(tree);

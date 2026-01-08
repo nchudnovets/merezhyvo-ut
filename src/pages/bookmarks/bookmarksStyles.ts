@@ -269,11 +269,11 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     color: 'var(--mzr-text-muted)'
   },
   banner: {
-    background: 'rgba(220, 38, 38, 0.15)',
-    border: '1px solid rgba(248, 113, 113, 0.5)',
+    background: 'var(--mzr-danger-tint)',
+    border: '1px solid var(--mzr-danger)',
     borderRadius: '12px',
     padding: '10px',
-    color: '#fecaca'
+    color: 'var(--mzr-danger)'
   },
   emptyState: {
     border: '1px dashed var(--mzr-border-strong)',
@@ -353,17 +353,17 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     padding: '4px 8px',
-    background: 'rgba(56, 189, 248, 0.15)',
+    background: 'var(--mzr-accent-tint)',
     borderRadius: '999px',
     fontSize: '12px',
-    color: '#7dd3fc',
-    border: '1px solid rgba(125, 211, 252, 0.5)',
+    color: 'var(--mzr-link)',
+    border: '1px solid var(--mzr-accent-strong)',
     cursor: 'pointer'
   },
   tagMore: {
     padding: '4px 8px',
     borderRadius: '999px',
-    background: 'var(--mzr-border)',
+    background: 'var(--mzr-surface-muted)',
     fontSize: '12px',
     color: 'var(--mzr-text-secondary)'
   },
@@ -572,11 +572,11 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
     position: 'fixed',
     bottom: '72px',
     right: '16px',
-    background: 'rgba(16, 185, 129, 0.25)',
-    border: '1px solid rgba(52, 211, 153, 0.6)',
+    background: 'var(--mzr-accent-tint)',
+    border: '1px solid var(--mzr-accent-strong)',
     borderRadius: '12px',
     padding: '12px 18px',
-    color: '#fff',
+    color: 'var(--mzr-text-primary)',
     zIndex: 40
   }
 };
