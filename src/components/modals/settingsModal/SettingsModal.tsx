@@ -270,7 +270,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
           <SettingsSection
             mode={mode}
             title={t('settings.section.network')}
-            expandedDefault
+            expandedDefault={false}
             body={
               <NetworkSettings
                 mode={mode}
