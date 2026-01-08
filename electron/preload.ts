@@ -826,6 +826,45 @@ const exposeApi: MerezhyvoAPI = {
       set: (payload) => ipcRenderer.invoke('merezhyvo:downloads:settings:set', payload ?? {})
     }
   },
+  cookies: {
+    getStatus: async (payload: { webContentsId?: number | null }) => {
+      try {
+        return (await ipcRenderer.invoke('cookies:getStatus', payload ?? {})) as {
+          blockThirdParty: boolean;
+          exceptionAllowed: boolean;
+          siteHost: string | null;
+          blockedTotal: number;
+        };
+      } catch (err) {
+        console.error('[merezhyvo] cookies.getStatus failed', err);
+        return {
+          blockThirdParty: false,
+          exceptionAllowed: false,
+          siteHost: null,
+          blockedTotal: 0
+        };
+      }
+    },
+    onStats: (handler: (payload: { blockThirdParty: boolean; exceptionAllowed: boolean; siteHost: string | null; blockedTotal: number }) => void) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'cookies:statsChanged';
+      const listener = (_event: IpcRendererEvent, payload: unknown) => {
+        try {
+          handler(payload as { blockThirdParty: boolean; exceptionAllowed: boolean; siteHost: string | null; blockedTotal: number });
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    }
+  },
   trackers: {
     getStatus: async (payload: { webContentsId?: number | null }) => {
       try {

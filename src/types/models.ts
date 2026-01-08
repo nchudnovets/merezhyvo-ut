@@ -63,6 +63,13 @@ export type TrackerStatus = {
   blockedTrackers: number;
 };
 
+export type CookieBlockStatus = {
+  blockThirdParty: boolean;
+  exceptionAllowed: boolean;
+  siteHost: string | null;
+  blockedTotal: number;
+};
+
 export interface HistoryVisit {
   id: string;
   ts: number;

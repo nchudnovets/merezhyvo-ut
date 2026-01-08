@@ -200,6 +200,7 @@ const de = {
   'security.cookies.status.allowedGlobal': 'Drittanbieter-Cookies sind erlaubt (globale Einstellung).',
   'security.cookies.toggle': 'Drittanbieter-Cookies für diese Seite erlauben',
   'security.cookies.hint': 'Evtl. nötig für Single Sign-On oder Zahlungsabläufe auf manchen Seiten.',
+  'security.cookies.blockedTotal': 'Blockierte Cookies: {count}',
   'security.trackers.heading': 'Tracker & Werbung',
   'security.trackers.mode': 'Modus: {mode}',
   'security.trackers.mode.off': 'Aus',

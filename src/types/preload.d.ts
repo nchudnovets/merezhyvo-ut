@@ -43,6 +43,7 @@ import type {
   WebrtcMode,
   TrackerPrivacySettings,
   TrackerStatus,
+  CookieBlockStatus,
   AdsPrivacySettings,
   SecureDnsSettings
 } from './models';
@@ -311,6 +312,10 @@ export interface MerezhyvoAPI {
       get(): Promise<DownloadsSettings>;
       set(payload: Partial<DownloadsSettings>): Promise<DownloadsSettings>;
     };
+  };
+  cookies: {
+    getStatus(payload: { webContentsId?: number | null }): Promise<CookieBlockStatus>;
+    onStats(handler: (payload: CookieBlockStatus) => void): MerezhyvoUnsubscribe;
   };
   trackers?: {
     getStatus(payload: { webContentsId?: number | null }): Promise<TrackerStatus>;

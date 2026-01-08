@@ -200,6 +200,7 @@ const uk = {
   'security.cookies.status.allowedGlobal': 'Сторонні куки дозволені (глобальне налаштування).',
   'security.cookies.toggle': 'Дозволити сторонні куки для цього сайту',
   'security.cookies.hint': 'Це може знадобитися для SSO або деяких платежів.',
+  'security.cookies.blockedTotal': 'Заблоковано куків: {count}',
   'security.trackers.heading': 'Трекери та реклама',
   'security.trackers.mode': 'Режим: {mode}',
   'security.trackers.mode.off': 'Вимкнено',

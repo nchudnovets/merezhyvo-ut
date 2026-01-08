@@ -204,6 +204,7 @@ const pl = {
   'security.cookies.status.allowedGlobal': 'Ciasteczka stron trzecich są dozwolone (ustawienie globalne).',
   'security.cookies.toggle': 'Zezwól na ciasteczka stron trzecich na tej stronie',
   'security.cookies.hint': 'Może być potrzebne przy logowaniu jednokrotnym lub płatnościach na niektórych stronach.',
+  'security.cookies.blockedTotal': 'Zablokowane ciasteczka: {count}',
   'security.trackers.heading': 'Trackery i reklamy',
   'security.trackers.site': 'Strona: {host}',
   'security.trackers.blockedTotal': 'Zablokowano łącznie: {count}',

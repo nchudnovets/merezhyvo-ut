@@ -204,6 +204,7 @@ const nl = {
   'security.cookies.status.allowedGlobal': 'Cookies van derden zijn toegestaan (globale instelling).',
   'security.cookies.toggle': 'Cookies van derden op deze site toestaan',
   'security.cookies.hint': 'Kan nodig zijn voor SSO of betalingen op sommige sites.',
+  'security.cookies.blockedTotal': 'Geblokkeerde cookies: {count}',
   'security.trackers.heading': 'Trackers en advertenties',
   'security.trackers.site': 'Site: {host}',
   'security.trackers.blockedTotal': 'Totaal geblokkeerd: {count}',

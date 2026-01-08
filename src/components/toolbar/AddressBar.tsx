@@ -52,6 +52,7 @@ interface AddressBarProps {
     blockThirdParty: boolean;
     exceptionAllowed: boolean;
     host: string | null;
+    blockedTotal?: number;
   };
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;

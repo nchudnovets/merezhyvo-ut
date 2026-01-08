@@ -28,6 +28,7 @@ type Props = {
     blockThirdParty: boolean;
     exceptionAllowed: boolean;
     host: string | null;
+    blockedTotal?: number;
   };
   onToggleCookieException?: (next: boolean) => void;
   onOpenSiteData?: (host?: string | null) => void;
@@ -235,6 +236,11 @@ export const SecurityShield: React.FC<Props> = ({
                         ? t('security.cookies.status.blocked')
                         : t('security.cookies.status.allowedGlobal')}
                     </div>
+                    {cookiePolicy?.blockThirdParty && !cookiePolicy?.exceptionAllowed && (
+                      <div style={{ opacity: 0.8, fontSize: mode === 'mobile' ? '36px' : '14px', marginTop: mode === 'mobile' ? 4 : 2 }}>
+                        {t('security.cookies.blockedTotal', { count: cookiePolicy?.blockedTotal ?? 0 })}
+                      </div>
+                    )}
                   </div>
                 </div>
                 <svg viewBox="0 0 16 16" width={mode === 'mobile' ? 28 : 14} height={mode === 'mobile' ? 28 : 14} fill="none" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round">

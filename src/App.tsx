@@ -74,6 +74,7 @@ import type {
   SslException,
   WebrtcMode,
   CookiePrivacySettings,
+  CookieBlockStatus,
   ThemeName,
   SecureDnsMode,
   SecureDnsProvider,
@@ -255,6 +256,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setAdsSiteAllowed,
     setBlockingMode
   } = useTrackerBlocking();
+  const [cookieStatus, setCookieStatus] = useState<CookieBlockStatus>({
+    blockThirdParty: false,
+    exceptionAllowed: false,
+    siteHost: null,
+    blockedTotal: 0
+  });
   const [webrtcMode, setWebrtcMode] = useState<WebrtcMode>('always_on');
   const certBypassRef = useRef<Set<string>>(new Set());
   const certStatusRef = useRef<CertificateInfo | null>(null);
@@ -1183,6 +1190,35 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     defaults: webZoomDefaults
   });
 
+  const refreshCookieStatus = useCallback(async (webContentsId?: number | null) => {
+    try {
+      const result = await window.merezhyvo?.cookies?.getStatus?.({ webContentsId: webContentsId ?? null });
+      if (result) {
+        setCookieStatus(result as CookieBlockStatus);
+      }
+    } catch (err) {
+      console.error('[merezhyvo] cookies refresh failed', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const off = window.merezhyvo?.cookies?.onStats?.((payload) => {
+      if (!payload) return;
+      setCookieStatus(payload as CookieBlockStatus);
+    });
+    return () => {
+      try {
+        off?.();
+      } catch {
+        // noop
+      }
+    };
+  }, []);
+
+  useEffect(() => {
+    void refreshCookieStatus(activeWcIdRef.current ?? null);
+  }, [activeViewRevision, refreshCookieStatus]);
+
   useEffect(() => {
     void refreshTrackerStatus(activeWcIdRef.current ?? null);
   }, [activeViewRevision, refreshTrackerStatus]);
@@ -1544,13 +1580,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     : hasCookieException || trackerExceptionAllowed || adsExceptionAllowed
       ? 'notice'
       : 'ok';
+  const cookieBlockedTotal = useMemo(() => {
+    if (!cookieStatus.siteHost || !activeSecurityHost) return 0;
+    if (!isSubdomainOrSame(activeSecurityHost, cookieStatus.siteHost)) return 0;
+    return cookieStatus.blockedTotal ?? 0;
+  }, [activeSecurityHost, cookieStatus.blockedTotal, cookieStatus.siteHost]);
   const siteCookiePolicy = useMemo(
     () => ({
       blockThirdParty: cookiePrivacy.blockThirdParty,
       exceptionAllowed: hasCookieException,
-      host: activeSecurityHost ?? null
+      host: activeSecurityHost ?? null,
+      blockedTotal: cookiePrivacy.blockThirdParty && !hasCookieException ? cookieBlockedTotal : 0
     }),
-    [cookiePrivacy.blockThirdParty, hasCookieException, activeSecurityHost]
+    [cookiePrivacy.blockThirdParty, hasCookieException, activeSecurityHost, cookieBlockedTotal]
   );
   const securityInfo = useMemo(() => {
     if (!displayCertEffective) return null;

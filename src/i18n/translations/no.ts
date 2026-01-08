@@ -239,6 +239,7 @@ const no = {
   'security.cookies.status.allowedGlobal': 'Tredjeparts informasjonskapsler er tillatt (global innstilling).',
   'security.cookies.toggle': 'Tillat tredjeparts informasjonskapsler på dette nettstedet',
   'security.cookies.hint': 'Du kan trenge dette for enkel pålogging eller betalingsflyter på noen nettsteder.',
+  'security.cookies.blockedTotal': 'Blokkerte informasjonskapsler: {count}',
   'security.trackers.heading': 'Sporere og annonser',
   'security.trackers.site': 'Nettsted: {host}',
   'security.trackers.blockedTotal': 'Totalt blokkert: {count}',

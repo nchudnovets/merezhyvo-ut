@@ -192,6 +192,7 @@ const it = {
   'security.cookies.status.allowedGlobal': 'I cookie di terze parti sono consentiti (impostazione globale).',
   'security.cookies.toggle': 'Consenti cookie di terze parti su questo sito',
   'security.cookies.hint': 'Potrebbe servire per SSO o pagamenti su alcuni siti.',
+  'security.cookies.blockedTotal': 'Cookie bloccati: {count}',
   'security.trackers.heading': 'Tracker e pubblicità',
   'security.trackers.site': 'Sito: {host}',
   'security.trackers.blockedTotal': 'Totale bloccato: {count}',

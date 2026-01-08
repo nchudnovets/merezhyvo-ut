@@ -200,6 +200,7 @@ const es = {
   'security.cookies.status.allowedGlobal': 'Las cookies de terceros están permitidas (ajuste global).',
   'security.cookies.toggle': 'Permitir cookies de terceros en este sitio',
   'security.cookies.hint': 'Puede ser necesario para SSO o pagos en algunos sitios.',
+  'security.cookies.blockedTotal': 'Cookies bloqueadas: {count}',
   'security.trackers.heading': 'Rastreadores y anuncios',
   'security.trackers.mode': 'Modo: {mode}',
   'security.trackers.mode.off': 'Desactivado',

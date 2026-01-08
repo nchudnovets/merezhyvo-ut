@@ -204,6 +204,7 @@ const en = {
   'security.cookies.status.allowedGlobal': 'Third-party cookies are allowed (global setting).',
   'security.cookies.toggle': 'Allow third-party cookies on this site',
   'security.cookies.hint': 'You may need this for single sign-on or payment flows on some sites.',
+  'security.cookies.blockedTotal': 'Blocked cookies: {count}',
   'security.trackers.heading': 'Trackers & ads',
   'security.trackers.mode': 'Mode: {mode}',
   'security.trackers.mode.off': 'Off',

@@ -77,7 +77,7 @@ import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
 import { registerCookieSettingsIPC } from './lib/cookie-settings-ipc';
-import { installCookiePolicy } from './lib/cookie-policy';
+import { getCookieStatus, installCookiePolicy } from './lib/cookie-policy';
 import { applySecureDnsFromSettings, resolveSecureDnsConfig, type SecureDnsResolvedConfig } from './lib/secure-dns';
 // import { installPermissionHandlers } from './lib/permissions';
 // import { installGeoHandlers } from './lib/geo-ipc';
@@ -1677,6 +1677,16 @@ ipcMain.handle('merezhyvo:settings:ads:clear-exceptions', async () => {
     console.error('[merezhyvo] ads clear-exceptions failed', err);
     return { enabled: false, exceptions: [] };
   }
+});
+
+ipcMain.handle('cookies:getStatus', (_event, payload: unknown) => {
+  const wcId =
+    typeof payload === 'object' &&
+    payload &&
+    typeof (payload as { webContentsId?: unknown }).webContentsId === 'number'
+      ? ((payload as { webContentsId?: number }).webContentsId ?? null)
+      : null;
+  return getCookieStatus(wcId ?? null);
 });
 
 ipcMain.handle('trackers:getStatus', (_event, payload: unknown) => {
