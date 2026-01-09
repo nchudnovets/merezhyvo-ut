@@ -793,7 +793,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return true;
   }, [isActiveMultiline]);
 
-  const closeKeyboard = useCallback(() => setKbVisible(false), []);
+  const closeKeyboard = useCallback(() => {
+    setKbVisible(false);
+    oskPressGuardRef.current = true;
+    window.setTimeout(() => { oskPressGuardRef.current = false; }, 300);
+    const active = document.activeElement as HTMLElement | null;
+    if (active && isEditableElement(active)) {
+      try { active.blur(); } catch {}
+    }
+    blurActiveInWebview();
+  }, [blurActiveInWebview, isEditableElement]);
 
   const injectText = React.useCallback(async (text: string) => {
     if (isEditableMainNow()) {

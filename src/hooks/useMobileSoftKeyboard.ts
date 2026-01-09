@@ -38,18 +38,36 @@ export const useMobileSoftKeyboard = ({
         setTimeout(() => { oskPressGuardRef.current = false; }, 250);
         return;
       }
+      if (
+        document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+        document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+      ) {
+        return;
+      }
       if (!isEditableElement(t)) setKbVisible(false);
     };
 
     const onFocusIn = (e: FocusEvent) => {
+      if (oskPressGuardRef.current) return;
       const t = e.target as HTMLElement | null;
       if (!t) return;
       if (isEditableElement(t)) setKbVisible(true);
     };
 
-    const onFocusOut = () => {
+    const onFocusOut = (event: FocusEvent) => {
       if (oskPressGuardRef.current) return;
+      if (
+        document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+        document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+      ) {
+        return;
+      }
+      const target = event.target as HTMLElement | null;
+      if (target && target.closest('[data-soft-keyboard="true"]')) return;
+      const related = event.relatedTarget as HTMLElement | null;
+      if (related && related.closest('[data-soft-keyboard="true"]')) return;
       const active = document.activeElement as HTMLElement | null;
+      if (active && active.closest('[data-soft-keyboard="true"]')) return;
       if (!isEditableElement(active)) {
         setKbVisible(false);
       }
@@ -289,8 +307,15 @@ export const useMobileSoftKeyboard = ({
     const onConsole = (event: any) => {
       const msg: string = (event && event.message) || '';
       if (msg === FOCUS_CONSOLE_ACTIVE) {
+        if (oskPressGuardRef.current) return;
         setKbVisible(true);
       } else if (msg === FOCUS_CONSOLE_INACTIVE) {
+        if (
+          document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+          document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+        ) {
+          return;
+        }
         if (oskPressGuardRef.current) return;
         setKbVisible(false);
       }

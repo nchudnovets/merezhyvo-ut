@@ -6,6 +6,7 @@ import React, {
   useEffect,
 } from 'react';
 import Keyboard from 'react-simple-keyboard';
+import EmojiPicker, { Categories, EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react';
 
 import {
   type LayoutId,
@@ -52,6 +53,7 @@ const SPECIAL = new Set([
   '{arrowright}',
   '{lang}',
   '{symbols}',
+  '{emoji}',
   '{abc}',
   '{sym12}',
 ]);
@@ -64,6 +66,7 @@ const BASE_DISPLAY: Record<string, string> = {
   '{arrowright}': '→',
   '{lang}': '🌐',
   '{symbols}': '?!#',
+  '{emoji}': '😊',
   '{abc}': 'ABC',
   '{sym12}': '1/2',
   '{shift}': '⇧',
@@ -88,6 +91,14 @@ const REPEATABLE = new Set<RepeatableKey>([
   '{arrowright}',
 ]);
 
+const EMOJI_CATEGORIES = [
+  Categories.SUGGESTED,
+  Categories.SMILEYS_PEOPLE,
+  Categories.FOOD_DRINK,
+  Categories.ACTIVITIES,
+  Categories.FLAGS
+];
+
 const ICON_TO_TOKEN: Record<string, string> = {
   '⌫': '{bksp}',
   '⏎': '{enter}',
@@ -97,6 +108,7 @@ const ICON_TO_TOKEN: Record<string, string> = {
   '⇪': '{shift}',
   '🌐': '{lang}',
   '?!#': '{symbols}',
+  '😊': '{emoji}',
   ABC: '{abc}',
   '1/2': '{sym12}',
 };
@@ -123,7 +135,8 @@ function rowsToStrings(rows: Rows): string[] {
 function addServiceRows(
   layoutId: LayoutId,
   alphaRows: Rows,
-  showLangKey: boolean
+  showLangKey: boolean,
+  showEmojiKey: boolean
 ): Rows {
   const rows: Rows = alphaRows.map((r) => [...r]); // shallow clone per row
 
@@ -157,6 +170,7 @@ function addServiceRows(
     rows.push([
       '{symbols}',
       ...(showLangKey ? ['{lang}'] : []),
+      ...(showEmojiKey ? ['{emoji}'] : []),
       '{space}',
       '.',
       ',',
@@ -226,6 +240,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
   // Auto-repeat timers for repeatable keys
   const repeatStartTimer = useRef<number | null>(null);
   const repeatInterval = useRef<number | null>(null);
+  const suppressInteractionEndRef = useRef<boolean>(false);
 
   const [popup, setPopup] = useState<{
     key: string;
@@ -235,6 +250,11 @@ const KeyboardPane: React.FC<Props> = (p) => {
   } | null>(null);
   const [shift, setShift] = useState(false);
   const [caps, setCaps] = useState(false);
+  const [emojiOpen, setEmojiOpen] = useState(false);
+  const [emojiPickerHeight, setEmojiPickerHeight] = useState(320);
+  const emojiPanelRef = useRef<HTMLDivElement | null>(null);
+  const emojiDismissedRef = useRef(false);
+  const emojiPanelActive = emojiOpen && visible && !isSymbols(layoutId);
 
    // Keep the webview focused while interacting with the OSK.
   const interactionEndTimer = useRef<number | null>(null);
@@ -260,6 +280,39 @@ const KeyboardPane: React.FC<Props> = (p) => {
   useEffect(() => {
     ensureOskCssInjected(themeVars, theme);
   }, [theme, themeVars]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const update = () => {
+      const h = typeof window !== 'undefined' ? window.innerHeight : 0;
+      const nextHeight = h ? Math.round(h * 0.5) : 320;
+      setEmojiPickerHeight(nextHeight);
+    };
+    update();
+    window.addEventListener('resize', update);
+    return () => window.removeEventListener('resize', update);
+  }, [visible]);
+
+  useEffect(() => {
+    if (visible) return;
+    if (emojiOpen) {
+      emojiDismissedRef.current = true;
+      const id = window.setTimeout(() => setEmojiOpen(false), 0);
+      return () => window.clearTimeout(id);
+    }
+  }, [visible, emojiOpen]);
+
+  useEffect(() => {
+    if (typeof document === 'undefined') return;
+    if (emojiPanelActive) {
+      document.body?.setAttribute('data-mzr-emoji-panel', '1');
+    } else {
+      document.body?.removeAttribute('data-mzr-emoji-panel');
+    }
+    return () => {
+      document.body?.removeAttribute('data-mzr-emoji-panel');
+    };
+  }, [emojiPanelActive]);
 
   useEffect(() => {
     if (!onHeightChange) return;
@@ -295,6 +348,32 @@ const KeyboardPane: React.FC<Props> = (p) => {
     };
   }, [visible, onHeightChange]);
 
+  useEffect(() => {
+    if (!emojiPanelActive) return;
+    const handlePointerDown = (e: PointerEvent) => {
+      const target = e.target;
+      if (!(target instanceof Node)) return;
+      if (emojiPanelRef.current?.contains(target)) return;
+      if (containerRef.current?.contains(target)) return;
+      document.body?.setAttribute('data-mzr-emoji-panel-closing', '1');
+      window.setTimeout(() => {
+        document.body?.removeAttribute('data-mzr-emoji-panel-closing');
+      }, 300);
+      startInteraction();
+      emojiDismissedRef.current = true;
+      setEmojiOpen(false);
+      e.preventDefault();
+      e.stopPropagation();
+      endInteraction();
+    };
+    window.addEventListener('pointerdown', handlePointerDown, true);
+    document.addEventListener('pointerdown', handlePointerDown, true);
+    return () => {
+      window.removeEventListener('pointerdown', handlePointerDown, true);
+      document.removeEventListener('pointerdown', handlePointerDown, true);
+    };
+  }, [emojiPanelActive, startInteraction, endInteraction]);
+
   // Block context-menu while interacting with OSK (prevents UT bubble)
   useEffect(() => {
     if (!visible) return;
@@ -321,14 +400,15 @@ const KeyboardPane: React.FC<Props> = (p) => {
     () => !isSymbols(layoutId) && enabledLayouts.filter((id) => !isSymbols(id)).length > 1,
     [enabledLayouts, layoutId]
   );
+  const showEmojiKey = useMemo(() => !isSymbols(layoutId), [layoutId]);
 
   const fullDefaultRows = useMemo<Rows>(
-    () => addServiceRows(layoutId, baseAlphaRows, showLanguageToggle),
-    [layoutId, baseAlphaRows, showLanguageToggle]
+    () => addServiceRows(layoutId, baseAlphaRows, showLanguageToggle, showEmojiKey),
+    [layoutId, baseAlphaRows, showLanguageToggle, showEmojiKey]
   );
   const fullShiftRows = useMemo<Rows>(
-    () => addServiceRows(layoutId, toShiftRows(baseAlphaRows), showLanguageToggle),
-    [layoutId, baseAlphaRows, showLanguageToggle]
+    () => addServiceRows(layoutId, toShiftRows(baseAlphaRows), showLanguageToggle, showEmojiKey),
+    [layoutId, baseAlphaRows, showLanguageToggle, showEmojiKey]
   );
 
   // Build keyboard layout object expected by react-simple-keyboard (string[] per layer)
@@ -404,7 +484,18 @@ const KeyboardPane: React.FC<Props> = (p) => {
         }
 
         case '{symbols}': {
+          setEmojiOpen(false);
           onSetLayout?.('symbols1');
+          return;
+        }
+
+        case '{emoji}': {
+          if (emojiDismissedRef.current) {
+            emojiDismissedRef.current = false;
+            setEmojiOpen(true);
+            return;
+          }
+          setEmojiOpen((prev) => !prev);
           return;
         }
 
@@ -499,6 +590,16 @@ const KeyboardPane: React.FC<Props> = (p) => {
   const onPointerDownCapture = useCallback(
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (!visible) return;
+      const emojiTarget = e.target;
+      if (emojiPanelActive && emojiTarget instanceof Node && emojiPanelRef.current?.contains(emojiTarget)) {
+        startInteraction();
+        return;
+      }
+      const closeTarget = e.target as HTMLElement | null;
+      if (closeTarget && closeTarget.closest('.mzr-osk-close')) {
+        suppressInteractionEndRef.current = true;
+        return;
+      }
       startInteraction();
 
       // Prevent OSK UI from stealing focus from the <webview>.
@@ -579,10 +680,16 @@ const KeyboardPane: React.FC<Props> = (p) => {
         return;
       }
     },
-    [visible, startInteraction, setActiveButton, lpMap, typeKey]
+    [visible, emojiPanelActive, startInteraction, setActiveButton, lpMap, typeKey]
   );
 
   const onPointerUpCapture = useCallback(() => {
+    if (suppressInteractionEndRef.current) {
+      suppressInteractionEndRef.current = false;
+      clearHold();
+      isPressing.current = false;
+      return;
+    }
     // If no long-press happened and we have a button — treat as a tap
     if (!holdActivated.current && heldButton.current) {
       void typeKey(heldButton.current);
@@ -593,10 +700,26 @@ const KeyboardPane: React.FC<Props> = (p) => {
   }, [clearHold, endInteraction, typeKey]);
 
   const onPointerCancel = useCallback(() => {
+    if (suppressInteractionEndRef.current) {
+      suppressInteractionEndRef.current = false;
+      clearHold();
+      isPressing.current = false;
+      return;
+    }
     clearHold();
     isPressing.current = false;
     endInteraction();
   }, [clearHold, endInteraction]);
+
+  const onPointerLeave = useCallback(
+    (e: React.PointerEvent<HTMLDivElement>) => {
+      if (emojiPanelActive) {
+        return;
+      }
+      onPointerCancel();
+    },
+    [emojiPanelActive, onPointerCancel]
+  );
 
   const onPickAlt = useCallback(
     (alt0: string) => {
@@ -632,6 +755,8 @@ const KeyboardPane: React.FC<Props> = (p) => {
   }, [popup]);
 
   if (!visible) return null;
+
+  const emojiTheme = theme === 'light' ? EmojiTheme.LIGHT : EmojiTheme.DARK;
 
   return (
     <div
@@ -670,7 +795,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
       onPointerDownCapture={onPointerDownCapture}
       onPointerUpCapture={onPointerUpCapture}
       onPointerCancel={onPointerCancel}
-      onPointerLeave={onPointerCancel}
+      onPointerLeave={onPointerLeave}
       onContextMenu={absorbContext}
       style={{
         touchAction: 'none',
@@ -689,13 +814,54 @@ const KeyboardPane: React.FC<Props> = (p) => {
         theme="hg-theme-default hg-layout-default mzr-osk-theme"
         onKeyPress={onKeyPress}
       />
+      {emojiPanelActive && (
+        <div
+          ref={emojiPanelRef}
+          className="mzr-emoji-panel"
+          data-soft-keyboard="true"
+          style={{ height: emojiPickerHeight }}
+        >
+          <div className="mzr-emoji-footer">
+            <button
+              type="button"
+              className="mzr-emoji-close"
+              onClick={() => setEmojiOpen(false)}
+              aria-label="Close emoji panel"
+              title="Close"
+            >
+              ABC
+            </button>
+          </div>
+          <EmojiPicker
+            theme={emojiTheme}
+            emojiStyle={EmojiStyle.APPLE}
+            height="100%"
+            width="100%"
+            categories={EMOJI_CATEGORIES}
+            lazyLoadEmojis
+            searchDisabled
+            skinTonesDisabled
+            previewConfig={{ showPreview: false }}
+            style={{
+              '--epr-emoji-size': '70px',
+              '--epr-emoji-padding': '10px',
+            } as React.CSSProperties}
+            onEmojiClick={(emojiData: EmojiClickData) => {
+              injectText(emojiData.emoji);
+            }}
+          />
+        </div>
+      )}
       {onClose && (
         <button
           type="button"
           className="mzr-osk-close"
           aria-label="Hide keyboard"
           title="Hide keyboard"
-          onClick={() => onClose?.()}
+          onClick={() => {
+            setEmojiOpen(false);
+            onClose?.();
+          }}
         >
           <svg
             viewBox="0 0 24 24"

@@ -18,6 +18,7 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
   const accent = pick(vars, 'accent-strong', '#3b82f6');
   const buttonBg = pick(vars, 'surface-muted', theme === 'light' ? 'rgba(248,250,252,0.9)' : 'rgba(255,255,255,0.08)');
   const popupBg = theme === 'light' ? 'rgba(248,250,252,0.98)' : 'rgba(15, 15, 15, 0.98)';
+  const emojiBg = pick(vars, 'surface', theme === 'light' ? '#f8fafc' : '#0f172a');
 
   return `
   :root {
@@ -30,6 +31,7 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
     --mzr-osk-accent: ${accent};
     --mzr-osk-btn-bg: ${buttonBg};
     --mzr-osk-popup-bg: ${popupBg};
+    --mzr-osk-emoji-bg: ${emojiBg};
   }
 
   .mzr-osk.fixed-osk {
@@ -84,6 +86,12 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
     background: var(--mzr-osk-btn-bg) !important;
     color: var(--mzr-osk-text) !important;
     border: 1px solid var(--mzr-osk-border) !important;
+  }
+  .mzr-osk .hg-button.hg-button-emoji,
+  .mzr-osk .hg-button[data-skbtn="{emoji}"],
+  .mzr-osk .hg-button[data-skbtn="😊"] {
+    min-width: 75px !important;
+    max-width: 95px !important;
   }
   .mzr-osk .hg-button:active,
   .mzr-osk .hg-button.mzr-osk-pressed {
@@ -152,6 +160,62 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
     background: var(--mzr-osk-hover);
   }
 
+  .mzr-emoji-panel {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 70px;
+    z-index: 100002;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid var(--mzr-osk-border);
+    background: var(--mzr-osk-emoji-bg);
+    box-shadow: 0 12px 32px rgba(0,0,0,0.35);
+    --epr-bg-color: var(--mzr-osk-emoji-bg);
+    --epr-category-label-bg-color: var(--mzr-osk-emoji-bg);
+  }
+  .mzr-emoji-footer {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: 2;
+    display: flex;
+    align-items: center;
+    justify-content: flex-start;
+    padding: 0 10px;
+    height: 72px;
+    background: var(--mzr-osk-emoji-bg);
+    border-top: 1px solid var(--mzr-osk-border);
+  }
+  .mzr-emoji-close {
+    background: var(--mzr-osk-btn-bg);
+    color: var(--mzr-osk-text);
+    border: 1px solid var(--mzr-osk-border);
+    border-radius: 10px;
+    padding: 6px 12px;
+    line-height: 1;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 50px;
+    min-width: 72px;
+    height: 60px;
+  }
+  .mzr-emoji-panel .epr-header,
+  .mzr-emoji-panel .epr-category-nav,
+  .mzr-emoji-panel .epr-preview {
+    display: none !important;
+  }
+  .mzr-emoji-panel .epr-body {
+    padding-bottom: 72px;
+  }
+  .mzr-emoji-panel .EmojiPickerReact {
+    width: 100% !important;
+    background: var(--mzr-osk-emoji-bg) !important;
+    border: none !important;
+  }
+
   .mzr-osk .fill-label {
     color: var(--mzr-osk-muted);
   }
@@ -166,7 +230,9 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
     .mzr-osk .hg-button { font-size: 48px !important; height: 80px !important; padding: 5px 7px !important; }
     .mzr-osk .hg-button.osk-space { min-width: 40vw !important; }
     .mzr-osk-popup-btn { font-size: 48px; padding: 6px 8px; }
+    .mzr-emoji-panel { bottom: 130px; }
   }
+
   `;
 };
 
