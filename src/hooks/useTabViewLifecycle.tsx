@@ -44,6 +44,7 @@ type Refs = {
   previousActiveTabRef: MutableRefObject<Tab | null>;
   webviewReadyRef: MutableRefObject<boolean>;
   tabsRef: MutableRefObject<Tab[]>;
+  suspendTabLifecycleRef: MutableRefObject<boolean>;
 };
 
 type Setters = {
@@ -58,6 +59,7 @@ type Params = {
   activeTab: Tab | null;
   tabsReady: boolean;
   torEnabled: boolean;
+  suspendTabLifecycle: boolean;
   refs: Refs;
   handlers: Handlers;
   setters: Setters;
@@ -69,6 +71,7 @@ export const useTabViewLifecycle = ({
   activeTab,
   tabsReady,
   torEnabled,
+  suspendTabLifecycle,
   refs,
   handlers,
   setters
@@ -84,7 +87,8 @@ export const useTabViewLifecycle = ({
     lastLoadedRef,
     previousActiveTabRef,
     webviewReadyRef,
-    tabsRef
+    tabsRef,
+    suspendTabLifecycleRef
   } = refs;
 
   const {
@@ -393,6 +397,7 @@ export const useTabViewLifecycle = ({
   }, [destroyTabView, partitionKey, tabViewsRef]);
 
   useEffect(() => {
+    if (suspendTabLifecycleRef.current) return;
     if (!tabsReady) return;
     const next = tabsRef.current.find((tab) => tab.id === activeIdRef.current) || activeTab;
     if (!next) return;
@@ -404,7 +409,17 @@ export const useTabViewLifecycle = ({
 
     activateTabView(next);
     previousActiveTabRef.current = next;
-  }, [activateTabView, activeTab, demoteTabView, tabsReady, tabsRef, activeIdRef, previousActiveTabRef]);
+  }, [
+    activateTabView,
+    activeTab,
+    demoteTabView,
+    tabsReady,
+    tabsRef,
+    activeIdRef,
+    previousActiveTabRef,
+    suspendTabLifecycle,
+    suspendTabLifecycleRef
+  ]);
 
   useEffect(() => () => {
     for (const tabId of Array.from(tabViewsRef.current.keys())) {

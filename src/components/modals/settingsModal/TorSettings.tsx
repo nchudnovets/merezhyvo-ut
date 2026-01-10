@@ -31,6 +31,10 @@ const TorSettings: React.FC<TorSettingsProps> = ({
   const torStatusText = torEnabled ? t('tor.status.enabled') : t('tor.status.disabled');
   const torStatusStyle = torEnabled ? styles.torInfoValueEnabled : styles.torInfoValueDisabled;
   const torIpText = torIpLoading ? t('global.loading') : torCurrentIp || t('tor.ip.unavailable');
+  const isMobile = mode === 'mobile';
+  const toggleTrackWidth = isMobile ? 90 : 48;
+  const toggleTrackHeight = isMobile ? 48 : 24;
+  const toggleThumbSize = isMobile ? 40 : 18;
   return (
     <>
       <div style={styles.torInfoRow}>
@@ -74,8 +78,8 @@ const TorSettings: React.FC<TorSettingsProps> = ({
           <span
             style={{
               position: 'relative',
-              width: mode === 'mobile' ? 74 : 48,
-              height: mode === 'mobile' ? 40 : 20,
+              width: toggleTrackWidth,
+              height: toggleTrackHeight,
               flexShrink: 0,
               display: 'inline-block'
             }}
@@ -100,23 +104,23 @@ const TorSettings: React.FC<TorSettingsProps> = ({
                 position: 'absolute',
                 inset: 0,
                 borderRadius: 999,
-                backgroundColor: torKeepEnabledDraft ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
-                border: '1px solid var(--mzr-border)',
-                transition: 'background-color 160ms ease, opacity 160ms ease, border-color 160ms ease'
+                background: torKeepEnabledDraft ? 'var(--mzr-accent)' : 'var(--mzr-surface-muted)',
+                transition: 'background 0.2s ease',
+                boxShadow: torKeepEnabledDraft ? '0 0 0 1px rgba(59,130,246,0.3)' : 'inset 0 0 0 1px var(--mzr-border)'
               }}
             />
             <span
               aria-hidden="true"
               style={{
                 position: 'absolute',
-                top: mode === 'mobile' ? 4 : 2,
-                left: torKeepEnabledDraft ? (mode === 'mobile' ? 36 : 26) : (mode === 'mobile' ? 4 : 2),
-                width: mode === 'mobile' ? 32 : 16,
-                height: mode === 'mobile' ? 32 : 16,
+                top: (toggleTrackHeight - toggleThumbSize) / 2,
+                left: torKeepEnabledDraft ? toggleTrackWidth - toggleThumbSize - 4 : 4,
+                width: toggleThumbSize,
+                height: toggleThumbSize,
                 borderRadius: '50%',
                 backgroundColor: torKeepEnabledDraft ? '#ffffff' : 'var(--mzr-border-strong)',
                 boxShadow: '0 2px 6px rgba(0,0,0,0.12)',
-                transition: 'left 160ms ease'
+                transition: 'left 0.2s ease'
               }}
             />
           </span>

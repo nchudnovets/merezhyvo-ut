@@ -378,9 +378,6 @@ export interface MerezhyvoAPI {
     downloadsSymlinkCommand: string;
     documentsSymlinkCommand: string;
   };
-  debug?: {
-    logGeo(msg: string): void;
-  };
 }
 
 declare global {

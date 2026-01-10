@@ -34,6 +34,7 @@ import NetworkInfoPage from './pages/networkInfo/NetworkInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
 import TorDisableDialog from './components/modals/TorDisableDialog';
+import TorKeepEnabledDialog from './components/modals/TorKeepEnabledDialog';
 import { useMerezhyvoMode } from './hooks/useMerezhyvoMode';
 import { useDownloadIndicators } from './hooks/useDownloadIndicators';
 import { useAppInfo } from './hooks/useAppInfo';
@@ -57,7 +58,7 @@ import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
-import { useTabsStore, tabsActions } from './store/tabs';
+import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
 import { useTorSettings } from './hooks/useTorSettings';
@@ -200,7 +201,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
-  const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | null>(null);
+  const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | 'network' | null>(null);
   const { globalToast, showGlobalToast } = useGlobalToast();
   const {
     accessBlocked,
@@ -225,6 +226,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [secureDnsCustomUrl, setSecureDnsCustomUrl] = useState<string>('');
   const [secureDnsError, setSecureDnsError] = useState<string>('');
   const [showTorDisableDialog, setShowTorDisableDialog] = useState<boolean>(false);
+  const [showTorKeepWarning, setShowTorKeepWarning] = useState<boolean>(false);
   const [torDisableBusy, setTorDisableBusy] = useState<boolean>(false);
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
@@ -275,6 +277,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [securityPopoverOpen, setSecurityPopoverOpen] = useState<boolean>(false);
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
+  const pendingTorCloseAllRef = useRef<boolean>(false);
+  const torKickTimerRef = useRef<number | null>(null);
+  const kickActiveTabLoadRef = useRef<((attempt?: number) => void) | null>(null);
+  const [suspendTabLifecycle, setSuspendTabLifecycle] = useState<boolean>(false);
+  const suspendTabLifecycleRef = useRef<boolean>(false);
+  const torCloseAllResumeIdRef = useRef<string | null>(null);
   const [messengerOrderSaving, setMessengerOrderSaving] = useState<boolean>(false);
   const [messengerOrderMessage, setMessengerOrderMessage] = useState<string>('');
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
@@ -323,7 +331,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabCount = pinnedTabs.length + regularTabs.length;
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
-
   const {
     newTab: newTabAction,
     closeTab: closeTabAction,
@@ -344,6 +351,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+  useEffect(() => {
+    if (!suspendTabLifecycle) return;
+    const resumeId = torCloseAllResumeIdRef.current;
+    if (!resumeId) return;
+    if (activeId !== resumeId) return;
+    suspendTabLifecycleRef.current = false;
+    torCloseAllResumeIdRef.current = null;
+    setSuspendTabLifecycle(false);
+  }, [activeId, suspendTabLifecycle]);
   const isYouTubeTab = useCallback((tabId: string) => {
     return tabsRef.current.some((tab) => tab.id === tabId && tab.isYouTube);
   }, []);
@@ -1081,7 +1097,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       webviewReadyRef.current = false;
       setWebviewReady(false);
     }
-  }, [refreshNavigationState, updateMetaAction, inputValue, mode, shouldBlockCert]);
+  }, [activeIdRef, mode, refreshNavigationState, shouldBlockCert, updateMetaAction, inputValue]);
 
   const handleHostUrlChange = useCallback((tabId: string, nextUrl: string) => {
     if (!nextUrl) return;
@@ -1299,6 +1315,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     activeTab,
     tabsReady,
     torEnabled,
+    suspendTabLifecycle,
     refs: {
       tabViewsRef,
       webviewHostRef,
@@ -1310,7 +1327,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       lastLoadedRef,
       previousActiveTabRef,
       webviewReadyRef,
-      tabsRef
+      tabsRef,
+      suspendTabLifecycleRef
     },
     handlers: {
       handleHostCanGo,
@@ -1913,18 +1931,33 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const handleTorToggleRequest = useCallback(() => {
     if (torEnabled) {
+      if (torKeepEnabled) {
+        setShowTorKeepWarning(true);
+        return;
+      }
       if (!torDisableBusy) {
         setShowTorDisableDialog(true);
       }
       return;
     }
     void handleToggleTor();
-  }, [handleToggleTor, torDisableBusy, torEnabled]);
+  }, [handleToggleTor, torDisableBusy, torEnabled, torKeepEnabled]);
 
   const handleTorDisableCancel = useCallback(() => {
     if (torDisableBusy) return;
     setShowTorDisableDialog(false);
   }, [torDisableBusy]);
+
+  const handleTorKeepWarningCancel = useCallback(() => {
+    setShowTorKeepWarning(false);
+  }, []);
+
+  const handleTorKeepWarningOpenSettings = useCallback(() => {
+    setShowTorKeepWarning(false);
+    setSettingsScrollTarget('network');
+    setShowSettingsModal(true);
+  }, []);
+
 
   const wipeTorSession = useCallback(async (): Promise<boolean> => {
     const result = await torService.clearSession();
@@ -1935,12 +1968,104 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return true;
   }, [showGlobalToast, t]);
 
+
+  const finalizeTorCloseAll = useCallback(() => {
+    pendingTorCloseAllRef.current = false;
+    suspendTabLifecycleRef.current = true;
+    torCloseAllResumeIdRef.current = null;
+    setSuspendTabLifecycle(true);
+    previousActiveTabRef.current = null;
+    for (const tabId of Array.from(tabViewsRef.current.keys())) {
+      destroyTabView(tabId, { keepMeta: true });
+    }
+    activeWcIdRef.current = null;
+    webviewHandleRef.current = null;
+    webviewRef.current = null;
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    setStatus('loading');
+    navigationStateRef.current.clear();
+    allowHttpOnceRef.current.clear();
+    lastLoadedRef.current = { id: null, url: null };
+    lastFailedUrlRef.current = null;
+    ignoreUrlChangeRef.current = false;
+    certBypassRef.current.clear();
+    blockingCertRef.current = null;
+    backgroundTabRef.current = null;
+    fullscreenTabRef.current = null;
+    playingTabsRef.current.clear();
+    setIsHtmlFullscreen(false);
+    setCertStatus(null);
+    setPageError(null);
+    closeAllTabsAction();
+    const nextState = getTabsState();
+    tabsReadyRef.current = nextState.ready;
+    tabsRef.current = nextState.tabs;
+    activeIdRef.current = nextState.activeId;
+    activeTabRef.current = nextState.tabs.find((tab) => tab.id === nextState.activeId) ?? null;
+    previousActiveTabRef.current = activeTabRef.current;
+    torCloseAllResumeIdRef.current = nextState.activeId;
+    updatePowerBlocker();
+    if (torKickTimerRef.current) {
+      window.clearTimeout(torKickTimerRef.current);
+      torKickTimerRef.current = null;
+    }
+    torKickTimerRef.current = window.setTimeout(() => {
+      kickActiveTabLoadRef.current?.(0);
+    }, 120);
+  }, [
+    activeIdRef,
+    activeTabRef,
+    activeWcIdRef,
+    allowHttpOnceRef,
+    backgroundTabRef,
+    blockingCertRef,
+    certBypassRef,
+    closeAllTabsAction,
+    destroyTabView,
+    fullscreenTabRef,
+    kickActiveTabLoadRef,
+    playingTabsRef,
+    setIsHtmlFullscreen,
+    lastLoadedRef,
+    navigationStateRef,
+    previousActiveTabRef,
+    setCertStatus,
+    setPageError,
+    setStatus,
+    setWebviewReady,
+    status,
+    tabsRef,
+    tabsReadyRef,
+    tabViewsRef,
+    torKickTimerRef,
+    updatePowerBlocker,
+    webviewHandleRef,
+    webviewReadyRef,
+    webviewRef,
+    torCloseAllResumeIdRef,
+    suspendTabLifecycleRef,
+    setSuspendTabLifecycle
+  ]);
+
   const handleTorDisableChoice = useCallback(
     async (modeChoice: 'close' | 'keep') => {
       if (torDisableBusy) return;
+      const closeTabs = modeChoice === 'close';
+      if (closeTabs) {
+        suspendTabLifecycleRef.current = true;
+        torCloseAllResumeIdRef.current = null;
+        setSuspendTabLifecycle(true);
+      }
+      pendingTorCloseAllRef.current = closeTabs;
       setTorDisableBusy(true);
       const wiped = await wipeTorSession();
       if (!wiped) {
+        pendingTorCloseAllRef.current = false;
+        if (closeTabs) {
+          suspendTabLifecycleRef.current = false;
+          setSuspendTabLifecycle(false);
+        }
         setTorDisableBusy(false);
         return;
       }
@@ -1948,22 +2073,41 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const state = await torService.toggle();
         if (state?.enabled) {
           showGlobalToast(t('tor.disable.toggleFailed'));
+          pendingTorCloseAllRef.current = false;
+          if (closeTabs) {
+            suspendTabLifecycleRef.current = false;
+            setSuspendTabLifecycle(false);
+          }
           setTorDisableBusy(false);
           return;
         }
       } catch (err) {
         console.error('[merezhyvo] tor disable failed', err);
         showGlobalToast(t('tor.disable.toggleFailed'));
+        pendingTorCloseAllRef.current = false;
+        if (closeTabs) {
+          suspendTabLifecycleRef.current = false;
+          setSuspendTabLifecycle(false);
+        }
         setTorDisableBusy(false);
         return;
-      }
-      if (modeChoice === 'close') {
-        closeAllTabsAction();
       }
       setShowTorDisableDialog(false);
       setTorDisableBusy(false);
     },
-    [closeAllTabsAction, showGlobalToast, t, torDisableBusy, wipeTorSession]
+    [
+      activeIdRef,
+      activeTabRef,
+      showGlobalToast,
+      status,
+      t,
+      tabViewsRef,
+      tabsRef,
+      torDisableBusy,
+      torEnabled,
+      webviewReadyRef,
+      wipeTorSession
+    ]
   );
 
   const handleTorDisableCloseAll = useCallback(() => {
@@ -2023,7 +2167,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (torEnabled) return;
     setShowTorDisableDialog(false);
     setTorDisableBusy(false);
-  }, [torEnabled]);
+    setShowTorKeepWarning(false);
+    if (pendingTorCloseAllRef.current) {
+      finalizeTorCloseAll();
+    }
+  }, [finalizeTorCloseAll, torDisableBusy, torEnabled]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 
@@ -2178,6 +2326,62 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
     }
   }, [getActiveWebview, getActiveWebviewHandle, reloadActiveAction]);
+
+  const kickActiveTabLoad = useCallback((attempt = 0) => {
+    if (attempt > 12) {
+      return;
+    }
+    const handle = getActiveWebviewHandle();
+    const view = (handle && typeof handle.getWebView === 'function')
+      ? handle.getWebView()
+      : getActiveWebview();
+    if (!handle && !view) {
+      torKickTimerRef.current = window.setTimeout(() => kickActiveTabLoad(attempt + 1), 80);
+      return;
+    }
+    if (view && 'isConnected' in view && !view.isConnected) {
+      torKickTimerRef.current = window.setTimeout(() => kickActiveTabLoad(attempt + 1), 80);
+      return;
+    }
+    const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
+    setStatus('loading');
+    reloadActiveAction();
+    webviewReadyRef.current = false;
+    setWebviewReady(false);
+    try {
+      if (handle) {
+        try {
+          handle.loadURL(activeUrlCurrent);
+        } catch {
+          const fallbackView = handle.getWebView?.();
+          try { fallbackView?.setAttribute?.('src', activeUrlCurrent); } catch {}
+        }
+      } else if (view) {
+        try {
+          const result = view.loadURL(activeUrlCurrent);
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {});
+          }
+        } catch {
+          try { view.setAttribute('src', activeUrlCurrent); } catch {}
+        }
+      }
+    } catch {
+      torKickTimerRef.current = window.setTimeout(() => kickActiveTabLoad(attempt + 1), 80);
+    }
+  }, [
+    activeTabRef,
+    getActiveWebview,
+    getActiveWebviewHandle,
+    reloadActiveAction,
+    setStatus,
+    setWebviewReady,
+    webviewReadyRef
+  ]);
+
+  useEffect(() => {
+    kickActiveTabLoadRef.current = kickActiveTabLoad;
+  }, [kickActiveTabLoad]);
 
   const validateSecureDnsSettings = useCallback((settings: SecureDnsSettings): string => {
     if (!settings.enabled) return '';
@@ -3130,6 +3334,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onCloseAll={handleTorDisableCloseAll}
             onKeepTabs={handleTorDisableKeepTabs}
             onCancel={handleTorDisableCancel}
+          />
+          <TorKeepEnabledDialog
+            open={showTorKeepWarning}
+            mode={mode}
+            onCancel={handleTorKeepWarningCancel}
+            onOpenSettings={handleTorKeepWarningOpenSettings}
           />
 
           <PasswordCapturePrompt

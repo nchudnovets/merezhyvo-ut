@@ -386,6 +386,9 @@ const no = {
   'tor.ip.label': 'Nåværende IP',
   'tor.ip.unavailable': 'Ikke tilgjengelig',
   'tor.keep.label': 'Behold Tor aktivert',
+  'tor.keepWarning.message': 'For å slå av Tor må du først slå av "{keepLabel}" i Innstillinger.',
+  'tor.keepWarning.cancel': 'Avbryt',
+  'tor.keepWarning.openSettings': 'Åpne innstillinger',
 
   'passwords.page.title': 'Passord',
   'passwords.page.search.placeholder': 'Søk etter nettsteder og brukernavn…',

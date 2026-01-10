@@ -1163,13 +1163,6 @@ const exposeApi: MerezhyvoAPI = {
     ,
     downloadsSymlinkCommand: DOWNLOADS_SYMLINK_COMMAND,
     documentsSymlinkCommand: DOCUMENTS_SYMLINK_COMMAND
-  },
-
-  // Simple debug hook to write into geo.log from the renderer
-  debug: {
-    logGeo(_msg: string): void {
-  // try { void ipcRenderer.invoke('mzr:geo:log', `renderer: ${msg}`); } catch {}
-    }
   }
 };
 

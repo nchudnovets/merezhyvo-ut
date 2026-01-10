@@ -46,7 +46,7 @@ interface SettingsModalProps {
   onOpenPasswords: () => void;
   onOpenLicenses: () => void;
   onRequestPasswordUnlock: (fromSettings?: boolean) => void;
-  scrollToSection?: 'passwords' | null;
+  scrollToSection?: 'passwords' | 'network' | null;
   onScrollSectionHandled?: () => void;
   messengerItems: MessengerDefinition[];
   messengerOrderSaving: boolean;
@@ -174,8 +174,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   const modeStyles = settingsModalModeStyles[mode] || {};
   const { t } = useI18n();
   const passwordSectionRef = useRef<HTMLDivElement | null>(null);
+  const networkSectionRef = useRef<HTMLDivElement | null>(null);
   const [forceExpandPasswords, setForceExpandPasswords] = useState(false);
+  const [forceExpandNetwork, setForceExpandNetwork] = useState(false);
   const shouldForceExpandPasswords = forceExpandPasswords;
+  const shouldForceExpandNetwork = forceExpandNetwork;
 
   useEffect(() => {
     const handleKey = (event: KeyboardEvent) => {
@@ -224,6 +227,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
       setForceExpandPasswords(true);
       passwordSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
       onScrollSectionHandled?.();
+      return;
+    }
+    if (scrollToSection === 'network' && networkSectionRef.current) {
+      setForceExpandNetwork(true);
+      networkSectionRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+      onScrollSectionHandled?.();
     }
   }, [scrollToSection, onScrollSectionHandled]);
 
@@ -271,6 +280,8 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             mode={mode}
             title={t('settings.section.network')}
             expandedDefault={false}
+            forceExpanded={shouldForceExpandNetwork}
+            sectionRef={networkSectionRef}
             body={
               <NetworkSettings
                 mode={mode}
