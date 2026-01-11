@@ -6,7 +6,7 @@ import React, {
   useEffect,
 } from 'react';
 import Keyboard from 'react-simple-keyboard';
-import EmojiPicker, { Categories, EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react';
+import EmojiPicker, { EmojiStyle, Theme as EmojiTheme, type EmojiClickData } from 'emoji-picker-react';
 
 import {
   type LayoutId,
@@ -90,14 +90,6 @@ const REPEATABLE = new Set<RepeatableKey>([
   '{arrowleft}',
   '{arrowright}',
 ]);
-
-const EMOJI_CATEGORIES = [
-  Categories.SUGGESTED,
-  Categories.SMILEYS_PEOPLE,
-  Categories.FOOD_DRINK,
-  Categories.ACTIVITIES,
-  Categories.FLAGS
-];
 
 const ICON_TO_TOKEN: Record<string, string> = {
   '⌫': '{bksp}',
@@ -284,9 +276,16 @@ const KeyboardPane: React.FC<Props> = (p) => {
   useEffect(() => {
     if (!visible) return;
     const update = () => {
+      const bottomOffset = typeof window !== 'undefined' && window.innerWidth <= 400 ? 130 : 70;
+      const node = containerRef.current;
+      if (node) {
+        const nextHeight = Math.max(0, Math.round(node.getBoundingClientRect().height) - bottomOffset);
+        setEmojiPickerHeight(nextHeight);
+        return;
+      }
       const h = typeof window !== 'undefined' ? window.innerHeight : 0;
       const nextHeight = h ? Math.round(h * 0.5) : 320;
-      setEmojiPickerHeight(nextHeight);
+      setEmojiPickerHeight(Math.max(0, nextHeight - bottomOffset));
     };
     update();
     window.addEventListener('resize', update);
@@ -712,6 +711,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
   }, [clearHold, endInteraction]);
 
   const onPointerLeave = useCallback(
+    // eslint-disable-next-line @typescript-eslint/no-unused-vars
     (e: React.PointerEvent<HTMLDivElement>) => {
       if (emojiPanelActive) {
         return;
@@ -837,7 +837,6 @@ const KeyboardPane: React.FC<Props> = (p) => {
             emojiStyle={EmojiStyle.APPLE}
             height="100%"
             width="100%"
-            categories={EMOJI_CATEGORIES}
             lazyLoadEmojis
             searchDisabled
             skinTonesDisabled
@@ -845,6 +844,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
             style={{
               '--epr-emoji-size': '70px',
               '--epr-emoji-padding': '10px',
+              '--epr-category-label-height': '42px'
             } as React.CSSProperties}
             onEmojiClick={(emojiData: EmojiClickData) => {
               injectText(emojiData.emoji);

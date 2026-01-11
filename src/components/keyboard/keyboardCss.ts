@@ -207,6 +207,13 @@ const buildCss = (vars: Record<string, string>, theme: ThemeName): string => {
   .mzr-emoji-panel .epr-preview {
     display: none !important;
   }
+  .mzr-emoji-panel .epr-emoji-category-label {
+    font-size: 35px !important;
+    line-height: 1.1;
+  }
+  .mzr-emoji-panel .epr-category-label {
+    font-size: 35px !important;
+  }
   .mzr-emoji-panel .epr-body {
     padding-bottom: 72px;
   }
