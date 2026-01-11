@@ -1,6 +1,25 @@
 # Changelog
 
 ----
+## v0.4.8 - 2026-01-11
+
+### New
+
+- Emoji panel on the on-screen keyboard.
+
+### Changed
+
+- Added missing « » characters to the OSK symbol layout.
+
+- Security popup now shows a counter for blocked third-party cookies.
+
+### Fixed
+
+- Fixed a bug that prevented renaming bookmark folders.
+
+- Fixed a freeze/hang when wiping Tor data while turning Tor off and closing all open tabs.
+
+----
 ## 0.4.7 - 2026-01-03
 
 ### New

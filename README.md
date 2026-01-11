@@ -152,6 +152,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Long-press alternates, symbol pages, Caps Lock via long-press Shift and layout switching managed in **Settings → Keyboard**.
 
+  - Emoji panel.
+
 
 - ### Localization
 
