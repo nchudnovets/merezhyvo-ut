@@ -22,6 +22,7 @@ import NetworkSettings from './NetworkSettings';
 import AboutSettings from './AboutSettings';
 import PasswordSettings from './PasswordSettings';
 import DownloadSettingsSection from './DownloadSettingsSection';
+import SavingsSettings from './SavingsSettings';
 import UiScaleSetting from './UiScaleSetting';
 import ThemeSetting from './ThemeSetting';
 import LanguageSettings from './LanguageSettings';
@@ -41,6 +42,7 @@ interface SettingsModalProps {
   torConfigSaving: boolean;
   torConfigFeedback: string;
   onTorKeepChange: (value: boolean) => void;
+  onNetworkSectionOpen?: () => void;
   onOpenNetworkInfo: () => void;
   onClose: () => void;
   onOpenPasswords: () => void;
@@ -59,6 +61,10 @@ interface SettingsModalProps {
   onDownloadsConcurrentChange: (value: 1 | 2 | 3) => void;
   onCopyDownloadsCommand: () => void;
   downloadsCommand: string;
+  savingsEnabled: boolean;
+  savingsCountrySaved: string | null;
+  onSavingsEnabledChange: (value: boolean) => void;
+  onSavingsCountryChange: (value: string | null) => void;
   uiScale: number;
   theme: ThemeName;
   onUiScaleChange: (value: number) => void;
@@ -111,6 +117,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   torConfigSaving,
   torConfigFeedback,
   onTorKeepChange,
+  onNetworkSectionOpen,
   onOpenNetworkInfo,
   onClose,
   onOpenPasswords,
@@ -130,6 +137,10 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onDownloadsConcurrentChange,
   onCopyDownloadsCommand,
   downloadsCommand,
+  savingsEnabled,
+  savingsCountrySaved,
+  onSavingsEnabledChange,
+  onSavingsCountryChange,
   uiScale,
   theme,
   webZoomMobileDefault,
@@ -282,6 +293,11 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             expandedDefault={false}
             forceExpanded={shouldForceExpandNetwork}
             sectionRef={networkSectionRef}
+            onExpandedChange={(expanded) => {
+              if (expanded) {
+                onNetworkSectionOpen?.();
+              }
+            }}
             body={
               <NetworkSettings
                 mode={mode}
@@ -401,6 +417,20 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                   command={downloadsCommand}
                 />
               }
+          />
+
+          <SettingsSection
+            mode={mode}
+            title={t('settings.section.savings')}
+            body={
+              <SavingsSettings
+                mode={mode}
+                enabled={savingsEnabled}
+                countrySaved={savingsCountrySaved}
+                onEnabledChange={onSavingsEnabledChange}
+                onCountryChange={onSavingsCountryChange}
+              />
+            }
           />
 
           <SettingsSection

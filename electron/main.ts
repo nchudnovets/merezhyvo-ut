@@ -40,7 +40,10 @@ import {
   sanitizeSecureDnsSettings,
   sanitizeHttpsMode,
   sanitizeSslExceptions,
+  sanitizeNetworkSettings,
+  sanitizeSavingsSettings,
   type SettingsState,
+  type SavingsSettings,
   type WebrtcMode,
   type TrackerPrivacySettings,
   type BlockingMode
@@ -2035,6 +2038,44 @@ ipcMain.handle('merezhyvo:settings:tor:set-keep', async (_event, payload: unknow
   } catch (err) {
     console.error('[merezhyvo] settings tor keep update failed', err);
     return { ok: false, error: String(err) };
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:savings:get', async () => {
+  try {
+    const state = await readSettingsState();
+    return sanitizeSavingsSettings(state.savings);
+  } catch (err) {
+    console.error('[merezhyvo] settings savings get failed', err);
+    return sanitizeSavingsSettings(null);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:savings:update', async (_event, payload: unknown) => {
+  try {
+    const state = await readSettingsState();
+    const current = sanitizeSavingsSettings(state.savings);
+    const patch = (payload && typeof payload === 'object') ? payload as Partial<SavingsSettings> : {};
+    const nextSavings = sanitizeSavingsSettings({ ...current, ...patch });
+    const nextState = await writeSettingsState({ savings: nextSavings });
+    return sanitizeSavingsSettings(nextState.savings);
+  } catch (err) {
+    console.error('[merezhyvo] settings savings update failed', err);
+    return sanitizeSavingsSettings(payload);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:network:update-detected', async (_event, payload: unknown) => {
+  try {
+    const state = await readSettingsState();
+    const current = sanitizeNetworkSettings(state.network);
+    const patch = (payload && typeof payload === 'object') ? payload as Partial<typeof current> : {};
+    const nextNetwork = sanitizeNetworkSettings({ ...current, ...patch });
+    const nextState = await writeSettingsState({ network: nextNetwork });
+    return nextState.network ?? nextNetwork;
+  } catch (err) {
+    console.error('[merezhyvo] settings network update failed', err);
+    return sanitizeNetworkSettings(payload);
   }
 });
 

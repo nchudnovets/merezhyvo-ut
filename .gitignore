@@ -41,7 +41,7 @@ coverage/
 tmp/
 **/.gitkeep
 about.md
-yTask.txt
+yTask.md
 
 # Generated blocklists (updated during build)
 assets/blocklists/trackers.txt

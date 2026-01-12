@@ -20,6 +20,8 @@ import ZoomBar from './components/zoom/ZoomBar';
 import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
 import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
+import CouponsFloatingButton from './components/coupons/CouponsFloatingButton';
+import CouponsPopup, { type CouponsPopupStatus } from './components/coupons/CouponsPopup';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
 import { styles } from './styles/styles';
 import { getThemeVars } from './styles/theme';
@@ -58,9 +60,12 @@ import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
+import { fetchCouponsForPage } from './services/coupons/api';
+import { getCachedCouponsForPage, setCachedCouponsForPage } from './services/coupons/cache';
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
+import { getPopupCountry } from './utils/savings';
 import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
@@ -79,7 +84,9 @@ import type {
   ThemeName,
   SecureDnsMode,
   SecureDnsProvider,
-  SecureDnsSettings
+  SecureDnsSettings,
+  SavingsSettings,
+  CouponsForPageResponse
 } from './types/models';
 import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
@@ -94,6 +101,8 @@ import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
 import { useTheme } from './hooks/useTheme';
 import { useWebviewZoom } from './hooks/useWebviewZoom';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './utils/zoom';
+import { DEFAULT_SAVINGS_CATALOG, DEFAULT_SAVINGS_SETTINGS, getEffectiveCountry, mergeSavingsSettings, normalizeCountryCode } from './utils/savings';
+import { fetchMerchantsCatalog } from './services/coupons/api';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -107,6 +116,22 @@ type LastLoadedInfo = {
 type KeyboardDirection = 'ArrowLeft' | 'ArrowRight';
 
 type SecurityIndicatorState = 'ok' | 'warn' | 'notice';
+type CouponsPopupDataState = {
+  status: CouponsPopupStatus;
+  data?: CouponsForPageResponse;
+  errorMessage?: string;
+  syncingUntil?: string | null;
+};
+
+const deriveHostnameFromUrl = (value?: string | null): string => {
+  if (!value) return '';
+  let safe = value.trim().toLowerCase();
+  if (!safe) return '';
+  if (safe.startsWith('www.') && safe.length > 4) {
+    safe = safe.slice(4);
+  }
+  return safe;
+};
 
 type MainBrowserAppProps = {
   initialUrl: string;
@@ -175,6 +200,8 @@ const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
   zIndex: 5
 };
 
+const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+
 // const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
 //   position: 'relative',
 //   flex: 1
@@ -234,6 +261,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { enabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
+  const [couponsPopupVisible, setCouponsPopupVisible] = useState<boolean>(false);
+  const [couponsPopupCountry, setCouponsPopupCountry] = useState<string>('US');
+  const [couponsPopupState, setCouponsPopupState] = useState<CouponsPopupDataState>({ status: 'idle' });
+  const [savingsSettings, setSavingsSettings] = useState<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
+  const savingsSettingsRef = useRef<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
+  const [detectedCountry, setDetectedCountry] = useState<string>('US');
+  const detectedCountryFetchRef = useRef<boolean>(false);
+  const detectedCountryTimerRef = useRef<number | null>(null);
+  const [savingsLoaded, setSavingsLoaded] = useState<boolean>(false);
   const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
   const { downloadIndicatorState, downloadToast, handleDownloadIndicatorClick } = useDownloadIndicators();
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
@@ -280,6 +316,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const pendingTorCloseAllRef = useRef<boolean>(false);
   const torKickTimerRef = useRef<number | null>(null);
   const kickActiveTabLoadRef = useRef<((attempt?: number) => void) | null>(null);
+  const catalogFetchInFlightRef = useRef<boolean>(false);
   const [suspendTabLifecycle, setSuspendTabLifecycle] = useState<boolean>(false);
   const suspendTabLifecycleRef = useRef<boolean>(false);
   const torCloseAllResumeIdRef = useRef<string | null>(null);
@@ -331,6 +368,24 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabCount = pinnedTabs.length + regularTabs.length;
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
+  const activeHost = normalizeHost(activeTab?.url);
+  const effectiveSavingsCountry = useMemo(
+    () => getEffectiveCountry(savingsSettings.countrySaved, savingsSettings.lastPopupCountry, detectedCountry),
+    [savingsSettings.countrySaved, savingsSettings.lastPopupCountry, detectedCountry]
+  );
+  const couponsButtonVisible = useMemo(() => {
+    if (!savingsSettings.enabled) return false;
+    if (activeUrl.toLowerCase().startsWith('mzr://')) return false;
+    if (!activeHost) return false;
+    const catalog = savingsSettings.catalog;
+    if (!catalog || catalog.domains.length === 0) return false;
+    if (catalog.country !== effectiveSavingsCountry) return false;
+    return catalog.domains.some((domain) => (
+      activeHost === domain ||
+      activeHost.endsWith(`.${domain}`) ||
+      domain.endsWith(`.${activeHost}`)
+    ));
+  }, [activeHost, activeUrl, effectiveSavingsCountry, savingsSettings.catalog, savingsSettings.enabled]);
   const {
     newTab: newTabAction,
     closeTab: closeTabAction,
@@ -351,6 +406,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
+  useEffect(() => { savingsSettingsRef.current = savingsSettings; }, [savingsSettings]);
   useEffect(() => {
     if (!suspendTabLifecycle) return;
     const resumeId = torCloseAllResumeIdRef.current;
@@ -511,6 +567,213 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, []);
 
+  const updateSavingsSettings = useCallback(async (patch: Partial<SavingsSettings>) => {
+    const payload = mergeSavingsSettings(savingsSettingsRef.current, patch);
+    savingsSettingsRef.current = payload;
+    setSavingsSettings(payload);
+    try {
+      const next = await ipc.settings.savings.update(payload);
+      if (next) {
+        savingsSettingsRef.current = next;
+        setSavingsSettings(next);
+        return next;
+      }
+    } catch (err) {
+      console.error('[merezhyvo] savings settings update failed', err);
+    }
+    return savingsSettingsRef.current;
+  }, []);
+
+  const handleSavingsEnabledChange = useCallback(
+    (value: boolean) => {
+      void updateSavingsSettings({ enabled: value });
+    },
+    [updateSavingsSettings]
+  );
+
+  const handleSavingsCountryChange = useCallback(
+    (value: string | null) => {
+      const normalized = normalizeCountryCode(value);
+      void updateSavingsSettings({
+        countrySaved: normalized,
+        catalog: { ...DEFAULT_SAVINGS_CATALOG, country: normalized }
+      });
+    },
+    [updateSavingsSettings]
+  );
+
+  const performCatalogFetch = useCallback(async (country: string, etag: string | null) => {
+    if (catalogFetchInFlightRef.current) return;
+    catalogFetchInFlightRef.current = true;
+    const attemptIso = new Date().toISOString();
+    const baseCatalog = savingsSettingsRef.current.catalog;
+    void updateSavingsSettings({
+      catalog: {
+        ...baseCatalog,
+        country,
+        lastFetchAttemptAt: attemptIso
+      }
+    });
+    try {
+      const result = await fetchMerchantsCatalog(country, etag ?? undefined, appInfo.version);
+      const nowIso = new Date().toISOString();
+      if (result.status === 'ok') {
+        void updateSavingsSettings({
+          catalog: {
+            ...baseCatalog,
+            country,
+            domains: result.domains,
+            etag: result.etag ?? baseCatalog.etag ?? null,
+            updatedAt: nowIso,
+            nextAllowedFetchAt: null,
+            lastFetchAttemptAt: nowIso
+          }
+        });
+      } else if (result.status === 'not_modified') {
+        void updateSavingsSettings({
+          catalog: {
+            ...baseCatalog,
+            country,
+            etag: result.etag ?? etag ?? baseCatalog.etag ?? null,
+            updatedAt: nowIso,
+            nextAllowedFetchAt: null,
+            lastFetchAttemptAt: nowIso
+          }
+        });
+      } else if (result.status === 'syncing') {
+        const nextAllowedFetchAt = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
+        void updateSavingsSettings({
+          catalog: {
+            ...baseCatalog,
+            country,
+            nextAllowedFetchAt,
+            lastFetchAttemptAt: nowIso
+          }
+        });
+      }
+    } finally {
+      catalogFetchInFlightRef.current = false;
+    }
+  }, [appInfo.version, updateSavingsSettings]);
+
+  useEffect(() => {
+    if (!savingsLoaded) return;
+    const catalog = savingsSettings.catalog;
+    const now = Date.now();
+    const nextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
+    if (Number.isFinite(nextAllowedAt) && nextAllowedAt > now) return;
+    if (catalog.country && catalog.country !== effectiveSavingsCountry) {
+      void updateSavingsSettings({
+        catalog: { ...DEFAULT_SAVINGS_CATALOG, country: effectiveSavingsCountry }
+      });
+      return;
+    }
+    const updatedAt = catalog.updatedAt ? Date.parse(catalog.updatedAt) : 0;
+    const isFresh = catalog.country === effectiveSavingsCountry
+      && Number.isFinite(updatedAt)
+      && now - updatedAt < CATALOG_TTL_MS;
+    if (isFresh) return;
+    void performCatalogFetch(effectiveSavingsCountry, catalog.etag);
+  }, [
+    effectiveSavingsCountry,
+    performCatalogFetch,
+    savingsLoaded,
+    savingsSettings.catalog,
+    updateSavingsSettings
+  ]);
+
+  const handleOpenCouponsPopup = useCallback(() => {
+    const nextCountry = getPopupCountry(savingsSettings, detectedCountry);
+    setCouponsPopupCountry(nextCountry);
+    setCouponsPopupState({ status: 'idle' });
+    setCouponsPopupVisible(true);
+    if (!savingsSettings.countrySaved) {
+      void updateSavingsSettings({ lastPopupCountry: nextCountry });
+    }
+  }, [detectedCountry, savingsSettings, updateSavingsSettings]);
+
+  const handleCouponsCountryChange = useCallback((value: string) => {
+    setCouponsPopupCountry(value);
+    setCouponsPopupState({ status: 'idle' });
+    void updateSavingsSettings({ lastPopupCountry: value });
+  }, [updateSavingsSettings]);
+
+  const handleFindCoupons = useCallback(async () => {
+    const hostname = deriveHostnameFromUrl(activeTab?.url);
+    if (!hostname) {
+      setCouponsPopupState({ status: 'error', errorMessage: t('coupons.popup.error') });
+      return;
+    }
+    const nextRetry = savingsSettings.syncRetryByCountry[couponsPopupCountry];
+    if (nextRetry && Date.parse(nextRetry) > Date.now()) {
+      setCouponsPopupState({ status: 'syncing', syncingUntil: nextRetry });
+      return;
+    }
+    setCouponsPopupState({ status: 'loading' });
+    const currentUrl = activeTab?.url ?? '';
+    const result = await fetchCouponsForPage({
+      country: couponsPopupCountry,
+      url: currentUrl,
+      clientVersion: appInfo.version
+    });
+    if (result.status === 'ok') {
+      setCachedCouponsForPage(couponsPopupCountry, hostname, result.data);
+      setCouponsPopupState({ status: 'results', data: result.data });
+      return;
+    }
+    if (result.status === 'syncing') {
+      const until = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
+      void updateSavingsSettings({ syncRetryByCountry: { [couponsPopupCountry]: until } });
+      setCouponsPopupState({ status: 'syncing', syncingUntil: until });
+      return;
+    }
+    setCouponsPopupState({ status: 'error', errorMessage: result.error });
+  }, [
+    activeTab?.url,
+    appInfo.version,
+    couponsPopupCountry,
+    savingsSettings.syncRetryByCountry,
+    t,
+    updateSavingsSettings
+  ]);
+
+  useEffect(() => {
+    if (!couponsPopupVisible) return;
+    const hostname = deriveHostnameFromUrl(activeTab?.url);
+    if (!hostname) {
+      setCouponsPopupState({ status: 'idle' });
+      return;
+    }
+    const cached = getCachedCouponsForPage(couponsPopupCountry, hostname);
+    if (cached) {
+      setCouponsPopupState({ status: 'results', data: cached.data });
+      return;
+    }
+    const nextRetry = savingsSettings.syncRetryByCountry[couponsPopupCountry];
+    if (nextRetry && Date.parse(nextRetry) > Date.now()) {
+      setCouponsPopupState({ status: 'syncing', syncingUntil: nextRetry });
+      return;
+    }
+    setCouponsPopupState({ status: 'idle' });
+  }, [
+    activeTab?.url,
+    couponsPopupCountry,
+    couponsPopupVisible,
+    savingsSettings.syncRetryByCountry
+  ]);
+
+  const closeCouponsPopup = useCallback(() => {
+    setCouponsPopupVisible(false);
+    setCouponsPopupState({ status: 'idle' });
+  }, []);
+
+  const handleCouponsPositionChange = useCallback(
+    (pos: { x: number; y: number }) => {
+      void updateSavingsSettings({ floatingButtonPos: pos });
+    },
+    [updateSavingsSettings]
+  );
+
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -560,6 +823,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setSecureDnsNextdnsId(typeof secureDns?.nextdnsId === 'string' ? secureDns.nextdnsId : '');
         setSecureDnsCustomUrl(typeof secureDns?.customUrl === 'string' ? secureDns.customUrl : '');
         setSecureDnsError('');
+        const savingsFromState = state.savings ?? DEFAULT_SAVINGS_SETTINGS;
+        if (!cancelled) {
+          setSavingsSettings(savingsFromState);
+        }
+        try {
+          const savingsDirect = await ipc.settings.savings.get();
+          if (!cancelled && savingsDirect) {
+            setSavingsSettings(savingsDirect);
+          }
+        } catch {
+          // ignore fallback to state
+        } finally {
+          if (!cancelled) {
+            setSavingsLoaded(true);
+          }
+        }
       } catch {
         if (!cancelled) {
           setTorKeepEnabled(false);
@@ -578,6 +857,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setSecureDnsNextdnsId('');
           setSecureDnsCustomUrl('');
           setSecureDnsError('');
+          setSavingsSettings(DEFAULT_SAVINGS_SETTINGS);
+          setSavingsLoaded(true);
         }
       }
     };
@@ -600,8 +881,73 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setSecureDnsProvider,
     setSecureDnsNextdnsId,
     setSecureDnsCustomUrl,
-    setSecureDnsError
+    setSecureDnsError,
+    setSavingsSettings
   ]);
+
+  useEffect(() => {
+    if (!savingsLoaded || detectedCountryFetchRef.current) return;
+    let cancelled = false;
+    const loadDetectedCountry = async () => {
+      let cachedCountry: string | null = null;
+      try {
+        const state = await ipc.settings.loadState();
+        cachedCountry = normalizeCountryCode(state?.network?.detectedCountry);
+        if (!cancelled && cachedCountry) {
+          setDetectedCountry(cachedCountry);
+        }
+      } catch {
+        // ignore cache read failures
+      }
+      try {
+        const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
+        if (!response.ok) throw new Error('Failed to fetch country');
+        const payload = (await response.json().catch(() => ({}))) as { country_code?: unknown; ip?: unknown };
+        const code = normalizeCountryCode(payload.country_code);
+        const ip = typeof payload.ip === 'string' ? payload.ip : null;
+        if (!cancelled) {
+          setDetectedCountry(code ?? cachedCountry ?? 'US');
+        }
+        if (code && ip) {
+          void ipc.settings.network.updateDetected({
+            detectedIp: ip,
+            detectedCountry: code,
+            detectedAt: new Date().toISOString()
+          });
+        }
+      } catch {
+        if (!cancelled && !cachedCountry) {
+          setDetectedCountry('US');
+        }
+      }
+    };
+    const triggerFetch = () => {
+      if (detectedCountryFetchRef.current) return;
+      detectedCountryFetchRef.current = true;
+      void loadDetectedCountry();
+    };
+    if (torKeepEnabled && !torEnabled) {
+      if (detectedCountryTimerRef.current === null) {
+        detectedCountryTimerRef.current = window.setTimeout(() => {
+          detectedCountryTimerRef.current = null;
+          triggerFetch();
+        }, 5000);
+      }
+    } else {
+      if (detectedCountryTimerRef.current !== null) {
+        window.clearTimeout(detectedCountryTimerRef.current);
+        detectedCountryTimerRef.current = null;
+      }
+      triggerFetch();
+    }
+    return () => {
+      cancelled = true;
+      if (detectedCountryTimerRef.current !== null) {
+        window.clearTimeout(detectedCountryTimerRef.current);
+        detectedCountryTimerRef.current = null;
+      }
+    };
+  }, [savingsLoaded, torKeepEnabled, torEnabled]);
 
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
     const handle = webviewHandleRef.current;
@@ -2034,7 +2380,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setPageError,
     setStatus,
     setWebviewReady,
-    status,
     tabsRef,
     tabsReadyRef,
     tabViewsRef,
@@ -2096,16 +2441,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setTorDisableBusy(false);
     },
     [
-      activeIdRef,
-      activeTabRef,
       showGlobalToast,
-      status,
       t,
-      tabViewsRef,
-      tabsRef,
       torDisableBusy,
-      torEnabled,
-      webviewReadyRef,
+      setShowTorDisableDialog,
+      setSuspendTabLifecycle,
+      setTorDisableBusy,
       wipeTorSession
     ]
   );
@@ -2150,7 +2491,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     setTorKeepEnabledDraft(torKeepEnabled);
     setTorConfigFeedback('');
-    refreshTorIp();
     const handleKeyDown = (event: KeyboardEvent) => {
       if (event.key === 'Escape') {
         event.preventDefault();
@@ -2161,7 +2501,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('keydown', handleKeyDown);
     };
-  }, [showSettingsModal, closeSettingsModal, torKeepEnabled, refreshTorIp, setTorConfigFeedback, setTorKeepEnabledDraft]);
+  }, [showSettingsModal, closeSettingsModal, torKeepEnabled, setTorConfigFeedback, setTorKeepEnabledDraft]);
 
   useEffect(() => {
     if (torEnabled) return;
@@ -2774,6 +3114,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     closeSettingsModal();
     openInNewTab('mzr://network-info');
   }, [closeSettingsModal, openInNewTab]);
+  const handleNetworkSectionOpen = useCallback(() => {
+    if (!torEnabled) return;
+    void refreshTorIp();
+  }, [torEnabled, refreshTorIp]);
   const openSiteDataPage = useCallback(
     (host?: string | null) => {
       const targetHost = normalizeSiteDataHost(host);
@@ -2918,6 +3262,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       status={status}
       activeTabIsLoading={activeTabIsLoading}
     />
+  );
+  const webviewOverlay = (
+    <>
+      {tabLoadingOverlay}
+      <CouponsFloatingButton
+        mode={mode}
+        visible={couponsButtonVisible}
+        containerRef={webviewHostRef}
+        position={savingsSettings.floatingButtonPos}
+        onPositionChange={handleCouponsPositionChange}
+        onClick={handleOpenCouponsPopup}
+      />
+    </>
   );
   const webviewVisibility = status === 'error' || certWarning ? 'hidden' : 'visible';
 
@@ -3267,6 +3624,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               torConfigSaving={torConfigSaving}
               torConfigFeedback={torConfigFeedback}
               onTorKeepChange={handleTorKeepChange}
+              onNetworkSectionOpen={handleNetworkSectionOpen}
               secureDnsEnabled={secureDnsEnabled}
               secureDnsMode={secureDnsMode}
               secureDnsProvider={secureDnsProvider}
@@ -3297,6 +3655,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onDownloadsConcurrentChange={handleDownloadsConcurrentChange}
               onCopyDownloadsCommand={handleCopyDownloadsCommand}
               downloadsCommand={downloadsCommand}
+              savingsEnabled={savingsSettings.enabled}
+              savingsCountrySaved={savingsSettings.countrySaved}
+              onSavingsEnabledChange={handleSavingsEnabledChange}
+              onSavingsCountryChange={handleSavingsCountryChange}
               uiScale={uiScale}
               webZoomMobileDefault={webZoomDefaults.mobile}
               webZoomDesktopDefault={webZoomDefaults.desktop}
@@ -3360,6 +3722,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             error={unlockError}
             submitting={unlockSubmitting}
             defaultDuration={passwordStatus?.autoLockMinutes ?? 15}
+          />
+          <CouponsPopup
+            mode={mode}
+            visible={couponsPopupVisible}
+            host={deriveHostnameFromUrl(activeTab?.url) || null}
+            country={couponsPopupCountry}
+            status={couponsPopupState.status}
+            data={couponsPopupState.data}
+            errorMessage={couponsPopupState.errorMessage}
+            syncingUntil={couponsPopupState.syncingUntil ?? null}
+            onCountryChange={handleCouponsCountryChange}
+            onFindCoupons={handleFindCoupons}
+            onClose={closeCouponsPopup}
           />
 
       {globalToast && (
@@ -3432,7 +3807,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               visibility: webviewVisibility
             }}
             backgroundStyle={styles.backgroundShelf}
-            overlay={tabLoadingOverlay}
+            overlay={webviewOverlay}
           />
           {errorOverlay}
           {serviceContent && (

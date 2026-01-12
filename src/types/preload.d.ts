@@ -37,6 +37,7 @@ import type {
   PasswordCaptureActionResult,
   PasswordStatus,
   DownloadsSettings,
+  SavingsSettings,
   CertificateInfo,
   HttpsMode,
   SslException,
@@ -45,6 +46,7 @@ import type {
   TrackerStatus,
   CookieBlockStatus,
   AdsPrivacySettings,
+  NetworkSettings,
   SecureDnsSettings
 } from './models';
 
@@ -269,6 +271,13 @@ export interface MerezhyvoAPI {
     secureDns: {
       get(): Promise<SecureDnsSettings>;
       update(payload: Partial<SecureDnsSettings>): Promise<{ ok: boolean; settings?: SecureDnsSettings; error?: string }>;
+    };
+    network: {
+      updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
+    };
+    savings: {
+      get(): Promise<SavingsSettings>;
+      update(payload: Partial<SavingsSettings>): Promise<SavingsSettings>;
     };
     keyboard: {
       get(): Promise<KeyboardSettings>;

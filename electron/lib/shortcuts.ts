@@ -76,8 +76,34 @@ export type SecureDnsSettings = {
   customUrl?: string;
 };
 
+export type SavingsFloatingButtonPos = {
+  x: number;
+  y: number;
+};
+
+export type MerchantsCatalogCache = {
+  country: string | null;
+  domains: string[];
+  updatedAt: string | null;
+  etag: string | null;
+  nextAllowedFetchAt: string | null;
+  lastFetchAttemptAt: string | null;
+};
+
+export type SavingsSettings = {
+  enabled: boolean;
+  countrySaved: string | null;
+  lastPopupCountry: string | null;
+  syncRetryByCountry: Record<string, string>;
+  floatingButtonPos: SavingsFloatingButtonPos | null;
+  catalog: MerchantsCatalogCache;
+};
+
 export type NetworkSettings = {
   secureDns: SecureDnsSettings;
+  detectedIp?: string | null;
+  detectedCountry?: string | null;
+  detectedAt?: string | null;
 };
 
 export type SettingsState = {
@@ -91,6 +117,7 @@ export type SettingsState = {
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
   network?: NetworkSettings;
+  savings?: SavingsSettings;
   permissions?: unknown;
   privacy?: {
     cookies?: CookiePrivacySettings;
@@ -111,11 +138,20 @@ type SettingsLike = {
   sslExceptions?: unknown;
   webrtcMode?: unknown;
   network?: unknown;
+  savings?: unknown;
   privacy?: unknown;
   permissions?: unknown;
 };
 
 const isNonEmptyString = (value: unknown): value is string => typeof value === 'string' && value.trim().length > 0;
+const normalizeCountryCode = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim().toUpperCase();
+  if (trimmed.length !== 2) return null;
+  if (!/^[A-Z]{2}$/.test(trimmed)) return null;
+  if (trimmed === 'RU') return null;
+  return trimmed;
+};
 
 export const sanitizeKeyboardSettings = (raw: unknown): KeyboardSettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Record<string, unknown> : {};
@@ -230,6 +266,22 @@ const DEFAULT_SECURE_DNS: SecureDnsSettings = {
   nextdnsId: '',
   customUrl: ''
 };
+const DEFAULT_SAVINGS_CATALOG: MerchantsCatalogCache = {
+  country: null,
+  domains: [],
+  updatedAt: null,
+  etag: null,
+  nextAllowedFetchAt: null,
+  lastFetchAttemptAt: null
+};
+const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {
+  enabled: true,
+  countrySaved: null,
+  lastPopupCountry: null,
+  syncRetryByCountry: {},
+  floatingButtonPos: null,
+  catalog: { ...DEFAULT_SAVINGS_CATALOG }
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -244,6 +296,7 @@ export const createDefaultSettingsState = (): SettingsState => ({
   sslExceptions: [...DEFAULT_SSL_EXCEPTIONS],
   webrtcMode: DEFAULT_WEBRTC_MODE,
   network: { secureDns: { ...DEFAULT_SECURE_DNS } },
+  savings: { ...DEFAULT_SAVINGS_SETTINGS },
   privacy: {
     blockingMode: DEFAULT_BLOCKING_MODE,
     cookies: { ...DEFAULT_COOKIE_PRIVACY },
@@ -329,6 +382,82 @@ export const sanitizeSecureDnsSettings = (raw: unknown): SecureDnsSettings => {
     provider,
     nextdnsId,
     customUrl
+  };
+};
+
+export const sanitizeNetworkSettings = (raw: unknown): NetworkSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<NetworkSettings> : {};
+  const secureDns = sanitizeSecureDnsSettings((source as { secureDns?: unknown }).secureDns);
+  const detectedIp = isNonEmptyString(source.detectedIp) ? source.detectedIp.trim() : null;
+  const detectedCountry = normalizeCountryCode(source.detectedCountry) ?? null;
+  const detectedAt = normalizeIsoDate(source.detectedAt) ?? null;
+  return { secureDns, detectedIp, detectedCountry, detectedAt };
+};
+
+const normalizeDomain = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  let trimmed = value.trim().toLowerCase();
+  if (!trimmed) return null;
+  if (trimmed.includes('://')) {
+    try {
+      trimmed = new URL(trimmed).hostname.toLowerCase();
+    } catch {
+      // ignore URL parse issues
+    }
+  }
+  trimmed = trimmed.replace(/\.$/, '');
+  if (!trimmed) return null;
+  if (!/^[a-z0-9.-]+$/.test(trimmed)) return null;
+  return trimmed;
+};
+
+const normalizeIsoDate = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const ts = Date.parse(value);
+  if (!Number.isFinite(ts)) return null;
+  return new Date(ts).toISOString();
+};
+
+export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<SavingsSettings> : {};
+  const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_SAVINGS_SETTINGS.enabled;
+  const countrySaved = normalizeCountryCode(source.countrySaved) ?? DEFAULT_SAVINGS_SETTINGS.countrySaved;
+  const lastPopupCountry = normalizeCountryCode(source.lastPopupCountry) ?? DEFAULT_SAVINGS_SETTINGS.lastPopupCountry;
+  const posRaw = (source.floatingButtonPos && typeof source.floatingButtonPos === 'object')
+    ? source.floatingButtonPos as Partial<SavingsFloatingButtonPos>
+    : null;
+  const posX = posRaw && typeof posRaw.x === 'number' && Number.isFinite(posRaw.x) ? posRaw.x : null;
+  const posY = posRaw && typeof posRaw.y === 'number' && Number.isFinite(posRaw.y) ? posRaw.y : null;
+  const floatingButtonPos = (posX !== null && posY !== null) ? { x: posX, y: posY } : null;
+  const catalogRaw = (source.catalog && typeof source.catalog === 'object') ? source.catalog as Partial<MerchantsCatalogCache> : {};
+  const domains = Array.isArray(catalogRaw.domains)
+    ? Array.from(new Set(catalogRaw.domains.map(normalizeDomain).filter((item): item is string => Boolean(item))))
+    : [];
+  const catalog: MerchantsCatalogCache = {
+    country: normalizeCountryCode(catalogRaw.country) ?? DEFAULT_SAVINGS_CATALOG.country,
+    domains,
+    updatedAt: normalizeIsoDate(catalogRaw.updatedAt) ?? DEFAULT_SAVINGS_CATALOG.updatedAt,
+    etag: typeof catalogRaw.etag === 'string' ? catalogRaw.etag : DEFAULT_SAVINGS_CATALOG.etag,
+    nextAllowedFetchAt: normalizeIsoDate(catalogRaw.nextAllowedFetchAt) ?? DEFAULT_SAVINGS_CATALOG.nextAllowedFetchAt,
+    lastFetchAttemptAt: normalizeIsoDate(catalogRaw.lastFetchAttemptAt) ?? DEFAULT_SAVINGS_CATALOG.lastFetchAttemptAt
+  };
+  const retries = typeof source.syncRetryByCountry === 'object' && source.syncRetryByCountry !== null
+    ? Object.entries(source.syncRetryByCountry as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
+        const code = normalizeCountryCode(key);
+        const timestamp = normalizeIsoDate(value);
+        if (code && timestamp) {
+          acc[code] = timestamp;
+        }
+        return acc;
+      }, {})
+    : {};
+  return {
+    enabled,
+    countrySaved,
+    lastPopupCountry,
+    syncRetryByCountry: retries,
+    floatingButtonPos,
+    catalog
   };
 };
 
@@ -452,8 +581,9 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const ui = sanitizeUiSettings(source.ui);
   const httpsMode = sanitizeHttpsMode(source.httpsMode);
   const sslExceptions = sanitizeSslExceptions(source.sslExceptions);
-  const networkSource = (source.network && typeof source.network === 'object') ? source.network as Record<string, unknown> : {};
-  const secureDns = sanitizeSecureDnsSettings((networkSource as { secureDns?: unknown }).secureDns);
+  const networkSource = (source.network && typeof source.network === 'object') ? source.network : {};
+  const network = sanitizeNetworkSettings(networkSource);
+  const savings = sanitizeSavingsSettings(source.savings);
   const wm = typeof source.webrtcMode === 'string' ? source.webrtcMode : null;
   const webrtcMode: WebrtcMode =
     wm === 'always_off' || wm === 'off_with_tor' ? wm : 'always_on';
@@ -468,7 +598,8 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     httpsMode,
     sslExceptions,
     webrtcMode,
-    network: { secureDns },
+    network,
+    savings,
     ...(permissions ? { permissions } : {}),
     privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds, blockingMode }
   };

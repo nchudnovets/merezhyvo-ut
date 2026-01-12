@@ -20,20 +20,62 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
   const torAutoStartGuardRef = useRef<boolean>(false);
 
   const evaluateAccessRestriction = useCallback(async (ip?: string) => {
+    const normalizeCountry = (value: unknown): string => {
+      if (typeof value !== 'string') return '';
+      const trimmed = value.trim().toUpperCase();
+      if (!/^[A-Z]{2}$/.test(trimmed)) return '';
+      return trimmed;
+    };
+    const normalizedIp = typeof ip === 'string' ? ip.trim() : '';
+    const resolveFromCache = async (): Promise<string | null> => {
+      try {
+        const state = await ipc.settings.loadState();
+        const cachedIp = typeof state?.network?.detectedIp === 'string' ? state.network.detectedIp.trim() : '';
+        const cachedCountry = normalizeCountry(state?.network?.detectedCountry);
+        if (cachedCountry && cachedIp && normalizedIp && cachedIp === normalizedIp) {
+          return cachedCountry;
+        }
+      } catch {
+        // ignore cache read errors
+      }
+      return null;
+    };
+
     try {
-      const endpoint = ip && ip.trim().length ? `https://ipapi.co/${ip}/json/` : 'https://ipapi.co/json/';
+      if (!torEnabled) {
+        const cachedCountry = await resolveFromCache();
+        if (cachedCountry) {
+          setAccessBlocked(bannedCountries.includes(cachedCountry));
+          return;
+        }
+      }
+      const endpoint = normalizedIp ? `https://ipapi.co/${normalizedIp}/json/` : 'https://ipapi.co/json/';
       const response = await fetch(endpoint, { cache: 'no-store' });
       if (!response.ok) {
         setAccessBlocked(false);
         return;
       }
-      const data = (await response.json().catch(() => ({}))) as { country_code?: string };
-      const country = typeof data.country_code === 'string' ? data.country_code.trim().toUpperCase() : '';
-      setAccessBlocked(country ? bannedCountries.includes(country) : false);
+      const data = (await response.json().catch(() => ({}))) as { country_code?: string; ip?: string };
+      const country = normalizeCountry(data.country_code);
+      if (country) {
+        setAccessBlocked(bannedCountries.includes(country));
+      } else {
+        setAccessBlocked(false);
+      }
+      if (!torEnabled) {
+        const detectedIp = normalizedIp || (typeof data.ip === 'string' ? data.ip : null);
+        if (detectedIp && country) {
+          void ipc.settings.network.updateDetected({
+            detectedIp,
+            detectedCountry: country,
+            detectedAt: new Date().toISOString()
+          });
+        }
+      }
     } catch {
       setAccessBlocked(false);
     }
-  }, []);
+  }, [torEnabled]);
 
   const refreshTorIp = useCallback(async (): Promise<void> => {
     const requestId = Date.now();
@@ -153,8 +195,9 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
   }, [torKeepEnabled, torEnabled]);
 
   useEffect(() => {
+    if (torKeepEnabled && !torEnabled) return;
     refreshTorIp();
-  }, [torEnabled, refreshTorIp]);
+  }, [torEnabled, torKeepEnabled, refreshTorIp]);
 
   return {
     accessBlocked,

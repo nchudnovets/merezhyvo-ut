@@ -12,6 +12,7 @@ type settingsSectionProps = {
   expandedDefault?: boolean;
   forceExpanded?: boolean;
   sectionRef?: React.RefObject<HTMLElement | null>;
+  onExpandedChange?: (expanded: boolean) => void;
 };
 
 export const SettingsSection: React.FC<settingsSectionProps> = ({
@@ -20,7 +21,8 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({
   body,
   expandedDefault=false,
   forceExpanded,
-  sectionRef
+  sectionRef,
+  onExpandedChange
 }) => {
   const [expanded, setExpanded] = useState<boolean>(expandedDefault);
 
@@ -31,6 +33,10 @@ export const SettingsSection: React.FC<settingsSectionProps> = ({
     });
     return () => cancelAnimationFrame(handle);
   }, [forceExpanded]);
+
+  useEffect(() => {
+    onExpandedChange?.(expanded);
+  }, [expanded, onExpandedChange]);
 
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};

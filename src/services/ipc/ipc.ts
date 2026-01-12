@@ -16,7 +16,8 @@ import type {
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 import { DEFAULT_LOCALE } from '../../i18n/locales';
 import type { MerezhyvoUISettings } from '../../types/preload';
-import type { SecureDnsSettings } from '../../types/models';
+import type { SecureDnsSettings, SavingsSettings, NetworkSettings } from '../../types/models';
+import { DEFAULT_SAVINGS_SETTINGS } from '../../utils/savings';
 
 type Bridge = NonNullable<Window['merezhyvo']>;
 
@@ -95,6 +96,37 @@ export const ipc = {
           return { ok: false, error: String(err) };
         }
         return { ok: false, error: 'Unknown error' };
+      }
+    },
+    network: {
+      async updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings | null> {
+        try {
+          const res = await getApi()?.settings?.network?.updateDetected?.(payload ?? {});
+          return (res ?? null) as NetworkSettings | null;
+        } catch (err) {
+          console.error('settings.network.updateDetected failed', err);
+          return null;
+        }
+      }
+    },
+    savings: {
+      async get(): Promise<SavingsSettings> {
+        try {
+          const res = await getApi()?.settings?.savings?.get?.();
+          return (res ?? DEFAULT_SAVINGS_SETTINGS) as SavingsSettings;
+        } catch (err) {
+          console.error('settings.savings.get failed', err);
+          return DEFAULT_SAVINGS_SETTINGS;
+        }
+      },
+      async update(payload: Partial<SavingsSettings>): Promise<SavingsSettings> {
+        try {
+          const res = await getApi()?.settings?.savings?.update?.(payload ?? {});
+          return (res ?? payload ?? DEFAULT_SAVINGS_SETTINGS) as SavingsSettings;
+        } catch (err) {
+          console.error('settings.savings.update failed', err);
+          return payload ? { ...DEFAULT_SAVINGS_SETTINGS, ...payload } : DEFAULT_SAVINGS_SETTINGS;
+        }
       }
     },
     keyboard: {

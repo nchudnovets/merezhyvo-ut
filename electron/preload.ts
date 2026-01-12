@@ -37,6 +37,8 @@ import type {
   TrackerStatus,
   TrackerPrivacySettings,
   AdsPrivacySettings,
+  SavingsSettings,
+  NetworkSettings,
   SecureDnsSettings
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
@@ -379,6 +381,34 @@ const exposeApi: MerezhyvoAPI = {
         } catch (err) {
           console.error('[merezhyvo] settings.secureDns.update failed', err);
           return { ok: false, error: String(err) };
+        }
+      }
+    },
+    network: {
+      updateDetected: async (payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:network:update-detected', payload ?? {})) as NetworkSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.network.updateDetected failed', err);
+          throw err;
+        }
+      }
+    },
+    savings: {
+      get: async (): Promise<SavingsSettings> => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:savings:get')) as SavingsSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.savings.get failed', err);
+          throw err;
+        }
+      },
+      update: async (payload: Partial<SavingsSettings>): Promise<SavingsSettings> => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:savings:update', payload ?? {})) as SavingsSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.savings.update failed', err);
+          throw err;
         }
       }
     },

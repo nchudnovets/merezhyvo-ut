@@ -242,8 +242,74 @@ export type SecureDnsSettings = {
   customUrl?: string;
 };
 
+export type SavingsFloatingButtonPos = {
+  x: number;
+  y: number;
+};
+
+export type MerchantsCatalogCache = {
+  country: string | null;
+  domains: string[];
+  updatedAt: string | null;
+  etag: string | null;
+  nextAllowedFetchAt: string | null;
+  lastFetchAttemptAt: string | null;
+};
+
+export type CouponEntry = {
+  couponId: string;
+  promocode: string | null;
+  name: string | null;
+  userValue: string | null;
+  startTime?: string | null;
+  endTime?: string | null;
+  trackingUrl?: string | null;
+  source?: string | null;
+  sourceCouponId?: string | null;
+  updatedAtProvider?: string | null;
+  reportToken?: string | null;
+  canReportInvalid?: boolean;
+};
+
+export type CouponGroup = {
+  label?: string | null;
+  lookbackDays?: number | null;
+  coupons: CouponEntry[];
+};
+
+export type CouponsGroupedSections = {
+  fresh: CouponGroup;
+  older: CouponGroup;
+};
+
+export type CouponsForPageResponse = {
+  country: string;
+  host: string;
+  matchedDomain: string;
+  merchant?: {
+    merchantId: string;
+    domain: string;
+    name: string;
+    imageUrl?: string;
+  };
+  local: CouponsGroupedSections;
+  worldwide: CouponsGroupedSections;
+};
+
+export type SavingsSettings = {
+  enabled: boolean;
+  countrySaved: string | null;
+  lastPopupCountry: string | null;
+  syncRetryByCountry: Record<string, string>;
+  floatingButtonPos: SavingsFloatingButtonPos | null;
+  catalog: MerchantsCatalogCache;
+};
+
 export type NetworkSettings = {
   secureDns: SecureDnsSettings;
+  detectedIp?: string | null;
+  detectedCountry?: string | null;
+  detectedAt?: string | null;
 };
 
 export interface SettingsState {
@@ -257,6 +323,7 @@ export interface SettingsState {
   sslExceptions: SslException[];
   webrtcMode: WebrtcMode;
   network?: NetworkSettings;
+  savings?: SavingsSettings;
   privacy?: {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;
