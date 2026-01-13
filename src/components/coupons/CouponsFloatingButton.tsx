@@ -32,7 +32,7 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
   const isMobile = mode === 'mobile';
   const buttonHight = isMobile ? 150 : 65;
   const buttonWidth = isMobile ? 94 : 40;
-  const margin = isMobile ? 20 : 10;
+  const margin = isMobile ? -60 : -20;
   const [localPos, setLocalPos] = useState<SavingsFloatingButtonPos | null>(null);
   const localPosRef = useRef<SavingsFloatingButtonPos | null>(null);
   const dragRef = useRef<DragState>({ active: false, offsetX: 0, offsetY: 0, moved: false });

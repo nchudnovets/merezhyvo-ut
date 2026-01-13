@@ -1,5 +1,5 @@
 import React, { useMemo, useState } from 'react';
-import type { Mode, CouponEntry, CouponsForPageResponse } from '../../types/models';
+import type { Mode, CouponEntry, CouponsForPageResponse, PendingCoupon } from '../../types/models';
 import { getCountryOptions } from '../../utils/countries';
 import { useI18n } from '../../i18n/I18nProvider';
 
@@ -17,6 +17,13 @@ type CouponsPopupProps = {
   onCountryChange: (value: string) => void;
   onFindCoupons: () => void;
   onClose: () => void;
+  pendingCoupon: PendingCoupon | null;
+  couponActionState: Record<string, { applying?: boolean; inserting?: boolean; reporting?: boolean }>;
+  activeHost: string;
+  onApplyCoupon: (coupon: CouponEntry) => void;
+  onInsertCoupon: (coupon: CouponEntry) => void;
+  onReportInvalid: (coupon: CouponEntry) => void;
+  pageOrigin: string | null;
 };
 
 const formatHost = (host?: string | null): string => (host ? host : 'this site');
@@ -97,10 +104,21 @@ const couponCardStyle: React.CSSProperties = {
   background: 'rgba(255,255,255,0.6)'
 };
 
+const isHostMatchingDomain = (host: string, domain: string): boolean => {
+  if (!host || !domain) return false;
+  const normalizedHost = host.toLowerCase();
+  const normalizedDomain = domain.toLowerCase();
+  if (normalizedHost === normalizedDomain) return true;
+  if (normalizedHost.endsWith(`.${normalizedDomain}`)) return true;
+  if (normalizedDomain.endsWith(`.${normalizedHost}`)) return true;
+  return false;
+};
+
 const CouponsPopup: React.FC<CouponsPopupProps> = ({
   mode,
   visible,
   host,
+  pageOrigin,
   country,
   status,
   data,
@@ -108,7 +126,13 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
   syncingUntil,
   onCountryChange,
   onFindCoupons,
-  onClose
+  onClose,
+  pendingCoupon,
+  couponActionState,
+  activeHost,
+  onApplyCoupon,
+  onInsertCoupon,
+  onReportInvalid
 }) => {
   const { t, language } = useI18n();
   const [olderExpanded, setOlderExpanded] = useState<boolean>(false);
@@ -135,34 +159,90 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
   const showSyncCountdown = formatSyncCountdown(syncingUntil);
   const readyToRetry = showSyncCountdown === null;
 
+  const renderCouponCard = (coupon: CouponEntry, index: number): React.ReactNode => {
+    const actionState = couponActionState[coupon.couponId] ?? {};
+    let matchesPending = false;
+    if (pendingCoupon && pendingCoupon.promocode && pendingCoupon.couponId === coupon.couponId) {
+      const safeHost: string = activeHost ?? '';
+      const safeDomain: string = pendingCoupon.domain ?? '';
+      matchesPending = isHostMatchingDomain(safeHost, safeDomain);
+    }
+    const showInsertButton = matchesPending;
+    const showMarkInvalid = Boolean(coupon.canReportInvalid && coupon.reportToken);
+    const primaryDisabled = showInsertButton ? Boolean(actionState.inserting) : Boolean(actionState.applying);
+    const primaryLabel = showInsertButton
+      ? (actionState.inserting ? t('coupons.popup.button.inserting') : t('coupons.popup.button.insertCode'))
+      : (actionState.applying ? t('coupons.popup.button.applying') : t('coupons.popup.button.apply'));
+    const handlePrimaryAction = () => {
+      if (showInsertButton) {
+        onInsertCoupon(coupon);
+        return;
+      }
+      onApplyCoupon(coupon);
+    };
+    const key = coupon.couponId ?? coupon.promocode ?? `coupon-${index}`;
+    return (
+      <div key={key} style={couponCardStyle}>
+        <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 16 }}>
+          {coupon.userValue ?? coupon.name ?? coupon.promocode ?? t('coupons.popup.results.noCoupons')}
+        </div>
+        {coupon.promocode && (
+          <div style={{ fontSize: 12, color: 'var(--mzr-text-muted)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+            {coupon.promocode}
+          </div>
+        )}
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+          <button
+            type="button"
+            onClick={handlePrimaryAction}
+            disabled={primaryDisabled}
+            style={{
+              flex: 1,
+              minWidth: 140,
+              padding: '10px 14px',
+              borderRadius: 8,
+              border: 'none',
+              background: 'var(--mzr-accent)',
+              color: '#fff',
+              fontWeight: 600,
+              cursor: primaryDisabled ? 'not-allowed' : 'pointer',
+              opacity: primaryDisabled ? 0.7 : 1,
+              transition: 'opacity 0.2s'
+            }}
+          >
+            {primaryLabel}
+          </button>
+          {showMarkInvalid && (
+            <button
+              type="button"
+              onClick={() => onReportInvalid(coupon)}
+              disabled={Boolean(actionState.reporting)}
+              style={{
+                padding: '10px 14px',
+                borderRadius: 8,
+                border: '1px solid var(--mzr-border)',
+                background: 'transparent',
+                color: 'var(--mzr-text-primary)',
+                fontWeight: 600,
+                cursor: actionState.reporting ? 'not-allowed' : 'pointer',
+                opacity: actionState.reporting ? 0.7 : 1
+              }}
+            >
+              {actionState.reporting ? t('coupons.popup.button.reporting') : t('coupons.popup.button.markInvalid')}
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   const renderCouponList = (coupons: CouponEntry[]): React.ReactNode => {
     if (!coupons || coupons.length === 0) {
       return (
         <p style={{ margin: 0 }}>{t('coupons.popup.results.noCoupons')}</p>
       );
     }
-    return coupons.map((coupon) => (
-      <div key={coupon.couponId ?? coupon.promocode ?? Math.random()} style={couponCardStyle}>
-        <div>{coupon.userValue ?? coupon.promocode ?? t('coupons.popup.results.noCoupons')}</div>
-        <button
-          type="button"
-          disabled
-          style={{
-            marginTop: 8,
-            width: '100%',
-            padding: '8px 12px',
-            borderRadius: 8,
-            border: 'none',
-            background: 'var(--mzr-border)',
-            color: 'var(--mzr-text-primary)',
-            fontWeight: 600,
-            cursor: 'not-allowed'
-          }}
-        >
-          {t('coupons.popup.open')}
-        </button>
-      </div>
-    ));
+    return coupons.map((coupon, index) => renderCouponCard(coupon, index));
   };
 
   const cardStyle = { ...popupCardStyle, width: mode === 'mobile' ? '90%' : 'min(620px, 90vw)' };
@@ -199,10 +279,10 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             <div>
               {couponIcon}
             </div>
-            <div>
+          <div>
               <div style={{ fontSize: mode === 'mobile' ? 44 : 25, fontWeight: 700 }}>{t('coupons.popup.title', { host: '' })}</div>
               <div style={{ marginTop: mode === 'mobile' ? 15 : 5, fontSize: mode === 'mobile' ? 38 : 24, color: 'var(--mzr-text-muted)' }}>
-                {formatHost(host)}
+                {formatHost(pageOrigin || host)}
               </div>
             </div>
           </div>
@@ -361,31 +441,31 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                       {t('coupons.popup.results.olderChance')}
                     </div>
                   </div>
-                <button
-                  type="button"
-                  onClick={() => setOlderExpanded((value) => !value)}
-                  aria-label={olderExpanded
-                    ? t('coupons.popup.olderToggle.hide')
-                    : t('coupons.popup.olderToggle.show')}
-                  style={{
-                    border: 'none',
-                    background: 'transparent',
-                    color: 'var(--mzr-accent)',
-                    cursor: 'pointer',
-                    padding: 0
-                  }}
-                >
-                  <span
+                  <button
+                    type="button"
+                    onClick={() => setOlderExpanded((value) => !value)}
+                    aria-label={olderExpanded
+                      ? t('coupons.popup.olderToggle.hide')
+                      : t('coupons.popup.olderToggle.show')}
                     style={{
-                      display: 'inline-block',
-                      transition: 'transform 0.2s',
-                      transform: olderExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                      border: 'none',
+                      background: 'transparent',
+                      color: 'var(--mzr-accent)',
+                      cursor: 'pointer',
+                      padding: 0
                     }}
                   >
-                    ⌄
-                  </span>
-                </button>
-              </div>
+                    <span
+                      style={{
+                        display: 'inline-block',
+                        transition: 'transform 0.2s',
+                        transform: olderExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                      }}
+                    >
+                      ⌄
+                    </span>
+                  </button>
+                </div>
                 {(olderExpanded || (!hasFreshCoupons && status === 'results')) && renderCouponList(combinedOlderCoupons)}
               </div>
               {!hasAnyCoupons && (

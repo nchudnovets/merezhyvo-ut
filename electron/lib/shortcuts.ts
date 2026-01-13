@@ -90,6 +90,16 @@ export type MerchantsCatalogCache = {
   lastFetchAttemptAt: string | null;
 };
 
+export type PendingCoupon = {
+  couponId: string;
+  promocode: string;
+  source: string;
+  domain: string;
+  country: string;
+  savedAt: string;
+  expiresAt: string;
+};
+
 export type SavingsSettings = {
   enabled: boolean;
   countrySaved: string | null;
@@ -97,6 +107,7 @@ export type SavingsSettings = {
   syncRetryByCountry: Record<string, string>;
   floatingButtonPos: SavingsFloatingButtonPos | null;
   catalog: MerchantsCatalogCache;
+  pendingCoupon?: PendingCoupon | null;
 };
 
 export type NetworkSettings = {
@@ -280,7 +291,8 @@ const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {
   lastPopupCountry: null,
   syncRetryByCountry: {},
   floatingButtonPos: null,
-  catalog: { ...DEFAULT_SAVINGS_CATALOG }
+  catalog: { ...DEFAULT_SAVINGS_CATALOG },
+  pendingCoupon: null
 };
 
 export const createDefaultSettingsState = (): SettingsState => ({
@@ -418,6 +430,34 @@ const normalizeIsoDate = (value: unknown): string | null => {
   return new Date(ts).toISOString();
 };
 
+const sanitizePendingCoupon = (value: unknown): PendingCoupon | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const candidate = value as Partial<PendingCoupon>;
+  const couponId = isNonEmptyString(candidate.couponId) ? candidate.couponId.trim() : null;
+  if (!couponId) return null;
+  const promocode = isNonEmptyString(candidate.promocode) ? candidate.promocode.trim() : null;
+  if (!promocode) return null;
+  const sourceText = isNonEmptyString(candidate.source) ? candidate.source.trim() : null;
+  if (!sourceText) return null;
+  const domain = normalizeDomain(candidate.domain);
+  if (!domain) return null;
+  const country = normalizeCountryCode(candidate.country);
+  if (!country) return null;
+  const savedAt = normalizeIsoDate(candidate.savedAt);
+  if (!savedAt) return null;
+  const expiresAt = normalizeIsoDate(candidate.expiresAt);
+  if (!expiresAt) return null;
+  return {
+    couponId,
+    promocode,
+    source: sourceText,
+    domain,
+    country,
+    savedAt,
+    expiresAt
+  };
+};
+
 export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<SavingsSettings> : {};
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_SAVINGS_SETTINGS.enabled;
@@ -441,6 +481,7 @@ export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
     nextAllowedFetchAt: normalizeIsoDate(catalogRaw.nextAllowedFetchAt) ?? DEFAULT_SAVINGS_CATALOG.nextAllowedFetchAt,
     lastFetchAttemptAt: normalizeIsoDate(catalogRaw.lastFetchAttemptAt) ?? DEFAULT_SAVINGS_CATALOG.lastFetchAttemptAt
   };
+  const pendingCoupon = sanitizePendingCoupon(source.pendingCoupon);
   const retries = typeof source.syncRetryByCountry === 'object' && source.syncRetryByCountry !== null
     ? Object.entries(source.syncRetryByCountry as Record<string, unknown>).reduce<Record<string, string>>((acc, [key, value]) => {
         const code = normalizeCountryCode(key);
@@ -457,7 +498,8 @@ export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
     lastPopupCountry,
     syncRetryByCountry: retries,
     floatingButtonPos,
-    catalog
+    catalog,
+    pendingCoupon
   };
 };
 

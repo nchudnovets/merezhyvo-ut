@@ -277,6 +277,16 @@ export type CouponGroup = {
   coupons: CouponEntry[];
 };
 
+export interface PendingCoupon {
+  couponId: string;
+  promocode: string;
+  source: string;
+  domain: string;
+  country: string;
+  savedAt: string;
+  expiresAt: string;
+}
+
 export type CouponsGroupedSections = {
   fresh: CouponGroup;
   older: CouponGroup;
@@ -303,6 +313,7 @@ export type SavingsSettings = {
   syncRetryByCountry: Record<string, string>;
   floatingButtonPos: SavingsFloatingButtonPos | null;
   catalog: MerchantsCatalogCache;
+  pendingCoupon?: PendingCoupon | null;
 };
 
 export type NetworkSettings = {

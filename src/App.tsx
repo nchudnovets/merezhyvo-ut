@@ -86,7 +86,9 @@ import type {
   SecureDnsProvider,
   SecureDnsSettings,
   SavingsSettings,
-  CouponsForPageResponse
+  CouponsForPageResponse,
+  CouponEntry,
+  PendingCoupon
 } from './types/models';
 import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
@@ -102,7 +104,7 @@ import { useTheme } from './hooks/useTheme';
 import { useWebviewZoom } from './hooks/useWebviewZoom';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './utils/zoom';
 import { DEFAULT_SAVINGS_CATALOG, DEFAULT_SAVINGS_SETTINGS, getEffectiveCountry, mergeSavingsSettings, normalizeCountryCode } from './utils/savings';
-import { fetchMerchantsCatalog } from './services/coupons/api';
+import { fetchMerchantsCatalog, reportInvalidCoupon } from './services/coupons/api';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -125,12 +127,36 @@ type CouponsPopupDataState = {
 
 const deriveHostnameFromUrl = (value?: string | null): string => {
   if (!value) return '';
-  let safe = value.trim().toLowerCase();
-  if (!safe) return '';
-  if (safe.startsWith('www.') && safe.length > 4) {
-    safe = safe.slice(4);
+  try {
+    const url = new URL(value);
+    let host = url.hostname.toLowerCase();
+    if (host.startsWith('www.')) {
+      host = host.slice(4);
+    }
+    return host;
+  } catch {
+    let safe = value.trim().toLowerCase();
+    if (!safe) return '';
+    const slashIndex = safe.indexOf('/');
+    if (slashIndex !== -1) {
+      safe = safe.slice(0, slashIndex);
+    }
+    if (safe.startsWith('www.')) {
+      safe = safe.slice(4);
+    }
+    return safe;
   }
-  return safe;
+};
+
+const deriveOriginFromUrl = (value?: string | null): string => {
+  if (!value) return '';
+  try {
+    const url = new URL(value);
+    return `${url.protocol}//${url.hostname}`;
+  } catch {
+    const host = deriveHostnameFromUrl(value);
+    return host ? `https://${host}` : '';
+  }
 };
 
 type MainBrowserAppProps = {
@@ -201,6 +227,178 @@ const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
 };
 
 const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
+const PENDING_COUPON_TTL_MS = 2 * 60 * 60 * 1000;
+
+const COUPON_FIELD_KEYWORDS = [
+  'coupon', 'coupons', 'promo', 'promocode', 'promo code', 'discount', 'voucher', 'code', 'gift', 'deal'
+];
+const CART_PAGE_KEYWORDS = ['cart', 'checkout', 'basket', 'order', 'payment', 'bag'];
+
+const isHostMatchingDomain = (host: string | null | undefined, domain: string): boolean => {
+  if (!host || !domain) return false;
+  const normalizedHost = host.toLowerCase();
+  const normalizedDomain = domain.toLowerCase();
+  if (normalizedHost === normalizedDomain) return true;
+  if (normalizedHost.endsWith(`.${normalizedDomain}`)) return true;
+  if (normalizedDomain.endsWith(`.${normalizedHost}`)) return true;
+  return false;
+};
+
+const buildInsertCouponScript = (code: string, requireCheckoutKeywords: boolean, requireCouponKeywords: boolean): string => {
+  const fieldKeywords = JSON.stringify(COUPON_FIELD_KEYWORDS);
+  const pageKeywords = JSON.stringify(CART_PAGE_KEYWORDS);
+  return `
+    (() => {
+      const couponCode = ${JSON.stringify(code)};
+      if (!couponCode) {
+        return { inserted: false, reason: 'empty_code' };
+      }
+      const keywords = ${fieldKeywords};
+      const pageKeywords = ${pageKeywords};
+      const requireCheckout = ${requireCheckoutKeywords ? 'true' : 'false'};
+      const normalize = (value) => (value ? value.toLowerCase() : '');
+      const path = normalize(location.pathname);
+      const title = normalize(document.title);
+      if (requireCheckout) {
+        const matches = pageKeywords.some((keyword) => path.includes(keyword) || title.includes(keyword));
+        if (!matches) {
+          return { inserted: false, reason: 'not_cart' };
+        }
+      }
+      const isTextInput = (el) => {
+        const tag = (el.tagName || '').toLowerCase();
+        if (tag === 'textarea') {
+          return true;
+        }
+        if (tag !== 'input') {
+          return false;
+        }
+        const type = (el.getAttribute('type') || '').toLowerCase();
+        const blocked = ['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'hidden', 'image', 'range', 'color', 'date', 'time', 'datetime-local'];
+        if (blocked.includes(type) || type === 'password') {
+          return false;
+        }
+        return true;
+      };
+      const collectElements = () => Array.from(document.querySelectorAll('input, textarea')).filter(
+        (el) => el && el instanceof HTMLElement && isTextInput(el)
+      );
+      const getLabelText = (el) => {
+        if (el.labels && el.labels.length) {
+          return Array.from(el.labels).map((label) => label.textContent || '').join(' ').toLowerCase();
+        }
+        const ancestor = el.closest('label');
+        if (ancestor) {
+          return (ancestor.textContent || '').toLowerCase();
+        }
+        return '';
+      };
+      const buildHaystack = (el) => {
+        const pieces = [
+          el.id,
+          el.name,
+          el.placeholder,
+          el.getAttribute('aria-label'),
+          el.getAttribute('title'),
+          el.className,
+          getLabelText(el)
+        ];
+        const haystack = pieces.filter(Boolean).join(' ').toLowerCase();
+        return haystack;
+      };
+      const scoreElement = (el) => {
+        const haystack = buildHaystack(el);
+        let score = 0;
+        keywords.forEach((keyword) => {
+          if (haystack.includes(keyword)) {
+            score += 10;
+          }
+        });
+        return { score, haystack };
+      };
+      const attemptInsertion = () => {
+        const elements = collectElements();
+        if (!elements.length) {
+          return { inserted: false, reason: 'no_candidates' };
+        }
+        const scored = elements.map((element) => ({ element, ...scoreElement(element) }));
+        const priority = scored.filter((item) => item.score > 0);
+        const candidates = priority.length ? priority : scored;
+        let best = { element: null, score: -1 };
+        for (const candidate of candidates) {
+          if (candidate.score > best.score) {
+            best = { element: candidate.element, score: candidate.score };
+          }
+        }
+        const target = best.element || (candidates[0] && candidates[0].element);
+        if (!target) {
+          return { inserted: false, reason: 'no_target' };
+        }
+        if (${requireCouponKeywords ? 'true' : 'false'} && best.score <= 0) {
+          return { inserted: false, reason: 'no_coupon_field' };
+        }
+        try {
+          target.focus?.();
+        } catch {}
+        try {
+          const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), 'value');
+          if (descriptor && typeof descriptor.set === 'function') {
+            descriptor.set.call(target, couponCode);
+          } else {
+            target.value = couponCode;
+          }
+        } catch {}
+        ['input', 'change', 'keyup'].forEach((eventName) => {
+          try {
+            target.dispatchEvent(new Event(eventName, { bubbles: true }));
+          } catch {}
+        });
+        return { inserted: true, reason: 'inserted' };
+      };
+      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
+      const runAttempts = async () => {
+        let result = { inserted: false, reason: 'no_attempt' };
+        for (let attempt = 0; attempt < 4; attempt += 1) {
+          result = attemptInsertion();
+          if (result.inserted) {
+            return result;
+          }
+          if (attempt < 3) {
+            await delay(1000);
+          }
+        }
+        return result;
+      };
+      return runAttempts();
+    })();
+  `;
+};
+
+const tryInsertCouponCode = async (
+  view: WebviewTag,
+  code: string,
+  requireCheckoutKeywords = false,
+  requireCouponKeywords = false
+): Promise<{ inserted: boolean; reason?: string }> => {
+  if (!code) {
+    return { inserted: false, reason: 'empty_code' };
+  }
+  try {
+    const script = buildInsertCouponScript(code, requireCheckoutKeywords, requireCouponKeywords);
+    const result = await view.executeJavaScript(script, false);
+    if (result && typeof result === 'object' && typeof (result as { inserted?: unknown }).inserted === 'boolean') {
+      return {
+        inserted: Boolean((result as { inserted: unknown }).inserted),
+        reason: typeof (result as { reason?: unknown }).reason === 'string'
+          ? (result as { reason: string }).reason
+          : undefined
+      };
+    }
+    return { inserted: false, reason: 'unexpected_result' };
+  } catch {
+    return { inserted: false, reason: 'exception' };
+  }
+};
 
 // const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
 //   position: 'relative',
@@ -264,8 +462,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [couponsPopupVisible, setCouponsPopupVisible] = useState<boolean>(false);
   const [couponsPopupCountry, setCouponsPopupCountry] = useState<string>('US');
   const [couponsPopupState, setCouponsPopupState] = useState<CouponsPopupDataState>({ status: 'idle' });
+  const [couponActionState, setCouponActionState] = useState<Record<string, { applying?: boolean; inserting?: boolean; reporting?: boolean }>>({});
   const [savingsSettings, setSavingsSettings] = useState<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
   const savingsSettingsRef = useRef<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
+  const autoInsertKeyRef = useRef<string | null>(null);
+  const [pendingCouponState, setPendingCouponState] = useState<PendingCoupon | null>(null);
   const [detectedCountry, setDetectedCountry] = useState<string>('US');
   const detectedCountryFetchRef = useRef<boolean>(false);
   const detectedCountryTimerRef = useRef<number | null>(null);
@@ -504,20 +705,22 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   };
 
+  const copyTextToClipboard = useCallback(async (text: string): Promise<boolean> => {
+    try {
+      if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
+        await navigator.clipboard.writeText(text);
+        return true;
+      }
+    } catch {}
+    return fallbackCopy(text);
+  }, []);
+
   const copyCommand = useCallback(
     async (command: string) => {
-      try {
-        if (typeof navigator !== 'undefined' && navigator.clipboard && typeof navigator.clipboard.writeText === 'function') {
-          await navigator.clipboard.writeText(command);
-        } else if (!fallbackCopy(command)) {
-          throw new Error('copy failed');
-        }
-        showGlobalToast('Copied');
-      } catch {
-        showGlobalToast('Couldn\'t copy command');
-      }
+      const success = await copyTextToClipboard(command);
+      showGlobalToast(success ? 'Copied' : 'Couldn\'t copy command');
     },
-    [showGlobalToast]
+    [copyTextToClipboard, showGlobalToast]
   );
 
   const downloadsCommand = window.merezhyvo?.paths?.downloadsSymlinkCommand ?? '';
@@ -583,6 +786,25 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     return savingsSettingsRef.current;
   }, []);
+
+  useEffect(() => {
+    const coupon = savingsSettings.pendingCoupon ?? null;
+    if (!coupon) {
+      setPendingCouponState(null);
+      return;
+    }
+    const expires = Date.parse(coupon.expiresAt);
+    if (!Number.isFinite(expires) || expires <= Date.now()) {
+      void updateSavingsSettings({ pendingCoupon: null });
+      setPendingCouponState(null);
+      return;
+    }
+    setPendingCouponState(coupon);
+  }, [savingsSettings.pendingCoupon, updateSavingsSettings]);
+
+  useEffect(() => {
+    autoInsertKeyRef.current = null;
+  }, [pendingCouponState?.couponId]);
 
   const handleSavingsEnabledChange = useCallback(
     (value: boolean) => {
@@ -711,9 +933,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
     setCouponsPopupState({ status: 'loading' });
     const currentUrl = activeTab?.url ?? '';
+    const pageOrigin = deriveOriginFromUrl(currentUrl);
+    if (!pageOrigin) {
+      setCouponsPopupState({ status: 'error', errorMessage: t('coupons.popup.error') });
+      return;
+    }
     const result = await fetchCouponsForPage({
       country: couponsPopupCountry,
-      url: currentUrl,
+      url: pageOrigin,
       clientVersion: appInfo.version
     });
     if (result.status === 'ok') {
@@ -737,6 +964,175 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     updateSavingsSettings
   ]);
 
+  const updateCouponActionState = useCallback((couponId: string, changes: Partial<{ applying?: boolean; inserting?: boolean; reporting?: boolean }>) => {
+    setCouponActionState((prev) => {
+      const entry = prev[couponId] ?? {};
+      const nextEntry = { ...entry, ...changes };
+      if (!nextEntry.applying && !nextEntry.inserting && !nextEntry.reporting) {
+        const { [couponId]: _, ...rest } = prev;
+        return rest;
+      }
+      return { ...prev, [couponId]: nextEntry };
+    });
+  }, []);
+
+  const copyPendingCoupon = useCallback(async (code: string): Promise<boolean> => copyTextToClipboard(code), [copyTextToClipboard]);
+
+  const buildPendingCouponPayload = useCallback((coupon: CouponEntry): PendingCoupon | null => {
+    const promo = coupon.promocode?.trim() ?? '';
+    if (!promo) return null;
+    const domain = activeHost || deriveHostnameFromUrl(activeTab?.url);
+    if (!domain) return null;
+    const now = new Date();
+    return {
+      couponId: coupon.couponId,
+      promocode: promo,
+      source: coupon.source ?? '',
+      domain,
+      country: couponsPopupCountry,
+      savedAt: now.toISOString(),
+      expiresAt: new Date(now.getTime() + PENDING_COUPON_TTL_MS).toISOString()
+    };
+  }, [activeHost, activeTab?.url, couponsPopupCountry]);
+
+  const handleApplyCoupon = useCallback(async (coupon: CouponEntry) => {
+    const pending = buildPendingCouponPayload(coupon);
+    const couponId = coupon.couponId;
+    updateCouponActionState(couponId, { applying: true });
+    try {
+      const trackingUrl = coupon.trackingUrl?.trim();
+      if (!trackingUrl) {
+        showGlobalToast(t('coupons.popup.apply.trackingMissing'));
+        return;
+      }
+      newTabAction(trackingUrl);
+      closeCouponsPopup();
+      if (pending) {
+        const copied = await copyPendingCoupon(pending.promocode);
+        void updateSavingsSettings({ pendingCoupon: pending });
+        showGlobalToast(copied ? t('coupons.popup.apply.copied') : t('coupons.popup.apply.copyFailed'));
+      } else {
+        showGlobalToast(t('coupons.popup.apply.opened'));
+      }
+    } catch (err) {
+      console.error('[merezhyvo] apply coupon failed', err);
+      showGlobalToast(t('coupons.popup.apply.fail'));
+    } finally {
+      updateCouponActionState(couponId, { applying: false });
+    }
+  }, [buildPendingCouponPayload, copyPendingCoupon, newTabAction, showGlobalToast, t, updateCouponActionState, updateSavingsSettings]);
+
+  const handleInsertCoupon = useCallback(async (coupon: CouponEntry) => {
+    const couponId = coupon.couponId;
+    if (!pendingCouponState?.promocode) return;
+    const view = webviewRef.current;
+    if (!view) return;
+    updateCouponActionState(couponId, { inserting: true });
+    try {
+    const result = await tryInsertCouponCode(view, pendingCouponState.promocode, false, false);
+      console.info('[merezhyvo] coupons.insert', { couponId, result, tabUrl: view.getURL ? view.getURL() : undefined });
+      if (result.inserted) {
+        showGlobalToast(t('coupons.popup.insert.success'));
+      } else {
+        const copied = await copyPendingCoupon(pendingCouponState.promocode);
+        showGlobalToast(copied ? t('coupons.popup.insert.failure') : t('coupons.popup.apply.copyFailed'));
+      }
+    } catch (err) {
+      console.error('[merezhyvo] insert coupon failed', err);
+      const copied = await copyPendingCoupon(pendingCouponState.promocode);
+      showGlobalToast(copied ? t('coupons.popup.insert.failure') : t('coupons.popup.apply.copyFailed'));
+    } finally {
+      updateCouponActionState(couponId, { inserting: false });
+    }
+  }, [copyPendingCoupon, pendingCouponState, showGlobalToast, t, updateCouponActionState, webviewRef]);
+
+  const filterCouponGroup = useCallback((group: CouponGroup, couponId: string): CouponGroup => ({
+    ...group,
+    coupons: group.coupons.filter((entry) => entry.couponId !== couponId)
+  }), []);
+
+  const removeCouponFromResponse = useCallback((data: CouponsForPageResponse, couponId: string): CouponsForPageResponse => ({
+    ...data,
+    local: {
+      fresh: filterCouponGroup(data.local.fresh, couponId),
+      older: filterCouponGroup(data.local.older, couponId)
+    },
+    worldwide: {
+      fresh: filterCouponGroup(data.worldwide.fresh, couponId),
+      older: filterCouponGroup(data.worldwide.older, couponId)
+    }
+  }), [filterCouponGroup]);
+
+  const getReportErrorMessageKey = useCallback((statusCode?: number): string => {
+    if (statusCode === 401) return 'coupons.popup.report.error.unauthorized';
+    if (statusCode === 429) return 'coupons.popup.report.error.tooManyRequests';
+    if (statusCode && statusCode >= 500 && statusCode < 600) return 'coupons.popup.report.error.server';
+    if (typeof statusCode === 'number') return 'coupons.popup.report.fail';
+    return 'coupons.popup.report.error.network';
+  }, []);
+
+  const handleReportInvalidCoupon = useCallback(async (coupon: CouponEntry) => {
+    if (!coupon.canReportInvalid || !coupon.reportToken) return;
+    const couponId = coupon.couponId;
+    updateCouponActionState(couponId, { reporting: true });
+    try {
+      const result = await reportInvalidCoupon(coupon.reportToken);
+      if (result.status === 'ok') {
+        setCouponsPopupState((prev) => {
+          if (prev.status !== 'results' || !prev.data) return prev;
+          return { ...prev, data: removeCouponFromResponse(prev.data, couponId) };
+        });
+        showGlobalToast(t('coupons.popup.report.success'));
+      } else {
+        const key = getReportErrorMessageKey(result.statusCode);
+        showGlobalToast(t(key));
+      }
+    } catch (err) {
+      console.error('[merezhyvo] report coupon failed', err);
+      showGlobalToast(t('coupons.popup.report.fail'));
+    } finally {
+      updateCouponActionState(couponId, { reporting: false });
+    }
+  }, [getReportErrorMessageKey, removeCouponFromResponse, showGlobalToast, t, updateCouponActionState]);
+
+  const attemptAutoInsertPendingCoupon = useCallback(async (tabId: string) => {
+    const coupon = pendingCouponState;
+    if (!coupon || !coupon.promocode) return;
+    if (activeIdRef.current !== tabId) return;
+    const entry = tabViewsRef.current.get(tabId);
+    const view = entry?.view;
+    if (!view) return;
+    let url = '';
+    try {
+      const maybe = typeof view.getURL === 'function' ? view.getURL() : '';
+      url = typeof maybe === 'string' ? maybe : '';
+    } catch {
+      url = '';
+    }
+    if (!url || url.startsWith('mzr://')) return;
+    const host = normalizeHost(url);
+    if (!isHostMatchingDomain(host, coupon.domain)) return;
+    const key = `${coupon.couponId}::${host}::${url}`;
+    if (autoInsertKeyRef.current === key) return;
+    const result = await tryInsertCouponCode(view, coupon.promocode, true, true);
+    console.info('[merezhyvo] coupons.autoInsert', { tabId, url, result });
+    if (result.inserted) {
+      autoInsertKeyRef.current = key;
+      showGlobalToast(t('coupons.popup.insert.success'));
+    }
+  }, [activeIdRef, autoInsertKeyRef, pendingCouponState, showGlobalToast, tabViewsRef, t]);
+
+  useEffect(() => {
+    const coupon = pendingCouponState;
+    if (!coupon || !coupon.promocode) return;
+    const tabId = activeIdRef.current;
+    if (!tabId) return;
+    const timer = window.setTimeout(() => {
+      console.info('[merezhyvo] coupons.autoInsertSchedule', { tabId, url: activeTab?.url });
+      void attemptAutoInsertPendingCoupon(tabId);
+    }, 800);
+    return () => window.clearTimeout(timer);
+  }, [activeTab?.url, attemptAutoInsertPendingCoupon, pendingCouponState]);
   useEffect(() => {
     if (!couponsPopupVisible) return;
     const hostname = deriveHostnameFromUrl(activeTab?.url);
@@ -1522,7 +1918,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         // ignore transient failures
       }
     })();
-  }, [activeIdRef, ensureSelectionCssInjected, tabViewsRef]);
+    void attemptAutoInsertPendingCoupon(tabId);
+  }, [activeIdRef, attemptAutoInsertPendingCoupon, ensureSelectionCssInjected, tabViewsRef]);
   
   useEffect(() => {
     const run = async () => {
@@ -3727,6 +4124,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             mode={mode}
             visible={couponsPopupVisible}
             host={deriveHostnameFromUrl(activeTab?.url) || null}
+            pageOrigin={deriveOriginFromUrl(activeTab?.url) || null}
             country={couponsPopupCountry}
             status={couponsPopupState.status}
             data={couponsPopupState.data}
@@ -3735,6 +4133,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onCountryChange={handleCouponsCountryChange}
             onFindCoupons={handleFindCoupons}
             onClose={closeCouponsPopup}
+            pendingCoupon={pendingCouponState}
+            couponActionState={couponActionState}
+            activeHost={activeHost}
+            onApplyCoupon={handleApplyCoupon}
+            onInsertCoupon={handleInsertCoupon}
+            onReportInvalid={handleReportInvalidCoupon}
           />
 
       {globalToast && (

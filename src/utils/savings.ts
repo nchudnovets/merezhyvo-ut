@@ -15,7 +15,8 @@ export const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {
   lastPopupCountry: null,
   syncRetryByCountry: {},
   floatingButtonPos: null,
-  catalog: { ...DEFAULT_SAVINGS_CATALOG }
+  catalog: { ...DEFAULT_SAVINGS_CATALOG },
+  pendingCoupon: null
 };
 
 export const normalizeCountryCode = (value: unknown): string | null => {
@@ -64,6 +65,7 @@ export const mergeSavingsSettings = (
 ): SavingsSettings => ({
   ...current,
   ...patch,
+  pendingCoupon: patch.pendingCoupon !== undefined ? patch.pendingCoupon : current.pendingCoupon,
   catalog: patch.catalog ? { ...current.catalog, ...patch.catalog } : current.catalog,
   syncRetryByCountry: patch.syncRetryByCountry
     ? { ...current.syncRetryByCountry, ...patch.syncRetryByCountry }

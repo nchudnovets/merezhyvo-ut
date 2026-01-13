@@ -17,6 +17,10 @@ export type FetchCouponsForPageResult =
   | { status: 'syncing'; retryAfterSeconds: number }
   | { status: 'error'; error: string };
 
+export type ReportInvalidCouponResult =
+  | { status: 'ok' }
+  | { status: 'error'; error: string; statusCode?: number };
+
 const parseRetryAfterSeconds = (payload: unknown): number => {
   if (payload && typeof payload === 'object') {
     const record = payload as { retryAfterSeconds?: unknown };
@@ -188,5 +192,33 @@ export const fetchCouponsForPage = async ({
     return { status: 'error', error: String(err) };
   } finally {
     window.clearTimeout(timeout);
+  }
+};
+
+export const reportInvalidCoupon = async (reportToken: string): Promise<ReportInvalidCouponResult> => {
+  if (!reportToken) {
+    return { status: 'error', error: 'Invalid report token.' };
+  }
+  const endpoint = new URL('/v1/coupons/report-invalid', COUPONS_API_BASE_URL);
+  const headers: Record<string, string> = {
+    'X-App-Key': COUPONS_X_APP_KEY,
+    'X-Client': COUPONS_X_CLIENT,
+    'Content-Type': 'application/json'
+  };
+  try {
+    const response = await fetch(endpoint.toString(), {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ reportToken }),
+      cache: 'no-store'
+    });
+    if (response.ok) {
+      return { status: 'ok' };
+    }
+    const payload = await response.text().catch(() => null);
+    const error = payload ? String(payload) : `Unexpected status ${response.status}`;
+    return { status: 'error', error, statusCode: response.status };
+  } catch (err) {
+    return { status: 'error', error: String(err) };
   }
 };
