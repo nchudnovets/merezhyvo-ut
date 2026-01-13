@@ -165,16 +165,45 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
     ));
   };
 
-  const cardStyle = { ...popupCardStyle, width: mode === 'mobile' ? 'min(360px, 90vw)' : 'min(420px, 90vw)' };
+  const cardStyle = { ...popupCardStyle, width: mode === 'mobile' ? '90%' : 'min(620px, 90vw)' };
+  const couponIcon = (
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 256 198"
+    preserveAspectRatio="xMidYMid meet"
+    style={{
+      width: mode === 'mobile' ? 90 : 65,
+      height: mode === 'mobile' ? 90 : 60,
+      display: 'block',
+      shapeRendering: 'geometricPrecision',
+      textRendering: 'geometricPrecision',
+    }}
+    fillRule="evenodd"
+    clipRule="evenodd"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      opacity={0.992}
+      fill="#235cdc"
+      d="M255.5 33.5v29a19.555 19.555 0 0 0-4 3.5c-26.96 2.441-38.126 16.941-33.5 43.5 6.553 14.044 17.72 21.21 33.5 21.5a19.552 19.552 0 0 0 4 3.5v29c-5.15 15.316-15.484 25.483-31 30.5-45.665.5-91.332.667-137 .5.166-10.672 0-21.339-.5-32-.108-4.943-2.608-7.276-7.5-7-4.892-.276-7.392 2.057-7.5 7a512.462 512.462 0 0 0-.5 32c-13.67.167-27.337 0-41-.5-15.516-5.017-25.85-15.184-31-30.5v-29a19.564 19.564 0 0 0 4-3.5c26.96-2.441 38.126-16.941 33.5-43.5C30.447 73.456 19.28 66.29 3.5 66a19.567 19.567 0 0 0-4-3.5v-29C4.65 18.184 14.984 8.017 30.5 3c13.663-.5 27.33-.667 41-.5a512.47 512.47 0 0 0 .5 32c.108 4.943 2.608 7.276 7.5 7 4.892.276 7.392-2.057 7.5-7 .5-10.662.666-21.328.5-32 45.668-.167 91.335 0 137 .5 15.516 5.017 25.85 15.184 31 30.5zm-180 26a32.437 32.437 0 0 1 8 .5c1.167.5 2 1.333 2.5 2.5 2.12 8.395 1.954 16.728-.5 25-3.049 1.966-6.382 2.466-10 1.5-1.167-.5-2-1.333-2.5-2.5a57.84 57.84 0 0 1-1-20c.139-2.945 1.306-5.279 3.5-7zm56 8c10.676-.981 13.676 3.352 9 13-9.618 3.212-13.452-.121-11.5-10 .698-1.19 1.531-2.19 2.5-3zm48 0c9.165-1.67 12.665 1.998 10.5 11L131.5 137c-9.167 2.167-12.667-1.333-10.5-10.5a4870.281 4870.281 0 0 0 58.5-59zm-104 40a32.462 32.462 0 0 1 8 .5c1.167.5 2 1.333 2.5 2.5 2.12 8.395 1.954 16.728-.5 25-3.049 1.966-6.382 2.466-10 1.5-1.167-.5-2-1.333-2.5-2.5a57.84 57.84 0 0 1-1-20c.139-2.945 1.306-5.279 3.5-7zm96 16c10.676-.981 13.676 3.352 9 13-9.618 3.212-13.452-.121-11.5-10 .698-1.191 1.531-2.191 2.5-3z"
+    />
+  </svg>
+);
 
   return (
     <div style={popupBackdropStyle} aria-live="polite">
       <div style={cardStyle}>
         <div style={{ ...sectionHeaderStyle, marginBottom: 16 }}>
-          <div>
-            <div style={{ fontSize: 20, fontWeight: 700 }}>{t('coupons.popup.title', { host: formatHost(host) })}</div>
-            <div style={{ marginTop: 4, fontSize: 12, color: 'var(--mzr-text-muted)' }}>
-              {t('coupons.popup.country.helper')}
+          <div style={{display: 'flex', gap: mode === 'mobile' ? 20 : 10}}>
+            <div>
+              {couponIcon}
+            </div>
+            <div>
+              <div style={{ fontSize: mode === 'mobile' ? 44 : 25, fontWeight: 700 }}>{t('coupons.popup.title', { host: '' })}</div>
+              <div style={{ marginTop: mode === 'mobile' ? 15 : 5, fontSize: mode === 'mobile' ? 38 : 24, color: 'var(--mzr-text-muted)' }}>
+                {formatHost(host)}
+              </div>
             </div>
           </div>
           <button
@@ -207,7 +236,8 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                 border: '1px solid var(--mzr-border)',
                 background: 'var(--mzr-surface)',
                 color: 'var(--mzr-text-primary)',
-                fontSize: 16
+                fontSize: 16,
+                outline: 'none'
               }}
             >
               {countryOptions.map((option) => (

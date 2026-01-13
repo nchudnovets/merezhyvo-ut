@@ -30,13 +30,30 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
   onClick
 }) => {
   const isMobile = mode === 'mobile';
-  const buttonHight = isMobile ? 150 : 85;
-  const buttonWidth = isMobile ? 94 : 54;
+  const buttonHight = isMobile ? 150 : 65;
+  const buttonWidth = isMobile ? 94 : 40;
   const margin = isMobile ? 20 : 10;
   const [localPos, setLocalPos] = useState<SavingsFloatingButtonPos | null>(null);
   const localPosRef = useRef<SavingsFloatingButtonPos | null>(null);
   const dragRef = useRef<DragState>({ active: false, offsetX: 0, offsetY: 0, moved: false });
   const { t } = useI18n();
+
+  const [hasClicked, setHasClicked] = useState(false);
+  const [isDragging, setIsDragging] = useState(false);
+
+  const wiggleName = 'merez-coupons-wiggle';
+  const wiggleCss = `
+  @keyframes ${wiggleName} {
+    0% { transform: rotate(0deg); }
+    2% { transform: rotate(6deg); }
+    4% { transform: rotate(-6deg); }
+    6% { transform: rotate(4deg); }
+    8% { transform: rotate(-4deg); }
+    10% { transform: rotate(2deg); }
+    12% { transform: rotate(0deg); }
+    100% { transform: rotate(0deg); }
+  }
+  `;
 
   const clampPos = useCallback((pos: SavingsFloatingButtonPos, rect: DOMRect): SavingsFloatingButtonPos => {
     const maxX = Math.max(margin, rect.width - buttonWidth - margin);
@@ -103,6 +120,9 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
     if (!dragRef.current.active) return;
     const moved = dragRef.current.moved;
     dragRef.current.active = false;
+
+    setIsDragging(false);
+
     window.removeEventListener('pointermove', handlePointerMove);
     if (pointerUpHandlerRef.current) {
       window.removeEventListener('pointerup', pointerUpHandlerRef.current);
@@ -117,6 +137,9 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
     if (!visible) return;
     event.preventDefault();
     event.stopPropagation();
+
+    setIsDragging(true);
+
     const rect = containerRef.current?.getBoundingClientRect();
     if (!rect) return;
     const current = localPosRef.current ?? {
@@ -140,6 +163,7 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
       dragRef.current.moved = false;
       return;
     }
+    setHasClicked(true);
     onClick();
   }, [onClick]);
 
@@ -148,6 +172,7 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
   }, [handlePointerUp]);
 
   useEffect(() => () => {
+    setIsDragging(false);
     window.removeEventListener('pointermove', handlePointerMove);
     if (pointerUpHandlerRef.current) {
       window.removeEventListener('pointerup', pointerUpHandlerRef.current);
@@ -157,15 +182,16 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
   const posX = localPos?.x ?? 0;
   const posY = localPos?.y ?? 0;
   const label = t('coupons.button.label');
+  const shouldWiggle = visible && !hasClicked && !isDragging;
   const buttonStyle: React.CSSProperties = useMemo(() => ({
     position: 'absolute',
     left: posX,
     top: posY,
     width: buttonWidth,
     height: buttonHight,
-    border: '1px solid #259cebff',
+    border: '1px solid #f8fe59a6',
     borderRadius: '3px',
-    background: '#259cebff',
+    background: '#f8fe59a6',
     padding: 0,
     cursor: 'pointer',
     display: 'flex',
@@ -173,31 +199,52 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
     justifyContent: 'center',
     boxShadow: '0 10px 24px rgba(0,0,0,0.2)',
     touchAction: 'none',
-    pointerEvents: 'auto'
-  }), [buttonHight, buttonWidth, posX, posY]);
-  const iconSize = buttonWidth;
-  const iconHeight = buttonHight;
+    pointerEvents: 'auto',
+    transformOrigin: '50% 12%',
+  animation: shouldWiggle ? `${wiggleName} 3s ease-in-out infinite` : undefined,
+  willChange: shouldWiggle ? 'transform' : undefined
+  }), [buttonHight, buttonWidth, posX, posY, shouldWiggle]);
+
   const iconSvg = (
-      <svg
-        xmlns="http://www.w3.org/2000/svg"
-        viewBox="0 0 162 256"
-        width={iconSize}
-        height={iconHeight}
-        style={{ display: 'block', shapeRendering: 'geometricPrecision', textRendering: 'geometricPrecision', imageRendering: 'auto' }}
-      >
-      <path style={{ opacity: 0.92 }} fill="#fedc59" d="M4.5-.5h56a19.567 19.567 0 0 0 3.5 4c.183 8.55 4.016 14.716 11.5 18.5 1.634.494 3.3.66 5 .5-.332 30.505.002 60.838 1 91l-1 2a1115.442 1115.442 0 0 1-26.5 31c-2.11 4.128-1.61 7.961 1.5 11.5 2.53 1.422 5.197 1.755 8 1a148.304 148.304 0 0 0 17-18.5v92c-5.12-.024-9.287 1.976-12.5 6a46.911 46.911 0 0 0-4 13 19.555 19.555 0 0 0-3.5 4h-56a19.555 19.555 0 0 0-3.5-4C.333 168.833.333 86.167 1 3.5a19.568 19.568 0 0 0 3.5-4z"/>
-      <path style={{ opacity: 0.98 }} fill="#edca41" d="M100.5-.5h56a19.564 19.564 0 0 0 3.5 4c.667 82.667.667 165.333 0 248a19.552 19.552 0 0 0-3.5 4h-56a19.555 19.555 0 0 0-3.5-4c-.183-8.55-4.016-14.716-11.5-18.5a12.93 12.93 0 0 0-5-.5v-93a934.606 934.606 0 0 0 23.5-27c2.565-2.463 4.065-5.463 4.5-9-.908-6.459-4.574-8.959-11-7.5a132.702 132.702 0 0 0-16 17.5 2070.813 2070.813 0 0 1-1-91c5.12.023 9.287-1.977 12.5-6a46.915 46.915 0 0 0 4-13 19.567 19.567 0 0 0 3.5-4z"/>
-      <path style={{ opacity: 1 }} fill="#e1e3f8" d="M53.5 95.5c8.178-.658 11.678 3.01 10.5 11-2.226 4.361-5.726 5.861-10.5 4.5-4.36-2.226-5.86-5.726-4.5-10.5 1.025-2.187 2.525-3.854 4.5-5z"/>
-      <path style={{ opacity: 1 }} fill="#b7cef0" d="M80.5 139.5v-24l1-2a132.702 132.702 0 0 1 16-17.5c6.426-1.459 10.092 1.041 11 7.5-.435 3.537-1.935 6.537-4.5 9a934.606 934.606 0 0 1-23.5 27z"/>
-      <path style={{ opacity: 1 }} fill="#e0e3fc" d="M80.5 115.5v25a148.304 148.304 0 0 1-17 18.5c-2.803.755-5.47.422-8-1-3.11-3.539-3.61-7.372-1.5-11.5a1115.442 1115.442 0 0 0 26.5-31z"/>
-      <path style={{ opacity: 1 }} fill="#b8cdec" d="M101.5 143.5c10.667.503 13.333 5.336 8 14.5-9.08 3.215-13.247.048-12.5-9.5 1.025-2.187 2.525-3.854 4.5-5z"/>
-    </svg>
-  );
+  <svg
+    xmlns="http://www.w3.org/2000/svg"
+    viewBox="0 0 129 224"
+    preserveAspectRatio="xMidYMid meet"
+    style={{
+      width: '100%',
+      height: '100%',
+      display: 'block',
+      shapeRendering: 'geometricPrecision',
+      textRendering: 'geometricPrecision',
+    }}
+    fillRule="evenodd"
+    clipRule="evenodd"
+    aria-hidden="true"
+    focusable="false"
+  >
+    <path
+      opacity={0.991}
+      fill="#235cdc"
+      d="M119.5 223.5H7.5a5759.497 5759.497 0 0 1-8-9v-140c9.543-5.078 19.876-7.412 31-7v-6c-11.124.412-21.457-1.922-31-7v-44C2.306 6.863 5.64 3.696 9.5 1a400.25 400.25 0 0 1 40 0c2.236 3.145 3.736 6.645 4.5 10.5 4.091 3.805 8.925 4.972 14.5 3.5a11.529 11.529 0 0 0 4.5-3.5c.763-3.855 2.263-7.355 4.5-10.5a226.864 226.864 0 0 1 42 1 45.238 45.238 0 0 1 7.5 8.5 484.008 484.008 0 0 1 0 44 46.674 46.674 0 0 1-9.5 5 675.93 675.93 0 0 1-21 2v6a675.93 675.93 0 0 1 21 2 46.674 46.674 0 0 1 9.5 5c.667 46.667.667 93.333 0 140a98.521 98.521 0 0 1-7.5 9zm-68-163c9.04-.248 18.04.085 27 1v6c-10 1.333-20 1.333-30 0v-6c1.291.237 2.291-.096 3-1zm36 45c4.23 1.015 5.397 3.348 3.5 7A11126.085 11126.085 0 0 1 40.5 199c-4.95.729-6.45-1.105-4.5-5.5a5691.914 5691.914 0 0 1 51.5-88zm-53 1c9.738-1.387 15.905 2.613 18.5 12 1.88 16.794-5.286 23.294-21.5 19.5-7.197-6.662-9.03-14.496-5.5-23.5 2.098-3.603 4.931-6.27 8.5-8zm48 60c12.626-1.685 19.626 3.815 21 16.5-2.19 14.883-10.19 19.55-24 14-7.118-8.349-7.785-17.182-2-26.5 1.92-1.112 3.586-2.446 5-4z"
+    />
+    <path
+      opacity={0.932}
+      fill="#235bdb"
+      d="M35.5 113.5c5.272-.951 8.772 1.049 10.5 6 1.638 6.795-.695 11.462-7 14-6.866-2.736-9.2-7.736-7-15a27.251 27.251 0 0 1 3.5-5z"
+    />
+    <path
+      opacity={0.92}
+      fill="#225bdb"
+      d="M87.5 172.5c7.968 3.223 10.134 8.89 6.5 17-7.721 5.059-12.221 2.892-13.5-6.5-.155-5.317 2.178-8.817 7-10.5z"
+    />
+  </svg>
+);
 
   if (!visible || !localPos) return null;
 
   return (
     <div style={{ position: 'absolute', inset: 0, pointerEvents: 'none', zIndex: 6 }}>
+      {!hasClicked && <style>{wiggleCss}</style>}
       <button
         type="button"
         aria-label={label}
