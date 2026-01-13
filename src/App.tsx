@@ -1029,8 +1029,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!view) return;
     updateCouponActionState(couponId, { inserting: true });
     try {
-    const result = await tryInsertCouponCode(view, pendingCouponState.promocode, false, false);
-      console.info('[merezhyvo] coupons.insert', { couponId, result, tabUrl: view.getURL ? view.getURL() : undefined });
+      const result = await tryInsertCouponCode(view, pendingCouponState.promocode, false, false);
       if (result.inserted) {
         showGlobalToast(t('coupons.popup.insert.success'));
       } else {
@@ -1115,7 +1114,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const key = `${coupon.couponId}::${host}::${url}`;
     if (autoInsertKeyRef.current === key) return;
     const result = await tryInsertCouponCode(view, coupon.promocode, true, true);
-    console.info('[merezhyvo] coupons.autoInsert', { tabId, url, result });
     if (result.inserted) {
       autoInsertKeyRef.current = key;
       showGlobalToast(t('coupons.popup.insert.success'));
@@ -1128,7 +1126,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const tabId = activeIdRef.current;
     if (!tabId) return;
     const timer = window.setTimeout(() => {
-      console.info('[merezhyvo] coupons.autoInsertSchedule', { tabId, url: activeTab?.url });
       void attemptAutoInsertPendingCoupon(tabId);
     }, 800);
     return () => window.clearTimeout(timer);
