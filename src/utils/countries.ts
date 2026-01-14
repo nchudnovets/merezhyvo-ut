@@ -4,6 +4,13 @@ import isoCountries from 'i18n-iso-countries';
 // JSON locales (ensure tsconfig: "resolveJsonModule": true)
 import en from 'i18n-iso-countries/langs/en.json';
 import uk from 'i18n-iso-countries/langs/uk.json';
+import de from 'i18n-iso-countries/langs/de.json';
+import fr from 'i18n-iso-countries/langs/fr.json';
+import pl from 'i18n-iso-countries/langs/pl.json';
+import es from 'i18n-iso-countries/langs/es.json';
+import it from 'i18n-iso-countries/langs/it.json';
+import nl from 'i18n-iso-countries/langs/nl.json';
+import no from 'i18n-iso-countries/langs/no.json';
 
 export type CountryOption = {
   value: string;
@@ -18,12 +25,32 @@ const ensureLocales = () => {
   if (localesRegistered) return;
   isoCountries.registerLocale(en);
   isoCountries.registerLocale(uk);
+  isoCountries.registerLocale(de);
+  isoCountries.registerLocale(fr);
+  isoCountries.registerLocale(pl);
+  isoCountries.registerLocale(es);
+  isoCountries.registerLocale(it);
+  isoCountries.registerLocale(nl);
+  isoCountries.registerLocale(no);
   localesRegistered = true;
 };
 
-const pickLang = (locale: string): 'uk' | 'en' => {
-  const lc = (locale || 'en').toLowerCase();
-  return lc.startsWith('uk') ? 'uk' : 'en';
+const LANGUAGE_MAP: Record<string, string> = {
+  en: 'en',
+  uk: 'uk',
+  de: 'de',
+  fr: 'fr',
+  pl: 'pl',
+  es: 'es',
+  it: 'it',
+  nl: 'nl',
+  no: 'no'
+};
+
+const pickLang = (locale: string): string => {
+  if (!locale) return 'en';
+  const code = locale.split('-')[0]?.toLowerCase() || 'en';
+  return LANGUAGE_MAP[code] ?? 'en';
 };
 
 // Full ISO alpha-2 list comes from i18n-iso-countries itself
