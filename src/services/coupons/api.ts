@@ -195,9 +195,9 @@ export const fetchCouponsForPage = async ({
   }
 };
 
-export const reportInvalidCoupon = async (reportToken: string): Promise<ReportInvalidCouponResult> => {
-  if (!reportToken) {
-    return { status: 'error', error: 'Invalid report token.' };
+export const reportInvalidCoupon = async (reportToken: string, couponId: string): Promise<ReportInvalidCouponResult> => {
+  if (!reportToken || !couponId) {
+    return { status: 'error', error: 'Invalid report payload.' };
   }
   const endpoint = new URL('/v1/coupons/report-invalid', COUPONS_API_BASE_URL);
   const headers: Record<string, string> = {
@@ -209,7 +209,7 @@ export const reportInvalidCoupon = async (reportToken: string): Promise<ReportIn
     const response = await fetch(endpoint.toString(), {
       method: 'POST',
       headers,
-      body: JSON.stringify({ reportToken }),
+      body: JSON.stringify({ reportToken, couponId }),
       cache: 'no-store'
     });
     if (response.ok) {

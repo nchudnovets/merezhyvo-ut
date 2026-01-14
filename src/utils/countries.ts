@@ -1,62 +1,87 @@
 import { normalizeCountryCode } from './savings';
+import isoCountries from 'i18n-iso-countries';
+
+// JSON locales (ensure tsconfig: "resolveJsonModule": true)
+import en from 'i18n-iso-countries/langs/en.json';
+import uk from 'i18n-iso-countries/langs/uk.json';
 
 export type CountryOption = {
   value: string;
   label: string;
 };
 
-const FALLBACK_COUNTRIES = [
-  'US', 'CA', 'MX', 'BR', 'AR', 'CL', 'CO', 'PE',
-  'GB', 'IE', 'FR', 'DE', 'ES', 'PT', 'IT', 'NL', 'BE', 'CH', 'AT', 'SE', 'NO', 'FI', 'DK',
-  'PL', 'CZ', 'SK', 'HU', 'RO', 'BG', 'GR', 'UA', 'TR', 'IL', 'AE', 'SA',
-  'IN', 'PK', 'BD', 'CN', 'JP', 'KR',
-  'AU', 'NZ', 'ZA', 'EG', 'MA', 'NG', 'KE', 'GH',
-  'SG', 'MY', 'TH', 'ID', 'VN', 'PH'
-];
+const BLOCKED = new Set(['RU']);
 
-const getRegionCodes = (): string[] => {
-  let supported: readonly string[] | null = null;
-  const supportedValuesOf = (Intl as typeof Intl & {
-    supportedValuesOf?: (type: string) => readonly string[];
-  }).supportedValuesOf;
-  if (typeof supportedValuesOf === 'function') {
-    try {
-      supported = supportedValuesOf('region');
-    } catch {
-      supported = null;
-    }
-  }
-  const list = supported ?? FALLBACK_COUNTRIES;
-  const unique = new Set<string>();
-  list.forEach((code) => {
-    const normalized = normalizeCountryCode(code);
-    if (normalized) {
-      unique.add(normalized);
-    }
-  });
-  return Array.from(unique);
+// Register locales once
+let localesRegistered = false;
+const ensureLocales = () => {
+  if (localesRegistered) return;
+  isoCountries.registerLocale(en);
+  isoCountries.registerLocale(uk);
+  localesRegistered = true;
+};
+
+const pickLang = (locale: string): 'uk' | 'en' => {
+  const lc = (locale || 'en').toLowerCase();
+  return lc.startsWith('uk') ? 'uk' : 'en';
+};
+
+// Full ISO alpha-2 list comes from i18n-iso-countries itself
+const getAllIsoCountryCodes = (): string[] => {
+  // Use english map just to get the keys deterministically
+  const namesEn = isoCountries.getNames('en', { select: 'official' });
+  return Object.keys(namesEn);
 };
 
 export const getCountryLabel = (locale: string, code: string): string => {
+  ensureLocales();
+
+  const normalized = normalizeCountryCode(code);
+  if (!normalized) return code;
+
+  const lang = pickLang(locale);
+
+  // Primary: i18n-iso-countries
+  const name =
+    isoCountries.getName(normalized, lang, { select: 'official' }) ||
+    isoCountries.getName(normalized, lang) ||
+    null;
+
+  if (name) return name;
+
+  // Fallback: Intl.DisplayNames (if runtime supports it)
   if (typeof Intl.DisplayNames === 'function') {
     try {
       const formatter = new Intl.DisplayNames([locale], { type: 'region' });
-      const label = formatter.of(code);
+      const label = formatter.of(normalized);
       if (label) return label;
     } catch {
       // ignore
     }
   }
-  return code;
+
+  return normalized;
 };
 
 export const getCountryOptions = (locale: string): CountryOption[] => {
-  const codes = getRegionCodes();
-  const options = codes.map((code) => {
+  ensureLocales();
+
+  const codes = getAllIsoCountryCodes();
+  const unique = new Set<string>();
+
+  for (const raw of codes) {
+    const normalized = normalizeCountryCode(raw);
+    if (!normalized) continue;
+    if (BLOCKED.has(normalized)) continue;
+    unique.add(normalized);
+  }
+
+  const options = Array.from(unique).map((code) => {
     const label = getCountryLabel(locale, code);
     const formatted = label === code ? code : `${label} (${code})`;
     return { value: code, label: formatted };
   });
+
   options.sort((a, b) => a.label.localeCompare(b.label, locale, { sensitivity: 'base' }));
   return options;
 };

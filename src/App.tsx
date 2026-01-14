@@ -1075,13 +1075,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const couponId = coupon.couponId;
     updateCouponActionState(couponId, { reporting: true });
     try {
-      const result = await reportInvalidCoupon(coupon.reportToken);
+      const result = await reportInvalidCoupon(coupon.reportToken, coupon.couponId);
       if (result.status === 'ok') {
         setCouponsPopupState((prev) => {
           if (prev.status !== 'results' || !prev.data) return prev;
           return { ...prev, data: removeCouponFromResponse(prev.data, couponId) };
         });
         showGlobalToast(t('coupons.popup.report.success'));
+        void handleFindCoupons();
       } else {
         const key = getReportErrorMessageKey(result.statusCode);
         showGlobalToast(t(key));
@@ -1092,7 +1093,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     } finally {
       updateCouponActionState(couponId, { reporting: false });
     }
-  }, [getReportErrorMessageKey, removeCouponFromResponse, showGlobalToast, t, updateCouponActionState]);
+  }, [getReportErrorMessageKey, handleFindCoupons, removeCouponFromResponse, showGlobalToast, t, updateCouponActionState]);
 
   const attemptAutoInsertPendingCoupon = useCallback(async (tabId: string) => {
     const coupon = pendingCouponState;
