@@ -727,17 +727,50 @@ const readJsonIfExists = async (file: string): Promise<unknown | null> => {
   }
 };
 
+const TEMP_CLEANUP_AGE_MS = 10 * 60 * 1000;
+
+const cleanupTempFilesFor = async (file: string): Promise<void> => {
+  const dir = path.dirname(file);
+  const base = path.basename(file);
+  let entries: Array<{ name: string; isFile: () => boolean }> = [];
+  try {
+    entries = await fsp.readdir(dir, { withFileTypes: true });
+  } catch {
+    return;
+  }
+  const now = Date.now();
+  await Promise.all(
+    entries.map(async (entry) => {
+      if (!entry.isFile()) return;
+      const name = entry.name;
+      if (!name.startsWith(`${base}.`) || !name.endsWith('.tmp')) return;
+      const fullPath = path.join(dir, name);
+      try {
+        const stat = await fsp.stat(fullPath);
+        if (now - stat.mtimeMs < TEMP_CLEANUP_AGE_MS) return;
+        await fsp.unlink(fullPath);
+      } catch {
+        // ignore cleanup failures
+      }
+    })
+  );
+};
+
 const writeJsonAtomic = async (file: string, value: unknown): Promise<void> => {
   const dir = path.dirname(file);
   const tmpFile = `${file}.${process.pid}.${Date.now()}_${Math.random().toString(36).slice(2, 8)}.tmp`;
   await fsp.mkdir(dir, { recursive: true });
   await fsp.writeFile(tmpFile, JSON.stringify(value, null, 2), 'utf8');
   await fsp.rename(tmpFile, file);
+  void cleanupTempFilesFor(file);
 };
 
 export async function readSettingsState(): Promise<SettingsState> {
   const targetFile = getSettingsFilePath();
   const backupFile = getBackupSettingsFilePath();
+
+  void cleanupTempFilesFor(targetFile);
+  void cleanupTempFilesFor(backupFile);
 
   const attemptPersist = async (value: SettingsState) => {
     try {
