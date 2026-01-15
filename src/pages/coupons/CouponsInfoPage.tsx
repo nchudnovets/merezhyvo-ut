@@ -276,7 +276,7 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
         height: '100%',
         padding: mode === 'mobile' ? '28px 20px 40px' : '24px 28px',
         boxSizing: 'border-box',
-        color: 'var(--mzr-text-secondary)',
+        color: 'var(--mzr-text-primary)',
         background: 'var(--mzr-surface)'
       }}
     >
@@ -342,7 +342,7 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
               {section.bodyKeys.map((line) => (
                 <p
                   key={`${section.headingKey}-${line}`}
-                  style={{ margin: isMobile ? '10px 0 0' : '8px 0 0', fontSize: isMobile ? 36 : 16, lineHeight: 1.5 }}
+                  style={{ margin: isMobile ? '10px 0 0' : '8px 0 0', fontSize: isMobile ? 40 : 16, lineHeight: 1.5 }}
                 >
                   {formatBoldMarkup(t(line))}
                 </p>
@@ -361,51 +361,71 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
             gap: 12
           }}
         >
-          <h2 style={{ margin: 0, fontSize: isMobile ? 42 : 20, fontWeight: 700 }}>{t('coupons.info.stores.heading')}</h2>
-          <p style={{ margin: 0, fontSize: isMobile ? 34 : 15 }}>{formatBoldMarkup(t('coupons.info.stores.body1'))}</p>
-          <p style={{ margin: 0, fontSize: isMobile ? 34 : 15 }}>{formatBoldMarkup(t('coupons.info.stores.body2'))}</p>
-          <label style={{ display: 'flex', flexDirection: 'column', gap: 6 }}>
-            <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mzr-text-muted)' }}>
+          <h2 style={{ margin: 0, fontSize: isMobile ? 47 : 20, fontWeight: 700 }}>{t('coupons.info.stores.heading')}</h2>
+          <p style={{ margin: 0, fontSize: isMobile ? 40 : 16 }}>{formatBoldMarkup(t('coupons.info.stores.body1'))}</p>
+          <p style={{ margin: 0, fontSize: isMobile ? 40 : 16 }}>{formatBoldMarkup(t('coupons.info.stores.body2'))}</p>
+          <label style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 20 : 6, marginTop: isMobile ? 30 : 5 }}>
+            <span style={{ fontSize: isMobile ? 40 : 16, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mzr-text-muted)' }}>
               {t('coupons.info.country.label')}
             </span>
             <CountrySelect
               value={selectedCountry}
               onChange={handleCountryChange}
+              chevronSize={isMobile ? 36 : 14}
               selectStyle={{
                 padding: '10px 12px',
                 borderRadius: 10,
                 border: '1px solid var(--mzr-border)',
                 background: 'var(--mzr-surface)',
                 color: 'var(--mzr-text-primary)',
-                fontSize: 16
+                fontSize: isMobile ? 40 : 16
               }}
             />
           </label>
-          <div style={{ display: 'flex', flexDirection: isMobile ? 'column' : 'row', gap: 10, alignItems: 'center' }}>
+          <div 
+            style={{
+              display: 'flex',
+              flexDirection: isMobile ? 'column' : 'row', 
+              gap: isMobile ? 25 : 10, 
+              alignItems: 'center',
+              padding: isMobile ? '0 15px' : 0,
+              marginTop: isMobile ? 30 : 5
+            }}>
             <input
               type="text"
               placeholder={t('coupons.info.search.placeholder')}
               value={search}
               onChange={(event) => setSearch(event.target.value)}
-              style={{ flex: 1, minWidth: 0, padding: '10px 12px', borderRadius: 10, border: '1px solid var(--mzr-border)', background: 'var(--mzr-surface)', color: 'var(--mzr-text-primary)' }}
+              style={{
+                flex: 1,
+                minWidth: 0,
+                padding: '10px 12px',
+                borderRadius: 10,
+                border: '1px solid var(--mzr-border)',
+                background: 'var(--mzr-surface)',
+                color: 'var(--mzr-text-primary)',
+                fontSize: isMobile ? 40 : 15,
+                width: isMobile ? '100%' : undefined
+              }}
             />
-            <span style={{ fontSize: 14, color: 'var(--mzr-text-muted)' }}>{selectedCountry || '—'}</span>
+            <span style={{ fontSize: isMobile ? 40 : 15, color: 'var(--mzr-text-muted)' }}>{selectedCountry || '—'}</span>
           </div>
           <div
             style={{
-              maxHeight: 320,
+              maxHeight: isMobile ? 600 : 400,
               overflowY: 'auto',
               paddingRight: 4,
               display: 'flex',
               flexDirection: 'column',
-              gap: 12
+              gap: isMobile ? 25 : 12,
+              marginTop: isMobile ? 30 : 5
             }}
           >
             {listStatus && (
-              <p style={{ margin: 0, color: 'var(--mzr-text-muted)', fontSize: 14 }}>{listStatus}</p>
+              <p style={{ margin: 0, color: 'var(--mzr-text-muted)', fontSize: isMobile ? 40 : 16 }}>{listStatus}</p>
             )}
             {!listStatus && filteredMerchants.length === 0 && (
-              <p style={{ margin: 0, color: 'var(--mzr-text-muted)', fontSize: 14 }}>{t('coupons.info.list.emptyMessage')}</p>
+              <p style={{ margin: 0, color: 'var(--mzr-text-muted)', fontSize: isMobile ? 40 : 16 }}>{t('coupons.info.list.emptyMessage')}</p>
             )}
             {filteredMerchants.map((merchant) => {
               const { domain, name, label, imageUrl } = merchant;
@@ -419,7 +439,7 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
                   style={{
                     display: 'flex',
                     alignItems: 'center',
-                    gap: 12,
+                    gap: isMobile ? 20 : 12,
                     borderRadius: 14,
                     border: '1px solid var(--mzr-border)',
                     padding: '10px 14px',
@@ -431,9 +451,9 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
                 >
                   <MerchantLogo imageUrl={imageUrl} label={label} />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
-                    <span style={{ fontSize: 16, fontWeight: 600 }}>{label}</span>
+                    <span style={{ fontSize: isMobile ? 40 : 15, fontWeight: 600 }}>{label}</span>
                     {showDomain && (
-                      <span style={{ fontSize: 12, color: 'var(--mzr-text-muted)' }}>{merchant.domain}</span>
+                      <span style={{ fontSize: isMobile ? 38 : 15, color: 'var(--mzr-text-muted)' }}>{merchant.domain}</span>
                     )}
                   </div>
                 </button>

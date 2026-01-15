@@ -156,7 +156,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
     border: '1px solid rgba(0,0,0,0.08)',
     padding: '12px 16px',
     marginBottom: mode === 'mobile' ? 40 : 20,
-    background: 'rgba(255,255,255,0.6)'
+    background: 'var(--mzr-surface-weak)'
   };
 
   const renderCouponCard = (coupon: CouponEntry, index: number): React.ReactNode => {
@@ -320,6 +320,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             <CountrySelect
               value={country}
               onChange={onCountryChange}
+              chevronSize={mode === 'mobile' ? 36 : 14}
               selectStyle={{
                 padding: '8px 12px',
                 borderRadius: 10,

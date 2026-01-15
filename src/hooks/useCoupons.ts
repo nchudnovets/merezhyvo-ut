@@ -78,10 +78,15 @@ const deriveOriginFromUrl = (value?: string | null): string => {
   }
 };
 
+const normalizeMatchValue = (value: string): string => {
+  const normalized = value.trim().toLowerCase();
+  return normalized.startsWith('www.') ? normalized.slice(4) : normalized;
+};
+
 const isHostMatchingDomain = (host: string | null | undefined, domain: string): boolean => {
   if (!host || !domain) return false;
-  const normalizedHost = host.toLowerCase();
-  const normalizedDomain = domain.toLowerCase();
+  const normalizedHost = normalizeMatchValue(host);
+  const normalizedDomain = normalizeMatchValue(domain);
   if (normalizedHost === normalizedDomain) return true;
   if (normalizedHost.endsWith(`.${normalizedDomain}`)) return true;
   if (normalizedDomain.endsWith(`.${normalizedHost}`)) return true;
@@ -350,11 +355,7 @@ export const useCoupons = ({
     return catalog.merchants.some((merchant) => {
       const domain = merchant.domain;
       if (!domain) return false;
-      return (
-        activeHost === domain ||
-        activeHost.endsWith(`.${domain}`) ||
-        domain.endsWith(`.${activeHost}`)
-      );
+      return isHostMatchingDomain(activeHost, domain);
     });
   }, [activeHost, activeUrl, effectiveSavingsCountry, savingsSettings.catalog, savingsSettings.enabled]);
 

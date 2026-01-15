@@ -100,6 +100,7 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
           onChange={onCountryChange}
           includeAuto
           autoLabel={t('settings.savings.country.auto')}
+          chevronSize={isMobile ? 36 : 14}
           selectStyle={{...selectStyle, ...{width: '100%'}}}
         />
       </div>
