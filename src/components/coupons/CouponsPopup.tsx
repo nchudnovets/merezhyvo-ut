@@ -338,7 +338,6 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
         <div style={{ marginBottom: 16, fontSize: mode === 'mobile' ? 38 : 16 }}>
           {status === 'idle' && (
             <>
-              {/* <p>{t('coupons.popup.idle')}</p> */}
               <button
                 type="button"
                 onClick={onFindCoupons}
@@ -453,9 +452,6 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                 <div style={{ ...sectionHeaderStyle, marginBottom: mode === 'mobile' ? 40 : 20 }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{t('coupons.popup.results.older')}</div>
-                    {/* <div style={{ fontSize: mode === 'mobile' ? 32 : 12, color: 'var(--mzr-text-muted)' }}>
-                      {t('coupons.popup.results.olderChance')}
-                    </div> */}
                   </div>
                   <button
                     type="button"
