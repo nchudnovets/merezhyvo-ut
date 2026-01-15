@@ -113,6 +113,74 @@ const installTouchFeaturePolyfills = (): void => {
 installTouchFeaturePolyfills();
 
 /** -------------------------------
+ *  Open links in host tab
+ *  ------------------------------- */
+const installOpenUrlBridge = (): void => {
+  const resolveUrl = (raw: string): string => {
+    const trimmed = String(raw || '').trim();
+    if (!trimmed) return '';
+    try {
+      return new URL(trimmed, window.location.href).toString();
+    } catch {
+      return '';
+    }
+  };
+
+  const sendOpenUrl = (url: string): void => {
+    if (!url) return;
+    try {
+      ipcRenderer.sendToHost('mzr:webview:open-url', { url });
+    } catch {
+      // noop
+    }
+  };
+
+  try {
+    const originalOpen = window.open;
+    window.open = function (...args: unknown[]) {
+      const raw = args[0] as string | URL | undefined;
+      const url = raw instanceof URL ? raw.toString() : typeof raw === 'string' ? raw : '';
+      const resolved = resolveUrl(url);
+      if (resolved) {
+        sendOpenUrl(resolved);
+        return null;
+      }
+      return typeof originalOpen === 'function' ? originalOpen.apply(window, args as never[]) : null;
+    };
+  } catch {
+    // noop
+  }
+
+  try {
+    document.addEventListener(
+      'click',
+      (event) => {
+        if (event.defaultPrevented) return;
+        const mouse = event as MouseEvent;
+        if (typeof mouse.button === 'number' && mouse.button !== 0) return;
+        const target = event.target as Element | null;
+        const anchor = target?.closest?.('a') ?? null;
+        if (!anchor) return;
+        const href = anchor.getAttribute('href') ?? '';
+        if (!href) return;
+        const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
+        if (targetAttr !== '_blank' && targetAttr !== '_new') return;
+        if (anchor.hasAttribute('download')) return;
+        const resolved = resolveUrl(href);
+        if (!resolved) return;
+        event.preventDefault();
+        sendOpenUrl(resolved);
+      },
+      true
+    );
+  } catch {
+    // noop
+  }
+};
+
+installOpenUrlBridge();
+
+/** -------------------------------
  *  WebRTC policy enforcement
  *  ------------------------------- */
 

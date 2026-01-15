@@ -8,8 +8,18 @@ export function attachLinkPolicy(contents?: WebContents) {
   try { contents.setMaxListeners(50); } catch {}
 
   try { contents.setVisualZoomLevelLimits(1, 3); } catch {}
-  contents.setWindowOpenHandler(({ url }) => {
+  const handleOpen = (url: string) => {
+    if (!url) return;
     handleWindowOpenFromContents(contents, url);
+  };
+  contents.setWindowOpenHandler(({ url }) => {
+    handleOpen(url);
     return { action: 'deny' };
+  });
+  contents.on('new-window', (event, url: string) => {
+    try {
+      event.preventDefault();
+    } catch {}
+    handleOpen(typeof url === 'string' ? url : '');
   });
 }

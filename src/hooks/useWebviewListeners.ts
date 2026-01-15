@@ -24,6 +24,7 @@ type Params = {
   fullscreenTabRef: MutableRefObject<string | null>;
   setIsHtmlFullscreen: (value: boolean) => void;
   webviewFocusedRef: MutableRefObject<boolean>;
+  openNewTab: (url: string) => void;
 };
 
 export const useWebviewListeners = ({
@@ -36,7 +37,8 @@ export const useWebviewListeners = ({
   destroyTabView,
   fullscreenTabRef,
   setIsHtmlFullscreen,
-  webviewFocusedRef
+  webviewFocusedRef,
+  openNewTab
 }: Params) => {
   return useCallback((view: WebviewTag, tabId: string) => {
     const handleTitle = (event: WebviewTitleEvent | null | undefined) => {
@@ -86,6 +88,25 @@ export const useWebviewListeners = ({
       }
     };
 
+    const openWindowUrl = (rawUrl: unknown) => {
+      const nextUrl = typeof rawUrl === 'string' ? rawUrl : '';
+      if (!nextUrl) return;
+      openNewTab(nextUrl);
+    };
+
+    const handleIpcMessage = (event: Event) => {
+      const payload = event as { channel?: unknown; args?: unknown[] };
+      if (payload.channel !== 'mzr:webview:open-url') return;
+      const raw = Array.isArray(payload.args) ? payload.args[0] : undefined;
+      if (typeof raw === 'string') {
+        openWindowUrl(raw);
+        return;
+      }
+      if (raw && typeof raw === 'object' && typeof (raw as { url?: unknown }).url === 'string') {
+        openWindowUrl((raw as { url?: string }).url);
+      }
+    };
+
     const injectBaseCss = () => {
       const css = baseCssRef.current;
       if (!css) return;
@@ -112,6 +133,7 @@ export const useWebviewListeners = ({
     view.addEventListener('media-paused', handleMediaPaused);
     view.addEventListener('enter-html-full-screen', handleEnterFullscreen);
     view.addEventListener('leave-html-full-screen', handleLeaveFullscreen);
+    view.addEventListener('ipc-message', handleIpcMessage);
 
     injectBaseCss();
 
@@ -122,6 +144,7 @@ export const useWebviewListeners = ({
       view.removeEventListener('media-paused', handleMediaPaused);
       view.removeEventListener('enter-html-full-screen', handleEnterFullscreen);
       view.removeEventListener('leave-html-full-screen', handleLeaveFullscreen);
+      view.removeEventListener('ipc-message', handleIpcMessage);
       view.removeEventListener('dom-ready', injectBaseCss);
       view.removeEventListener('did-navigate', injectBaseCss);
       view.removeEventListener('did-navigate-in-page', injectBaseCss);
@@ -135,6 +158,7 @@ export const useWebviewListeners = ({
     fullscreenTabRef,
     isYouTubeTab,
     playingTabsRef,
+    openNewTab,
     setIsHtmlFullscreen,
     updateMetaAction,
     updatePowerBlocker,

@@ -330,6 +330,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const activeIdRef = useRef<string | null>(activeId);
   const activeTabRef = useRef<Tab | null>(activeTab ?? null);
   const lastLoadedRef = useRef<LastLoadedInfo>({ id: null, url: null });
+  const lastNewWindowRef = useRef<{ url: string; at: number } | null>(null);
 
   const isServiceTab = (tab: Tab): boolean => (tab.url ?? '').trim().toLowerCase().startsWith('mzr://');
   const pinnedTabs = useMemo(() => tabs.filter((tab) => tab.pinned && !isServiceTab(tab)), [tabs]);
@@ -348,6 +349,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     reloadActive: reloadActiveAction,
     updateMeta: updateMetaAction
   } = tabsActions;
+
+  const openUrlInNewTab = useCallback((rawUrl: string) => {
+    const url = rawUrl.trim();
+    if (!url) return;
+    const now = Date.now();
+    const last = lastNewWindowRef.current;
+    if (last && last.url === url && now - last.at < 400) {
+      return;
+    }
+    lastNewWindowRef.current = { url, at: now };
+    newTabAction(url);
+  }, [newTabAction]);
 
   
   useEffect(() => {
@@ -974,7 +987,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     destroyTabView,
     fullscreenTabRef,
     setIsHtmlFullscreen,
-    webviewFocusedRef
+    webviewFocusedRef,
+    openNewTab: openUrlInNewTab
   });
 
   useEffect(() => {
@@ -1793,7 +1807,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const { url } =
         typeof arg === 'string' ? { url: arg } : (arg || {});
       if (!url) return;
-      newTabAction(String(url));
+      openUrlInNewTab(String(url));
     });
     return () => {
       if (typeof off === 'function') {
