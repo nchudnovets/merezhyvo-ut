@@ -114,7 +114,7 @@ const getMerchantDisplay = (raw: MerchantEntry): MerchantDisplay | null => {
   return { domain, name, label, imageUrl };
 };
 
-const MerchantLogo: React.FC<{ imageUrl: string; label: string }> = ({ imageUrl, label }) => {
+const MerchantLogo: React.FC<{ imageUrl: string; label: string; mode: string }> = ({ imageUrl, label, mode }) => {
   const [errorSrc, setErrorSrc] = useState<string | null>(null);
   const shouldShowImage = !!imageUrl && errorSrc !== imageUrl;
 
@@ -127,8 +127,8 @@ const MerchantLogo: React.FC<{ imageUrl: string; label: string }> = ({ imageUrl,
           if (imageUrl) setErrorSrc(imageUrl);
         }}
         style={{
-          width: 36,
-          height: 36,
+          width: mode === 'mobile' ? 100 : 36,
+          height: mode === 'mobile' ? 100 : 36,
           borderRadius: '6px',
           objectFit: 'contain'
         }}
@@ -449,7 +449,7 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
                     cursor: 'pointer'
                   }}
                 >
-                  <MerchantLogo imageUrl={imageUrl} label={label} />
+                  <MerchantLogo imageUrl={imageUrl} label={label} mode={mode} />
                   <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'flex-start' }}>
                     <span style={{ fontSize: isMobile ? 40 : 15, fontWeight: 600 }}>{label}</span>
                     {showDomain && (
