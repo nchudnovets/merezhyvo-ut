@@ -82,7 +82,16 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
         </div>
       </label>
 
-      <div style={{ ...styles.settingsRow, ...(modeStyles.settingsRow || {}) }}>
+      <div
+        style={{
+          ...styles.settingsRow, ...(modeStyles.settingsRow || {}),
+          ...{
+            flexDirection: 'column',
+            alignItems: 'start',
+            marginTop: mode === 'mobile' ? 30 : 15,
+            gap: mode === 'mobile' ? 30 : 10
+          }
+        }}>
         <span style={{ fontSize: isMobile ? '36px' : '14px', fontWeight: 600 }}>
           {t('settings.savings.country.label')}
         </span>
@@ -91,7 +100,7 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
           onChange={onCountryChange}
           includeAuto
           autoLabel={t('settings.savings.country.auto')}
-          selectStyle={selectStyle}
+          selectStyle={{...selectStyle, ...{width: '100%'}}}
         />
       </div>
 
@@ -100,7 +109,7 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
           ...styles.settingsMessage,
           ...(modeStyles.settingsMessage || {}),
           color: 'var(--mzr-text-secondary)',
-          marginBottom: 0
+          marginBottom: mode === 'mobile' ? 20 : 10
         }}
       >
         {t('settings.savings.country.helper')}
@@ -109,15 +118,15 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
         type="button"
         onClick={onOpenCouponsInfo}
         style={{
-          marginTop: isMobile ? 12 : 8,
-          border: 'none',
-          background: 'none',
+          marginTop: isMobile ? 6 : 4,
+          alignSelf: 'flex-start',
           padding: 0,
-          color: 'var(--mzr-accent)',
-          fontWeight: 600,
-          fontSize: isMobile ? '36px' : '14px',
-          textAlign: 'left',
-          cursor: 'pointer'
+          background: 'transparent',
+          border: 'none',
+          color: 'var(--mzr-focus-ring)',
+          cursor: 'pointer',
+          textDecoration: 'underline',
+          fontSize: isMobile ? '35px' : '14px'
         }}
       >
         {t('coupons.info.link')}
