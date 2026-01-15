@@ -264,7 +264,7 @@ type UseCouponsArgs = {
   torEnabled: boolean;
   torKeepEnabled: boolean;
   showGlobalToast: (message: string) => void;
-  t: (key: string, params?: Record<string, unknown>) => string;
+  t: (key: string, params?: Record<string, string | number>) => string;
   newTabAction: (url: string) => void;
   copyTextToClipboard: (text: string) => Promise<boolean>;
 };

@@ -192,7 +192,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewReadyRef = useRef<boolean>(false);
   const activeWcIdRef = useRef<number | null>(null);
   const webviewFocusedRef = useRef<boolean>(false);
-  const { t, language } = useI18n();
+  const { t } = useI18n();
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
@@ -1816,7 +1816,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         } catch {}
       }
     };
-  }, [newTabAction]);
+  }, [openUrlInNewTab]);
 
   useEffect(() => {
     if (!tabsReady) return;
