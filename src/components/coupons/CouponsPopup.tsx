@@ -1,7 +1,7 @@
-import React, { useMemo, useState } from 'react';
+import React, { useState } from 'react';
 import type { Mode, CouponEntry, CouponsForPageResponse, PendingCoupon } from '../../types/models';
-import { getCountryOptions } from '../../utils/countries';
 import { useI18n } from '../../i18n/I18nProvider';
+import CountrySelect from './CountrySelect';
 
 export type CouponsPopupStatus = 'idle' | 'loading' | 'syncing' | 'error' | 'results';
 
@@ -14,7 +14,7 @@ type CouponsPopupProps = {
   data?: CouponsForPageResponse;
   errorMessage?: string;
   syncingUntil: string | null;
-  onCountryChange: (value: string) => void;
+  onCountryChange: (value: string | null) => void;
   onFindCoupons: () => void;
   onClose: () => void;
   pendingCoupon: PendingCoupon | null;
@@ -24,6 +24,7 @@ type CouponsPopupProps = {
   onInsertCoupon: (coupon: CouponEntry) => void;
   onReportInvalid: (coupon: CouponEntry) => void;
   pageOrigin: string | null;
+  onOpenCouponsInfo: () => void;
 };
 
 const formatHost = (host?: string | null): string => (host ? host : 'this site');
@@ -132,11 +133,11 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
   activeHost,
   onApplyCoupon,
   onInsertCoupon,
-  onReportInvalid
+  onReportInvalid,
+  onOpenCouponsInfo
 }) => {
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const [olderExpanded, setOlderExpanded] = useState<boolean>(false);
-  const countryOptions = useMemo(() => getCountryOptions(language), [language]);
 
   const localFreshCoupons = data?.local.fresh.coupons ?? [];
   const worldwideFreshCoupons = data?.worldwide.fresh.coupons ?? [];
@@ -232,6 +233,30 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             </button>
           )}
         </div>
+        <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: '1px solid var(--mzr-border)',
+            textAlign: 'center'
+          }}
+        >
+          <button
+            type="button"
+            onClick={onOpenCouponsInfo}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              color: 'var(--mzr-accent)',
+              fontWeight: 600,
+              fontSize: mode === 'mobile' ? 36 : 14,
+              cursor: 'pointer'
+            }}
+          >
+            {t('coupons.popup.howItWorks')}
+          </button>
+        </div>
       </div>
     );
   };
@@ -307,10 +332,10 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mzr-text-muted)' }}>
               {t('settings.savings.country.label')}
             </span>
-            <select
+            <CountrySelect
               value={country}
-              onChange={(event) => onCountryChange(event.target.value)}
-              style={{
+              onChange={onCountryChange}
+              selectStyle={{
                 padding: '8px 12px',
                 borderRadius: 10,
                 border: '1px solid var(--mzr-border)',
@@ -319,13 +344,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                 fontSize: 16,
                 outline: 'none'
               }}
-            >
-              {countryOptions.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {option.label}
-                </option>
-              ))}
-            </select>
+            />
           </label>
         </div>
 

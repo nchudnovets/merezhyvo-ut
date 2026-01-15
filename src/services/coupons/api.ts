@@ -1,5 +1,5 @@
 import { normalizeCountryCode } from '../../utils/savings';
-import type { CouponsForPageResponse } from '../../types/models';
+import type { CouponsForPageResponse, MerchantEntry } from '../../types/models';
 
 export const COUPONS_API_BASE_URL = 'https://api.merezhyvo.site';
 export const COUPONS_X_APP_KEY = '0Ayg3BFHkFsYZgOZ6VZddEPfSynqLDU0GldC3L0QZJg=';
@@ -7,7 +7,7 @@ export const COUPONS_X_CLIENT = 'merezhyvo';
 export const COUPONS_API_TIMEOUT_MS = 15000;
 
 export type MerchantsCatalogResult =
-  | { status: 'ok'; domains: string[]; etag: string | null }
+  | { status: 'ok'; merchants: MerchantEntry[]; etag: string | null }
   | { status: 'not_modified'; etag: string | null }
   | { status: 'syncing'; retryAfterSeconds: number }
   | { status: 'error'; error?: string };
@@ -49,6 +49,52 @@ const normalizeDomain = (value: unknown): string | null => {
   return trimmed;
 };
 
+const normalizeMerchantName = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeImageUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeMerchantRecord = (raw: unknown): MerchantEntry | null => {
+  const candidate =
+    typeof raw === 'string'
+      ? raw
+      : extractDomain(raw);
+  const domain = normalizeDomain(candidate);
+  if (!domain) return null;
+  const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
+  const name = normalizeMerchantName(record.name ?? record.title ?? record.label ?? null);
+  const imageUrl = normalizeImageUrl(record.imageUrl ?? record.logo ?? null);
+  return { domain, name, imageUrl: imageUrl ?? undefined };
+};
+
+const parseMerchants = (payload: unknown): MerchantEntry[] => {
+  const candidateList = Array.isArray(payload)
+    ? payload
+    : payload && typeof payload === 'object'
+      ? Array.isArray((payload as { merchants?: unknown }).merchants)
+        ? (payload as { merchants: unknown[] }).merchants
+        : Array.isArray((payload as { domains?: unknown }).domains)
+          ? (payload as { domains: unknown[] }).domains
+          : []
+      : [];
+  const merchantsMap = new Map<string, MerchantEntry>();
+  for (const rawItem of candidateList) {
+    const entry = normalizeMerchantRecord(rawItem);
+    if (!entry) continue;
+    if (!merchantsMap.has(entry.domain)) {
+      merchantsMap.set(entry.domain, entry);
+    }
+  }
+  return Array.from(merchantsMap.values());
+};
+
 const extractDomain = (value: unknown): string | null => {
   if (typeof value === 'string') return value;
   if (value && typeof value === 'object') {
@@ -58,22 +104,6 @@ const extractDomain = (value: unknown): string | null => {
     if (typeof record.url === 'string') return record.url;
   }
   return null;
-};
-
-const parseDomains = (payload: unknown): string[] => {
-  const list = Array.isArray(payload)
-    ? payload
-    : payload && typeof payload === 'object'
-      ? Array.isArray((payload as { domains?: unknown }).domains)
-        ? (payload as { domains: unknown[] }).domains
-        : Array.isArray((payload as { merchants?: unknown }).merchants)
-          ? (payload as { merchants: unknown[] }).merchants
-          : []
-      : [];
-  const domains = list
-    .map((item) => normalizeDomain(extractDomain(item)))
-    .filter((item): item is string => Boolean(item));
-  return Array.from(new Set(domains));
 };
 
 const getEtag = (response: Response): string | null => (
@@ -112,8 +142,8 @@ export const fetchMerchantsCatalog = async (
 
     if (response.status === 200) {
       const payload = await response.json().catch(() => null);
-      const domains = parseDomains(payload);
-      return { status: 'ok', domains, etag: getEtag(response) };
+      const merchants = parseMerchants(payload);
+      return { status: 'ok', merchants, etag: getEtag(response) };
     }
 
     if (response.status === 304) {

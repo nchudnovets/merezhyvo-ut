@@ -2,7 +2,7 @@ import type { MerchantsCatalogCache, SavingsSettings } from '../types/models';
 
 export const DEFAULT_SAVINGS_CATALOG: MerchantsCatalogCache = {
   country: null,
-  domains: [],
+  merchants: [],
   updatedAt: null,
   etag: null,
   nextAllowedFetchAt: null,

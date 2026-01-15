@@ -81,9 +81,15 @@ export type SavingsFloatingButtonPos = {
   y: number;
 };
 
+export type MerchantEntry = {
+  domain: string;
+  name: string | null;
+  imageUrl?: string | null;
+};
+
 export type MerchantsCatalogCache = {
   country: string | null;
-  domains: string[];
+  merchants: MerchantEntry[];
   updatedAt: string | null;
   etag: string | null;
   nextAllowedFetchAt: string | null;
@@ -279,7 +285,7 @@ const DEFAULT_SECURE_DNS: SecureDnsSettings = {
 };
 const DEFAULT_SAVINGS_CATALOG: MerchantsCatalogCache = {
   country: null,
-  domains: [],
+  merchants: [],
   updatedAt: null,
   etag: null,
   nextAllowedFetchAt: null,
@@ -423,6 +429,28 @@ const normalizeDomain = (value: unknown): string | null => {
   return trimmed;
 };
 
+const normalizeMerchantName = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeImageUrl = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
+const normalizeMerchantEntry = (value: unknown): MerchantEntry | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const candidate = value as { domain?: unknown; name?: unknown; imageUrl?: unknown };
+  const domain = normalizeDomain(candidate.domain);
+  if (!domain) return null;
+  const name = normalizeMerchantName(candidate.name);
+  const imageUrl = normalizeImageUrl(candidate.imageUrl);
+  return { domain, name, imageUrl: imageUrl ?? undefined };
+};
+
 const normalizeIsoDate = (value: unknown): string | null => {
   if (typeof value !== 'string') return null;
   const ts = Date.parse(value);
@@ -470,12 +498,30 @@ export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
   const posY = posRaw && typeof posRaw.y === 'number' && Number.isFinite(posRaw.y) ? posRaw.y : null;
   const floatingButtonPos = (posX !== null && posY !== null) ? { x: posX, y: posY } : null;
   const catalogRaw = (source.catalog && typeof source.catalog === 'object') ? source.catalog as Partial<MerchantsCatalogCache> : {};
-  const domains = Array.isArray(catalogRaw.domains)
-    ? Array.from(new Set(catalogRaw.domains.map(normalizeDomain).filter((item): item is string => Boolean(item))))
-    : [];
+  const merchants: MerchantEntry[] = [];
+  const seenDomains = new Set<string>();
+  if (Array.isArray(catalogRaw.merchants)) {
+    for (const rawEntry of catalogRaw.merchants) {
+      const normalized = normalizeMerchantEntry(rawEntry);
+      if (normalized && !seenDomains.has(normalized.domain)) {
+        seenDomains.add(normalized.domain);
+        merchants.push(normalized);
+      }
+    }
+  }
+  const fallbackDomains = (catalogRaw as { domains?: unknown }).domains;
+  if (merchants.length === 0 && Array.isArray(fallbackDomains)) {
+    for (const rawDomain of fallbackDomains) {
+      const normalizedDomain = normalizeDomain(rawDomain);
+      if (normalizedDomain && !seenDomains.has(normalizedDomain)) {
+        seenDomains.add(normalizedDomain);
+        merchants.push({ domain: normalizedDomain, name: null });
+      }
+    }
+  }
   const catalog: MerchantsCatalogCache = {
     country: normalizeCountryCode(catalogRaw.country) ?? DEFAULT_SAVINGS_CATALOG.country,
-    domains,
+    merchants,
     updatedAt: normalizeIsoDate(catalogRaw.updatedAt) ?? DEFAULT_SAVINGS_CATALOG.updatedAt,
     etag: typeof catalogRaw.etag === 'string' ? catalogRaw.etag : DEFAULT_SAVINGS_CATALOG.etag,
     nextAllowedFetchAt: normalizeIsoDate(catalogRaw.nextAllowedFetchAt) ?? DEFAULT_SAVINGS_CATALOG.nextAllowedFetchAt,

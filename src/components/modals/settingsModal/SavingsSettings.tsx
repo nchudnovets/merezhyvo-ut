@@ -1,11 +1,10 @@
-import React, { useMemo } from 'react';
+import React from 'react';
 
 import { useI18n } from '../../../i18n/I18nProvider';
 import type { Mode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
-import { getCountryLabel, getCountryOptions } from '../../../utils/countries';
-import { normalizeCountryCode } from '../../../utils/savings';
+import CountrySelect from '../../coupons/CountrySelect';
 
 type SavingsSettingsProps = {
   mode: Mode;
@@ -13,6 +12,7 @@ type SavingsSettingsProps = {
   countrySaved: string | null;
   onEnabledChange: (value: boolean) => void;
   onCountryChange: (value: string | null) => void;
+  onOpenCouponsInfo: () => void;
 };
 
 const SavingsSettings: React.FC<SavingsSettingsProps> = ({
@@ -20,11 +20,12 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
   enabled,
   countrySaved,
   onEnabledChange,
-  onCountryChange
+  onCountryChange,
+  onOpenCouponsInfo
 }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
-  const { t, language } = useI18n();
+  const { t } = useI18n();
   const isMobile = mode === 'mobile';
   const toggleTrackWidth = isMobile ? 90 : 48;
   const toggleTrackHeight = isMobile ? 48 : 24;
@@ -32,19 +33,6 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
   const selectStyle = isMobile && modeStyles.settingsSelect
     ? { ...styles.settingsSelect, ...modeStyles.settingsSelect }
     : styles.settingsSelect;
-
-  const normalizedSaved = normalizeCountryCode(countrySaved);
-  const options = useMemo(() => {
-    const list = getCountryOptions(language);
-    if (normalizedSaved && !list.some((option) => option.value === normalizedSaved)) {
-      const label = getCountryLabel(language, normalizedSaved);
-      list.unshift({
-        value: normalizedSaved,
-        label: label === normalizedSaved ? normalizedSaved : `${label} (${normalizedSaved})`
-      });
-    }
-    return list;
-  }, [language, normalizedSaved]);
 
   const renderToggle = (checked: boolean, onChangeChecked: (value: boolean) => void): React.ReactElement => (
     <span style={{ position: 'relative', width: toggleTrackWidth, height: toggleTrackHeight, flexShrink: 0, display: 'inline-block' }}>
@@ -98,21 +86,13 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
         <span style={{ fontSize: isMobile ? '36px' : '14px', fontWeight: 600 }}>
           {t('settings.savings.country.label')}
         </span>
-        <select
-          value={normalizedSaved ?? ''}
-          onChange={(event) => {
-            const value = event.target.value;
-            onCountryChange(value ? value : null);
-          }}
-          style={selectStyle}
-        >
-          <option value="">{t('settings.savings.country.auto')}</option>
-          {options.map((option) => (
-            <option key={option.value} value={option.value}>
-              {option.label}
-            </option>
-          ))}
-        </select>
+        <CountrySelect
+          value={countrySaved}
+          onChange={onCountryChange}
+          includeAuto
+          autoLabel={t('settings.savings.country.auto')}
+          selectStyle={selectStyle}
+        />
       </div>
 
       <p
@@ -125,6 +105,23 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
       >
         {t('settings.savings.country.helper')}
       </p>
+      <button
+        type="button"
+        onClick={onOpenCouponsInfo}
+        style={{
+          marginTop: isMobile ? 12 : 8,
+          border: 'none',
+          background: 'none',
+          padding: 0,
+          color: 'var(--mzr-accent)',
+          fontWeight: 600,
+          fontSize: isMobile ? '36px' : '14px',
+          textAlign: 'left',
+          cursor: 'pointer'
+        }}
+      >
+        {t('coupons.info.link')}
+      </button>
     </div>
   );
 };

@@ -247,9 +247,15 @@ export type SavingsFloatingButtonPos = {
   y: number;
 };
 
+export type MerchantEntry = {
+  domain: string;
+  name: string | null;
+  imageUrl?: string | null;
+};
+
 export type MerchantsCatalogCache = {
   country: string | null;
-  domains: string[];
+  merchants: MerchantEntry[];
   updatedAt: string | null;
   etag: string | null;
   nextAllowedFetchAt: string | null;

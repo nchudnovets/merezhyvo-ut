@@ -97,6 +97,7 @@ interface SettingsModalProps {
   onOpenSecurityExceptions: () => void;
   onOpenSiteData: () => void;
   onOpenPrivacyInfo: () => void;
+  onOpenCouponsInfo: () => void;
   blockingMode: BlockingMode;
   onBlockingModeChange: (mode: BlockingMode) => void;
   trackersEnabled: boolean;
@@ -173,6 +174,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
   onOpenSecurityExceptions,
   onOpenSiteData,
   onOpenPrivacyInfo,
+  onOpenCouponsInfo,
   blockingMode,
   onBlockingModeChange,
   trackersEnabled,
@@ -429,6 +431,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
                 countrySaved={savingsCountrySaved}
                 onEnabledChange={onSavingsEnabledChange}
                 onCountryChange={onSavingsCountryChange}
+                onOpenCouponsInfo={onOpenCouponsInfo}
               />
             }
           />

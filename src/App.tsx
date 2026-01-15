@@ -21,7 +21,7 @@ import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
 import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
 import CouponsFloatingButton from './components/coupons/CouponsFloatingButton';
-import CouponsPopup, { type CouponsPopupStatus } from './components/coupons/CouponsPopup';
+import CouponsPopup from './components/coupons/CouponsPopup';
 import type { WebViewHandle, StatusState } from './components/webview/WebViewHost';
 import { styles } from './styles/styles';
 import { getThemeVars } from './styles/theme';
@@ -32,6 +32,7 @@ import PasswordsPage from './pages/passwords/PasswordsPage';
 import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import SiteDataPage from './pages/siteData/SiteDataPage';
 import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
+import CouponsInfoPage from './pages/coupons/CouponsInfoPage';
 import NetworkInfoPage from './pages/networkInfo/NetworkInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
@@ -43,6 +44,7 @@ import { useAppInfo } from './hooks/useAppInfo';
 import { useGlobalToast } from './hooks/useGlobalToast';
 import { useHttpsSecurity } from './hooks/useHttpsSecurity';
 import { useCookiePrivacy } from './hooks/useCookiePrivacy';
+import { useCoupons } from './hooks/useCoupons';
 import { useMobileSoftKeyboard } from './hooks/useMobileSoftKeyboard';
 import { useUrlSuggestions } from './hooks/useUrlSuggestions';
 import { useToolbarHeights } from './hooks/useToolbarHeights';
@@ -60,12 +62,9 @@ import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
 import { windowHelpers } from './services/window/window';
-import { fetchCouponsForPage } from './services/coupons/api';
-import { getCachedCouponsForPage, setCachedCouponsForPage } from './services/coupons/cache';
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
-import { getPopupCountry } from './utils/savings';
 import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
@@ -84,11 +83,7 @@ import type {
   ThemeName,
   SecureDnsMode,
   SecureDnsProvider,
-  SecureDnsSettings,
-  SavingsSettings,
-  CouponsForPageResponse,
-  CouponEntry,
-  PendingCoupon
+  SecureDnsSettings
 } from './types/models';
 import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
@@ -103,8 +98,6 @@ import { useKeyboardLayouts } from './hooks/useKeyboardLayouts';
 import { useTheme } from './hooks/useTheme';
 import { useWebviewZoom } from './hooks/useWebviewZoom';
 import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './utils/zoom';
-import { DEFAULT_SAVINGS_CATALOG, DEFAULT_SAVINGS_SETTINGS, getEffectiveCountry, mergeSavingsSettings, normalizeCountryCode } from './utils/savings';
-import { fetchMerchantsCatalog, reportInvalidCoupon } from './services/coupons/api';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
@@ -118,46 +111,6 @@ type LastLoadedInfo = {
 type KeyboardDirection = 'ArrowLeft' | 'ArrowRight';
 
 type SecurityIndicatorState = 'ok' | 'warn' | 'notice';
-type CouponsPopupDataState = {
-  status: CouponsPopupStatus;
-  data?: CouponsForPageResponse;
-  errorMessage?: string;
-  syncingUntil?: string | null;
-};
-
-const deriveHostnameFromUrl = (value?: string | null): string => {
-  if (!value) return '';
-  try {
-    const url = new URL(value);
-    let host = url.hostname.toLowerCase();
-    if (host.startsWith('www.')) {
-      host = host.slice(4);
-    }
-    return host;
-  } catch {
-    let safe = value.trim().toLowerCase();
-    if (!safe) return '';
-    const slashIndex = safe.indexOf('/');
-    if (slashIndex !== -1) {
-      safe = safe.slice(0, slashIndex);
-    }
-    if (safe.startsWith('www.')) {
-      safe = safe.slice(4);
-    }
-    return safe;
-  }
-};
-
-const deriveOriginFromUrl = (value?: string | null): string => {
-  if (!value) return '';
-  try {
-    const url = new URL(value);
-    return `${url.protocol}//${url.hostname}`;
-  } catch {
-    const host = deriveHostnameFromUrl(value);
-    return host ? `https://${host}` : '';
-  }
-};
 
 type MainBrowserAppProps = {
   initialUrl: string;
@@ -226,179 +179,6 @@ const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
   zIndex: 5
 };
 
-const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
-const PENDING_COUPON_TTL_MS = 2 * 60 * 60 * 1000;
-
-const COUPON_FIELD_KEYWORDS = [
-  'coupon', 'coupons', 'promo', 'promocode', 'promo code', 'discount', 'voucher', 'code', 'gift', 'deal'
-];
-const CART_PAGE_KEYWORDS = ['cart', 'checkout', 'basket', 'order', 'payment', 'bag'];
-
-const isHostMatchingDomain = (host: string | null | undefined, domain: string): boolean => {
-  if (!host || !domain) return false;
-  const normalizedHost = host.toLowerCase();
-  const normalizedDomain = domain.toLowerCase();
-  if (normalizedHost === normalizedDomain) return true;
-  if (normalizedHost.endsWith(`.${normalizedDomain}`)) return true;
-  if (normalizedDomain.endsWith(`.${normalizedHost}`)) return true;
-  return false;
-};
-
-const buildInsertCouponScript = (code: string, requireCheckoutKeywords: boolean, requireCouponKeywords: boolean): string => {
-  const fieldKeywords = JSON.stringify(COUPON_FIELD_KEYWORDS);
-  const pageKeywords = JSON.stringify(CART_PAGE_KEYWORDS);
-  return `
-    (() => {
-      const couponCode = ${JSON.stringify(code)};
-      if (!couponCode) {
-        return { inserted: false, reason: 'empty_code' };
-      }
-      const keywords = ${fieldKeywords};
-      const pageKeywords = ${pageKeywords};
-      const requireCheckout = ${requireCheckoutKeywords ? 'true' : 'false'};
-      const normalize = (value) => (value ? value.toLowerCase() : '');
-      const path = normalize(location.pathname);
-      const title = normalize(document.title);
-      if (requireCheckout) {
-        const matches = pageKeywords.some((keyword) => path.includes(keyword) || title.includes(keyword));
-        if (!matches) {
-          return { inserted: false, reason: 'not_cart' };
-        }
-      }
-      const isTextInput = (el) => {
-        const tag = (el.tagName || '').toLowerCase();
-        if (tag === 'textarea') {
-          return true;
-        }
-        if (tag !== 'input') {
-          return false;
-        }
-        const type = (el.getAttribute('type') || '').toLowerCase();
-        const blocked = ['button', 'submit', 'reset', 'checkbox', 'radio', 'file', 'hidden', 'image', 'range', 'color', 'date', 'time', 'datetime-local'];
-        if (blocked.includes(type) || type === 'password') {
-          return false;
-        }
-        return true;
-      };
-      const collectElements = () => Array.from(document.querySelectorAll('input, textarea')).filter(
-        (el) => el && el instanceof HTMLElement && isTextInput(el)
-      );
-      const getLabelText = (el) => {
-        if (el.labels && el.labels.length) {
-          return Array.from(el.labels).map((label) => label.textContent || '').join(' ').toLowerCase();
-        }
-        const ancestor = el.closest('label');
-        if (ancestor) {
-          return (ancestor.textContent || '').toLowerCase();
-        }
-        return '';
-      };
-      const buildHaystack = (el) => {
-        const pieces = [
-          el.id,
-          el.name,
-          el.placeholder,
-          el.getAttribute('aria-label'),
-          el.getAttribute('title'),
-          el.className,
-          getLabelText(el)
-        ];
-        const haystack = pieces.filter(Boolean).join(' ').toLowerCase();
-        return haystack;
-      };
-      const scoreElement = (el) => {
-        const haystack = buildHaystack(el);
-        let score = 0;
-        keywords.forEach((keyword) => {
-          if (haystack.includes(keyword)) {
-            score += 10;
-          }
-        });
-        return { score, haystack };
-      };
-      const attemptInsertion = () => {
-        const elements = collectElements();
-        if (!elements.length) {
-          return { inserted: false, reason: 'no_candidates' };
-        }
-        const scored = elements.map((element) => ({ element, ...scoreElement(element) }));
-        const priority = scored.filter((item) => item.score > 0);
-        const candidates = priority.length ? priority : scored;
-        let best = { element: null, score: -1 };
-        for (const candidate of candidates) {
-          if (candidate.score > best.score) {
-            best = { element: candidate.element, score: candidate.score };
-          }
-        }
-        const target = best.element || (candidates[0] && candidates[0].element);
-        if (!target) {
-          return { inserted: false, reason: 'no_target' };
-        }
-        if (${requireCouponKeywords ? 'true' : 'false'} && best.score <= 0) {
-          return { inserted: false, reason: 'no_coupon_field' };
-        }
-        try {
-          target.focus?.();
-        } catch {}
-        try {
-          const descriptor = Object.getOwnPropertyDescriptor(Object.getPrototypeOf(target), 'value');
-          if (descriptor && typeof descriptor.set === 'function') {
-            descriptor.set.call(target, couponCode);
-          } else {
-            target.value = couponCode;
-          }
-        } catch {}
-        ['input', 'change', 'keyup'].forEach((eventName) => {
-          try {
-            target.dispatchEvent(new Event(eventName, { bubbles: true }));
-          } catch {}
-        });
-        return { inserted: true, reason: 'inserted' };
-      };
-      const delay = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
-      const runAttempts = async () => {
-        let result = { inserted: false, reason: 'no_attempt' };
-        for (let attempt = 0; attempt < 4; attempt += 1) {
-          result = attemptInsertion();
-          if (result.inserted) {
-            return result;
-          }
-          if (attempt < 3) {
-            await delay(1000);
-          }
-        }
-        return result;
-      };
-      return runAttempts();
-    })();
-  `;
-};
-
-const tryInsertCouponCode = async (
-  view: WebviewTag,
-  code: string,
-  requireCheckoutKeywords = false,
-  requireCouponKeywords = false
-): Promise<{ inserted: boolean; reason?: string }> => {
-  if (!code) {
-    return { inserted: false, reason: 'empty_code' };
-  }
-  try {
-    const script = buildInsertCouponScript(code, requireCheckoutKeywords, requireCouponKeywords);
-    const result = await view.executeJavaScript(script, false);
-    if (result && typeof result === 'object' && typeof (result as { inserted?: unknown }).inserted === 'boolean') {
-      return {
-        inserted: Boolean((result as { inserted: unknown }).inserted),
-        reason: typeof (result as { reason?: unknown }).reason === 'string'
-          ? (result as { reason: string }).reason
-          : undefined
-      };
-    }
-    return { inserted: false, reason: 'unexpected_result' };
-  } catch {
-    return { inserted: false, reason: 'exception' };
-  }
-};
 
 // const WEBVIEW_WRAPPER_STYLE: React.CSSProperties = {
 //   position: 'relative',
@@ -412,7 +192,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewReadyRef = useRef<boolean>(false);
   const activeWcIdRef = useRef<number | null>(null);
   const webviewFocusedRef = useRef<boolean>(false);
-  const { t } = useI18n();
+  const { t, language } = useI18n();
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
@@ -459,18 +239,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { enabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
-  const [couponsPopupVisible, setCouponsPopupVisible] = useState<boolean>(false);
-  const [couponsPopupCountry, setCouponsPopupCountry] = useState<string>('US');
-  const [couponsPopupState, setCouponsPopupState] = useState<CouponsPopupDataState>({ status: 'idle' });
-  const [couponActionState, setCouponActionState] = useState<Record<string, { applying?: boolean; inserting?: boolean; reporting?: boolean }>>({});
-  const [savingsSettings, setSavingsSettings] = useState<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
-  const savingsSettingsRef = useRef<SavingsSettings>(DEFAULT_SAVINGS_SETTINGS);
-  const autoInsertKeyRef = useRef<string | null>(null);
-  const [pendingCouponState, setPendingCouponState] = useState<PendingCoupon | null>(null);
-  const [detectedCountry, setDetectedCountry] = useState<string>('US');
-  const detectedCountryFetchRef = useRef<boolean>(false);
-  const detectedCountryTimerRef = useRef<number | null>(null);
-  const [savingsLoaded, setSavingsLoaded] = useState<boolean>(false);
+  
   const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
   const { downloadIndicatorState, downloadToast, handleDownloadIndicatorClick } = useDownloadIndicators();
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
@@ -517,7 +286,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const pendingTorCloseAllRef = useRef<boolean>(false);
   const torKickTimerRef = useRef<number | null>(null);
   const kickActiveTabLoadRef = useRef<((attempt?: number) => void) | null>(null);
-  const catalogFetchInFlightRef = useRef<boolean>(false);
   const [suspendTabLifecycle, setSuspendTabLifecycle] = useState<boolean>(false);
   const suspendTabLifecycleRef = useRef<boolean>(false);
   const torCloseAllResumeIdRef = useRef<string | null>(null);
@@ -570,23 +338,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const activeTabIsLoading = !!activeTab?.isLoading;
   const activeUrl = (activeTab?.url && activeTab.url.trim()) ? activeTab.url : DEFAULT_URL;
   const activeHost = normalizeHost(activeTab?.url);
-  const effectiveSavingsCountry = useMemo(
-    () => getEffectiveCountry(savingsSettings.countrySaved, savingsSettings.lastPopupCountry, detectedCountry),
-    [savingsSettings.countrySaved, savingsSettings.lastPopupCountry, detectedCountry]
-  );
-  const couponsButtonVisible = useMemo(() => {
-    if (!savingsSettings.enabled) return false;
-    if (activeUrl.toLowerCase().startsWith('mzr://')) return false;
-    if (!activeHost) return false;
-    const catalog = savingsSettings.catalog;
-    if (!catalog || catalog.domains.length === 0) return false;
-    if (catalog.country !== effectiveSavingsCountry) return false;
-    return catalog.domains.some((domain) => (
-      activeHost === domain ||
-      activeHost.endsWith(`.${domain}`) ||
-      domain.endsWith(`.${activeHost}`)
-    ));
-  }, [activeHost, activeUrl, effectiveSavingsCountry, savingsSettings.catalog, savingsSettings.enabled]);
   const {
     newTab: newTabAction,
     closeTab: closeTabAction,
@@ -607,7 +358,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => { activeTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => { tabsReadyRef.current = tabsReady; }, [tabsReady]);
   useEffect(() => { tabsRef.current = tabs; }, [tabs]);
-  useEffect(() => { savingsSettingsRef.current = savingsSettings; }, [savingsSettings]);
   useEffect(() => {
     if (!suspendTabLifecycle) return;
     const resumeId = torCloseAllResumeIdRef.current;
@@ -715,6 +465,48 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return fallbackCopy(text);
   }, []);
 
+  const {
+    couponsPopupVisible,
+    couponsPopupCountry,
+    couponsPopupState,
+    couponActionState,
+    pendingCouponState,
+    savingsSettings,
+    couponsButtonVisible,
+    effectiveSavingsCountry,
+    popupHost,
+    popupOrigin,
+    isCouponsInfoService,
+    applySavingsSettings,
+    markSavingsLoaded,
+    handleSavingsEnabledChange,
+    handleSavingsCountryChange,
+    handleCouponsCountryChange,
+    handleOpenCouponsPopup,
+    handleFindCoupons,
+    closeCouponsPopup,
+    handleApplyCoupon,
+    handleInsertCoupon,
+    handleReportInvalidCoupon,
+    handleCouponsPositionChange,
+    performCatalogFetch,
+    handleCouponsDomReady
+  } = useCoupons({
+    activeTab,
+    activeUrl,
+    activeHost,
+    activeIdRef,
+    tabViewsRef,
+    webviewRef,
+    appVersion: appInfo.version,
+    torEnabled,
+    torKeepEnabled,
+    showGlobalToast,
+    t,
+    newTabAction,
+    copyTextToClipboard
+  });
+
   const copyCommand = useCallback(
     async (command: string) => {
       const success = await copyTextToClipboard(command);
@@ -770,404 +562,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, []);
 
-  const updateSavingsSettings = useCallback(async (patch: Partial<SavingsSettings>) => {
-    const payload = mergeSavingsSettings(savingsSettingsRef.current, patch);
-    savingsSettingsRef.current = payload;
-    setSavingsSettings(payload);
-    try {
-      const next = await ipc.settings.savings.update(payload);
-      if (next) {
-        savingsSettingsRef.current = next;
-        setSavingsSettings(next);
-        return next;
-      }
-    } catch (err) {
-      console.error('[merezhyvo] savings settings update failed', err);
-    }
-    return savingsSettingsRef.current;
-  }, []);
-
-  useEffect(() => {
-    const coupon = savingsSettings.pendingCoupon ?? null;
-    if (!coupon) {
-      setPendingCouponState(null);
-      return;
-    }
-    const expires = Date.parse(coupon.expiresAt);
-    if (!Number.isFinite(expires) || expires <= Date.now()) {
-      void updateSavingsSettings({ pendingCoupon: null });
-      setPendingCouponState(null);
-      return;
-    }
-    setPendingCouponState(coupon);
-  }, [savingsSettings.pendingCoupon, updateSavingsSettings]);
-
-  useEffect(() => {
-    autoInsertKeyRef.current = null;
-  }, [pendingCouponState?.couponId]);
-
-  const handleSavingsEnabledChange = useCallback(
-    (value: boolean) => {
-      void updateSavingsSettings({ enabled: value });
-    },
-    [updateSavingsSettings]
-  );
-
-  const handleSavingsCountryChange = useCallback(
-    (value: string | null) => {
-      const normalized = normalizeCountryCode(value);
-      void updateSavingsSettings({
-        countrySaved: normalized,
-        catalog: { ...DEFAULT_SAVINGS_CATALOG, country: normalized }
-      });
-    },
-    [updateSavingsSettings]
-  );
-
-  const performCatalogFetch = useCallback(async (country: string, etag: string | null) => {
-    if (catalogFetchInFlightRef.current) return;
-    catalogFetchInFlightRef.current = true;
-    const attemptIso = new Date().toISOString();
-    const baseCatalog = savingsSettingsRef.current.catalog;
-    void updateSavingsSettings({
-      catalog: {
-        ...baseCatalog,
-        country,
-        lastFetchAttemptAt: attemptIso
-      }
-    });
-    try {
-      const result = await fetchMerchantsCatalog(country, etag ?? undefined, appInfo.version);
-      const nowIso = new Date().toISOString();
-      if (result.status === 'ok') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            domains: result.domains,
-            etag: result.etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'not_modified') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            etag: result.etag ?? etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'syncing') {
-        const nextAllowedFetchAt = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            nextAllowedFetchAt,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      }
-    } finally {
-      catalogFetchInFlightRef.current = false;
-    }
-  }, [appInfo.version, updateSavingsSettings]);
-
-  useEffect(() => {
-    if (!savingsLoaded) return;
-    const catalog = savingsSettings.catalog;
-    const now = Date.now();
-    const nextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
-    if (Number.isFinite(nextAllowedAt) && nextAllowedAt > now) return;
-    if (catalog.country && catalog.country !== effectiveSavingsCountry) {
-      void updateSavingsSettings({
-        catalog: { ...DEFAULT_SAVINGS_CATALOG, country: effectiveSavingsCountry }
-      });
-      return;
-    }
-    const updatedAt = catalog.updatedAt ? Date.parse(catalog.updatedAt) : 0;
-    const isFresh = catalog.country === effectiveSavingsCountry
-      && Number.isFinite(updatedAt)
-      && now - updatedAt < CATALOG_TTL_MS;
-    if (isFresh) return;
-    void performCatalogFetch(effectiveSavingsCountry, catalog.etag);
-  }, [
-    effectiveSavingsCountry,
-    performCatalogFetch,
-    savingsLoaded,
-    savingsSettings.catalog,
-    updateSavingsSettings
-  ]);
-
-  const handleOpenCouponsPopup = useCallback(() => {
-    const nextCountry = getPopupCountry(savingsSettings, detectedCountry);
-    setCouponsPopupCountry(nextCountry);
-    setCouponsPopupState({ status: 'idle' });
-    setCouponsPopupVisible(true);
-    if (!savingsSettings.countrySaved) {
-      void updateSavingsSettings({ lastPopupCountry: nextCountry });
-    }
-  }, [detectedCountry, savingsSettings, updateSavingsSettings]);
-
-  const handleCouponsCountryChange = useCallback((value: string) => {
-    setCouponsPopupCountry(value);
-    setCouponsPopupState({ status: 'idle' });
-    void updateSavingsSettings({ lastPopupCountry: value });
-  }, [updateSavingsSettings]);
-
-  const handleFindCoupons = useCallback(async () => {
-    const hostname = deriveHostnameFromUrl(activeTab?.url);
-    if (!hostname) {
-      setCouponsPopupState({ status: 'error', errorMessage: t('coupons.popup.error') });
-      return;
-    }
-    const nextRetry = savingsSettings.syncRetryByCountry[couponsPopupCountry];
-    if (nextRetry && Date.parse(nextRetry) > Date.now()) {
-      setCouponsPopupState({ status: 'syncing', syncingUntil: nextRetry });
-      return;
-    }
-    setCouponsPopupState({ status: 'loading' });
-    const currentUrl = activeTab?.url ?? '';
-    const pageOrigin = deriveOriginFromUrl(currentUrl);
-    if (!pageOrigin) {
-      setCouponsPopupState({ status: 'error', errorMessage: t('coupons.popup.error') });
-      return;
-    }
-    const result = await fetchCouponsForPage({
-      country: couponsPopupCountry,
-      url: pageOrigin,
-      clientVersion: appInfo.version
-    });
-    if (result.status === 'ok') {
-      setCachedCouponsForPage(couponsPopupCountry, hostname, result.data);
-      setCouponsPopupState({ status: 'results', data: result.data });
-      return;
-    }
-    if (result.status === 'syncing') {
-      const until = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
-      void updateSavingsSettings({ syncRetryByCountry: { [couponsPopupCountry]: until } });
-      setCouponsPopupState({ status: 'syncing', syncingUntil: until });
-      return;
-    }
-    setCouponsPopupState({ status: 'error', errorMessage: result.error });
-  }, [
-    activeTab?.url,
-    appInfo.version,
-    couponsPopupCountry,
-    savingsSettings.syncRetryByCountry,
-    t,
-    updateSavingsSettings
-  ]);
-
-  const updateCouponActionState = useCallback((couponId: string, changes: Partial<{ applying?: boolean; inserting?: boolean; reporting?: boolean }>) => {
-    setCouponActionState((prev) => {
-      const entry = prev[couponId] ?? {};
-      const nextEntry = { ...entry, ...changes };
-      if (!nextEntry.applying && !nextEntry.inserting && !nextEntry.reporting) {
-        const { [couponId]: _, ...rest } = prev;
-        return rest;
-      }
-      return { ...prev, [couponId]: nextEntry };
-    });
-  }, []);
-
-  const copyPendingCoupon = useCallback(async (code: string): Promise<boolean> => copyTextToClipboard(code), [copyTextToClipboard]);
-
-  const buildPendingCouponPayload = useCallback((coupon: CouponEntry): PendingCoupon | null => {
-    const promo = coupon.promocode?.trim() ?? '';
-    if (!promo) return null;
-    const domain = activeHost || deriveHostnameFromUrl(activeTab?.url);
-    if (!domain) return null;
-    const now = new Date();
-    return {
-      couponId: coupon.couponId,
-      promocode: promo,
-      source: coupon.source ?? '',
-      domain,
-      country: couponsPopupCountry,
-      savedAt: now.toISOString(),
-      expiresAt: new Date(now.getTime() + PENDING_COUPON_TTL_MS).toISOString()
-    };
-  }, [activeHost, activeTab?.url, couponsPopupCountry]);
-
-  const handleApplyCoupon = useCallback(async (coupon: CouponEntry) => {
-    const pending = buildPendingCouponPayload(coupon);
-    const couponId = coupon.couponId;
-    updateCouponActionState(couponId, { applying: true });
-    try {
-      const trackingUrl = coupon.trackingUrl?.trim();
-      if (!trackingUrl) {
-        showGlobalToast(t('coupons.popup.apply.trackingMissing'));
-        return;
-      }
-      newTabAction(trackingUrl);
-      closeCouponsPopup();
-      if (pending) {
-        const copied = await copyPendingCoupon(pending.promocode);
-        void updateSavingsSettings({ pendingCoupon: pending });
-        showGlobalToast(copied ? t('coupons.popup.apply.copied') : t('coupons.popup.apply.copyFailed'));
-      } else {
-        showGlobalToast(t('coupons.popup.apply.opened'));
-      }
-    } catch (err) {
-      console.error('[merezhyvo] apply coupon failed', err);
-      showGlobalToast(t('coupons.popup.apply.fail'));
-    } finally {
-      updateCouponActionState(couponId, { applying: false });
-    }
-  }, [buildPendingCouponPayload, copyPendingCoupon, newTabAction, showGlobalToast, t, updateCouponActionState, updateSavingsSettings]);
-
-  const handleInsertCoupon = useCallback(async (coupon: CouponEntry) => {
-    const couponId = coupon.couponId;
-    if (!pendingCouponState?.promocode) return;
-    const view = webviewRef.current;
-    if (!view) return;
-    updateCouponActionState(couponId, { inserting: true });
-    try {
-      const result = await tryInsertCouponCode(view, pendingCouponState.promocode, false, false);
-      if (result.inserted) {
-        showGlobalToast(t('coupons.popup.insert.success'));
-      } else {
-        const copied = await copyPendingCoupon(pendingCouponState.promocode);
-        showGlobalToast(copied ? t('coupons.popup.insert.failure') : t('coupons.popup.apply.copyFailed'));
-      }
-    } catch (err) {
-      console.error('[merezhyvo] insert coupon failed', err);
-      const copied = await copyPendingCoupon(pendingCouponState.promocode);
-      showGlobalToast(copied ? t('coupons.popup.insert.failure') : t('coupons.popup.apply.copyFailed'));
-    } finally {
-      updateCouponActionState(couponId, { inserting: false });
-    }
-  }, [copyPendingCoupon, pendingCouponState, showGlobalToast, t, updateCouponActionState, webviewRef]);
-
-  const filterCouponGroup = useCallback((group: CouponGroup, couponId: string): CouponGroup => ({
-    ...group,
-    coupons: group.coupons.filter((entry) => entry.couponId !== couponId)
-  }), []);
-
-  const removeCouponFromResponse = useCallback((data: CouponsForPageResponse, couponId: string): CouponsForPageResponse => ({
-    ...data,
-    local: {
-      fresh: filterCouponGroup(data.local.fresh, couponId),
-      older: filterCouponGroup(data.local.older, couponId)
-    },
-    worldwide: {
-      fresh: filterCouponGroup(data.worldwide.fresh, couponId),
-      older: filterCouponGroup(data.worldwide.older, couponId)
-    }
-  }), [filterCouponGroup]);
-
-  const getReportErrorMessageKey = useCallback((statusCode?: number): string => {
-    if (statusCode === 401) return 'coupons.popup.report.error.unauthorized';
-    if (statusCode === 429) return 'coupons.popup.report.error.tooManyRequests';
-    if (statusCode && statusCode >= 500 && statusCode < 600) return 'coupons.popup.report.error.server';
-    if (typeof statusCode === 'number') return 'coupons.popup.report.fail';
-    return 'coupons.popup.report.error.network';
-  }, []);
-
-  const handleReportInvalidCoupon = useCallback(async (coupon: CouponEntry) => {
-    if (!coupon.canReportInvalid || !coupon.reportToken) return;
-    const couponId = coupon.couponId;
-    updateCouponActionState(couponId, { reporting: true });
-    try {
-      const result = await reportInvalidCoupon(coupon.reportToken, coupon.couponId);
-      if (result.status === 'ok') {
-        setCouponsPopupState((prev) => {
-          if (prev.status !== 'results' || !prev.data) return prev;
-          return { ...prev, data: removeCouponFromResponse(prev.data, couponId) };
-        });
-        showGlobalToast(t('coupons.popup.report.success'));
-        void handleFindCoupons();
-      } else {
-        const key = getReportErrorMessageKey(result.statusCode);
-        showGlobalToast(t(key));
-      }
-    } catch (err) {
-      console.error('[merezhyvo] report coupon failed', err);
-      showGlobalToast(t('coupons.popup.report.fail'));
-    } finally {
-      updateCouponActionState(couponId, { reporting: false });
-    }
-  }, [getReportErrorMessageKey, handleFindCoupons, removeCouponFromResponse, showGlobalToast, t, updateCouponActionState]);
-
-  const attemptAutoInsertPendingCoupon = useCallback(async (tabId: string) => {
-    const coupon = pendingCouponState;
-    if (!coupon || !coupon.promocode) return;
-    if (activeIdRef.current !== tabId) return;
-    const entry = tabViewsRef.current.get(tabId);
-    const view = entry?.view;
-    if (!view) return;
-    let url = '';
-    try {
-      const maybe = typeof view.getURL === 'function' ? view.getURL() : '';
-      url = typeof maybe === 'string' ? maybe : '';
-    } catch {
-      url = '';
-    }
-    if (!url || url.startsWith('mzr://')) return;
-    const host = normalizeHost(url);
-    if (!isHostMatchingDomain(host, coupon.domain)) return;
-    const key = `${coupon.couponId}::${host}::${url}`;
-    if (autoInsertKeyRef.current === key) return;
-    const result = await tryInsertCouponCode(view, coupon.promocode, true, true);
-    if (result.inserted) {
-      autoInsertKeyRef.current = key;
-      showGlobalToast(t('coupons.popup.insert.success'));
-    }
-  }, [activeIdRef, autoInsertKeyRef, pendingCouponState, showGlobalToast, tabViewsRef, t]);
-
-  useEffect(() => {
-    const coupon = pendingCouponState;
-    if (!coupon || !coupon.promocode) return;
-    const tabId = activeIdRef.current;
-    if (!tabId) return;
-    const timer = window.setTimeout(() => {
-      void attemptAutoInsertPendingCoupon(tabId);
-    }, 800);
-    return () => window.clearTimeout(timer);
-  }, [activeTab?.url, attemptAutoInsertPendingCoupon, pendingCouponState]);
-  useEffect(() => {
-    if (!couponsPopupVisible) return;
-    const hostname = deriveHostnameFromUrl(activeTab?.url);
-    if (!hostname) {
-      setCouponsPopupState({ status: 'idle' });
-      return;
-    }
-    const cached = getCachedCouponsForPage(couponsPopupCountry, hostname);
-    if (cached) {
-      setCouponsPopupState({ status: 'results', data: cached.data });
-      return;
-    }
-    const nextRetry = savingsSettings.syncRetryByCountry[couponsPopupCountry];
-    if (nextRetry && Date.parse(nextRetry) > Date.now()) {
-      setCouponsPopupState({ status: 'syncing', syncingUntil: nextRetry });
-      return;
-    }
-    setCouponsPopupState({ status: 'idle' });
-  }, [
-    activeTab?.url,
-    couponsPopupCountry,
-    couponsPopupVisible,
-    savingsSettings.syncRetryByCountry
-  ]);
-
-  const closeCouponsPopup = useCallback(() => {
-    setCouponsPopupVisible(false);
-    setCouponsPopupState({ status: 'idle' });
-  }, []);
-
-  const handleCouponsPositionChange = useCallback(
-    (pos: { x: number; y: number }) => {
-      void updateSavingsSettings({ floatingButtonPos: pos });
-    },
-    [updateSavingsSettings]
-  );
-
   useEffect(() => {
     let cancelled = false;
     const loadSettingsState = async () => {
@@ -1217,20 +611,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setSecureDnsNextdnsId(typeof secureDns?.nextdnsId === 'string' ? secureDns.nextdnsId : '');
         setSecureDnsCustomUrl(typeof secureDns?.customUrl === 'string' ? secureDns.customUrl : '');
         setSecureDnsError('');
-        const savingsFromState = state.savings ?? DEFAULT_SAVINGS_SETTINGS;
+        const savingsFromState = state.savings ?? null;
         if (!cancelled) {
-          setSavingsSettings(savingsFromState);
+          applySavingsSettings(savingsFromState);
         }
         try {
           const savingsDirect = await ipc.settings.savings.get();
           if (!cancelled && savingsDirect) {
-            setSavingsSettings(savingsDirect);
+            applySavingsSettings(savingsDirect);
           }
         } catch {
           // ignore fallback to state
         } finally {
           if (!cancelled) {
-            setSavingsLoaded(true);
+            markSavingsLoaded(true);
           }
         }
       } catch {
@@ -1251,8 +645,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setSecureDnsNextdnsId('');
           setSecureDnsCustomUrl('');
           setSecureDnsError('');
-          setSavingsSettings(DEFAULT_SAVINGS_SETTINGS);
-          setSavingsLoaded(true);
+          applySavingsSettings(null);
+          markSavingsLoaded(true);
         }
       }
     };
@@ -1276,72 +670,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setSecureDnsNextdnsId,
     setSecureDnsCustomUrl,
     setSecureDnsError,
-    setSavingsSettings
+    applySavingsSettings,
+    markSavingsLoaded
   ]);
-
-  useEffect(() => {
-    if (!savingsLoaded || detectedCountryFetchRef.current) return;
-    let cancelled = false;
-    const loadDetectedCountry = async () => {
-      let cachedCountry: string | null = null;
-      try {
-        const state = await ipc.settings.loadState();
-        cachedCountry = normalizeCountryCode(state?.network?.detectedCountry);
-        if (!cancelled && cachedCountry) {
-          setDetectedCountry(cachedCountry);
-        }
-      } catch {
-        // ignore cache read failures
-      }
-      try {
-        const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Failed to fetch country');
-        const payload = (await response.json().catch(() => ({}))) as { country_code?: unknown; ip?: unknown };
-        const code = normalizeCountryCode(payload.country_code);
-        const ip = typeof payload.ip === 'string' ? payload.ip : null;
-        if (!cancelled) {
-          setDetectedCountry(code ?? cachedCountry ?? 'US');
-        }
-        if (code && ip) {
-          void ipc.settings.network.updateDetected({
-            detectedIp: ip,
-            detectedCountry: code,
-            detectedAt: new Date().toISOString()
-          });
-        }
-      } catch {
-        if (!cancelled && !cachedCountry) {
-          setDetectedCountry('US');
-        }
-      }
-    };
-    const triggerFetch = () => {
-      if (detectedCountryFetchRef.current) return;
-      detectedCountryFetchRef.current = true;
-      void loadDetectedCountry();
-    };
-    if (torKeepEnabled && !torEnabled) {
-      if (detectedCountryTimerRef.current === null) {
-        detectedCountryTimerRef.current = window.setTimeout(() => {
-          detectedCountryTimerRef.current = null;
-          triggerFetch();
-        }, 5000);
-      }
-    } else {
-      if (detectedCountryTimerRef.current !== null) {
-        window.clearTimeout(detectedCountryTimerRef.current);
-        detectedCountryTimerRef.current = null;
-      }
-      triggerFetch();
-    }
-    return () => {
-      cancelled = true;
-      if (detectedCountryTimerRef.current !== null) {
-        window.clearTimeout(detectedCountryTimerRef.current);
-        detectedCountryTimerRef.current = null;
-      }
-    };
-  }, [savingsLoaded, torKeepEnabled, torEnabled]);
 
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
     const handle = webviewHandleRef.current;
@@ -1916,8 +1247,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         // ignore transient failures
       }
     })();
-    void attemptAutoInsertPendingCoupon(tabId);
-  }, [activeIdRef, attemptAutoInsertPendingCoupon, ensureSelectionCssInjected, tabViewsRef]);
+    handleCouponsDomReady(tabId);
+  }, [activeIdRef, handleCouponsDomReady, ensureSelectionCssInjected, tabViewsRef]);
   
   useEffect(() => {
     const run = async () => {
@@ -3530,6 +2861,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     openInNewTab('mzr://privacy-info');
     setSecurityPopoverOpen(false);
   }, [openInNewTab]);
+  const handleOpenCouponsInfoFromSettings = useCallback(() => {
+    closeSettingsModal();
+    openInNewTab('mzr://coupons-info');
+  }, [closeSettingsModal, openInNewTab]);
+  const handleOpenCouponsInfoFromPopup = useCallback(() => {
+    closeCouponsPopup();
+    openInNewTab('mzr://coupons-info');
+  }, [closeCouponsPopup, openInNewTab]);
 
   const handleCloseTab = useCallback((id: string) => {
     if (!id) return;
@@ -3547,7 +2886,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isNetworkInfoService = serviceUrl.startsWith('mzr://network-info') || serviceUrl.startsWith('mzr://tor-info');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService || isNetworkInfoService);
+    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService || isNetworkInfoService || isCouponsInfoService);
   let serviceContent = null;
   if (showServiceOverlay) {
     if (isBookmarksService) {
@@ -3580,6 +2919,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       );
     } else if (isPrivacyInfoService) {
       serviceContent = <PrivacyInfoPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} serviceUrl={activeTab?.url} onClose={closeServicePage} />;
+    } else if (isCouponsInfoService) {
+          serviceContent = (
+            <CouponsInfoPage
+              mode={mode}
+              openInTab={openInActiveTab}
+              openInNewTab={openInNewTab}
+              serviceUrl={activeTab?.url}
+              onClose={closeServicePage}
+              savingsSettings={savingsSettings}
+              effectiveCountry={effectiveSavingsCountry}
+              onCountryChange={handleSavingsCountryChange}
+              performCatalogFetch={performCatalogFetch}
+            />
+          );
     } else if (isNetworkInfoService) {
       serviceContent = <NetworkInfoPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} serviceUrl={activeTab?.url} onClose={closeServicePage} />;
     }
@@ -4074,6 +3427,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onOpenSecurityExceptions={openSecurityExceptionsFromSettings}
               onOpenSiteData={openSiteDataFromSettings}
               onOpenPrivacyInfo={openPrivacyInfoFromSettings}
+              onOpenCouponsInfo={handleOpenCouponsInfoFromSettings}
               blockingMode={trackerStatus.blockingMode}
               onBlockingModeChange={setBlockingMode}
               trackersEnabled={trackerStatus.trackersEnabledGlobal}
@@ -4121,8 +3475,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           <CouponsPopup
             mode={mode}
             visible={couponsPopupVisible}
-            host={deriveHostnameFromUrl(activeTab?.url) || null}
-            pageOrigin={deriveOriginFromUrl(activeTab?.url) || null}
+            host={popupHost}
+            pageOrigin={popupOrigin}
             country={couponsPopupCountry}
             status={couponsPopupState.status}
             data={couponsPopupState.data}
@@ -4133,10 +3487,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onClose={closeCouponsPopup}
             pendingCoupon={pendingCouponState}
             couponActionState={couponActionState}
-            activeHost={activeHost}
+            activeHost={activeHost ?? ''}
             onApplyCoupon={handleApplyCoupon}
             onInsertCoupon={handleInsertCoupon}
             onReportInvalid={handleReportInvalidCoupon}
+            onOpenCouponsInfo={handleOpenCouponsInfoFromPopup}
           />
 
       {globalToast && (
