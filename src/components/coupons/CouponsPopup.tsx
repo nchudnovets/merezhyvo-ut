@@ -67,44 +67,6 @@ const Spinner = () => (
   </svg>
 );
 
-const popupBackdropStyle: React.CSSProperties = {
-  position: 'fixed',
-  top: 0,
-  left: 0,
-  right: 0,
-  bottom: 0,
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'center',
-  background: 'rgba(0, 0, 0, 0.4)',
-  zIndex: 6000
-};
-
-const popupCardStyle: React.CSSProperties = {
-  position: 'relative',
-  maxHeight: '90vh',
-  overflowY: 'auto',
-  background: 'var(--mzr-surface)',
-  borderRadius: 20,
-  padding: 24,
-  boxShadow: '0 16px 64px rgba(0,0,0,0.35)'
-};
-
-const sectionHeaderStyle: React.CSSProperties = {
-  display: 'flex',
-  alignItems: 'center',
-  justifyContent: 'space-between',
-  marginBottom: 12
-};
-
-const couponCardStyle: React.CSSProperties = {
-  borderRadius: 12,
-  border: '1px solid rgba(0,0,0,0.08)',
-  padding: '12px 16px',
-  marginBottom: 12,
-  background: 'rgba(255,255,255,0.6)'
-};
-
 const isHostMatchingDomain = (host: string, domain: string): boolean => {
   if (!host || !domain) return false;
   const normalizedHost = host.toLowerCase();
@@ -160,6 +122,43 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
   const showSyncCountdown = formatSyncCountdown(syncingUntil);
   const readyToRetry = showSyncCountdown === null;
 
+  const popupBackdropStyle: React.CSSProperties = {
+    position: 'fixed',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    background: 'rgba(0, 0, 0, 0.4)',
+    zIndex: 6000
+  };
+
+  const popupCardStyle: React.CSSProperties = {
+    position: 'relative',
+    maxHeight: '90vh',
+    background: 'var(--mzr-surface)',
+    borderRadius: 20,
+    padding: 24,
+    boxShadow: '0 16px 64px rgba(0,0,0,0.35)'
+  };
+
+  const sectionHeaderStyle: React.CSSProperties = {
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginBottom: 12
+  };
+
+  const couponCardStyle: React.CSSProperties = {
+    borderRadius: 12,
+    border: '1px solid rgba(0,0,0,0.08)',
+    padding: '12px 16px',
+    marginBottom: mode === 'mobile' ? 40 : 20,
+    background: 'rgba(255,255,255,0.6)'
+  };
+
   const renderCouponCard = (coupon: CouponEntry, index: number): React.ReactNode => {
     const actionState = couponActionState[coupon.couponId] ?? {};
     let matchesPending = false;
@@ -184,11 +183,18 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
     const key = coupon.couponId ?? coupon.promocode ?? `coupon-${index}`;
     return (
       <div key={key} style={couponCardStyle}>
-        <div style={{ fontWeight: 600, marginBottom: 6, fontSize: 16 }}>
+        <div style={{ fontWeight: 600, marginBottom: mode === 'mobile' ? 20 : 10, fontSize: mode === 'mobile' ? 42 : 20 }}>
           {coupon.userValue ?? coupon.name ?? coupon.promocode ?? t('coupons.popup.results.noCoupons')}
         </div>
         {coupon.promocode && (
-          <div style={{ fontSize: 12, color: 'var(--mzr-text-muted)', letterSpacing: '0.2em', textTransform: 'uppercase', marginBottom: 8 }}>
+          <div
+            style={{
+              fontSize: mode === 'mobile' ? 42 : 20,
+              color: 'var(--mzr-text-muted)',
+              letterSpacing: '0.2em',
+              textTransform: 'uppercase',
+              marginBottom: mode === 'mobile' ? 20 : 10
+            }}>
             {coupon.promocode}
           </div>
         )}
@@ -206,6 +212,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
               background: 'var(--mzr-accent)',
               color: '#fff',
               fontWeight: 600,
+              fontSize: mode === 'mobile' ? 38 : 16,
               cursor: primaryDisabled ? 'not-allowed' : 'pointer',
               opacity: primaryDisabled ? 0.7 : 1,
               transition: 'opacity 0.2s'
@@ -219,12 +226,14 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
               onClick={() => onReportInvalid(coupon)}
               disabled={Boolean(actionState.reporting)}
               style={{
+                flex: 1,
                 padding: '10px 14px',
                 borderRadius: 8,
                 border: '1px solid var(--mzr-border)',
                 background: 'transparent',
                 color: 'var(--mzr-text-primary)',
                 fontWeight: 600,
+                fontSize: mode === 'mobile' ? 38 : 16,
                 cursor: actionState.reporting ? 'not-allowed' : 'pointer',
                 opacity: actionState.reporting ? 0.7 : 1
               }}
@@ -233,30 +242,6 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             </button>
           )}
         </div>
-        <div
-          style={{
-            marginTop: 12,
-            paddingTop: 12,
-            borderTop: '1px solid var(--mzr-border)',
-            textAlign: 'center'
-          }}
-        >
-          <button
-            type="button"
-            onClick={onOpenCouponsInfo}
-            style={{
-              border: 'none',
-              background: 'transparent',
-              padding: 0,
-              color: 'var(--mzr-accent)',
-              fontWeight: 600,
-              fontSize: mode === 'mobile' ? 36 : 14,
-              cursor: 'pointer'
-            }}
-          >
-            {t('coupons.popup.howItWorks')}
-          </button>
-        </div>
       </div>
     );
   };
@@ -264,7 +249,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
   const renderCouponList = (coupons: CouponEntry[]): React.ReactNode => {
     if (!coupons || coupons.length === 0) {
       return (
-        <p style={{ margin: 0 }}>{t('coupons.popup.results.noCoupons')}</p>
+        <p style={{ margin: 0, textAlign: 'center' }}>{t('coupons.popup.results.noCoupons')}</p>
       );
     }
     return coupons.map((coupon, index) => renderCouponCard(coupon, index));
@@ -277,8 +262,8 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
     viewBox="0 0 256 198"
     preserveAspectRatio="xMidYMid meet"
     style={{
-      width: mode === 'mobile' ? 90 : 65,
-      height: mode === 'mobile' ? 90 : 60,
+      width: mode === 'mobile' ? 120 : 65,
+      height: mode === 'mobile' ? 110 : 60,
       display: 'block',
       shapeRendering: 'geometricPrecision',
       textRendering: 'geometricPrecision',
@@ -318,7 +303,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             style={{
               border: 'none',
               background: 'transparent',
-              fontSize: 18,
+              fontSize: mode === 'mobile' ? 44 : 25,
               cursor: 'pointer',
               color: 'var(--mzr-text-muted)'
             }}
@@ -327,9 +312,9 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
           </button>
         </div>
 
-        <div style={{ display: 'flex', gap: 12, marginBottom: 12 }}>
+        <div style={{ display: 'flex', gap: 12, marginBottom: mode === 'mobile' ? 40 : 25 }}>
           <label style={{ display: 'flex', flexDirection: 'column', flex: 1, gap: 4 }}>
-            <span style={{ fontSize: 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mzr-text-muted)' }}>
+            <span style={{ fontSize: mode === 'mobile' ? 32 : 12, letterSpacing: '0.1em', textTransform: 'uppercase', color: 'var(--mzr-text-muted)' }}>
               {t('settings.savings.country.label')}
             </span>
             <CountrySelect
@@ -341,17 +326,18 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                 border: '1px solid var(--mzr-border)',
                 background: 'var(--mzr-surface)',
                 color: 'var(--mzr-text-primary)',
-                fontSize: 16,
-                outline: 'none'
+                fontSize: mode === 'mobile' ? 36 : 16,
+                outline: 'none',
+                width: '100%'
               }}
             />
           </label>
         </div>
 
-        <div style={{ marginBottom: 16 }}>
+        <div style={{ marginBottom: 16, fontSize: mode === 'mobile' ? 38 : 16 }}>
           {status === 'idle' && (
             <>
-              <p>{t('coupons.popup.idle')}</p>
+              {/* <p>{t('coupons.popup.idle')}</p> */}
               <button
                 type="button"
                 onClick={onFindCoupons}
@@ -362,6 +348,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                   borderRadius: 10,
                   border: 'none',
                   fontWeight: 600,
+                  fontSize: mode === 'mobile' ? 38 : 16,
                   color: '#fff',
                   background: 'var(--mzr-accent)',
                   cursor: 'pointer'
@@ -380,7 +367,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
           {status === 'syncing' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 8 }}>
               <p>{t('coupons.popup.syncing', { country })}</p>
-              <p style={{ fontSize: 12, color: 'var(--mzr-text-muted)' }}>
+              <p style={{ fontSize: mode === 'mobile' ? 32 : 12, color: 'var(--mzr-text-muted)' }}>
                 {showSyncCountdown
                   ? t('coupons.popup.syncingCountdown', { minutes: showSyncCountdown })
                   : t('coupons.popup.syncingCountdown', { minutes: '??' })}
@@ -424,7 +411,7 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
           {status === 'error' && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
               <p>{t('coupons.popup.error')}</p>
-              <p style={{ color: 'var(--mzr-text-muted)', fontSize: 12 }}>{errorMessage}</p>
+              <p style={{ color: 'var(--mzr-text-muted)', fontSize: mode === 'mobile' ? 34 : 12 }}>{errorMessage}</p>
               <button
                 type="button"
                 onClick={onFindCoupons}
@@ -445,20 +432,29 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
             </div>
           )}
           {status === 'results' && data && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: 12 }}>
+            <div className="service-scroll"
+              style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: mode === 'mobile' ? 25 : 12,
+                maxHeight: '60vh',
+                overflowY: 'auto',
+                paddingRight: mode === 'mobile' ? 20 : 10
+              }}
+            >
               <div style={{ marginBottom: 16 }}>
-                <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 8 }}>
+                <div style={{ fontSize: mode === 'mobile' ? 38 : 16, fontWeight: 600, marginBottom: mode === 'mobile' ? 40 : 20 }}>
                   {t('coupons.popup.results.recentTitle', { lookbackDays: lookbackDaysValue })}
                 </div>
                 {renderCouponList(combinedRecentCoupons)}
               </div>
               <div style={{ marginBottom: 16, borderTop: '1px solid var(--mzr-border)', paddingTop: 12 }}>
-                <div style={{ ...sectionHeaderStyle, marginBottom: 1 }}>
+                <div style={{ ...sectionHeaderStyle, marginBottom: mode === 'mobile' ? 40 : 20 }}>
                   <div>
                     <div style={{ fontWeight: 600 }}>{t('coupons.popup.results.older')}</div>
-                    <div style={{ fontSize: 12, color: 'var(--mzr-text-muted)' }}>
+                    {/* <div style={{ fontSize: mode === 'mobile' ? 32 : 12, color: 'var(--mzr-text-muted)' }}>
                       {t('coupons.popup.results.olderChance')}
-                    </div>
+                    </div> */}
                   </div>
                   <button
                     type="button"
@@ -478,7 +474,8 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
                       style={{
                         display: 'inline-block',
                         transition: 'transform 0.2s',
-                        transform: olderExpanded ? 'rotate(180deg)' : 'rotate(0deg)'
+                        transform: olderExpanded ? 'rotate(180deg)' : 'rotate(0deg)',
+                        fontSize: mode === 'mobile' ? 60 : 30
                       }}
                     >
                       ⌄
@@ -508,6 +505,30 @@ const CouponsPopup: React.FC<CouponsPopupProps> = ({
               )}
             </div>
           )}
+          <div
+          style={{
+            marginTop: 12,
+            paddingTop: 12,
+            borderTop: '1px solid var(--mzr-border)',
+            textAlign: 'center'
+          }}
+        >
+          <button
+            type="button"
+            onClick={onOpenCouponsInfo}
+            style={{
+              border: 'none',
+              background: 'transparent',
+              padding: 0,
+              color: 'var(--mzr-accent)',
+              fontWeight: 600,
+              fontSize: mode === 'mobile' ? 32 : 14,
+              cursor: 'pointer'
+            }}
+          >
+            {t('coupons.popup.howItWorks')}
+          </button>
+        </div>
         </div>
       </div>
     </div>

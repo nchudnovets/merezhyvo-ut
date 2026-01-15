@@ -247,6 +247,13 @@ export type SavingsFloatingButtonPos = {
   y: number;
 };
 
+export type SavingsFloatingButtonPosByMode = {
+  mobile?: SavingsFloatingButtonPos | null;
+  desktop?: SavingsFloatingButtonPos | null;
+};
+
+export type SavingsFloatingButtonPosState = SavingsFloatingButtonPos | SavingsFloatingButtonPosByMode;
+
 export type MerchantEntry = {
   domain: string;
   name: string | null;
@@ -317,7 +324,7 @@ export type SavingsSettings = {
   countrySaved: string | null;
   lastPopupCountry: string | null;
   syncRetryByCountry: Record<string, string>;
-  floatingButtonPos: SavingsFloatingButtonPos | null;
+  floatingButtonPos: SavingsFloatingButtonPosState | null;
   catalog: MerchantsCatalogCache;
   pendingCoupon?: PendingCoupon | null;
 };

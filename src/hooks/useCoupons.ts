@@ -5,6 +5,7 @@ import type {
   CouponGroup,
   CouponsForPageResponse,
   PendingCoupon,
+  SavingsFloatingButtonPosState,
   SavingsSettings,
   Tab
 } from '../types/models';
@@ -288,7 +289,7 @@ type UseCouponsResult = {
   handleApplyCoupon: (coupon: CouponEntry) => void;
   handleInsertCoupon: (coupon: CouponEntry) => void;
   handleReportInvalidCoupon: (coupon: CouponEntry) => void;
-  handleCouponsPositionChange: (pos: { x: number; y: number }) => void;
+  handleCouponsPositionChange: (pos: SavingsFloatingButtonPosState) => void;
   performCatalogFetch: (country: string, etag: string | null) => void;
   handleCouponsDomReady: (tabId: string) => void;
 };
@@ -759,7 +760,7 @@ export const useCoupons = ({
   ]);
 
   const handleCouponsPositionChange = useCallback(
-    (pos: { x: number; y: number }) => {
+    (pos: SavingsFloatingButtonPosState) => {
       void updateSavingsSettings({ floatingButtonPos: pos });
     },
     [updateSavingsSettings]

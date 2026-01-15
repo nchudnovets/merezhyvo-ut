@@ -81,6 +81,13 @@ export type SavingsFloatingButtonPos = {
   y: number;
 };
 
+export type SavingsFloatingButtonPosByMode = {
+  mobile?: SavingsFloatingButtonPos | null;
+  desktop?: SavingsFloatingButtonPos | null;
+};
+
+export type SavingsFloatingButtonPosState = SavingsFloatingButtonPos | SavingsFloatingButtonPosByMode;
+
 export type MerchantEntry = {
   domain: string;
   name: string | null;
@@ -111,7 +118,7 @@ export type SavingsSettings = {
   countrySaved: string | null;
   lastPopupCountry: string | null;
   syncRetryByCountry: Record<string, string>;
-  floatingButtonPos: SavingsFloatingButtonPos | null;
+  floatingButtonPos: SavingsFloatingButtonPosState | null;
   catalog: MerchantsCatalogCache;
   pendingCoupon?: PendingCoupon | null;
 };
@@ -486,17 +493,35 @@ const sanitizePendingCoupon = (value: unknown): PendingCoupon | null => {
   };
 };
 
+const normalizeFloatingButtonPos = (value: unknown): SavingsFloatingButtonPos | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const candidate = value as { x?: unknown; y?: unknown };
+  const x = typeof candidate.x === 'number' && Number.isFinite(candidate.x) ? candidate.x : null;
+  const y = typeof candidate.y === 'number' && Number.isFinite(candidate.y) ? candidate.y : null;
+  return x !== null && y !== null ? { x, y } : null;
+};
+
+const normalizeFloatingButtonPosByMode = (value: unknown): SavingsFloatingButtonPosByMode | null => {
+  if (typeof value !== 'object' || value === null) return null;
+  const candidate = value as { mobile?: unknown; desktop?: unknown };
+  const mobile = normalizeFloatingButtonPos(candidate.mobile);
+  const desktop = normalizeFloatingButtonPos(candidate.desktop);
+  if (!mobile && !desktop) return null;
+  const result: SavingsFloatingButtonPosByMode = {};
+  if (mobile) result.mobile = mobile;
+  if (desktop) result.desktop = desktop;
+  return result;
+};
+
 export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
   const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<SavingsSettings> : {};
   const enabled = typeof source.enabled === 'boolean' ? source.enabled : DEFAULT_SAVINGS_SETTINGS.enabled;
   const countrySaved = normalizeCountryCode(source.countrySaved) ?? DEFAULT_SAVINGS_SETTINGS.countrySaved;
   const lastPopupCountry = normalizeCountryCode(source.lastPopupCountry) ?? DEFAULT_SAVINGS_SETTINGS.lastPopupCountry;
-  const posRaw = (source.floatingButtonPos && typeof source.floatingButtonPos === 'object')
-    ? source.floatingButtonPos as Partial<SavingsFloatingButtonPos>
-    : null;
-  const posX = posRaw && typeof posRaw.x === 'number' && Number.isFinite(posRaw.x) ? posRaw.x : null;
-  const posY = posRaw && typeof posRaw.y === 'number' && Number.isFinite(posRaw.y) ? posRaw.y : null;
-  const floatingButtonPos = (posX !== null && posY !== null) ? { x: posX, y: posY } : null;
+  const posRaw = source.floatingButtonPos ?? null;
+  const posByMode = normalizeFloatingButtonPosByMode(posRaw);
+  const posSingle = normalizeFloatingButtonPos(posRaw);
+  const floatingButtonPos = posByMode ?? posSingle;
   const catalogRaw = (source.catalog && typeof source.catalog === 'object') ? source.catalog as Partial<MerchantsCatalogCache> : {};
   const merchants: MerchantEntry[] = [];
   const seenDomains = new Set<string>();

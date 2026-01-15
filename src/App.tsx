@@ -3019,6 +3019,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         visible={couponsButtonVisible}
         containerRef={webviewHostRef}
         position={savingsSettings.floatingButtonPos}
+        resetKey={activeHost}
         onPositionChange={handleCouponsPositionChange}
         onClick={handleOpenCouponsPopup}
       />
