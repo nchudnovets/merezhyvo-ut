@@ -802,7 +802,9 @@ const en = {
   'privacyInfo.platform.body1': 'Some behaviours are controlled by the Ubuntu Touch platform and cannot be fully changed by Merezhyvo.',
   'privacyInfo.platform.body2': 'Examples: file system access is limited to the app’s own folders; camera, microphone or geolocation support may be restricted or unavailable; the clipboard can be separate from other apps; landscape mode also has platform limitations.',
   'privacyInfo.platform.body3': 'Merezhyvo follows these confinement and security rules so that the browser can work safely on your device.',
-  'privacyInfo.link': 'How this works'
+  'privacyInfo.link': 'How this works',
+  'start.search.placeholder': 'Search with DuckDuckGo',
+  'start.search.button': 'Search',
 } as const;
 
 export type EnglishTranslationKeys = keyof typeof en;

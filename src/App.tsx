@@ -33,6 +33,7 @@ import SecurityExceptionsPage from './pages/security/SecurityExceptionsPage';
 import SiteDataPage from './pages/siteData/SiteDataPage';
 import PrivacyInfoPage from './pages/privacy/PrivacyInfoPage';
 import CouponsInfoPage from './pages/coupons/CouponsInfoPage';
+import StartPage from './pages/start/StartPage';
 import NetworkInfoPage from './pages/networkInfo/NetworkInfoPage';
 import PasswordCapturePrompt from './components/modals/PasswordCapturePrompt';
 import PasswordUnlockModal from './components/modals/PasswordUnlockModal';
@@ -1840,6 +1841,20 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [tabsReady, activeUrl]);
 
   useEffect(() => {
+    const url = (activeTab?.url || '').trim().toLowerCase();
+    if (!url.startsWith('mzr://start')) return;
+    if (isEditingRef.current) return;
+    const node = inputRef.current;
+    if (!node) return;
+    if (document.activeElement !== node) return;
+    requestAnimationFrame(() => {
+      if (!isEditingRef.current) {
+        try { node.blur(); } catch {}
+      }
+    });
+  }, [activeTab?.url]);
+
+  useEffect(() => {
     if (!tabsReady || !hasStartParam) return;
     if (startUrlAppliedRef.current) return;
     startUrlAppliedRef.current = true;
@@ -2916,13 +2931,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isSecurityExceptionsService = serviceUrl.startsWith('mzr://security-exceptions');
   const isSiteDataService = serviceUrl.startsWith('mzr://site-data');
   const isPrivacyInfoService = serviceUrl.startsWith('mzr://privacy-info');
+  const isStartService = serviceUrl.startsWith('mzr://start');
   const isNetworkInfoService = serviceUrl.startsWith('mzr://network-info') || serviceUrl.startsWith('mzr://tor-info');
   const showServiceOverlay =
     mainViewMode === 'browser' &&
-    (isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService || isNetworkInfoService || isCouponsInfoService);
+    (isStartService || isBookmarksService || isHistoryService || isPasswordsService || isLicensesService || isSecurityExceptionsService || isSiteDataService || isPrivacyInfoService || isNetworkInfoService || isCouponsInfoService);
   let serviceContent = null;
   if (showServiceOverlay) {
-    if (isBookmarksService) {
+    if (isStartService) {
+      serviceContent = <StartPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
+    } else if (isBookmarksService) {
       serviceContent = <BookmarksPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
     } else if (isHistoryService) {
       serviceContent = <HistoryPage mode={mode} openInTab={openInActiveTab} openInNewTab={openInNewTab} onClose={closeServicePage} />;
@@ -3027,9 +3045,11 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     newTabAction(DEFAULT_URL);
     setShowTabsPanel(false);
     blurActiveInWebview();
-    requestAnimationFrame(() => {
-      try { inputRef.current?.focus?.(); } catch {}
-    });
+    if (!DEFAULT_URL.toLowerCase().startsWith('mzr://start')) {
+      requestAnimationFrame(() => {
+        try { inputRef.current?.focus?.(); } catch {}
+      });
+    }
   }, [blurActiveInWebview, newTabAction]);
 
   const statusLabelMap: Record<StatusState, string> = {

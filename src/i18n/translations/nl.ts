@@ -791,6 +791,8 @@ const nl = {
   'privacyInfo.platform.body2': 'Voorbeelden: bestands­toegang is beperkt tot app-mappen; camera, microfoon of locatie kunnen beperkt of afwezig zijn; het klembord kan losstaan van andere apps; er zijn ook beperkingen in landschapsmodus.',
   'privacyInfo.platform.body3': 'Merezhyvo volgt deze beveiligings- en sandboxregels zodat de browser veilig op je apparaat werkt.',
   'privacyInfo.link': 'Hoe werkt dit',
+  'start.search.placeholder': 'Zoeken met DuckDuckGo',
+  'start.search.button': 'Zoeken',
 };
 
 export default nl;

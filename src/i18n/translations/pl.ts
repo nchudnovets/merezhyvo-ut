@@ -806,6 +806,8 @@ const pl = {
   'privacyInfo.platform.body2': 'Przykłady: dostęp do plików ograniczony do folderów aplikacji; kamera, mikrofon lub geolokalizacja mogą być ograniczone lub niedostępne; schowek może być odseparowany od innych aplikacji; są też ograniczenia w trybie poziomym.',
   'privacyInfo.platform.body3': 'Merezhyvo przestrzega tych zasad bezpieczeństwa i izolacji, aby działać bezpiecznie na twoim urządzeniu.',
   'privacyInfo.link': 'Jak to działa',
+  'start.search.placeholder': 'Szukaj w DuckDuckGo',
+  'start.search.button': 'Szukaj',
 };
 
 export default pl;

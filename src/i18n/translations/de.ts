@@ -790,7 +790,9 @@ const de = {
   'privacyInfo.platform.body1': 'Manche Verhaltensweisen werden von Ubuntu Touch gesteuert und können von Merezhyvo nicht vollständig geändert werden.',
   'privacyInfo.platform.body2': 'Beispiele: Dateizugriff ist auf App-Ordner beschränkt; Kamera, Mikrofon oder Standort können eingeschränkt oder nicht verfügbar sein; die Zwischenablage kann von anderen Apps getrennt sein; Querformat hat ebenfalls Plattform-Beschränkungen.',
   'privacyInfo.platform.body3': 'Merezhyvo hält sich an diese Sicherheits- und Sandbox-Regeln, damit der Browser sicher auf deinem Gerät funktioniert.',
-  'privacyInfo.link': 'So funktioniert das'
+  'privacyInfo.link': 'So funktioniert das',
+  'start.search.placeholder': 'Mit DuckDuckGo suchen',
+  'start.search.button': 'Suchen',
 };
 
 export default de;

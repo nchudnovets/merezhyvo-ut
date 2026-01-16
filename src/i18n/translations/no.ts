@@ -934,7 +934,9 @@ const no = {
   'privacyInfo.platform.body3':
     'Merezhyvo følger disse reglene for isolasjon og sikkerhet slik at nettleseren kan fungere trygt på enheten din.',
 
-  'privacyInfo.link': 'Slik fungerer dette'
+  'privacyInfo.link': 'Slik fungerer dette',
+  'start.search.placeholder': 'Søk med DuckDuckGo',
+  'start.search.button': 'Søk',
 } as const;
 
 export default no;

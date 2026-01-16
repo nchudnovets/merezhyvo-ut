@@ -790,7 +790,9 @@ const uk = {
   'privacyInfo.platform.body1': 'Деякі речі контролює платформа Ubuntu Touch і Merezhyvo не може їх повністю змінити.',
   'privacyInfo.platform.body2': 'Наприклад: доступ до файлів обмежений папками додатка; камера, мікрофон чи геолокація можуть бути обмежені або недоступні; буфер обміну може бути окремим від інших додатків; є обмеження і в альбомній орієнтації.',
   'privacyInfo.platform.body3': 'Merezhyvo дотримується цих правил безпеки та ізоляції, щоб працювати безпечно на вашому пристрої.',
-  'privacyInfo.link': 'Як це працює'
+  'privacyInfo.link': 'Як це працює',
+  'start.search.placeholder': 'Пошук у DuckDuckGo',
+  'start.search.button': 'Шукати',
 };
 
 export default uk;

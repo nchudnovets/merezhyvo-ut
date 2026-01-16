@@ -790,7 +790,9 @@ const es = {
   'privacyInfo.platform.body1': 'Algunos comportamientos los controla Ubuntu Touch y Merezhyvo no puede cambiarlos del todo.',
   'privacyInfo.platform.body2': 'Ejemplos: acceso a archivos limitado a carpetas de la app; cámara, micrófono o ubicación pueden estar restringidos o no disponibles; el portapapeles puede ser separado del de otras apps; hay limitaciones también en modo apaisado.',
   'privacyInfo.platform.body3': 'Merezhyvo sigue estas reglas de seguridad y aislamiento para funcionar de forma segura en tu dispositivo.',
-  'privacyInfo.link': 'Cómo funciona'
+  'privacyInfo.link': 'Cómo funciona',
+  'start.search.placeholder': 'Buscar con DuckDuckGo',
+  'start.search.button': 'Buscar',
 };
 
 export default es;

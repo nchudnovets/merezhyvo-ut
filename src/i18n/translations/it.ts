@@ -791,6 +791,8 @@ const it = {
   'security.trackers.mode.off': 'Disattivata',
   'security.trackers.mode.basic': 'Base',
   'security.trackers.mode.strict': 'Rigorosa',
+  'start.search.placeholder': 'Cerca con DuckDuckGo',
+  'start.search.button': 'Cerca',
 };
 
 export default it;
