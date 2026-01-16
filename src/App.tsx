@@ -118,6 +118,21 @@ type MainBrowserAppProps = {
   hasStartParam: boolean;
 };
 
+const formatDisplayUrl = (value: string): string => {
+  const trimmed = value.trim();
+  if (!trimmed) return '';
+  try {
+    const parsed = new URL(trimmed);
+    if (parsed.protocol === 'http:' || parsed.protocol === 'https:') {
+      const origin = parsed.origin;
+      return origin.endsWith('/') ? origin : `${origin}/`;
+    }
+  } catch {
+    return trimmed;
+  }
+  return trimmed;
+};
+
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
 
 const buildWebviewBaseCss = (vars: Record<string, string>) => `
@@ -196,7 +211,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const { ready: tabsReady, tabs, activeId, activeTab } = useTabsStore();
 
-  const [inputValue, setInputValue] = useState<string>(initialUrl);
+  const [inputValue, setInputValue] = useState<string>(() => formatDisplayUrl(initialUrl));
   const [isEditing, setIsEditing] = useState<boolean>(false);
   const isEditingRef = useRef<boolean>(false);
   const [canGoBack, setCanGoBack] = useState<boolean>(false);
@@ -1237,7 +1252,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       lastUsedAt: Date.now()
     });
     if (activeIdRef.current === tabId && !isEditingRef.current) {
-      setInputValue(cleanUrl);
+      setInputValue(formatDisplayUrl(cleanUrl));
       lastLoadedRef.current = { id: tabId, url: cleanUrl };
     }
   }, [updateMetaAction, hasSslException, httpsModeRef]);
@@ -1786,7 +1801,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (!certWarning) return;
     if (!certCandidate?.url) return;
     if (isEditingRef.current) return;
-    setInputValue(certCandidate.url);
+    setInputValue(formatDisplayUrl(certCandidate.url));
   }, [certWarning, certCandidate]);
 
   useEffect(() => {
@@ -1821,7 +1836,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   useEffect(() => {
     if (!tabsReady) return;
     if (isEditingRef.current) return;
-    setInputValue(activeUrl);
+    setInputValue(formatDisplayUrl(activeUrl));
   }, [tabsReady, activeUrl]);
 
   useEffect(() => {
@@ -2624,6 +2639,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     isEditingRef.current = true;
     setIsEditing(true);
     activeInputRef.current = 'url';
+    const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
+    setInputValue(activeUrlCurrent);
     event.target.select();
   }, []);
 
@@ -2631,6 +2648,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     isEditingRef.current = false;
     setIsEditing(false);
     if (activeInputRef.current === 'url') activeInputRef.current = null;
+    const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
+    setInputValue(formatDisplayUrl(activeUrlCurrent));
   }, []);
 
   const handleKeyboardHeightChange = useCallback((height: number) => {
