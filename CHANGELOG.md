@@ -1,6 +1,24 @@
 # Changelog
 
 ----
+## v0.4.9 - 2026-01-17
+
+### New
+
+- Customisable Start Page.
+
+- Built-in Coupons engine for online shopping: a small floating button appears on supported stores to help you find available coupons and save money — with no tracking and no impact on your privacy.
+
+- Automatic cleanup of outdated temporary files to avoid cluttering the system.
+
+## Fixed
+
+- Fixed an issue that prevented opening links in new tabs.
+
+- Minor UI fixes and polish.
+
+
+----
 ## v0.4.8 - 2026-01-11
 
 ### New
