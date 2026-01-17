@@ -753,9 +753,6 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         >
           {showTopSitesPanel && topSites.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
-              {/* <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
-                {t('start.topSites.title')}
-              </div> */}
               <div
                 style={{
                   display: 'grid',
@@ -839,8 +836,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.topSites.menu')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 18 : 12}
-                          height={mode === 'mobile' ? 18 : 12}
+                          width={mode === 'mobile' ? 38 : 12}
+                          height={mode === 'mobile' ? 38 : 12}
                           viewBox="0 0 24 24"
                           fill="currentColor"
                           aria-hidden="true"
@@ -905,9 +902,6 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
 
           {showFavoritesPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
-              {/* <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
-                {t('start.favorites.title')}
-              </div> */}
               <div
                 style={{
                   display: 'grid',
@@ -992,8 +986,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.favorites.remove')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 18 : 12}
-                          height={mode === 'mobile' ? 18 : 12}
+                          width={mode === 'mobile' ? 38 : 12}
+                          height={mode === 'mobile' ? 38 : 12}
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1144,8 +1138,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       title={t('global.close')}
                     >
                       <svg
-                        width={mode === 'mobile' ? 28 : 16}
-                        height={mode === 'mobile' ? 28 : 16}
+                        width={mode === 'mobile' ? 38 : 16}
+                        height={mode === 'mobile' ? 38 : 16}
                         viewBox="0 0 24 24"
                         fill="none"
                         stroke="currentColor"
