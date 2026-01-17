@@ -92,6 +92,8 @@ export type MerchantEntry = {
   domain: string;
   name: string | null;
   imageUrl?: string | null;
+  hasLocal?: boolean;
+  freshestCoupon?: string | null;
 };
 
 export type MerchantsCatalogCache = {

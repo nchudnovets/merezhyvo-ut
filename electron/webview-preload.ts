@@ -137,7 +137,7 @@ const installOpenUrlBridge = (): void => {
 
   try {
     const originalOpen = window.open;
-    window.open = function (...args: unknown[]) {
+    window.open = function (...args: Parameters<typeof window.open>) {
       const raw = args[0] as string | URL | undefined;
       const url = raw instanceof URL ? raw.toString() : typeof raw === 'string' ? raw : '';
       const resolved = resolveUrl(url);
@@ -145,7 +145,9 @@ const installOpenUrlBridge = (): void => {
         sendOpenUrl(resolved);
         return null;
       }
-      return typeof originalOpen === 'function' ? originalOpen.apply(window, args as never[]) : null;
+      return typeof originalOpen === 'function'
+        ? originalOpen.apply(window, args)
+        : null;
     };
   } catch {
     // noop

@@ -441,8 +441,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       }
     }
     const byFreshness = (a: MerchantEntry, b: MerchantEntry) => {
-      const aTs = a.freshestCoupon ? Date.parse(a.freshestCoupon) : 0;
-      const bTs = b.freshestCoupon ? Date.parse(b.freshestCoupon) : 0;
+      const aTs = typeof a.freshestCoupon === 'string' ? Date.parse(a.freshestCoupon) : 0;
+      const bTs = typeof b.freshestCoupon === 'string' ? Date.parse(b.freshestCoupon) : 0;
       if (Number.isFinite(aTs) && Number.isFinite(bTs) && aTs !== bTs) {
         return bTs - aTs;
       }
@@ -452,7 +452,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     };
     locals.sort(byFreshness);
     globals.sort(byFreshness);
-    return [...locals, ...globals].slice(0, 10);
+    return [...locals, ...globals].slice(0, 12);
   }, [couponMerchants]);
 
   const handleRemoveTopSite = useCallback((origin: string) => {
@@ -519,7 +519,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             width: '100%',
             display: 'flex',
             alignItems: 'stretch',
-            boxSizing: 'border-box'
+            boxSizing: 'border-box',
+            marginBottom: mode === 'mobile' ? 40 : 20
           }}
         >
           <input
@@ -752,9 +753,9 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         >
           {showTopSitesPanel && topSites.length > 0 && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
-              <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
+              {/* <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
                 {t('start.topSites.title')}
-              </div>
+              </div> */}
               <div
                 style={{
                   display: 'grid',
@@ -762,7 +763,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   gap,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: 'start'
+                  justifyContent: topSites?.length < 5 ? 'start' : 'space-between'
                 }}
               >
                 {topSites.slice(0, TOP_SITES_LIMIT).map((site) => {
@@ -904,9 +905,9 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
 
           {showFavoritesPanel && (
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
-              <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
+              {/* <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
                 {t('start.favorites.title')}
-              </div>
+              </div> */}
               <div
                 style={{
                   display: 'grid',
@@ -914,14 +915,15 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   gap,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: 'start'
+                  justifyContent: favorites?.length < 5 ? 'start' : 'space-between'
                 }}
               >
                 {favorites.map((favorite) => {
-                  const label = getHostLabel(favorite.origin);
+                  const origin = typeof favorite.origin === 'string' ? favorite.origin : '';
+                  const label = getHostLabel(origin);
                   return (
                     <div
-                      key={favorite.origin}
+                      key={origin}
                       style={{
                         position: 'relative',
                         display: 'flex',
@@ -942,7 +944,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                     >
                       <button
                         type="button"
-                        onClick={() => openInTab(favorite.origin)}
+                        onClick={() => openInTab(origin)}
                         style={{
                           border: 'none',
                           background: 'transparent',
@@ -954,7 +956,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           overflow: 'hidden',
                           maxWidth: '100%'
                         }}
-                        aria-label={label || favorite.origin}
+                        aria-label={label || origin}
                       >
                         <FaviconTile faviconId={favorite.faviconId} label={label} size={iconSize} />
                         <span
@@ -971,7 +973,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       </button>
                       <button
                         type="button"
-                        onClick={() => handleRemoveFavorite(favorite.origin)}
+                        onClick={() => handleRemoveFavorite(origin)}
                         style={{
                           position: 'absolute',
                           top: mode === 'mobile' ? 10 : 6,
@@ -1029,9 +1031,9 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       aspectRatio: '1 / 1',
                       boxSizing: 'border-box'
                     }}
-                    aria-label={t('start.favorites.add')}
-                    title={t('start.favorites.add')}
-                  >
+                        aria-label={t('start.favorites.add')}
+                        title={t('start.favorites.add')}
+                    >
                     <svg
                       width={mode === 'mobile' ? 60 : 28}
                       height={mode === 'mobile' ? 60 : 28}
@@ -1209,7 +1211,12 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           )}
 
           {showCouponsPanel && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: mode === 'mobile' ? 18 : 12,
+                marginTop: mode === 'mobile' ? 40 : 20
+              }}>
               <div style={{ fontSize: sectionTitleFontSize, fontWeight: 700 }}>
                 {t('start.coupons.title')}
               </div>
@@ -1220,7 +1227,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   gap,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: 'start'
+                  justifyContent: sortedCouponMerchants?.length < 5 ? 'start' : 'space-between'
                 }}
               >
                 {sortedCouponMerchants.map((merchant) => {

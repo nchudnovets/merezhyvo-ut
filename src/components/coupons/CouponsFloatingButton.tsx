@@ -165,9 +165,13 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
       }
       const storedPos = getPosForMode(position, mode);
       const hasLocal = localPosRef.current !== null;
-      const basePos = hasLocal && prevRect
-        ? scalePosToRect(localPosRef.current, prevRect, rect)
-        : (localPosRef.current ?? storedPos ?? fallbackPos);
+      const basePos: SavingsFloatingButtonPos =
+        (hasLocal && prevRect
+          ? scalePosToRect(localPosRef.current as SavingsFloatingButtonPos, prevRect, rect)
+          : null) ??
+        localPosRef.current ??
+        storedPos ??
+        fallbackPos;
       const clamped = hasLocal ? clampPos(basePos, rect) : clampVisiblePos(basePos, rect);
       localPosRef.current = clamped;
       setLocalPos(clamped);
@@ -194,7 +198,7 @@ const CouponsFloatingButton: React.FC<CouponsFloatingButtonProps> = ({
   useEffect(() => {
     if (prevResetKeyRef.current !== resetKey) {
       prevResetKeyRef.current = resetKey;
-      setHasClicked(false);
+      window.setTimeout(() => setHasClicked(false), 0);
     }
   }, [resetKey]);
 

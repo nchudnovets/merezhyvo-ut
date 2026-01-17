@@ -136,7 +136,7 @@ export const ipc = {
           return (res ?? null) as StartPageSettings;
         } catch (err) {
           console.error('settings.startPage.get failed', err);
-          return { showTopSites: true, showFavorites: true, hidePanels: false, favorites: [] };
+          return { showTopSites: true, showFavorites: true, hidePanels: false, showCouponStores: true, favorites: [] };
         }
       },
       async update(payload: Partial<StartPageSettings>): Promise<StartPageSettings> {
@@ -145,7 +145,7 @@ export const ipc = {
           return (res ?? payload) as StartPageSettings;
         } catch (err) {
           console.error('settings.startPage.update failed', err);
-          return { showTopSites: true, showFavorites: true, hidePanels: false, favorites: [] };
+          return { showTopSites: true, showFavorites: true, hidePanels: false, showCouponStores: true, favorites: [] };
         }
       }
     },

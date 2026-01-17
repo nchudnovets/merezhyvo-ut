@@ -218,31 +218,34 @@ const Toolbar: React.FC<ToolbarProps> = ({
         title={t('toolbar.openSettings')}
         aria-label={t('toolbar.openSettings')}
         className="btn btn--settings"
-        onClick={onOpenSettings}
+      onClick={onOpenSettings}
+      style={{
+        ...toolbarStyles.settingsButton,
+        ...(modeStyles.settingsButton || {})
+      }}
+    >
+      <svg
+        viewBox="0 0 24 24"
+        width="20"
+        height="20"
         style={{
-          ...toolbarStyles.settingsButton,
-          ...(modeStyles.settingsButton || {})
+          ...toolbarStyles.settingsButtonIcon,
+          ...(modeStyles.settingsButtonIcon || {})
         }}
+        xmlns="http://www.w3.org/2000/svg"
       >
-        <svg
-          viewBox="0 0 16 16"
-          style={{
-            ...toolbarStyles.settingsButtonIcon,
-            ...(modeStyles.settingsButtonIcon || {})
-          }}
-          xmlns="http://www.w3.org/2000/svg"
-        >
-          <path
-            fill="none"
-            stroke="currentColor"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-            strokeWidth="1.5"
-            d="M8 3.25V1.75M8 14.25v-1.5M3.6 3.6l1.06 1.06M11.34 11.34l1.06 1.06M1.75 8h1.5M12.75 8h1.5M3.6 12.4l1.06-1.06M11.34 4.66l1.06-1.06M10.25 8a2.25 2.25 0 1 1-4.5 0 2.25 2.25 0 0 1 4.5 0Z"
-          />
-        </svg>
-      </button>
-    )}
+        <circle cx="12" cy="12" r="3" fill="none" stroke="currentColor" strokeWidth="2" />
+        <path
+          fill="none"
+          stroke="currentColor"
+          strokeWidth="2"
+          strokeLinecap="round"
+          strokeLinejoin="round"
+          d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09a1.65 1.65 0 0 0-1-1.51 1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09a1.65 1.65 0 0 0 1.51-1 1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"
+        />
+      </svg>
+    </button>
+  )}
   </div>
 );
 };

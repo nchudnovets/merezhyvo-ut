@@ -16,10 +16,4 @@ export function attachLinkPolicy(contents?: WebContents) {
     handleOpen(url);
     return { action: 'deny' };
   });
-  contents.on('new-window', (event, url: string) => {
-    try {
-      event.preventDefault();
-    } catch {}
-    handleOpen(typeof url === 'string' ? url : '');
-  });
 }
