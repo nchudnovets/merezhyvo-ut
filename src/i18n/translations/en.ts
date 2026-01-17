@@ -805,6 +805,18 @@ const en = {
   'privacyInfo.link': 'How this works',
   'start.search.placeholder': 'Search with DuckDuckGo',
   'start.search.button': 'Search',
+  'start.topSites.title': 'Most visited sites',
+  'start.topSites.menu': 'More options',
+  'start.topSites.removeFromHistory': 'Remove from history',
+  'start.favorites.title': 'Favorite sites',
+  'start.favorites.add': 'Add site',
+  'start.favorites.addPlaceholder': 'Enter website address',
+  'start.favorites.remove': 'Remove site',
+  'start.settings.button': 'Page settings',
+  'start.settings.showTopSites': 'Show most visited sites',
+  'start.settings.showFavorites': 'Show favorite sites',
+  'start.settings.showCouponStores': 'Show coupon stores',
+  'start.coupons.title': 'Fresh coupons available for:',
 } as const;
 
 export type EnglishTranslationKeys = keyof typeof en;

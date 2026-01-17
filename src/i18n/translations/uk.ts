@@ -793,6 +793,18 @@ const uk = {
   'privacyInfo.link': 'Як це працює',
   'start.search.placeholder': 'Пошук у DuckDuckGo',
   'start.search.button': 'Шукати',
+  'start.topSites.title': 'Найчастіше відвідувані сайти',
+  'start.topSites.menu': 'Меню',
+  'start.topSites.removeFromHistory': 'Видалити з історії',
+  'start.favorites.title': 'Обрані сайти',
+  'start.favorites.add': 'Додати сайт',
+  'start.favorites.addPlaceholder': 'Введіть адресу сайту',
+  'start.favorites.remove': 'Видалити сайт',
+  'start.settings.button': 'Налаштування сторінки',
+  'start.settings.showTopSites': 'Показувати найчастіше відвідувані сайти',
+  'start.settings.showFavorites': 'Показувати обрані сайти',
+  'start.settings.showCouponStores': 'Показувати магазини з купонами',
+  'start.coupons.title': 'Свіжі купони доступні для:',
 };
 
 export default uk;

@@ -793,6 +793,18 @@ const es = {
   'privacyInfo.link': 'Cómo funciona',
   'start.search.placeholder': 'Buscar con DuckDuckGo',
   'start.search.button': 'Buscar',
+  'start.topSites.title': 'Sitios más visitados',
+  'start.topSites.menu': 'Más opciones',
+  'start.topSites.removeFromHistory': 'Eliminar del historial',
+  'start.favorites.title': 'Sitios favoritos',
+  'start.favorites.add': 'Agregar sitio',
+  'start.favorites.addPlaceholder': 'Introduce la dirección del sitio',
+  'start.favorites.remove': 'Eliminar sitio',
+  'start.settings.button': 'Ajustes de la página',
+  'start.settings.showTopSites': 'Mostrar sitios más visitados',
+  'start.settings.showFavorites': 'Mostrar sitios favoritos',
+  'start.settings.showCouponStores': 'Mostrar tiendas con cupones',
+  'start.coupons.title': 'Cupones recientes disponibles para:',
 };
 
 export default es;

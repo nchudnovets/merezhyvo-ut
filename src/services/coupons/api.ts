@@ -71,7 +71,17 @@ const normalizeMerchantRecord = (raw: unknown): MerchantEntry | null => {
   const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   const name = normalizeMerchantName(record.name ?? record.title ?? record.label ?? null);
   const imageUrl = normalizeImageUrl(record.imageUrl ?? record.logo ?? null);
-  return { domain, name, imageUrl: imageUrl ?? undefined };
+  const hasLocal = typeof record.hasLocal === 'boolean' ? record.hasLocal : undefined;
+  const freshestRaw = record.freshestCoupon;
+  const freshestCoupon =
+    typeof freshestRaw === 'string' && freshestRaw.trim().length > 0 ? freshestRaw.trim() : undefined;
+  return {
+    domain,
+    name,
+    imageUrl: imageUrl ?? undefined,
+    hasLocal,
+    freshestCoupon: freshestCoupon ?? null
+  };
 };
 
 const parseMerchants = (payload: unknown): MerchantEntry[] => {

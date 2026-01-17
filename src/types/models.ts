@@ -258,6 +258,8 @@ export type MerchantEntry = {
   domain: string;
   name: string | null;
   imageUrl?: string | null;
+  hasLocal?: boolean;
+  freshestCoupon?: string | null;
 };
 
 export type MerchantsCatalogCache = {
@@ -336,6 +338,19 @@ export type NetworkSettings = {
   detectedAt?: string | null;
 };
 
+export type StartPageSettings = {
+  showTopSites: boolean;
+  showFavorites: boolean;
+  hidePanels: boolean;
+  showCouponStores: boolean;
+  favorites: StartPageFavorite[];
+};
+
+export type StartPageFavorite = {
+  origin: string;
+  faviconId?: string | null;
+};
+
 export interface SettingsState {
   schema: number;
   tor: TorConfig;
@@ -348,6 +363,7 @@ export interface SettingsState {
   webrtcMode: WebrtcMode;
   network?: NetworkSettings;
   savings?: SavingsSettings;
+  startPage?: StartPageSettings;
   privacy?: {
     cookies?: CookiePrivacySettings;
     trackers?: TrackerPrivacySettings;

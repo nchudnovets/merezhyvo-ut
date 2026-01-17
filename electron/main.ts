@@ -42,8 +42,10 @@ import {
   sanitizeSslExceptions,
   sanitizeNetworkSettings,
   sanitizeSavingsSettings,
+  sanitizeStartPageSettings,
   type SettingsState,
   type SavingsSettings,
+  type StartPageSettings,
   type WebrtcMode,
   type TrackerPrivacySettings,
   type BlockingMode
@@ -2062,6 +2064,30 @@ ipcMain.handle('merezhyvo:settings:savings:update', async (_event, payload: unkn
   } catch (err) {
     console.error('[merezhyvo] settings savings update failed', err);
     return sanitizeSavingsSettings(payload);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:start-page:get', async () => {
+  try {
+    const state = await readSettingsState();
+    return sanitizeStartPageSettings(state.startPage);
+  } catch (err) {
+    console.error('[merezhyvo] settings start page get failed', err);
+    return sanitizeStartPageSettings(null);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:start-page:update', async (_event, payload: unknown) => {
+  try {
+    const state = await readSettingsState();
+    const current = sanitizeStartPageSettings(state.startPage);
+    const patch = (payload && typeof payload === 'object') ? payload as Partial<StartPageSettings> : {};
+    const nextStartPage = sanitizeStartPageSettings({ ...current, ...patch });
+    const nextState = await writeSettingsState({ startPage: nextStartPage });
+    return sanitizeStartPageSettings(nextState.startPage);
+  } catch (err) {
+    console.error('[merezhyvo] settings start page update failed', err);
+    return sanitizeStartPageSettings(payload);
   }
 });
 

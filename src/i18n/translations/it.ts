@@ -793,6 +793,18 @@ const it = {
   'security.trackers.mode.strict': 'Rigorosa',
   'start.search.placeholder': 'Cerca con DuckDuckGo',
   'start.search.button': 'Cerca',
+  'start.topSites.title': 'Siti più visitati',
+  'start.topSites.menu': 'Altre opzioni',
+  'start.topSites.removeFromHistory': 'Rimuovi dalla cronologia',
+  'start.favorites.title': 'Siti preferiti',
+  'start.favorites.add': 'Aggiungi sito',
+  'start.favorites.addPlaceholder': 'Inserisci l\'indirizzo del sito',
+  'start.favorites.remove': 'Rimuovi sito',
+  'start.settings.button': 'Impostazioni pagina',
+  'start.settings.showTopSites': 'Mostra siti più visitati',
+  'start.settings.showFavorites': 'Mostra siti preferiti',
+  'start.settings.showCouponStores': 'Mostra negozi con coupon',
+  'start.coupons.title': 'Coupon recenti disponibili per:',
 };
 
 export default it;

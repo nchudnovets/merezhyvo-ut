@@ -793,6 +793,18 @@ const nl = {
   'privacyInfo.link': 'Hoe werkt dit',
   'start.search.placeholder': 'Zoeken met DuckDuckGo',
   'start.search.button': 'Zoeken',
+  'start.topSites.title': 'Meest bezochte sites',
+  'start.topSites.menu': 'Meer opties',
+  'start.topSites.removeFromHistory': 'Uit geschiedenis verwijderen',
+  'start.favorites.title': 'Favoriete sites',
+  'start.favorites.add': 'Site toevoegen',
+  'start.favorites.addPlaceholder': 'Voer het webadres in',
+  'start.favorites.remove': 'Site verwijderen',
+  'start.settings.button': 'Pagina-instellingen',
+  'start.settings.showTopSites': 'Meest bezochte sites weergeven',
+  'start.settings.showFavorites': 'Favoriete sites weergeven',
+  'start.settings.showCouponStores': 'Couponwinkels tonen',
+  'start.coupons.title': 'Verse coupons beschikbaar voor:',
 };
 
 export default nl;

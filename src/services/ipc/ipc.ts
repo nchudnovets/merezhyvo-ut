@@ -16,7 +16,7 @@ import type {
 import { sanitizeMessengerSettings } from '../../shared/messengers';
 import { DEFAULT_LOCALE } from '../../i18n/locales';
 import type { MerezhyvoUISettings } from '../../types/preload';
-import type { SecureDnsSettings, SavingsSettings, NetworkSettings } from '../../types/models';
+import type { SecureDnsSettings, SavingsSettings, NetworkSettings, StartPageSettings } from '../../types/models';
 import { DEFAULT_SAVINGS_SETTINGS } from '../../utils/savings';
 
 type Bridge = NonNullable<Window['merezhyvo']>;
@@ -126,6 +126,26 @@ export const ipc = {
         } catch (err) {
           console.error('settings.savings.update failed', err);
           return payload ? { ...DEFAULT_SAVINGS_SETTINGS, ...payload } : DEFAULT_SAVINGS_SETTINGS;
+        }
+      }
+    },
+    startPage: {
+      async get(): Promise<StartPageSettings> {
+        try {
+          const res = await getApi()?.settings?.startPage?.get?.();
+          return (res ?? null) as StartPageSettings;
+        } catch (err) {
+          console.error('settings.startPage.get failed', err);
+          return { showTopSites: true, showFavorites: true, hidePanels: false, favorites: [] };
+        }
+      },
+      async update(payload: Partial<StartPageSettings>): Promise<StartPageSettings> {
+        try {
+          const res = await getApi()?.settings?.startPage?.update?.(payload ?? {});
+          return (res ?? payload) as StartPageSettings;
+        } catch (err) {
+          console.error('settings.startPage.update failed', err);
+          return { showTopSites: true, showFavorites: true, hidePanels: false, favorites: [] };
         }
       }
     },

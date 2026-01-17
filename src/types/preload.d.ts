@@ -47,6 +47,7 @@ import type {
   CookieBlockStatus,
   AdsPrivacySettings,
   NetworkSettings,
+  StartPageSettings,
   SecureDnsSettings
 } from './models';
 
@@ -278,6 +279,10 @@ export interface MerezhyvoAPI {
     savings: {
       get(): Promise<SavingsSettings>;
       update(payload: Partial<SavingsSettings>): Promise<SavingsSettings>;
+    };
+    startPage: {
+      get(): Promise<StartPageSettings>;
+      update(payload: Partial<StartPageSettings>): Promise<StartPageSettings>;
     };
     keyboard: {
       get(): Promise<KeyboardSettings>;

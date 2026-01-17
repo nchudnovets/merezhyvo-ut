@@ -808,6 +808,18 @@ const pl = {
   'privacyInfo.link': 'Jak to działa',
   'start.search.placeholder': 'Szukaj w DuckDuckGo',
   'start.search.button': 'Szukaj',
+  'start.topSites.title': 'Najczęściej odwiedzane strony',
+  'start.topSites.menu': 'Więcej opcji',
+  'start.topSites.removeFromHistory': 'Usuń z historii',
+  'start.favorites.title': 'Ulubione strony',
+  'start.favorites.add': 'Dodaj stronę',
+  'start.favorites.addPlaceholder': 'Wpisz adres strony',
+  'start.favorites.remove': 'Usuń stronę',
+  'start.settings.button': 'Ustawienia strony',
+  'start.settings.showTopSites': 'Pokazuj najczęściej odwiedzane strony',
+  'start.settings.showFavorites': 'Pokazuj ulubione strony',
+  'start.settings.showCouponStores': 'Pokaż sklepy z kuponami',
+  'start.coupons.title': 'Świeże kupony dostępne dla:',
 };
 
 export default pl;

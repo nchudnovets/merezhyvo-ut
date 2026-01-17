@@ -130,6 +130,19 @@ export type NetworkSettings = {
   detectedAt?: string | null;
 };
 
+export type StartPageSettings = {
+  showTopSites: boolean;
+  showFavorites: boolean;
+  hidePanels: boolean;
+  showCouponStores: boolean;
+  favorites: StartPageFavorite[];
+};
+
+export type StartPageFavorite = {
+  origin: string;
+  faviconId?: string | null;
+};
+
 export type SettingsState = {
   schema: typeof SETTINGS_SCHEMA;
   keyboard: KeyboardSettings;
@@ -142,6 +155,7 @@ export type SettingsState = {
   webrtcMode: WebrtcMode;
   network?: NetworkSettings;
   savings?: SavingsSettings;
+  startPage?: StartPageSettings;
   permissions?: unknown;
   privacy?: {
     cookies?: CookiePrivacySettings;
@@ -163,6 +177,7 @@ type SettingsLike = {
   webrtcMode?: unknown;
   network?: unknown;
   savings?: unknown;
+  startPage?: unknown;
   privacy?: unknown;
   permissions?: unknown;
 };
@@ -175,6 +190,20 @@ const normalizeCountryCode = (value: unknown): string | null => {
   if (!/^[A-Z]{2}$/.test(trimmed)) return null;
   if (trimmed === 'RU') return null;
   return trimmed;
+};
+
+const normalizeStartPageFavorite = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  if (!trimmed) return null;
+  const candidate = /^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)
+    ? trimmed
+    : `https://${trimmed}`;
+  try {
+    return new URL(candidate).origin;
+  } catch {
+    return null;
+  }
 };
 
 export const sanitizeKeyboardSettings = (raw: unknown): KeyboardSettings => {
@@ -307,6 +336,13 @@ const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {
   catalog: { ...DEFAULT_SAVINGS_CATALOG },
   pendingCoupon: null
 };
+const DEFAULT_START_PAGE_SETTINGS: StartPageSettings = {
+  showTopSites: true,
+  showFavorites: true,
+  hidePanels: false,
+  showCouponStores: true,
+  favorites: []
+};
 
 export const createDefaultSettingsState = (): SettingsState => ({
   schema: SETTINGS_SCHEMA,
@@ -322,6 +358,7 @@ export const createDefaultSettingsState = (): SettingsState => ({
   webrtcMode: DEFAULT_WEBRTC_MODE,
   network: { secureDns: { ...DEFAULT_SECURE_DNS } },
   savings: { ...DEFAULT_SAVINGS_SETTINGS },
+  startPage: { ...DEFAULT_START_PAGE_SETTINGS },
   privacy: {
     blockingMode: DEFAULT_BLOCKING_MODE,
     cookies: { ...DEFAULT_COOKIE_PRIVACY },
@@ -450,12 +487,14 @@ const normalizeImageUrl = (value: unknown): string | null => {
 
 const normalizeMerchantEntry = (value: unknown): MerchantEntry | null => {
   if (typeof value !== 'object' || value === null) return null;
-  const candidate = value as { domain?: unknown; name?: unknown; imageUrl?: unknown };
+  const candidate = value as { domain?: unknown; name?: unknown; imageUrl?: unknown; hasLocal?: unknown; freshestCoupon?: unknown };
   const domain = normalizeDomain(candidate.domain);
   if (!domain) return null;
   const name = normalizeMerchantName(candidate.name);
   const imageUrl = normalizeImageUrl(candidate.imageUrl);
-  return { domain, name, imageUrl: imageUrl ?? undefined };
+  const hasLocal = typeof candidate.hasLocal === 'boolean' ? candidate.hasLocal : undefined;
+  const freshestCoupon = normalizeIsoDate(candidate.freshestCoupon) ?? null;
+  return { domain, name, imageUrl: imageUrl ?? undefined, hasLocal, freshestCoupon };
 };
 
 const normalizeIsoDate = (value: unknown): string | null => {
@@ -571,6 +610,52 @@ export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
     floatingButtonPos,
     catalog,
     pendingCoupon
+  };
+};
+
+export const sanitizeStartPageSettings = (raw: unknown): StartPageSettings => {
+  const source = (typeof raw === 'object' && raw !== null) ? raw as Partial<StartPageSettings> : {};
+  const showTopSites = typeof source.showTopSites === 'boolean'
+    ? source.showTopSites
+    : DEFAULT_START_PAGE_SETTINGS.showTopSites;
+  const showFavorites = typeof source.showFavorites === 'boolean'
+    ? source.showFavorites
+    : DEFAULT_START_PAGE_SETTINGS.showFavorites;
+  const hidePanels = typeof source.hidePanels === 'boolean'
+    ? source.hidePanels
+    : DEFAULT_START_PAGE_SETTINGS.hidePanels;
+  const showCouponStores = typeof source.showCouponStores === 'boolean'
+    ? source.showCouponStores
+    : DEFAULT_START_PAGE_SETTINGS.showCouponStores;
+  const favoritesRaw = Array.isArray(source.favorites) ? source.favorites : DEFAULT_START_PAGE_SETTINGS.favorites;
+  const dedup = new Map<string, StartPageFavorite>();
+  for (const item of favoritesRaw) {
+    let origin: string | null = null;
+    let faviconId: string | null | undefined;
+    if (typeof item === 'string') {
+      origin = normalizeStartPageFavorite(item);
+    } else if (item && typeof item === 'object') {
+      const rawOrigin = (item as { origin?: unknown }).origin;
+      origin = normalizeStartPageFavorite(rawOrigin);
+      const rawFavicon = (item as { faviconId?: unknown }).faviconId;
+      faviconId = typeof rawFavicon === 'string' && rawFavicon.trim().length > 0 ? rawFavicon : null;
+    }
+    if (!origin) continue;
+    if (!dedup.has(origin)) {
+      dedup.set(origin, { origin, faviconId: faviconId ?? null });
+    } else if (faviconId) {
+      const existing = dedup.get(origin);
+      if (existing && !existing.faviconId) {
+        dedup.set(origin, { ...existing, faviconId });
+      }
+    }
+  }
+  return {
+    showTopSites,
+    showFavorites,
+    hidePanels,
+    showCouponStores,
+    favorites: Array.from(dedup.values())
   };
 };
 
@@ -697,6 +782,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
   const networkSource = (source.network && typeof source.network === 'object') ? source.network : {};
   const network = sanitizeNetworkSettings(networkSource);
   const savings = sanitizeSavingsSettings(source.savings);
+  const startPage = sanitizeStartPageSettings(source.startPage);
   const wm = typeof source.webrtcMode === 'string' ? source.webrtcMode : null;
   const webrtcMode: WebrtcMode =
     wm === 'always_off' || wm === 'off_with_tor' ? wm : 'always_on';
@@ -713,6 +799,7 @@ export const sanitizeSettingsPayload = (payload: unknown): SettingsState => {
     webrtcMode,
     network,
     savings,
+    startPage,
     ...(permissions ? { permissions } : {}),
     privacy: { cookies: privacyCookies, trackers: privacyTrackers, ads: privacyAds, blockingMode }
   };

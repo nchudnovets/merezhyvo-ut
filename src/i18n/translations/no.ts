@@ -937,6 +937,18 @@ const no = {
   'privacyInfo.link': 'Slik fungerer dette',
   'start.search.placeholder': 'Søk med DuckDuckGo',
   'start.search.button': 'Søk',
+  'start.topSites.title': 'Mest besøkte nettsteder',
+  'start.topSites.menu': 'Flere alternativer',
+  'start.topSites.removeFromHistory': 'Fjern fra historikk',
+  'start.favorites.title': 'Favorittnettsteder',
+  'start.favorites.add': 'Legg til nettsted',
+  'start.favorites.addPlaceholder': 'Skriv inn nettadressen',
+  'start.favorites.remove': 'Fjern nettsted',
+  'start.settings.button': 'Sideinnstillinger',
+  'start.settings.showTopSites': 'Vis mest besøkte nettsteder',
+  'start.settings.showFavorites': 'Vis favorittnettsteder',
+  'start.settings.showCouponStores': 'Vis kupongbutikker',
+  'start.coupons.title': 'Nye kuponger tilgjengelig for:',
 } as const;
 
 export default no;

@@ -39,6 +39,7 @@ import type {
   AdsPrivacySettings,
   SavingsSettings,
   NetworkSettings,
+  StartPageSettings,
   SecureDnsSettings
 } from '../src/types/models';
 import { sanitizeMessengerSettings } from '../src/shared/messengers';
@@ -287,6 +288,13 @@ const exposeApi: MerezhyvoAPI = {
               customUrl: ''
             }
           },
+          startPage: {
+            showTopSites: true,
+            showFavorites: true,
+            hidePanels: false,
+            showCouponStores: true,
+            favorites: []
+          },
           privacy: {
             cookies: { blockThirdParty: false, exceptions: { thirdPartyAllow: {} } },
             trackers: { enabled: false, exceptions: [] },
@@ -408,6 +416,24 @@ const exposeApi: MerezhyvoAPI = {
           return (await ipcRenderer.invoke('merezhyvo:settings:savings:update', payload ?? {})) as SavingsSettings;
         } catch (err) {
           console.error('[merezhyvo] settings.savings.update failed', err);
+          throw err;
+        }
+      }
+    },
+    startPage: {
+      get: async (): Promise<StartPageSettings> => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:start-page:get')) as StartPageSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.startPage.get failed', err);
+          throw err;
+        }
+      },
+      update: async (payload: Partial<StartPageSettings>): Promise<StartPageSettings> => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:start-page:update', payload ?? {})) as StartPageSettings;
+        } catch (err) {
+          console.error('[merezhyvo] settings.startPage.update failed', err);
           throw err;
         }
       }
