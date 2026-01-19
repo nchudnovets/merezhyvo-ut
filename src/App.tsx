@@ -58,6 +58,7 @@ import { useTrackerBlocking } from './hooks/useTrackerBlocking';
 import { useWebviewMounts } from './hooks/useWebviewMounts';
 import { useWebviewListeners } from './hooks/useWebviewListeners';
 import { useTabViewLifecycle } from './hooks/useTabViewLifecycle';
+import ContextMenuPanel from './components/context-menu/ContextMenuPanel';
 import { JsDialogHost } from './components/modals/jsDialog/JsDialogHost';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
@@ -86,6 +87,7 @@ import type {
   SecureDnsProvider,
   SecureDnsSettings
 } from './types/models';
+import type { ContextMenuState } from './types/preload';
 import type { NavigationState } from './types/navigation';
 import { sanitizeMessengerSettings } from './shared/messengers';
 import { setupHostRtlDirection } from './keyboard/hostRtl';
@@ -252,6 +254,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [kbVisible, setKbVisible] = useState<boolean>(false);
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
+  const [ctxMenuVisible, setCtxMenuVisible] = useState<boolean>(false);
+  const [ctxMenuState, setCtxMenuState] = useState<ContextMenuState | null>(null);
+  const [ctxMenuHeight, setCtxMenuHeight] = useState<number>(0);
   const { enabledKbLayouts, kbLayout, setKbLayout } = useKeyboardLayouts();
   const [downloadsConcurrent, setDownloadsConcurrent] = useState<1 | 2 | 3>(2);
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
@@ -314,6 +319,90 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const webviewBaseCssRef = useRef<string>(webviewBaseCss);
   useEffect(() => { webviewBaseCssRef.current = webviewBaseCss; }, [webviewBaseCss]);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
+  const normalizeCtxState = useCallback((raw: unknown): ContextMenuState => {
+    const source = (raw ?? {}) as Partial<ContextMenuState>;
+    return {
+      canBack: !!source.canBack,
+      canForward: !!source.canForward,
+      hasSelection: !!source.hasSelection,
+      isEditable: !!source.isEditable,
+      canPaste: !!source.canPaste,
+      linkUrl: typeof source.linkUrl === 'string' ? source.linkUrl : '',
+      mediaType: typeof source.mediaType === 'string' ? source.mediaType : undefined,
+      mediaSrc: typeof source.mediaSrc === 'string' ? source.mediaSrc : undefined,
+      pageUrl: typeof source.pageUrl === 'string' ? source.pageUrl : undefined,
+      autofill: source.autofill
+    };
+  }, []);
+
+  const ctxFocusRef = useRef<{ wasWebview: boolean; el: HTMLElement | null }>({
+    wasWebview: false,
+    el: null
+  });
+  const ctxMenuGuardRef = useRef<boolean>(false);
+  const ctxMenuGuardTimerRef = useRef<number | null>(null);
+  const clearCtxMenuGuardTimer = useCallback(() => {
+    if (ctxMenuGuardTimerRef.current !== null) {
+      window.clearTimeout(ctxMenuGuardTimerRef.current);
+      ctxMenuGuardTimerRef.current = null;
+    }
+  }, []);
+  const scheduleCtxMenuGuardRelease = useCallback(() => {
+    clearCtxMenuGuardTimer();
+    ctxMenuGuardTimerRef.current = window.setTimeout(() => {
+      ctxMenuGuardRef.current = false;
+      ctxMenuGuardTimerRef.current = null;
+    }, 220);
+  }, [clearCtxMenuGuardTimer]);
+
+  useEffect(() => {
+    const api = window.merezhyvo?.contextMenu;
+    if (!api) return;
+    const handleShow = async () => {
+      try {
+        const activeEl = document.activeElement as HTMLElement | null;
+        const wasWebview =
+          webviewFocusedRef.current ||
+          (activeEl?.tagName?.toLowerCase?.() === 'webview') ||
+          false;
+        ctxFocusRef.current = {
+          wasWebview,
+          el: wasWebview ? null : activeEl
+        };
+        clearCtxMenuGuardTimer();
+        ctxMenuGuardRef.current = true;
+        // Hide software keyboard to avoid overlapping the menu; keep focus on the field.
+        setKbVisible(false);
+        const raw = await api.getState?.();
+        setCtxMenuState(normalizeCtxState(raw));
+        setCtxMenuVisible(true);
+      } catch {
+        setCtxMenuState(null);
+        setCtxMenuVisible(true);
+      }
+    };
+    const offShow = api.onShow?.(() => {
+      void handleShow();
+    });
+    const offHide = api.onHide?.(() => {
+      setCtxMenuVisible(false);
+      setCtxMenuHeight(0);
+      scheduleCtxMenuGuardRelease();
+    });
+    return () => {
+      clearCtxMenuGuardTimer();
+      try {
+        if (offShow) offShow();
+      } catch {
+        // noop
+      }
+      try {
+        if (offHide) offHide();
+      } catch {
+        // noop
+      }
+    };
+  }, [normalizeCtxState, clearCtxMenuGuardTimer, scheduleCtxMenuGuardRelease]);
 
   const oskPressGuardRef = useRef(false);
 
@@ -747,6 +836,34 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     const view = getActiveWebview();
     return getWebContentsIdSafe(view);
   }, [getActiveWebview, getWebContentsIdSafe]);
+
+  const focusEditableInWebview = useCallback(async () => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    const script = `(function(){
+      try {
+        var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
+        function isEditable(el){
+          if(!el) return false;
+          if(el.isContentEditable) return true;
+          var tag = (el.tagName||'').toLowerCase();
+          if(tag==='textarea') return !el.disabled && !el.readOnly;
+          if(tag==='input'){
+            var type = (el.getAttribute('type')||'').toLowerCase();
+            if(nonText.has(type)) return false;
+            return !el.disabled && !el.readOnly;
+          }
+          return false;
+        }
+        var active = document.activeElement;
+        if (isEditable(active)) { active.focus(); return true; }
+        var last = window.__mzrLastEditable;
+        if (isEditable(last)) { last.focus(); return true; }
+        return false;
+      } catch { return false; }
+    })();`;
+    try { await wv.executeJavaScript(script, false); } catch { /* ignore */ }
+  }, [getActiveWebview]);
 
   const blurActiveInWebview = useCallback(() => {
     const wv = getActiveWebview();
@@ -2327,7 +2444,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     activeId,
     activeViewRevision,
     setKbVisible,
-    oskPressGuardRef
+    oskPressGuardRef,
+    ctxMenuGuardRef
   });
   const navigateToUrl = useCallback(
     (raw: string) => {
@@ -2724,6 +2842,49 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (offset <= 0 && zoomOffset <= 0) return '100%';
     return `calc(100% - ${offset}px + ${zoomOffset}px - 10px)`;
   }, [kbVisible, keyboardHeight, zoomBarHeight]);
+
+  const handleContextMenuClose = useCallback(() => {
+    try {
+      window.merezhyvo?.contextMenu?.close?.();
+    } catch {
+      // noop
+    }
+    setCtxMenuVisible(false);
+    setCtxMenuHeight(0);
+    scheduleCtxMenuGuardRelease();
+  }, [scheduleCtxMenuGuardRelease]);
+
+  const handleContextMenuAction = useCallback(
+    async (id: string) => {
+      const restoreFocus = async () => {
+        if (ctxFocusRef.current.wasWebview) {
+          const wv = getActiveWebview();
+          try { wv?.focus?.(); } catch {}
+          await focusEditableInWebview();
+        } else if (ctxFocusRef.current.el && document.contains(ctxFocusRef.current.el)) {
+          try { ctxFocusRef.current.el.focus({ preventScroll: true }); } catch {
+            try { ctxFocusRef.current.el.focus(); } catch {}
+          }
+        }
+      };
+      await restoreFocus();
+      if (id === 'paste') {
+        setKbVisible(false);
+        setTimeout(() => {
+          try { window.merezhyvo?.contextMenu?.click?.(id); } catch {}
+          handleContextMenuClose();
+        }, 80);
+        return;
+      }
+      try {
+        window.merezhyvo?.contextMenu?.click?.(id);
+      } catch {
+        // noop
+      }
+      handleContextMenuClose();
+    },
+    [getActiveWebview, handleContextMenuClose, focusEditableInWebview]
+  );
   const handleZoomSliderPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
     event.stopPropagation();
   }, []);
@@ -3273,7 +3434,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const keyboardOffset = kbVisible ? Math.max(0, keyboardHeight) : 0;
   const contentTop = mainViewMode === 'messenger' ? messengerToolbarHeight : toolbarHeight;
-  const contentBottom = kbVisible ? keyboardOffset : zoomBarHeight;
+  const ctxMenuOffset = ctxMenuVisible ? Math.max(0, ctxMenuHeight) : 0;
+  const contentBottom = Math.max(kbVisible ? keyboardOffset : zoomBarHeight, ctxMenuOffset);
   const contentStyle = useMemo<React.CSSProperties>(
     () => ({
       position: 'absolute',
@@ -3571,6 +3733,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       {downloadToast && (
         <div style={styles.downloadToast}>{downloadToast}</div>
       )}
+
+          <ContextMenuPanel
+            visible={ctxMenuVisible}
+            mode={mode}
+            state={ctxMenuState}
+            onClose={handleContextMenuClose}
+            onAction={handleContextMenuAction}
+            onHeightChange={setCtxMenuHeight}
+          />
 
           <KeyboardPane
             visible={kbVisible}

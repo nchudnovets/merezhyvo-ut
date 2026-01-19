@@ -11,6 +11,7 @@ type UseMobileSoftKeyboardParams = {
   activeViewRevision: number;
   setKbVisible: (flag: boolean) => void;
   oskPressGuardRef: MutableRefObject<boolean>;
+  ctxMenuGuardRef?: MutableRefObject<boolean>;
 };
 
 const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
@@ -23,7 +24,8 @@ export const useMobileSoftKeyboard = ({
   activeId,
   activeViewRevision,
   setKbVisible,
-  oskPressGuardRef
+  oskPressGuardRef,
+  ctxMenuGuardRef
 }: UseMobileSoftKeyboardParams) => {
   // Toggle keyboard visibility based on focus/pointer inside the main window.
   useEffect(() => {
@@ -38,6 +40,7 @@ export const useMobileSoftKeyboard = ({
         setTimeout(() => { oskPressGuardRef.current = false; }, 250);
         return;
       }
+      if (ctxMenuGuardRef?.current) return;
       if (
         document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
         document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
@@ -49,6 +52,7 @@ export const useMobileSoftKeyboard = ({
 
     const onFocusIn = (e: FocusEvent) => {
       if (oskPressGuardRef.current) return;
+      if (ctxMenuGuardRef?.current) return;
       const t = e.target as HTMLElement | null;
       if (!t) return;
       if (isEditableElement(t)) setKbVisible(true);
@@ -56,6 +60,7 @@ export const useMobileSoftKeyboard = ({
 
     const onFocusOut = (event: FocusEvent) => {
       if (oskPressGuardRef.current) return;
+      if (ctxMenuGuardRef?.current) return;
       if (
         document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
         document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
@@ -82,7 +87,7 @@ export const useMobileSoftKeyboard = ({
       document.removeEventListener('focusin', onFocusIn, true);
       document.removeEventListener('focusout', onFocusOut, true);
     };
-  }, [mode, isEditableElement, oskPressGuardRef, setKbVisible]);
+  }, [mode, isEditableElement, oskPressGuardRef, setKbVisible, ctxMenuGuardRef]);
 
   // Bridge focus/selection events inside the active webview back to the host.
   useEffect(() => {

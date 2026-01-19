@@ -51,6 +51,24 @@ import type {
   SecureDnsSettings
 } from './models';
 
+export interface ContextMenuState {
+  canBack: boolean;
+  canForward: boolean;
+  hasSelection: boolean;
+  isEditable: boolean;
+  canPaste: boolean;
+  linkUrl: string;
+  mediaType?: string;
+  mediaSrc?: string;
+  pageUrl?: string;
+  autofill?: {
+    available: boolean;
+    locked: boolean;
+    options: Array<{ id: string; username: string; siteName: string }>;
+    siteName: string;
+  };
+}
+
 export interface PasswordFieldFocusPayload {
   wcId: number;
   origin: string;
@@ -239,6 +257,16 @@ export interface MerezhyvoAPI {
     onState(handler: (enabled: boolean, reason: string | null) => void): MerezhyvoUnsubscribe;
   };
   openContextMenuAt(x: number, y: number, dpr?: number, webContentsId?: number): void;
+  contextMenu: {
+    onShow(handler: (payload: unknown) => void): MerezhyvoUnsubscribe;
+    onHide(handler: () => void): MerezhyvoUnsubscribe;
+    getState(): Promise<ContextMenuState | null | unknown>;
+    click(id: string): void;
+    close(): void;
+  };
+  clipboard: {
+    readText(): Promise<string>;
+  };
   session: {
     load(): Promise<MerezhyvoSessionState | null>;
     save(data: MerezhyvoSessionState): Promise<{ ok: boolean; error?: string } | null>;

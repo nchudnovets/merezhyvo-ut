@@ -241,6 +241,74 @@ const exposeApi: MerezhyvoAPI = {
     }
   },
 
+  contextMenu: {
+    onShow: (handler: (payload: unknown) => void) => {
+      const listener = (_event: IpcRendererEvent, payload: unknown) => {
+        try {
+          handler(payload);
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on('merezhyvo:ctxmenu:show', listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener('merezhyvo:ctxmenu:show', listener);
+        } catch {
+          // noop
+        }
+      };
+    },
+    onHide: (handler: () => void) => {
+      const listener = () => {
+        try {
+          handler();
+        } catch {
+          // noop
+        }
+      };
+      ipcRenderer.on('merezhyvo:ctxmenu:hide', listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener('merezhyvo:ctxmenu:hide', listener);
+        } catch {
+          // noop
+        }
+      };
+    },
+    getState: async () => {
+      try {
+        return (await ipcRenderer.invoke('mzr:ctxmenu:get-state')) as unknown;
+      } catch {
+        return null;
+      }
+    },
+    click: (id: string) => {
+      try {
+        ipcRenderer.send('mzr:ctxmenu:click', { id });
+      } catch {
+        // noop
+      }
+    },
+    close: () => {
+      try {
+        ipcRenderer.send('mzr:ctxmenu:close');
+      } catch {
+        // noop
+      }
+    }
+  },
+
+  clipboard: {
+    readText: async () => {
+      try {
+        return (await ipcRenderer.invoke('merezhyvo:clipboard:read-text')) as string;
+      } catch {
+        return '';
+      }
+    }
+  },
+
   session: {
     load: async () => {
       try {

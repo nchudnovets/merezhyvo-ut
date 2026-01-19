@@ -15,12 +15,10 @@ import {
   screen,
   session,
   webContents,
-  type BrowserWindowConstructorOptions,
   type ContextMenuParams,
   type Event,
   type IpcMainEvent,
   type IpcMainInvokeEvent,
-  type Point,
   type WebContents
 } from 'electron';
 import type { KeyboardInputEvent } from 'electron';
@@ -274,8 +272,6 @@ type LastOpenSignature = {
   ownerId: number;
 };
 
-type BrowserWindowOptions = BrowserWindowConstructorOptions & { roundedCorners?: boolean };
-
 type WebContentsWithHost = WebContents & { hostWebContents?: WebContents | null };
 
 declare global {
@@ -284,9 +280,7 @@ declare global {
 
 let playbackBlockerId: number | null = null;
 
-let ctxWin: BrowserWindow | null = null;
 let ctxOpening = false;
-let ctxOverlay: BrowserWindow | null = null;
 let ctxMenuMode: ContextMenuMode = 'desktop';
 
 global.lastCtx = global.lastCtx ?? {
@@ -458,22 +452,6 @@ const normalizeAddress = (value: string | null | undefined): string => {
   }
 };
 
-const clampToWorkArea = (x: number, y: number, w: number, h: number): Point => {
-  const disp = screen.getDisplayNearestPoint({ x, y });
-  const wa = disp?.workArea ?? { x: 0, y: 0, width: 1920, height: 1080 };
-  const targetW = Math.min(w, wa.width);
-  const targetH = Math.min(h, wa.height);
-  const nx = Math.min(
-    Math.max(wa.x, x),
-    Math.max(wa.x, wa.x + wa.width - targetW)
-  );
-  const ny = Math.min(
-    Math.max(wa.y, y),
-    Math.max(wa.y, wa.y + wa.height - targetH)
-  );
-  return { x: nx, y: ny };
-};
-
 const isTouchSource = (params: ContextMenuParams | null | undefined): boolean => {
   const typed = params as ExtendedContextMenuParams | null | undefined;
   const src = String(typed?.menuSourceType ?? typed?.sourceType ?? '').toLowerCase();
@@ -522,18 +500,84 @@ const shouldOpenCtxNow = (
 };
 
 const destroyCtxWindows = (): void => {
+  // no separate windows anymore
+};
+
+const buildCtxMenuState = async (): Promise<{
+  canBack: boolean;
+  canForward: boolean;
+  hasSelection: boolean;
+  isEditable: boolean;
+  canPaste: boolean;
+  linkUrl: string;
+  mediaType?: string;
+  mediaSrc?: string;
+  pageUrl?: string;
+  autofill?: ReturnType<typeof getAutofillStateForWebContents>;
+}> => {
   try {
-    if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
+    const ctx = global.lastCtx;
+    const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
+    const canBack = wc?.navigationHistory.canGoBack?.() ?? false;
+    const canForward = wc?.navigationHistory.canGoForward?.() ?? false;
+
+    const params = ctx?.params ?? null;
+    const selection = params?.selectionText ?? '';
+    const hasSelection = Boolean(selection && selection.trim().length);
+    const isEditable = Boolean(params?.isEditable);
+
+    let canPaste = false;
+    try {
+      const text = clipboard.readText() ?? '';
+      canPaste = Boolean(isEditable && text.length > 0);
+    } catch {
+      // noop
+    }
+
+    const linkUrl = ctx?.linkUrl ?? '';
+    const mediaType = typeof params?.mediaType === 'string' ? params.mediaType : '';
+    const mediaSrc = typeof params?.srcURL === 'string' ? params.srcURL : '';
+    const pageUrl = typeof params?.pageURL === 'string' ? params.pageURL : '';
+    const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
+    return {
+      canBack,
+      canForward,
+      hasSelection,
+      isEditable,
+      canPaste,
+      linkUrl,
+      mediaType,
+      mediaSrc,
+      pageUrl,
+      autofill
+    };
+  } catch {
+    return {
+      canBack: false,
+      canForward: false,
+      hasSelection: false,
+      isEditable: false,
+      canPaste: false,
+      linkUrl: '',
+      mediaType: '',
+      mediaSrc: '',
+      pageUrl: '',
+      autofill: { available: false, locked: false, options: [], siteName: '' }
+    };
+  }
+};
+
+const notifyCtxHide = (): void => {
+  try {
+    const ctx = global.lastCtx;
+    const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : null;
+    const owner = wc ? resolveOwnerWindow(wc) : BrowserWindow.getFocusedWindow();
+    if (owner && !owner.isDestroyed()) {
+      owner.webContents.send('merezhyvo:ctxmenu:hide');
+    }
   } catch {
     // noop
   }
-  try {
-    if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close();
-  } catch {
-    // noop
-  }
-  ctxWin = null;
-  ctxOverlay = null;
 };
 
 const openCtxWindowFor = async (
@@ -595,206 +639,18 @@ const openCtxWindowFor = async (
 
   destroyCtxWindows();
 
-  const disp = screen.getDisplayNearestPoint({ x: cursor.x, y: cursor.y });
-  const wa = disp?.workArea ?? { x: 0, y: 0, width: 1920, height: 1080 };
-
-  const overlayOptions: BrowserWindowConstructorOptions = {
-    x: wa.x,
-    y: wa.y,
-    width: wa.width,
-    height: wa.height,
-    show: false,
-    frame: false,
-    resizable: false,
-    movable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    focusable: true,
-    backgroundColor: '#01000000',
-    transparent: true,
-    hasShadow: false,
-    type: 'popup',
-    parent: ownerWin ?? undefined,
-    modal: false,
-    webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: true,
-      sandbox: false,
-      devTools: process.env.MZV_CTXMENU_DEVTOOLS === '1'
-    }
-  };
-
-  ctxOverlay = new BrowserWindow(overlayOptions);
-
   try {
-    ctxOverlay.setAlwaysOnTop(true, 'floating');
-  } catch {
-    // noop
-  }
-  ctxOverlay.setMenuBarVisibility(false);
-
-  const overlayHtml = [
-    '<!doctype html><meta charset="utf-8"/>',
-    '<style>',
-    'html,body{margin:0;padding:0;width:100%;height:100%;background:transparent;cursor:default;}',
-    'body{user-select:none;-webkit-user-select:none;}',
-    '</style>',
-    '<script>',
-    'document.addEventListener("pointerdown", function(){',
-    '  try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(e){}',
-    '});',
-    'window.addEventListener("contextmenu", function(e){ e.preventDefault(); }, {passive:false});',
-    'window.addEventListener("keydown", function(e){ if(e.key==="Escape"){ try{ require("electron").ipcRenderer.send("mzr:ctxmenu:close"); }catch(_){} } });',
-    '</script>',
-    '<body></body>'
-  ].join('');
-
-  try {
-    await ctxOverlay.loadURL(`data:text/html;charset=utf-8,${encodeURIComponent(overlayHtml)}`);
+    const state = await buildCtxMenuState();
+    ownerWin.webContents.send('merezhyvo:ctxmenu:show', {
+      mode: ctxMenuMode,
+      language: uiLanguage,
+      theme: uiTheme,
+      state
+    });
   } catch {
     // noop
   }
 
-  ctxOverlay.on('closed', () => {
-    if (ctxOverlay) ctxOverlay = null;
-  });
-
-  const htmlPath = path.resolve(__dirname, '..', 'electron', 'context-menu.html');
-  const baseWidth = ctxMenuMode === 'mobile' ? 360 : 260;
-  const baseHeight = ctxMenuMode === 'mobile' ? 320 : 220;
-  
-  const desired = clampToWorkArea(cursor.x + 8, cursor.y + 10, baseWidth, baseHeight);
-
-  const popupOptions: BrowserWindowOptions = {
-    width: baseWidth,
-    height: baseHeight,
-    x: desired.x,
-    y: desired.y,
-    show: false,
-    frame: false,
-    resizable: false,
-    movable: false,
-    fullscreenable: false,
-    skipTaskbar: true,
-    focusable: true,
-    backgroundColor: '#1c1c1cee',
-    transparent: false,
-    hasShadow: true,
-    roundedCorners: true,
-    type: 'popup',
-    parent: ctxOverlay ?? undefined,
-    modal: false,
-    useContentSize: true,
-    webPreferences: {
-      contextIsolation: false,
-      nodeIntegration: true,
-      sandbox: false,
-      devTools: process.env.MZV_CTXMENU_DEVTOOLS === '1'
-    }
-  };
-
-  ctxWin = new BrowserWindow(popupOptions);
-
-  try {
-    ctxWin.setAlwaysOnTop(true, 'modal-panel');
-  } catch {
-    // noop
-  }
-
-  ctxWin.on('closed', () => {
-    try {
-      if (ctxOverlay && !ctxOverlay.isDestroyed()) ctxOverlay.close();
-    } catch {
-      // noop
-    }
-    ctxWin = null;
-    ctxOverlay = null;
-  });
-
-  const langParam = uiLanguage ? `&lang=${encodeURIComponent(uiLanguage)}` : '';
-  const themeParam = uiTheme ? `&theme=${encodeURIComponent(uiTheme)}` : '';
-  const ctxUrl = `file://${htmlPath}?mode=${ctxMenuMode}${langParam}${themeParam}`;
-  void ctxWin.loadURL(ctxUrl).catch(() => {});
-
-  const askRender = () => {
-    if (!ctxWin || ctxWin.isDestroyed()) return;
-    try {
-      ctxWin.webContents.send('mzr:ctxmenu:language', uiLanguage);
-    } catch {
-      // noop
-    }
-    try {
-      ctxWin.webContents.send('mzr:ctxmenu:render');
-    } catch {
-      // noop
-    }
-    void ctxWin.webContents
-      .executeJavaScript('window.__mzr_render && window.__mzr_render()')
-      .catch(() => {});
-    try {
-      if (ctxOverlay && !ctxOverlay.isDestroyed() && !ctxOverlay.isVisible()) ctxOverlay.show();
-      if (!ctxWin.isVisible()) ctxWin.show();
-      ctxWin.focus();
-    } catch {
-      // noop
-    }
-
-    setTimeout(() => {
-      if (!ctxWin || ctxWin.isDestroyed()) return;
-      try {
-        let bounds = ctxWin.getBounds();
-
-        if (bounds.height <= 14) {
-          const fallbackHeight = ctxMenuMode === 'mobile' ? baseHeight : 220;
-          const fallbackWidth = ctxMenuMode === 'mobile' ? baseWidth : bounds.width;
-          ctxWin.setBounds(
-            { x: bounds.x, y: bounds.y, width: fallbackWidth, height: fallbackHeight },
-            false
-          );
-          if (!ctxWin.isVisible()) ctxWin.show();
-          bounds = ctxWin.getBounds();
-        }
-
-        const ownerBounds =
-          ownerWin && !ownerWin.isDestroyed() ? ownerWin.getBounds() : null;
-        if (!ownerBounds) return;
-
-        const margin = 8;
-        let { x, y } = bounds;
-        const { width, height } = bounds;
-
-        const ownerRight = ownerBounds.x + ownerBounds.width;
-        if (x + width + margin > ownerRight) {
-          x = ownerRight - width - margin;
-        }
-        if (x < ownerBounds.x + margin) {
-          x = ownerBounds.x + margin;
-        }
-
-        const ownerBottom = ownerBounds.y + ownerBounds.height;
-        if (y + height + margin > ownerBottom) {
-          const aboveY = cursor.y - height - margin;
-          if (aboveY >= ownerBounds.y + margin) {
-            y = aboveY;
-          } else {
-            y = ownerBottom - height - margin;
-          }
-        }
-        if (y < ownerBounds.y + margin) {
-          y = ownerBounds.y + margin;
-        }
-
-        if (x !== bounds.x || y !== bounds.y) {
-          ctxWin.setPosition(Math.round(x), Math.round(y));
-        }
-      } catch {
-        // noop
-      }
-    }, 160);
-  };
-
-  ctxWin.webContents.once('did-finish-load', askRender);
-  setTimeout(askRender, 260);
 };
 
 const parseMode = (raw: string | null | undefined): ContextMenuMode | null => {
@@ -998,56 +854,7 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
 });
 
 ipcMain.handle('mzr:ctxmenu:get-state', async () => {
-  try {
-    const ctx = global.lastCtx;
-    const wc = ctx?.wcId != null ? webContents.fromId(ctx.wcId) : undefined;
-    const canBack = wc?.navigationHistory.canGoBack?.() ?? false;
-    const canForward = wc?.navigationHistory.canGoForward?.() ?? false;
-
-    const params = ctx?.params ?? null;
-    const selection = params?.selectionText ?? '';
-    const hasSelection = Boolean(selection && selection.trim().length);
-    const isEditable = Boolean(params?.isEditable);
-
-    let canPaste = false;
-    try {
-      const text = clipboard.readText() ?? '';
-      canPaste = Boolean(isEditable && text.length > 0);
-    } catch {
-      // noop
-    }
-
-    const linkUrl = ctx?.linkUrl ?? '';
-    const mediaType = typeof params?.mediaType === 'string' ? params.mediaType : '';
-    const mediaSrc = typeof params?.srcURL === 'string' ? params.srcURL : '';
-    const pageUrl = typeof params?.pageURL === 'string' ? params.pageURL : '';
-    const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
-    return {
-      canBack,
-      canForward,
-      hasSelection,
-      isEditable,
-      canPaste,
-      linkUrl,
-      mediaType,
-      mediaSrc,
-      pageUrl,
-      autofill
-    };
-  } catch {
-    return {
-      canBack: false,
-      canForward: false,
-      hasSelection: false,
-      isEditable: false,
-      canPaste: false,
-      linkUrl: '',
-      mediaType: '',
-      mediaSrc: '',
-      pageUrl: '',
-      autofill: { available: false, locked: false, options: [], siteName: '' }
-    };
-  }
+  return buildCtxMenuState();
 });
 
 ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
@@ -1143,6 +950,20 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     }
     if (id === 'paste') {
       try {
+        wc.focus();
+      } catch {
+        // noop
+      }
+      const text = clipboard.readText() ?? '';
+      if (text) {
+        try {
+          wc.insertText(text);
+          return;
+        } catch {
+          // fallback to paste
+        }
+      }
+      try {
         wc.paste();
       } catch {
         try {
@@ -1169,68 +990,15 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     }
   } catch {
     // ignore errors
-  } finally {
-    try {
-      if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
-    } catch {
-      // noop
-    }
   }
 });
 
 ipcMain.on('mzr:ctxmenu:close', () => {
-  try {
-    if (ctxWin && !ctxWin.isDestroyed()) ctxWin.close();
-  } catch {
-    // noop
-  }
+  notifyCtxHide();
 });
 
-ipcMain.on('mzr:ctxmenu:autosize', (_event, { height, width }: ContextMenuSizePayload) => {
-  try {
-    const win = ctxWin;
-    if (!win || win.isDestroyed()) return;
-    const bounds = win.getBounds();
-    const display = screen.getDisplayNearestPoint({ x: bounds.x, y: bounds.y });
-    const wa = display?.workArea;
-
-    const minHeight = 44;
-    const rawHeight = typeof height === 'number' ? height : Number(height);
-    const measuredHeight = Math.max(
-      minHeight,
-      Math.floor(Number.isFinite(rawHeight) ? rawHeight : 120)
-    );
-    const maxHeight =
-      ctxMenuMode === 'mobile'
-        ? Math.max(minHeight, wa ? wa.height - 16 : measuredHeight)
-        : 480;
-    const targetHeight = Math.min(measuredHeight, maxHeight);
-
-    const minWidth = ctxMenuMode === 'mobile' ? 220 : 240;
-    const rawWidth = typeof width === 'number' ? width : Number(width);
-    const measuredWidth = Math.max(
-      minWidth,
-      Math.floor(Number.isFinite(rawWidth) ? rawWidth : bounds.width)
-    );
-    const maxWidth =
-      ctxMenuMode === 'mobile'
-        ? wa
-          ? Math.max(minWidth, wa.width - 16)
-          : measuredWidth
-        : wa
-        ? Math.max(minWidth, wa.width - 16)
-        : measuredWidth;
-    const targetWidth = Math.min(measuredWidth, maxWidth);
-
-    const cursor = global.lastCtx?.x != null && global.lastCtx?.y != null
-      ? { x: global.lastCtx.x + 8, y: global.lastCtx.y + 10 }
-      : { x: bounds.x, y: bounds.y };
-    const pos = clampToWorkArea(cursor.x, cursor.y, targetWidth, targetHeight);
-    win.setBounds({ x: pos.x, y: pos.y, width: targetWidth, height: targetHeight }, false);
-    if (!win.isVisible()) win.show();
-  } catch {
-    // noop
-  }
+ipcMain.on('mzr:ctxmenu:autosize', (_event, { height: _height, width: _width }: ContextMenuSizePayload) => {
+  // no-op with inline context menu
 });
 
 ipcMain.handle('merezhyvo:certs:get', (_event, payload) => {
@@ -1301,6 +1069,14 @@ ipcMain.handle('merezhyvo:settings:load', async () => {
   } catch (err) {
     console.error('[merezhyvo] settings load failed', err);
     return createDefaultSettingsState();
+  }
+});
+
+ipcMain.handle('merezhyvo:clipboard:read-text', () => {
+  try {
+    return clipboard.readText();
+  } catch {
+    return '';
   }
 });
 
