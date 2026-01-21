@@ -32,6 +32,7 @@ interface AddressBarProps {
   inputFocused?: boolean;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
+  onCopyUrl?: (value: string) => void;
   securityState?: 'ok' | 'warn' | 'notice';
   securityInfo?: {
     state: string;
@@ -83,6 +84,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   inputFocused = false,
   suggestions = [],
   onSelectSuggestion,
+  onCopyUrl,
   securityState = 'ok',
   securityInfo = null,
   securityOpen = false,
@@ -103,11 +105,16 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const pointerDownTsRef = React.useRef<number>(0);
   const showIndicator = downloadIndicatorState !== 'hidden';
   const indicatorSize = mode === 'mobile' ? 55 : 16;
-  const paddingRight = showIndicator ? indicatorSize + (mode === 'mobile' ? 30 : 15) : 0;
+  const copyButtonVisible = inputFocused;
+  const copyButtonSize = mode === 'mobile' ? 64 : 22;
+  const actionGap = mode === 'mobile' ? 16 : 8;
+  const paddingRight =
+    (copyButtonVisible ? copyButtonSize + actionGap : 0) +
+    (showIndicator ? indicatorSize + actionGap : 0);
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
-    ...(paddingRight ? { paddingRight } : {}),
+    ...(paddingRight ? { paddingRight: 26 + paddingRight } : {}),
     ...(mode === 'mobile' ? { paddingLeft: 80 } : { paddingLeft: 34 }),
     ...{ WebkitTouchCallout: 'none' }
   };
@@ -169,9 +176,40 @@ const AddressBar: React.FC<AddressBarProps> = ({
     ...toolbarStyles.downloadIndicator,
     width: indicatorSize,
     height: indicatorSize,
-    right: mode === 'mobile' ? '20px' : '10px'
+    right: copyButtonVisible
+      ? `${(mode === 'mobile' ? 16 : 8) + copyButtonSize + actionGap}px`
+      : mode === 'mobile'
+        ? '20px'
+        : '10px'
+  };
+  const copyButtonStyle: CSSProperties = {
+    ...toolbarStyles.downloadIndicator,
+    width: copyButtonSize,
+    height: copyButtonSize,
+    right: mode === 'mobile' ? '16px' : '8px',
+    color: 'var(--mzr-text-primary)',
+    border: '1px solid var(--mzr-border-strong)',
+    borderRadius: '999px',
+    background: 'var(--mzr-surface)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)'
   };
   const openTabsLabel = t('address.openTabs', { count: tabCount });
+  const handleCopyClick = (event: React.PointerEvent<HTMLButtonElement>) => {
+    event.preventDefault();
+    if (inputRef.current) {
+      try {
+        inputRef.current.focus({ preventScroll: true });
+      } catch {
+        // noop
+      }
+      try {
+        inputRef.current.select();
+      } catch {
+        // noop
+      }
+    }
+    onCopyUrl?.(value);
+  };
   return (
     <form onSubmit={onSubmit} style={toolbarStyles.form}>
       <div style={{ ...toolbarStyles.addressField, position: 'relative' }}>
@@ -214,6 +252,31 @@ const AddressBar: React.FC<AddressBarProps> = ({
           placeholder={t('address.placeholder')}
           style={inputStyle}
         />
+        {copyButtonVisible && (
+          <button
+            type="button"
+            aria-label={t('address.copyUrl')}
+            title={t('address.copyUrl')}
+            onPointerDown={handleCopyClick}
+            onClick={(event) => event.preventDefault()}
+            style={copyButtonStyle}
+          >
+            <svg
+              width={mode === 'mobile' ? 55 : 20}
+              height={mode === 'mobile' ? 55 : 20}
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              aria-hidden="true"
+            >
+              <rect x="6.5" y="6.5" width="9" height="13" rx="1.5" />
+              <path d="M8.5 6C8.5 5.17157 9.17157 4.5 10 4.5H16C16.8284 4.5 17.5 5.17157 17.5 6V16C17.5 16.8284 16.8284 17.5 16 17.5" />
+            </svg>
+          </button>
+        )}
       {showIndicator && (
           <button
             type="button"

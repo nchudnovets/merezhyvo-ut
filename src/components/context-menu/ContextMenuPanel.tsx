@@ -255,6 +255,9 @@ const ContextMenuPanel: React.FC<Props> = ({
           normalized.mediaType === 'image'
             ? { id: 'download-image', label: t('ctx.downloadImage'), disabled: false }
             : null,
+          normalized.mediaType === 'image'
+            ? { id: 'copy-image', label: t('ctx.copyImage'), disabled: false }
+            : null,
           normalized.mediaType === 'video'
             ? { id: 'download-video', label: t('ctx.downloadVideo'), disabled: false }
             : null,

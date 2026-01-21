@@ -277,6 +277,7 @@ const no = {
   'address.downloads.complete': 'Nedlastinger fullført',
   'address.downloads.error': 'Nedlastinger mislyktes',
   'address.copyUrl': 'Kopier URL',
+  'address.toast.copied': 'Kopiert',
 
   'webview.error.title': 'Kan ikke laste inn denne siden',
   'webview.error.subtitle': 'Sjekk adressen og tilkoblingen din, og prøv igjen.',
@@ -783,6 +784,7 @@ const no = {
   'ctx.openLinkNewTab': 'Åpne lenke i ny fane',
   'ctx.copyLink': 'Kopier lenkeadresse',
   'ctx.downloadImage': 'Last ned bilde',
+  'ctx.copyImage': 'Kopier bilde',
   'ctx.downloadVideo': 'Last ned video',
   'ctx.downloadAudio': 'Last ned lyd',
   'ctx.back': 'Tilbake',

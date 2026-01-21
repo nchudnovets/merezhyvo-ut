@@ -236,6 +236,7 @@ function render(): void {
 
         if (normalized.mediaType === 'image' && normalized.mediaSrc) {
           menu.appendChild(item(t('ctx.downloadImage'), 'download-image'));
+          menu.appendChild(item(t('ctx.copyImage'), 'copy-image'));
         }
         if ( 
           (normalized.mediaType === 'video' || normalized.mediaType === 'audio') &&

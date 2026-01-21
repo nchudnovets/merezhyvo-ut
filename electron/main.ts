@@ -10,6 +10,7 @@ import {
   Menu,
   clipboard,
   ipcMain,
+  nativeImage,
   nativeTheme,
   powerSaveBlocker,
   screen,
@@ -938,6 +939,35 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     }
     if (id === 'download-image') {
       startDownloadFromCtx(ctx?.params?.srcURL);
+      return;
+    }
+    if (id === 'copy-image') {
+      const params = ctx?.params ?? null;
+      const x = typeof params?.x === 'number' ? params.x : null;
+      const y = typeof params?.y === 'number' ? params.y : null;
+      let copied = false;
+      if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
+        try {
+          const image = wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
+          if (image && !image.isEmpty()) {
+            clipboard.writeImage(image);
+            copied = true;
+          }
+        } catch {
+          // noop
+        }
+      }
+      if (copied) return;
+      const src = typeof params?.srcURL === 'string' ? params.srcURL : '';
+      if (!src) return;
+      if (src.startsWith('data:')) {
+        try {
+          const image = nativeImage.createFromDataURL(src);
+          if (!image.isEmpty()) clipboard.writeImage(image);
+        } catch {
+          // noop
+        }
+      }
       return;
     }
     if (id === 'download-video') {

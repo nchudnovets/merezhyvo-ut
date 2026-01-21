@@ -39,6 +39,7 @@ interface ToolbarProps {
   toolbarRef?: RefObject<HTMLDivElement>;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
   onSelectSuggestion?: (url: string) => void;
+  onCopyUrl?: (value: string) => void;
   securityState?: 'ok' | 'warn' | 'notice';
   securityInfo?: {
     state: string;
@@ -101,6 +102,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   toolbarRef,
   suggestions,
   onSelectSuggestion,
+  onCopyUrl,
   securityState = 'ok',
   securityInfo = null,
   securityOpen = false,
@@ -170,6 +172,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       inputFocused={inputFocused}
       suggestions={suggestions}
       onSelectSuggestion={onSelectSuggestion}
+      onCopyUrl={onCopyUrl}
       securityState={securityState}
       securityInfo={securityInfo}
       securityOpen={securityOpen}

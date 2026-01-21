@@ -583,6 +583,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return fallbackCopy(text);
   }, []);
 
+  const handleCopyUrl = useCallback(async (value: string) => {
+    const text = value.trim();
+    if (!text) return;
+    const ok = await copyTextToClipboard(text);
+    if (ok) {
+      showGlobalToast(t('address.toast.copied'));
+    }
+  }, [copyTextToClipboard, showGlobalToast, t]);
+
   const {
     couponsPopupVisible,
     couponsPopupCountry,
@@ -3499,6 +3508,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               toolbarRef={toolbarRef}
               suggestions={urlSuggestions}
               onSelectSuggestion={handleSuggestionSelect}
+              onCopyUrl={handleCopyUrl}
               securityState={securityState}
               securityInfo={securityInfo}
               securityOpen={securityPopoverOpen}
