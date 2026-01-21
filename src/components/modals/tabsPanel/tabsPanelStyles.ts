@@ -252,9 +252,9 @@ export const tabsPanelStyles: StyleRecord = {
     cursor: 'pointer'
   },
   tabIconButtonActive: {
-    borderColor: 'rgba(59, 130, 246, 0.7)',
-    background: 'rgba(37, 99, 235, 0.22)',
-    color: '#e0f2fe'
+    border: '1px solid var(--mzr-accent-strong)',
+    background: 'var(--mzr-accent-tint)',
+    color: 'var(--mzr-accent-strong)'
   },
   tabIcon: {
     width: '16px',
@@ -265,8 +265,8 @@ export const tabsPanelStyles: StyleRecord = {
     padding: '10px 16px',
     borderRadius: '12px',
     border: '1px solid rgba(34, 197, 94, 0.45)',
-    background: 'rgba(21, 128, 61, 0.18)',
-    color: '#bbf7d0',
+    background: 'var(--mzr-surface-elevated, var(--mzr-surface))',
+    color: 'var(--mzr-text-primary)',
     fontSize: '13px',
     fontWeight: 600,
     letterSpacing: '0.01em'
