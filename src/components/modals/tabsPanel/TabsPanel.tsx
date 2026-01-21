@@ -58,6 +58,7 @@ const TabRow = memo(({
   const styles = tabsPanelStyles;
   const modeStyles = tabsPanelModeStyles[mode] || {};
   const [actionsExpanded, setActionsExpanded] = useState(false);
+  const [helpExpanded, setHelpExpanded] = useState(false);
   const [cleaning, setCleaning] = useState(false);
 
   const baseButtonStyle = {
@@ -80,6 +81,26 @@ const TabRow = memo(({
   const iconStyle = {
     ...styles.tabIcon,
     ...(modeStyles.tabIcon || {})
+  };
+  const helpIconStyle = {
+    ...styles.tabHelpIcon,
+    ...(modeStyles.tabHelpIcon || {})
+  };
+  const helpLabelStyle = {
+    ...styles.tabHelpLabel,
+    ...(modeStyles.tabHelpLabel || {})
+  };
+  const helpItemStyle = {
+    ...styles.tabHelpItem,
+    ...(modeStyles.tabHelpItem || {})
+  };
+  const helpSectionStyle = {
+    ...styles.tabHelpSection,
+    ...(modeStyles.tabHelpSection || {})
+  };
+  const helpDividerStyle = {
+    ...styles.tabHelpDivider,
+    ...(modeStyles.tabHelpDivider || {})
   };
   const [bookmarkState, setBookmarkState] = useState<{ yes: boolean; nodeId?: string }>({ yes: false });
   const [bookmarkBusy, setBookmarkBusy] = useState(false);
@@ -183,6 +204,8 @@ const TabRow = memo(({
       </button>
     );
   };
+  const { t } = useI18n();
+
   const renderToggleButton = () => (
     <button
       type="button"
@@ -192,7 +215,13 @@ const TabRow = memo(({
       style={toggleButtonStyle}
       onClick={(event) => {
         event.stopPropagation();
-        setActionsExpanded((prev) => !prev);
+        setActionsExpanded((prev) => {
+          const next = !prev;
+          if (!next) {
+            setHelpExpanded(false);
+          }
+          return next;
+        });
       }}
     >
       <svg
@@ -213,6 +242,39 @@ const TabRow = memo(({
           }
         />
       </svg>
+    </button>
+  );
+
+  const renderHelpButton = () => (
+    <button
+      type="button"
+      aria-label={t('tabs.help.toggle')}
+      title={t('tabs.help.toggle')}
+      style={{
+        ...baseButtonStyle,
+        ...(helpExpanded ? styles.tabIconButtonActive : null)
+      }}
+      onClick={(event) => {
+        event.stopPropagation();
+        setHelpExpanded((prev) => !prev);
+      }}
+    >
+      <span
+        style={{
+          width: iconStyle.width,
+          height: iconStyle.height,
+          borderRadius: '50%',
+          border: '2px solid currentColor',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          fontWeight: 700,
+          fontSize: mode === 'mobile' ? '38px' : '14px',
+          lineHeight: 1
+        }}
+      >
+        ?
+      </span>
     </button>
   );
 
@@ -359,84 +421,233 @@ const TabRow = memo(({
     </button>
   );
 
+  const helpItems = [
+    {
+      id: 'pin',
+      icon: (
+        <svg viewBox="0 0 16 16" style={helpIconStyle} xmlns="http://www.w3.org/2000/svg">
+          <path
+            fill={tab.pinned ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M6.25 2.5h3.5a1 1 0 0 1 1 1v2.586l1.657 1.657a1 1 0 0 1-.707 1.707H10v3.3l-2 1.5-2-1.5V9.45H4.3a1 1 0 0 1-.707-1.707L5.25 6.086V3.5a1 1 0 0 1 1-1z"
+          />
+        </svg>
+      ),
+      label: tab.pinned ? t('tabs.help.unpin') : t('tabs.help.pin')
+    },
+    {
+      id: 'bookmark',
+      icon: (
+        <svg viewBox="0 0 24 24" style={helpIconStyle} xmlns="http://www.w3.org/2000/svg">
+          <path
+            d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z"
+            fill={bookmarkState.yes ? 'currentColor' : 'none'}
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      label: bookmarkState.yes ? t('tabs.help.removeBookmark') : t('tabs.help.bookmark')
+    },
+    {
+      id: 'clean',
+      icon: (
+        <svg viewBox="0 0 100 100" style={helpIconStyle} xmlns="http://www.w3.org/2000/svg">
+          <g>
+            <path
+              fill="currentColor"
+              d="M61.5 1.5C64.5715.9245 66.5715 2.0912 67.5 5c-4.6985 9.23-9.5318 18.3966-14.5 27.5-3.9393.9235-7.1059 3.0902-9.5 6.5-1 .6667-2 .6667-3 0C47.6388 26.5536 54.6388 14.0536 61.5 1.5Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M99.5 44.5v3c-6.1314 5.6305-12.1314 11.4638-18 17.5 5.8686 6.0362 11.8686 11.8695 18 17.5v2c-3.6774 3.5106-7.5107 6.8439-11.5 10-5.7756-5.8628-11.7756-11.5295-18-17-6.3333 5.6667-12.6667 11.3333-19 17-4.3023-3.1347-8.1356-6.8014-11.5-11 6-6.3333 12-12.6667 18-19-5.8185-6.3188-11.8185-12.4855-18-18.5 3.1667-4.5 7-8.3333 11.5-11.5C57.0145 40.6815 63.1812 46.6815 69.5 52.5c6.3333-6 12.6667-12 19-18 3.6867 3.3554 7.3534 6.6887 11 10Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M36.5 46.5c2.0837 1.5767 4.0837 3.41 6 5.5-1.5 2.1667-3 4.3333-4.5 6.5-1.8333-1.1667-3.6667-2.3333-5.5-3.5 1.7465-2.6587 3.0798-5.492 4-8.5Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M25.5 55.5c6.0422.9379 11.2088 3.6046 15.5 8-.5 1.5-1 3-1.5 4.5-.6476 1.4397-.9809 2.9397-1 4.5-7.4617-2.9813-14.6283-6.648-21.5-11 0-3.0584 1.8333-5.0584 4.5-6Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M6.5 56.5c4.3461-.1657 8.6794.001 13 .5-.4574.414-.7907.914-1 1.5-4.3333 1.3333-8.6667 1.3333-13 0 .3627-.6835.6961-1.3501 1-2Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M1.5 63.5h12c.17 1.3221-.1634 2.4887-1 3.5-3.6516.4986-7.3183.6653-11 .5v-4Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M-.5 81.5v-3c7.5254-3.6872 13.6921-9.0205 18.5-16 5.7248 3.3538 11.5581 6.5205 17.5 9.5 1.8266.8993 3.16 2.2326 4 4-2.6625 7.5469-7.4958 13.0469-14.5 16.5.0773-1.2376-.0894-2.2376-.5-3-1.6913 1.7562-3.6913 2.2562-6 1.5-4.9455-1.8061-9.6122-4.1394-14-7  .6667-.6667 1.3333-1.3333 2-2-2.3627.665-4.696  .4983-7- .5Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M-.5 71.5c9.0158.0089 9.0158 1.0089 0 3v-3Z"
+            />
+          </g>
+          <g>
+            <path
+              fill="currentColor"
+              d="M5.5 89.5c1.3488-1.2965 2.6821-1.1298 4  .5-1.4285.5791-2.7618.4124-4-.5Z"
+            />
+          </g>
+        </svg>
+      ),
+      label: t('tabs.help.cleanClose')
+    },
+    {
+      id: 'close',
+      icon: (
+        <svg viewBox="0 0 16 16" style={helpIconStyle} xmlns="http://www.w3.org/2000/svg">
+          <path
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="1.6"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            d="M4.5 4.5 11.5 11.5M11.5 4.5 4.5 11.5"
+          />
+        </svg>
+      ),
+      label: t('tabs.help.close')
+    }
+  ];
+
   return (
-    <div
-      role="button"
-      tabIndex={0}
-      aria-current={isActive ? 'page' : undefined}
-      onClick={() => onActivate(tab.id)}
-      onKeyDown={(event) => {
-        if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
-          event.preventDefault();
-          onActivate(tab.id);
-        }
-      }}
-      style={{
-        ...styles.tabRow,
-        ...(modeStyles.tabRow || {}),
-        ...(isActive ? styles.tabRowActive : null)
-      }}
-    >
-      <span style={styles.tabInfo}>
-        <span style={{ ...styles.faviconWrap, ...(modeStyles.tabFaviconWrap || {}) }}>
-          {tab.favicon ? (
-            <img src={tab.favicon} alt="" style={styles.favicon} />
-          ) : (
-            <span
-              style={{
-                ...styles.faviconFallback,
-                ...(modeStyles.tabFaviconFallback || {})
-              }}
-            >
-              {fallbackInitial(tab)}
+    <div style={{ display: 'flex', flexDirection: 'column' }}>
+      <div
+        role="button"
+        tabIndex={0}
+        aria-current={isActive ? 'page' : undefined}
+        onClick={() => onActivate(tab.id)}
+        onKeyDown={(event) => {
+          if (event.key === 'Enter' || event.key === ' ' || event.key === 'Spacebar') {
+            event.preventDefault();
+            onActivate(tab.id);
+          }
+        }}
+        style={{
+          ...styles.tabRow,
+          ...(modeStyles.tabRow || {}),
+          ...(isActive ? styles.tabRowActive : null)
+        }}
+      >
+        <span style={styles.tabInfo}>
+          <span style={{ ...styles.faviconWrap, ...(modeStyles.tabFaviconWrap || {}) }}>
+            {tab.favicon ? (
+              <img src={tab.favicon} alt="" style={styles.favicon} />
+            ) : (
+              <span
+                style={{
+                  ...styles.faviconFallback,
+                  ...(modeStyles.tabFaviconFallback || {})
+                }}
+              >
+                {fallbackInitial(tab)}
+              </span>
+            )}
+          </span>
+          {((!actionsExpanded && mode === 'mobile') || mode !== 'mobile') && (
+            <span style={styles.tabTexts}>
+              <span
+                style={{
+                  ...styles.tabTitle,
+                  ...(modeStyles.tabTitle || {})
+                }}
+              >
+                {displayTitle(tab)}
+              </span>
+              {(() => {
+                const subtitle = displaySubtitle(tab);
+                if (!subtitle) return null;
+                return (
+                  <span
+                    style={{
+                      ...styles.tabSubtitle,
+                      ...(modeStyles.tabSubtitle || {})
+                    }}
+                  >
+                    {subtitle}
+                  </span>
+                );
+              })()}
             </span>
           )}
         </span>
-        {((!actionsExpanded && mode === 'mobile') || mode !== 'mobile') && (
-          <span style={styles.tabTexts}>
-            <span
-              style={{
-                ...styles.tabTitle,
-                ...(modeStyles.tabTitle || {})
-              }}
-            >
-              {displayTitle(tab)}
-            </span>
-            {(() => {
-              const subtitle = displaySubtitle(tab);
-              if (!subtitle) return null;
-              return (
+          <span
+            style={{
+              ...styles.tabActions,
+              ...(modeStyles.tabActions || {})
+            }}
+          >
+            {actionsExpanded ? (
+              <>
+                {renderToggleButton()}
+                {renderPinButton()}
+                {renderBookmarkButton()}
+                {renderCleanButton()}
+                {renderCloseButton()}
+                {renderHelpButton()}
+              </>
+            ) : (
+              <>
+                {renderToggleButton()}
+                {renderCloseButton()}
+              </>
+            )}
+        </span>
+      </div>
+
+      {actionsExpanded && helpExpanded && (
+        <div
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            ...(isActive ? { backgroundColor: 'var(--mzr-accent-tint)' } : null)
+          }}
+          onClick={(event) => event.stopPropagation()}
+        >
+          <div style={helpDividerStyle} />
+          <div style={helpSectionStyle}>
+            {helpItems.map((item) => (
+              <div key={item.id} style={helpItemStyle}>
                 <span
                   style={{
-                    ...styles.tabSubtitle,
-                    ...(modeStyles.tabSubtitle || {})
+                    width: helpIconStyle.width,
+                    height: helpIconStyle.height,
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center'
                   }}
                 >
-                  {subtitle}
+                  {item.icon}
                 </span>
-              );
-            })()}
-          </span>
-        )}
-      </span>
-        <span
-          style={{
-            ...styles.tabActions,
-            ...(modeStyles.tabActions || {})
-          }}
-        >
-          {actionsExpanded ? (
-            <>
-              {renderToggleButton()}
-              {renderPinButton()}
-              {renderBookmarkButton()}
-              {renderCleanButton()}
-            </>
-          ) : (
-            renderToggleButton()
-          )}
-        {renderCloseButton()}
-      </span>
+                <span style={helpLabelStyle}>{item.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   );
 });

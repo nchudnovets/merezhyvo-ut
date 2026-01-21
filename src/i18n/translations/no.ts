@@ -13,6 +13,13 @@ const no = {
   'tabs.section.pinned': 'Festet',
   'tabs.section.others': 'Andre',
   'tabs.feedback.cleaned': 'Alle data knyttet til siden er fjernet',
+  'tabs.help.toggle': 'Hjelp',
+  'tabs.help.pin': 'Fest fane',
+  'tabs.help.unpin': 'Løsne fane',
+  'tabs.help.bookmark': 'Legg til bokmerke',
+  'tabs.help.removeBookmark': 'Fjern bokmerke',
+  'tabs.help.cleanClose': 'Rydd og lukk',
+  'tabs.help.close': 'Lukk fane',
 
   'settings.language.title': 'Språk',
   'settings.language.description': 'Velg språket som brukes i nettlesergrensesnittet.',

@@ -23,6 +23,11 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     searchToggleButton: {},
     searchToggleIcon: {},
     activeSeparator: {},
+    tabHelpSection: {},
+    tabHelpItem: {},
+    tabHelpIcon: {},
+    tabHelpLabel: {},
+    tabHelpDivider: {},
     headerButton: { width: '48%'}
   },
   mobile: {
@@ -61,6 +66,20 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     tabIcon: {
       width: 'clamp(42px, 6vw, 54px)',
       height: 'clamp(42px, 6vw, 54px)'
+    },
+    tabHelpSection: {
+      gap: '16px',
+      padding: '16px 30px 24px 120px'
+    },
+    tabHelpItem: {
+      gap: '18px'
+    },
+    tabHelpIcon: {
+      width: 'clamp(42px, 6vw, 54px)',
+      height: 'clamp(42px, 6vw, 54px)'
+    },
+    tabHelpLabel: {
+      fontSize: '40px'
     },
     tabActions: {
       gap: '15px'
@@ -114,6 +133,9 @@ export const tabsPanelModeStyles: ModeStyleMap = {
     },
     activeSeparator: {
       margin: '12px 0'
+    },
+    tabHelpDivider: {
+      marginTop: '6px'
     }
   }
 };

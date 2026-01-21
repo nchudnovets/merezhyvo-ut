@@ -260,6 +260,31 @@ export const tabsPanelStyles: StyleRecord = {
     width: '16px',
     height: '16px'
   },
+  tabHelpDivider: {
+    width: '100%',
+    height: '1px',
+    backgroundColor: 'var(--mzr-divider)'
+  },
+  tabHelpSection: {
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '10px',
+    padding: '10px 14px 16px 56px'
+  },
+  tabHelpItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    color: 'var(--mzr-text-primary)'
+  },
+  tabHelpIcon: {
+    width: '16px',
+    height: '16px'
+  },
+  tabHelpLabel: {
+    fontSize: '14px',
+    fontWeight: 600
+  },
   feedbackBanner: {
     alignSelf: 'stretch',
     padding: '10px 16px',
