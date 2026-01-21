@@ -9,8 +9,9 @@ export const useWebviewMounts = (
     const host = webviewHostRef.current;
     if (!host || !node) return;
     for (const child of Array.from(host.children)) {
-      if (child !== node) {
-        try { host.removeChild(child); } catch {}
+      if (child !== node && child instanceof HTMLElement) {
+        child.style.pointerEvents = 'none';
+        child.style.opacity = '0';
       }
     }
     if (node.parentElement !== host) {
@@ -21,11 +22,6 @@ export const useWebviewMounts = (
   const mountInBackgroundHost = useCallback((node: HTMLDivElement | null | undefined) => {
     const host = backgroundHostRef.current;
     if (!host || !node) return;
-    for (const child of Array.from(host.children)) {
-      if (child !== node) {
-        try { host.removeChild(child); } catch {}
-      }
-    }
     if (node.parentElement !== host) {
       try { host.appendChild(node); } catch {}
     }

@@ -305,6 +305,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const lastFailedUrlRef = useRef<string | null>(null);
   const ignoreUrlChangeRef = useRef(false);
   const pendingTorCloseAllRef = useRef<boolean>(false);
+  const pendingTorReloadRef = useRef<boolean>(false);
   const torKickTimerRef = useRef<number | null>(null);
   const kickActiveTabLoadRef = useRef<((attempt?: number) => void) | null>(null);
   const [suspendTabLifecycle, setSuspendTabLifecycle] = useState<boolean>(false);
@@ -488,7 +489,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const isYouTubeTab = useCallback((tabId: string) => {
     return tabsRef.current.some((tab) => tab.id === tabId && tab.isYouTube);
   }, []);
-  useEffect(() => { previousActiveTabRef.current = activeTab; }, [activeTab]);
   useEffect(() => {
     if (fullscreenTabRef.current && fullscreenTabRef.current !== activeId) {
       fullscreenTabRef.current = null;
@@ -1568,7 +1568,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       attachWebviewListeners,
       installShadowStyles,
       applyActiveStyles,
-      mountInBackgroundHost,
       refreshNavigationState,
       refreshCertStatus,
       updateMetaAction,
@@ -2213,6 +2212,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const finalizeTorCloseAll = useCallback(() => {
     pendingTorCloseAllRef.current = false;
+    pendingTorReloadRef.current = false;
     suspendTabLifecycleRef.current = true;
     torCloseAllResumeIdRef.current = null;
     setSuspendTabLifecycle(true);
@@ -2299,10 +2299,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         setSuspendTabLifecycle(true);
       }
       pendingTorCloseAllRef.current = closeTabs;
+      pendingTorReloadRef.current = !closeTabs;
       setTorDisableBusy(true);
       const wiped = await wipeTorSession();
       if (!wiped) {
         pendingTorCloseAllRef.current = false;
+        pendingTorReloadRef.current = false;
         if (closeTabs) {
           suspendTabLifecycleRef.current = false;
           setSuspendTabLifecycle(false);
@@ -2315,6 +2317,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         if (state?.enabled) {
           showGlobalToast(t('tor.disable.toggleFailed'));
           pendingTorCloseAllRef.current = false;
+          pendingTorReloadRef.current = false;
           if (closeTabs) {
             suspendTabLifecycleRef.current = false;
             setSuspendTabLifecycle(false);
@@ -2326,6 +2329,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         console.error('[merezhyvo] tor disable failed', err);
         showGlobalToast(t('tor.disable.toggleFailed'));
         pendingTorCloseAllRef.current = false;
+        pendingTorReloadRef.current = false;
         if (closeTabs) {
           suspendTabLifecycleRef.current = false;
           setSuspendTabLifecycle(false);
@@ -2376,6 +2380,49 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setSettingsScrollTarget
   });
 
+  const reloadActiveTabViews = useCallback(() => {
+    const entries = Array.from(tabViewsRef.current.entries());
+    if (!entries.length) return;
+    const activeIdCurrent = activeIdRef.current;
+    for (const [tabId, entry] of entries) {
+      const tab = tabsRef.current.find((item) => item.id === tabId);
+      if (!tab) continue;
+      const targetUrl = (tab.url && tab.url.trim()) ? tab.url.trim() : DEFAULT_URL;
+      if (targetUrl.toLowerCase().startsWith('mzr://')) continue;
+      if (tabId === activeIdCurrent) {
+        setStatus('loading');
+        webviewReadyRef.current = false;
+        setWebviewReady(false);
+      }
+      const handle = entry.handle;
+      const view = entry.view;
+      if (handle) {
+        try {
+          const webview = handle.getWebView?.() || view;
+          if (webview && 'isConnected' in webview && !webview.isConnected) {
+            handle.loadURL(targetUrl);
+          } else {
+            handle.reload();
+          }
+        } catch {
+          try { handle.loadURL(targetUrl); } catch {}
+        }
+      } else if (view) {
+        try {
+          if ('isConnected' in view && !view.isConnected) {
+            view.setAttribute('src', targetUrl);
+          } else if (typeof view.reload === 'function') {
+            view.reload();
+          } else {
+            view.loadURL(targetUrl);
+          }
+        } catch {
+          try { view.setAttribute('src', targetUrl); } catch {}
+        }
+      }
+    }
+  }, [activeIdRef, setStatus, setWebviewReady, tabViewsRef, tabsRef, webviewReadyRef]);
+
   useEffect(() => {
     const teardown = setupHostRtlDirection();
     return () => teardown();
@@ -2406,8 +2453,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setShowTorKeepWarning(false);
     if (pendingTorCloseAllRef.current) {
       finalizeTorCloseAll();
+      pendingTorReloadRef.current = false;
+      return;
     }
-  }, [finalizeTorCloseAll, torDisableBusy, torEnabled]);
+    if (pendingTorReloadRef.current) {
+      pendingTorReloadRef.current = false;
+      reloadActiveTabViews();
+    }
+  }, [finalizeTorCloseAll, reloadActiveTabViews, torDisableBusy, torEnabled]);
 
   useEffect(() => { isEditingRef.current = isEditing; }, [isEditing]);
 

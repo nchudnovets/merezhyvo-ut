@@ -22,7 +22,6 @@ type Handlers = {
   attachWebviewListeners: (view: WebviewTag, tabId: string) => (() => void) | void;
   installShadowStyles: (view: WebviewTag) => (() => void) | void;
   applyActiveStyles: (container: HTMLDivElement, view: WebviewTag) => void;
-  mountInBackgroundHost: (container: HTMLDivElement | null | undefined) => void;
   refreshNavigationState: () => void;
   refreshCertStatus: (wcId: number | null) => void | Promise<void>;
   updateMetaAction: (tabId: string, patch: Partial<Tab>) => void;
@@ -76,6 +75,7 @@ export const useTabViewLifecycle = ({
   handlers,
   setters
 }: Params) => {
+  const TAB_DEACTIVATE_DELAY_MS = 90_000;
   const {
     tabViewsRef,
     webviewHostRef,
@@ -101,7 +101,6 @@ export const useTabViewLifecycle = ({
     attachWebviewListeners,
     installShadowStyles,
     applyActiveStyles,
-    mountInBackgroundHost,
     refreshNavigationState,
     refreshCertStatus,
     updateMetaAction,
@@ -114,6 +113,15 @@ export const useTabViewLifecycle = ({
   const { setStatus, setWebviewReady, setActiveViewRevision } = setters;
   const partitionKey = torEnabled ? TOR_PARTITION : 'default';
   const partitionValue = torEnabled ? TOR_PARTITION : undefined;
+  const deactivationTimersRef = React.useRef<Map<string, number>>(new Map());
+
+  const clearDeactivateTimer = useCallback((tabId: string) => {
+    const timerId = deactivationTimersRef.current.get(tabId);
+    if (timerId) {
+      window.clearTimeout(timerId);
+      deactivationTimersRef.current.delete(tabId);
+    }
+  }, []);
 
   const ensureHostReady = useCallback((): boolean => {
     return webviewHostRef.current != null;
@@ -348,53 +356,75 @@ export const useTabViewLifecycle = ({
     ]
   );
 
-  const demoteTabView = useCallback(
+  const moveTabToBackground = useCallback(
     (tab: Tab | null) => {
       if (!tab) return;
       const entry = tabViewsRef.current.get(tab.id);
       if (!entry) return;
+      entry.isBackground = true;
       if (tab.isYouTube && tab.isPlaying) {
-        if (backgroundTabRef.current && backgroundTabRef.current !== tab.id) {
-          const previousId = backgroundTabRef.current;
-          updateMetaAction(previousId, { isPlaying: false, keepAlive: false });
-          destroyTabView(previousId, { keepMeta: true });
-        }
         backgroundTabRef.current = tab.id;
-        entry.isBackground = true;
-        if (entry.container) {
-          mountInBackgroundHost(entry.container);
-          entry.container.style.pointerEvents = 'none';
-          entry.container.style.opacity = '0';
-        }
-        if (entry.view) {
-          entry.view.style.pointerEvents = 'none';
-          entry.view.style.opacity = '0';
-        }
-      } else {
-        destroyTabView(tab.id);
+      }
+      if (entry.container) {
+        entry.container.style.pointerEvents = 'none';
+        entry.container.style.opacity = '0';
+      }
+      if (entry.view) {
+        entry.view.style.pointerEvents = 'none';
+        entry.view.style.opacity = '0';
       }
     },
-    [backgroundTabRef, destroyTabView, mountInBackgroundHost, tabViewsRef, updateMetaAction]
+    [backgroundTabRef, tabViewsRef]
+  );
+
+  const demoteTabView = useCallback(
+    (tab: Tab | null) => {
+      if (!tab) return;
+      destroyTabView(tab.id);
+    },
+    [destroyTabView]
+  );
+
+  const scheduleTabDeactivate = useCallback(
+    (tab: Tab | null) => {
+      if (!tab) return;
+      moveTabToBackground(tab);
+      clearDeactivateTimer(tab.id);
+      const timerId = window.setTimeout(() => {
+        deactivationTimersRef.current.delete(tab.id);
+        if (activeIdRef.current === tab.id) return;
+        const latest = tabsRef.current.find((item) => item.id === tab.id) ?? tab;
+        if (latest.isPlaying) {
+          scheduleTabDeactivate(latest);
+          return;
+        }
+        demoteTabView(latest);
+      }, TAB_DEACTIVATE_DELAY_MS);
+      deactivationTimersRef.current.set(tab.id, timerId);
+    },
+    [activeIdRef, clearDeactivateTimer, demoteTabView, moveTabToBackground, tabsRef]
   );
 
   useEffect(() => {
     const validIds = new Set(tabs.map((tab) => tab.id));
     for (const tabId of Array.from(tabViewsRef.current.keys())) {
       if (!validIds.has(tabId)) {
+        clearDeactivateTimer(tabId);
         destroyTabView(tabId, { keepMeta: true });
       }
     }
-  }, [destroyTabView, tabViewsRef, tabs]);
+  }, [clearDeactivateTimer, destroyTabView, tabViewsRef, tabs]);
 
   useEffect(() => {
     const entries = Array.from(tabViewsRef.current.entries());
     for (const [tabId, entry] of entries) {
       const entryKey = entry.partitionKey ?? 'default';
       if (entryKey !== partitionKey) {
+        clearDeactivateTimer(tabId);
         destroyTabView(tabId, { keepMeta: true });
       }
     }
-  }, [destroyTabView, partitionKey, tabViewsRef]);
+  }, [clearDeactivateTimer, destroyTabView, partitionKey, tabViewsRef]);
 
   useEffect(() => {
     if (suspendTabLifecycleRef.current) return;
@@ -404,15 +434,17 @@ export const useTabViewLifecycle = ({
 
     const prev = previousActiveTabRef.current;
     if (prev && prev.id !== next.id) {
-      demoteTabView(prev);
+      scheduleTabDeactivate(prev);
     }
 
+    clearDeactivateTimer(next.id);
     activateTabView(next);
     previousActiveTabRef.current = next;
   }, [
     activateTabView,
     activeTab,
-    demoteTabView,
+    clearDeactivateTimer,
+    scheduleTabDeactivate,
     tabsReady,
     tabsRef,
     activeIdRef,
@@ -420,6 +452,13 @@ export const useTabViewLifecycle = ({
     suspendTabLifecycle,
     suspendTabLifecycleRef
   ]);
+
+  useEffect(() => () => {
+    for (const timerId of Array.from(deactivationTimersRef.current.values())) {
+      window.clearTimeout(timerId);
+    }
+    deactivationTimersRef.current.clear();
+  }, []);
 
   useEffect(() => () => {
     for (const tabId of Array.from(tabViewsRef.current.keys())) {
