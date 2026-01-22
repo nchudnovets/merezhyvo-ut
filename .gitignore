@@ -42,6 +42,9 @@ tmp/
 **/.gitkeep
 about.md
 yTask.md
+color_scheme.md
+electron-nodev.log
+electron-run.log
 
 # Generated blocklists (updated during build)
 assets/blocklists/trackers.txt

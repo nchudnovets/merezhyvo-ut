@@ -1,6 +1,7 @@
 {
   "clickable_minimum_required": "8.0.0",
   "builder": "precompiled",
+  "framework": "ubuntu-touch-24.04-1.x",
   "kill": "merezhyvo",
   "build": [
     "bash -lc 'true'"
@@ -12,12 +13,18 @@
     "src",
     "electron",
     "dist",
+    "dist-electron",
     ".git",
     ".gitignore",
     "package-lock.json",
     "README.md",
+    "CHANGELOG.md",
+    "color_scheme.md",
+    "electron-nodev.log,",
+    "electron-run.log",
     "about.md",
     ".vscode",
-    ".idea"
+    ".idea",
+    "yTask.md"
   ]
 }
