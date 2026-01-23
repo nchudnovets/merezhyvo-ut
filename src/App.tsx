@@ -342,6 +342,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   });
   const ctxMenuGuardRef = useRef<boolean>(false);
   const ctxMenuGuardTimerRef = useRef<number | null>(null);
+  const lastUrlFocusTsRef = useRef<number>(0);
   const clearCtxMenuGuardTimer = useCallback(() => {
     if (ctxMenuGuardTimerRef.current !== null) {
       window.clearTimeout(ctxMenuGuardTimerRef.current);
@@ -370,6 +371,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           wasWebview,
           el: wasWebview ? null : activeEl
         };
+        const isUrlInput = activeInputRef.current === 'url' || activeEl === inputRef.current;
+        const now = Date.now();
+        if (mode === 'mobile' && isUrlInput && now - lastUrlFocusTsRef.current < 350) {
+          try { api.close?.(); } catch {}
+          return;
+        }
         clearCtxMenuGuardTimer();
         ctxMenuGuardRef.current = true;
         // Hide software keyboard to avoid overlapping the menu; keep focus on the field.
@@ -403,7 +410,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         // noop
       }
     };
-  }, [normalizeCtxState, clearCtxMenuGuardTimer, scheduleCtxMenuGuardRelease]);
+  }, [normalizeCtxState, clearCtxMenuGuardTimer, scheduleCtxMenuGuardRelease, mode]);
 
   const oskPressGuardRef = useRef(false);
 
@@ -2828,12 +2835,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const handleInputPointerDown = useCallback((_: ReactPointerEvent<HTMLInputElement>) => {
     activeInputRef.current = 'url';
+    lastUrlFocusTsRef.current = Date.now();
   }, []);
 
   const handleInputFocus = useCallback((event: ReactFocusEvent<HTMLInputElement>) => {
     isEditingRef.current = true;
     setIsEditing(true);
     activeInputRef.current = 'url';
+    lastUrlFocusTsRef.current = Date.now();
     const activeUrlCurrent = (activeTabRef.current?.url || '').trim() || DEFAULT_URL;
     setInputValue(activeUrlCurrent);
     event.target.select();
@@ -2931,10 +2940,19 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       };
       await restoreFocus();
       if (id === 'paste') {
+        const isUrlInput =
+          activeInputRef.current === 'url' || ctxFocusRef.current.el === inputRef.current;
         setKbVisible(false);
         setTimeout(() => {
           try { window.merezhyvo?.contextMenu?.click?.(id); } catch {}
           handleContextMenuClose();
+          if (mode === 'mobile' && isUrlInput) {
+            window.setTimeout(() => {
+              if (document.activeElement === inputRef.current) {
+                setKbVisible(true);
+              }
+            }, 260);
+          }
         }, 80);
         return;
       }
@@ -2945,7 +2963,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
       handleContextMenuClose();
     },
-    [getActiveWebview, handleContextMenuClose, focusEditableInWebview]
+    [getActiveWebview, handleContextMenuClose, focusEditableInWebview, mode]
   );
   const handleZoomSliderPointerDown = useCallback((event: ReactPointerEvent<HTMLInputElement>) => {
     event.stopPropagation();
