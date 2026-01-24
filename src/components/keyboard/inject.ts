@@ -666,6 +666,105 @@ export function makeWebInjects(
     }
   };
 
+  type DomEnterResult = { ok: boolean; didSubmit: boolean; didClick: boolean; didDispatch: boolean };
+
+  const tryEnterSubmitDom = async (): Promise<DomEnterResult> => {
+    const wv = getActiveWebview();
+    if (!wv) return { ok: false, didSubmit: false, didClick: false, didDispatch: false };
+
+    const code = `
+      (() => {
+        const res = { ok:false, didSubmit:false, didClick:false, didDispatch:false };
+        try {
+          function deepActive() {
+            let win = window;
+            let el = win.document.activeElement;
+
+            // same-origin iframe drill-down (best effort)
+            for (let i = 0; i < 5; i++) {
+              if (!el) break;
+
+              // shadowRoot drill-down
+              if (el.shadowRoot && el.shadowRoot.activeElement) {
+                el = el.shadowRoot.activeElement;
+                continue;
+              }
+
+              if (el.tagName === 'IFRAME') {
+                try {
+                  win = el.contentWindow;
+                  el = win.document.activeElement;
+                  continue;
+                } catch (_) {
+                  break;
+                }
+              }
+              break;
+            }
+            return { win, el };
+          }
+
+          const { win, el } = deepActive();
+          if (!el) return res;
+
+          // only handle single-line inputs here (textarea/newline stays in insertNewlineDom)
+          if (!(el instanceof win.HTMLInputElement)) return res;
+
+          // dispatch Enter events (some sites bind to keypress)
+          const mk = (type) => new win.KeyboardEvent(type, {
+            key: 'Enter',
+            code: 'Enter',
+            keyCode: 13,
+            which: 13,
+            bubbles: true,
+            cancelable: true
+          });
+          try { el.dispatchEvent(mk('keydown')); } catch {}
+          try { el.dispatchEvent(mk('keypress')); } catch {}
+          try { el.dispatchEvent(mk('keyup')); } catch {}
+          res.didDispatch = true;
+
+          const form = el.form || (el.closest ? el.closest('form') : null);
+          if (form) {
+            if (typeof form.requestSubmit === 'function') {
+              form.requestSubmit();
+              res.didSubmit = true;
+              res.ok = true;
+              return res;
+            }
+            const btn =
+              form.querySelector('button[type="submit"]:not([disabled]),input[type="submit"]:not([disabled]),input[type="image"]:not([disabled])');
+            if (btn && typeof btn.click === 'function') {
+              btn.click();
+              res.didClick = true;
+              res.ok = true;
+              return res;
+            }
+            if (typeof form.submit === 'function') {
+              form.submit();
+              res.didSubmit = true;
+              res.ok = true;
+              return res;
+            }
+          }
+
+          res.ok = true; // dispatched, but no form/button found
+          return res;
+        } catch (_) {
+          return res;
+        }
+      })();
+    `;
+
+    try {
+      const r = await wv.executeJavaScript(code, false);
+      if (r && typeof r === 'object') return r as DomEnterResult;
+    } catch {
+      // ignore
+    }
+    return { ok: false, didSubmit: false, didClick: false, didDispatch: false };
+  };
+
   const insertNewlineDom = async (): Promise<boolean> => {
     const wv = getActiveWebview();
     if (!wv) return false;
@@ -734,6 +833,8 @@ export function makeWebInjects(
       const inserted = await insertNewlineDom();
       if (inserted) return true;
     }
+    const dom = await tryEnterSubmitDom();
+    if (dom.didSubmit || dom.didClick) return true;
     return sendKeyTrusted('Enter');
   };
 

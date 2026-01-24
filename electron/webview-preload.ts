@@ -720,6 +720,51 @@ const installTouchFeaturePolyfills = (): void => {
 
 installTouchFeaturePolyfills();
 
+const installLastEditableTracker = (): void => {
+  const code = `
+    (() => {
+      try {
+        if (window.__mzrLastEditableTrackerInstalled) return;
+        window.__mzrLastEditableTrackerInstalled = true;
+
+        const isEditable = (el) => {
+          if (!el) return false;
+          if (el instanceof HTMLInputElement) return true;
+          if (el instanceof HTMLTextAreaElement) return true;
+          if (el.isContentEditable) return true;
+          return false;
+        };
+
+        const capture = (target) => {
+          try {
+            const el = target && target.nodeType === 1 ? target : null;
+            if (!el) return;
+            if (isEditable(el)) { window.__mzrLastEditable = el; return; }
+            if (el.closest) {
+              const cand = el.closest('input,textarea,[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]');
+              if (isEditable(cand)) window.__mzrLastEditable = cand;
+            }
+          } catch {}
+        };
+
+        document.addEventListener('focusin', (ev) => capture(ev.target), true);
+        document.addEventListener('pointerdown', (ev) => capture(ev.target), true);
+        document.addEventListener('touchstart', (ev) => capture(ev.target), true);
+
+        // debug (optional)
+        // console.log('[mzr] lastEditable tracker installed');
+      } catch {}
+    })();
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+installLastEditableTracker();
+
 /** -------------------------------
  *  Open links in host tab
  *  ------------------------------- */
