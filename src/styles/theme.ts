@@ -65,7 +65,7 @@ const baseLight: ThemeVars = {
   'scrollbar-thumb-hover': '#1F52C8',
   'input-bg': '#E9EFF9',
   'input-border': '#CBD5E4',
-  'selection-bg': '#E6EEFF',
+  'selection-bg': '#aed3fd',
   'selection-fg': '#0F1525',
   'focus-ring': '#235CDC'
 };

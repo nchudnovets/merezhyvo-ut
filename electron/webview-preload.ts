@@ -64,7 +64,6 @@ const SELECTION_CODE = `
               } else {
                 window.postMessage({ __mzrSelLog: payload }, '*');
               }
-              try { console.info('[mzr-sel]', JSON.stringify(payload)); } catch(_) {}
             } catch(_) {}
           }
 
