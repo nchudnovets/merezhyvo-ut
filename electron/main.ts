@@ -911,8 +911,53 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
     if (id === 'forward') return void wc.goForward?.();
     if (id === 'reload') return void wc.reload?.();
     if (id === 'copy-selection') {
-      const text = ctx?.params?.selectionText ?? '';
-      if (text) clipboard.writeText(text);
+      const readSelectionFromPage = async (): Promise<string> => {
+        try {
+          const script = `
+            (function () {
+              try {
+                var sel = window.getSelection ? window.getSelection() : null;
+                if (sel && sel.rangeCount && !sel.isCollapsed) {
+                  return String(sel.toString() || '');
+                }
+                var el = document.activeElement;
+                if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
+                  var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;
+                  var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : 0;
+                  if (end > start) {
+                    return String((el.value || '').slice(start, end));
+                  }
+                }
+              } catch (err) {
+                return '';
+              }
+              return '';
+            })();
+          `;
+          const result = await wc.executeJavaScript(script, true);
+          return typeof result === 'string' ? result : '';
+        } catch {
+          return '';
+        }
+      };
+
+      void (async () => {
+        const liveText = (await readSelectionFromPage()).trim();
+        if (liveText) {
+          clipboard.writeText(liveText);
+          return;
+        }
+        const fallbackText = (ctx?.params?.selectionText ?? '').trim();
+        if (fallbackText) {
+          clipboard.writeText(fallbackText);
+          return;
+        }
+        try {
+          wc.copy();
+        } catch {
+          // noop
+        }
+      })();
       return;
     }
     if (id === 'open-link') {

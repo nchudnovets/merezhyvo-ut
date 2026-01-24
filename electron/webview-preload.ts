@@ -1,5 +1,740 @@
 import { ipcRenderer, webFrame } from 'electron';
 
+const SELECTION_LOG_CHANNEL = 'mzr:selection:log';
+const sendSelectionLog = (payload: unknown): void => {
+  try {
+    ipcRenderer.send(SELECTION_LOG_CHANNEL, payload);
+  } catch {
+    // ignore
+  }
+};
+
+try {
+  (window as unknown as { __mzrSelLog?: (payload: unknown) => void }).__mzrSelLog = sendSelectionLog;
+} catch {
+  // ignore
+}
+
+window.addEventListener(
+  'message',
+  (event) => {
+    if (event.source !== window) return;
+    const data = event.data as { __mzrSelLog?: unknown } | null;
+    if (!data || data.__mzrSelLog == null) return;
+    sendSelectionLog(data.__mzrSelLog);
+  },
+  false
+);
+
+(() => {
+  try {
+    const marker = '__mzrRawInputLogInstalled';
+    if ((window as unknown as Record<string, unknown>)[marker]) return;
+    (window as unknown as Record<string, unknown>)[marker] = true;
+  } catch {
+    // ignore
+  }
+
+  const describeTarget = (target: EventTarget | null) => {
+    const el = target as HTMLElement | null;
+    if (!el) return {};
+    const tag = (el.tagName || '').toLowerCase();
+    const type = (el.getAttribute && el.getAttribute('type')) ? el.getAttribute('type') : undefined;
+    const editable = (el as HTMLElement).isContentEditable || tag === 'input' || tag === 'textarea';
+    return { tag, type, editable };
+  };
+
+  const log = (kind: string, data: Record<string, unknown>) => {
+    sendSelectionLog({
+      kind,
+      ts: Date.now(),
+      ...data
+    });
+  };
+
+  const onPointer = (event: PointerEvent) => {
+    log(event.type, {
+      pointerType: event.pointerType,
+      buttons: event.buttons,
+      button: event.button,
+      pointerId: event.pointerId,
+      x: event.clientX,
+      y: event.clientY,
+      ...describeTarget(event.target)
+    });
+  };
+
+  const onMouse = (event: MouseEvent) => {
+    log(event.type, {
+      buttons: event.buttons,
+      button: event.button,
+      x: event.clientX,
+      y: event.clientY,
+      ...describeTarget(event.target)
+    });
+  };
+
+  const onTouch = (event: TouchEvent) => {
+    const t = event.touches && event.touches[0];
+    log(event.type, {
+      touches: event.touches ? event.touches.length : 0,
+      changed: event.changedTouches ? event.changedTouches.length : 0,
+      x: t ? t.clientX : null,
+      y: t ? t.clientY : null,
+      ...describeTarget(event.target)
+    });
+  };
+
+  const onClick = (event: MouseEvent) => {
+    log('click', {
+      buttons: event.buttons,
+      button: event.button,
+      x: event.clientX,
+      y: event.clientY,
+      ...describeTarget(event.target)
+    });
+  };
+
+  const onSelectionChange = () => {
+    try {
+      const sel = window.getSelection();
+      const text = sel ? String(sel.toString() || '') : '';
+      log('selectionchange', {
+        hasSelection: text.length > 0,
+        textLen: text.length
+      });
+    } catch {
+      log('selectionchange', { hasSelection: false });
+    }
+  };
+
+  document.addEventListener('pointerdown', onPointer, true);
+  document.addEventListener('pointermove', onPointer, true);
+  document.addEventListener('pointerup', onPointer, true);
+  document.addEventListener('pointercancel', onPointer, true);
+
+  document.addEventListener('mousedown', onMouse, true);
+  document.addEventListener('mousemove', onMouse, true);
+  document.addEventListener('mouseup', onMouse, true);
+
+  document.addEventListener('touchstart', onTouch, true);
+  document.addEventListener('touchmove', onTouch, true);
+  document.addEventListener('touchend', onTouch, true);
+  document.addEventListener('touchcancel', onTouch, true);
+
+  document.addEventListener('click', onClick, true);
+  document.addEventListener('selectionchange', onSelectionChange, true);
+})();
+
+// * Custom text selection logic
+
+const SELECTION_CODE = `
+      (function(){
+        try {
+          // Skip injection on excluded hosts (e.g., Telegram Web)
+          var host = (location && location.hostname) || '';
+          if (/(^|\\.)web\\.telegram\\.org$/i.test(host)) {
+            return true; // do nothing on Telegram
+          }
+
+          if (!window.__mzrSel) {
+            window.__mzrSel = {
+              touching: false,
+              lastTouchTs: 0,
+              lpTimer: null,
+              lpX: 0,
+              lpY: 0,
+              moved: false,
+              menuReq: null,
+              selectionCreated: false,
+              pointerTouching: false,
+              pointerId: null,
+              dragActive: false,
+              dragRange: null,
+              lastMoveLogTs: 0,
+              handleDrag: false,
+              handleSide: null,
+              handleAnchor: null,
+              handleUpdateScheduled: false,
+              lastHandleLogTs: 0,
+              handles: null,
+              listenersAttached: false
+            };
+          }
+          var S = window.__mzrSel;
+          if (S.injected || S.injecting) {
+            return true;
+          }
+          S.injecting = true;
+          S.injected = true;
+          var handles = S.handles || null;
+          var HANDLE_SIZE = 28;
+
+          function selInfo(){
+            try {
+              var sel = window.getSelection && window.getSelection();
+              if (!sel || sel.rangeCount === 0) return { has:false };
+              var r = sel.getRangeAt(0);
+              var textLen = (sel.toString && sel.toString()) ? sel.toString().length : 0;
+              return { has:true, collapsed: !!r.collapsed, textLen: textLen };
+            } catch(_) {
+              return { has:false };
+            }
+          }
+
+          function selLog(type, extra){
+            try {
+              var payload = { type: type, extra: extra || null, ts: Date.now() };
+              if (typeof window.__mzrSelLog === 'function') {
+                window.__mzrSelLog(payload);
+              } else {
+                window.postMessage({ __mzrSelLog: payload }, '*');
+              }
+              try { console.info('[mzr-sel]', JSON.stringify(payload)); } catch(_) {}
+            } catch(_) {}
+          }
+
+          selLog('inject-init', { host: location && location.host ? location.host : '' });
+
+          // Hide default touch-callout bubble inside the page
+          var cssId = 'mzr-selection-css';
+          if (!document.getElementById(cssId)) {
+            var style = document.createElement('style');
+            style.id = cssId;
+            style.textContent = '* { -webkit-touch-callout: none !important; }';
+            document.documentElement.appendChild(style);
+          }
+
+          var LP_DELAY = 500;   // long-press delay (ms)
+          var MOVE_TOL = 10;    // movement tolerance (px)
+
+          function clearLpTimer() {
+            if (S.lpTimer) {
+              try { clearTimeout(S.lpTimer); } catch(_) {}
+              S.lpTimer = null;
+            }
+          }
+
+          function isEditable(node){
+            if (!node) return false;
+            try {
+              if (node.closest && node.closest('[contenteditable]')) return true;
+              var tag = (node.tagName||'').toLowerCase();
+              if (tag === 'textarea' || tag === 'input') return true;
+            } catch(_) {}
+            return false;
+          }
+
+          function isInsideHandles(node){
+            try {
+              var el = node && node.nodeType === 1 ? node : (node && node.parentElement);
+              return !!(el && el.closest && el.closest('#mzr-selection-handles'));
+            } catch(_) { return false; }
+          }
+
+          function ensureRangeFromPoint(x, y){
+            var range = null;
+            if (document.caretRangeFromPoint) {
+              range = document.caretRangeFromPoint(x, y);
+              try { if (range) range.collapse(true); } catch(_) {}
+            } else if (document.caretPositionFromPoint) {
+              var pos = document.caretPositionFromPoint(x, y);
+              if (pos) {
+                range = document.createRange();
+                range.setStart(pos.offsetNode, pos.offset);
+                range.collapse(true);
+              }
+            }
+            if (range && isInsideHandles(range.startContainer)) {
+              range = null;
+            }
+            return range;
+          }
+          
+          function setSelectionFromAnchor(anchor, endRange){
+            if (!anchor || !endRange) return;
+            try {
+              var next = anchor.cloneRange();
+              if (next.compareBoundaryPoints(Range.START_TO_END, endRange) <= 0) {
+                next.setEnd(endRange.endContainer, endRange.endOffset);
+              } else {
+                next.setStart(endRange.startContainer, endRange.startOffset);
+              }
+              var sel = window.getSelection && window.getSelection();
+              if (sel) {
+                sel.removeAllRanges();
+                sel.addRange(next);
+              }
+              S.selectionCreated = true;
+              S.dragRange = next.cloneRange();
+            } catch(_) {}
+          }
+
+          function getCollapsedRange(range, atStart){
+            try {
+              var r = range.cloneRange();
+              r.collapse(!!atStart);
+              return r;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getRangeRect(range){
+            if (!range) return null;
+            try {
+              var rects = range.getClientRects();
+              if (rects && rects.length) return rects[0];
+            } catch(_) {}
+            return null;
+          }
+
+          function getSelectionHandleRects(range){
+            try {
+              var rects = range.getClientRects();
+              if (rects && rects.length) {
+                return { startRect: rects[0], endRect: rects[rects.length - 1] };
+              }
+            } catch(_) {}
+            var fallback = null;
+            try {
+              fallback = range.getBoundingClientRect();
+            } catch(_) {}
+            if (fallback && fallback.width && fallback.height) {
+              return { startRect: fallback, endRect: fallback };
+            }
+            var start = getCollapsedRange(range, true);
+            var end = getCollapsedRange(range, false);
+            return { startRect: getRangeRect(start), endRect: getRangeRect(end) };
+          }
+
+          function shouldShowHandles(){
+            var sel = window.getSelection && window.getSelection();
+            if (!sel || sel.rangeCount === 0) return false;
+            var r = sel.getRangeAt(0);
+            if (r.collapsed) return false;
+            var node = r.startContainer && r.startContainer.nodeType === 3
+              ? r.startContainer.parentElement
+              : r.startContainer;
+            if (isEditable(node)) return false;
+            return true;
+          }
+
+          function ensureHandles(){
+            if (handles) return;
+            var existing = document.getElementById('mzr-selection-handles');
+            if (existing) {
+              var existingStart = existing.querySelector('[data-side="start"]');
+              var existingEnd = existing.querySelector('[data-side="end"]');
+              if (existingStart && existingEnd) {
+                handles = { overlay: existing, start: existingStart, end: existingEnd };
+                S.handles = handles;
+                return;
+              }
+              try { existing.remove(); } catch(_) {}
+            }
+            var extras = document.querySelectorAll('.mzr-selection-handles');
+            if (extras && extras.length > 1) {
+              for (var i = 1; i < extras.length; i++) {
+                try { extras[i].remove(); } catch(_) {}
+              }
+            }
+            var overlay = document.createElement('div');
+            overlay.id = 'mzr-selection-handles';
+            overlay.className = 'mzr-selection-handles';
+            overlay.style.position = 'fixed';
+            overlay.style.left = '0';
+            overlay.style.right = '0';
+            overlay.style.top = '0';
+            overlay.style.bottom = '0';
+            overlay.style.pointerEvents = 'none';
+            overlay.style.zIndex = '2147483647';
+
+            function makeHandle(side){
+              var h = document.createElement('div');
+              h.dataset.side = side;
+              h.style.position = 'fixed';
+              h.style.width = HANDLE_SIZE + 'px';
+              h.style.height = HANDLE_SIZE + 'px';
+              h.style.borderRadius = '50%';
+              h.style.background = '#2f6fff';
+              h.style.border = '2px solid #ffffff';
+              h.style.boxShadow = '0 2px 6px rgba(0,0,0,0.25)';
+              h.style.pointerEvents = 'auto';
+              h.style.display = 'none';
+              h.style.touchAction = 'none';
+              overlay.appendChild(h);
+              return h;
+            }
+
+            var startHandle = makeHandle('start');
+            var endHandle = makeHandle('end');
+            document.documentElement.appendChild(overlay);
+            handles = { overlay: overlay, start: startHandle, end: endHandle };
+            S.handles = handles;
+
+          }
+
+          function updateHandles(){
+            if (!handles) return;
+            var canShow = shouldShowHandles();
+            if (!canShow) {
+              handles.start.style.display = 'none';
+              handles.end.style.display = 'none';
+              S.handleDrag = false;
+              S.handleSide = null;
+              S.handleAnchor = null;
+              S.dragActive = false;
+              S.dragRange = null;
+              S.selectionCreated = false;
+              return;
+            }
+            var sel = window.getSelection && window.getSelection();
+            if (!sel || sel.rangeCount === 0) return;
+            var r = sel.getRangeAt(0);
+            var rects = getSelectionHandleRects(r);
+            if (!rects.startRect || !rects.endRect) {
+              handles.start.style.display = 'none';
+              handles.end.style.display = 'none';
+              return;
+            }
+            handles.start.style.display = 'block';
+            handles.end.style.display = 'block';
+            handles.start.style.left = (rects.startRect.left - HANDLE_SIZE / 2) + 'px';
+            handles.start.style.top = (rects.startRect.bottom - HANDLE_SIZE / 2) + 'px';
+            handles.end.style.left = (rects.endRect.right - HANDLE_SIZE / 2) + 'px';
+            handles.end.style.top = (rects.endRect.bottom - HANDLE_SIZE / 2) + 'px';
+            var now = Date.now();
+            if (!S.lastHandleLogTs || now - S.lastHandleLogTs > 250) {
+              S.lastHandleLogTs = now;
+              selLog('handles-update', {
+                show: true,
+                start: rects.startRect ? {
+                  l: rects.startRect.left,
+                  t: rects.startRect.top,
+                  r: rects.startRect.right,
+                  b: rects.startRect.bottom
+                } : null,
+                end: rects.endRect ? {
+                  l: rects.endRect.left,
+                  t: rects.endRect.top,
+                  r: rects.endRect.right,
+                  b: rects.endRect.bottom
+                } : null
+              });
+            }
+          }
+
+          function scheduleHandleUpdate(){
+            if (S.handleUpdateScheduled) return;
+            S.handleUpdateScheduled = true;
+            requestAnimationFrame(function(){
+              S.handleUpdateScheduled = false;
+              updateHandles();
+            });
+          }
+
+          ensureHandles();
+          if (!S.listenersAttached) {
+            S.listenersAttached = true;
+            document.addEventListener('selectionchange', function(){
+              scheduleHandleUpdate();
+            }, { capture: true });
+            window.addEventListener('scroll', scheduleHandleUpdate, true);
+            if (window.visualViewport) {
+              window.visualViewport.addEventListener('scroll', scheduleHandleUpdate);
+              window.visualViewport.addEventListener('resize', scheduleHandleUpdate);
+            } else {
+              window.addEventListener('resize', scheduleHandleUpdate);
+            }
+
+            function onHandleStart(ev){
+              try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+              var sel = window.getSelection && window.getSelection();
+              if (!sel || sel.rangeCount === 0) return;
+              var r = sel.getRangeAt(0);
+              if (r.collapsed) return;
+              var side = ev.currentTarget && ev.currentTarget.dataset ? ev.currentTarget.dataset.side : null;
+              var anchor = side === 'start' ? getCollapsedRange(r, false) : getCollapsedRange(r, true);
+              S.handleDrag = true;
+              if (handles) {
+                handles.start.style.pointerEvents = 'none';
+                handles.end.style.pointerEvents = 'none';
+              }
+              S.handleSide = side;
+              S.handleAnchor = anchor;
+              S.dragActive = true;
+              S.dragRange = anchor;
+              selLog('handle-drag-start', { side: side });
+            }
+
+            function onHandleMove(ev){
+              if (!S.handleDrag || !S.handleAnchor) return;
+              try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+              var t = ev.touches && ev.touches[0];
+              var x = t ? t.clientX : ev.clientX;
+              var y = t ? t.clientY : ev.clientY;
+              var endRange = ensureRangeFromPoint(x, y);
+              setSelectionFromAnchor(S.handleAnchor, endRange);
+              selLog('handle-drag-move', { x: x, y: y, sel: selInfo() });
+              updateHandles();
+            }
+
+            function onHandleEnd(ev){
+              if (!S.handleDrag) return;
+              if (handles) {
+                handles.start.style.pointerEvents = 'auto';
+                handles.end.style.pointerEvents = 'auto';
+              }
+              S.handleDrag = false;
+              S.handleSide = null;
+              S.handleAnchor = null;
+              S.dragActive = false;
+              S.dragRange = null;
+              selLog('handle-drag-end', selInfo());
+            }
+
+            if (handles) {
+              ['touchstart','pointerdown','mousedown'].forEach(function(type){
+                handles.start.addEventListener(type, onHandleStart, { capture: true, passive: false });
+                handles.end.addEventListener(type, onHandleStart, { capture: true, passive: false });
+              });
+            }
+            ['touchmove','pointermove','mousemove'].forEach(function(type){
+              document.addEventListener(type, onHandleMove, { capture: true, passive: false });
+            });
+            ['touchend','touchcancel','pointerup','pointercancel','mouseup'].forEach(function(type){
+              document.addEventListener(type, onHandleEnd, { capture: true, passive: true });
+            });
+
+            document.addEventListener('touchstart', function(ev){
+              if (S.pointerTouching) return;
+              var t = ev.touches && ev.touches[0];
+              if (!t) return;
+              S.touching = true;
+              S.moved = false;
+              S.lpX = t.clientX;
+              S.lpY = t.clientY;
+              selLog('touchstart', { x: S.lpX, y: S.lpY });
+
+            var sel = window.getSelection && window.getSelection();
+            var active = document.activeElement;
+            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+              var range = sel.getRangeAt(0);
+              var rects = getSelectionHandleRects(range);
+              var distStart = rects.startRect ? Math.hypot(S.lpX - rects.startRect.left, S.lpY - rects.startRect.top) : 9999;
+              var distEnd = rects.endRect ? Math.hypot(S.lpX - rects.endRect.right, S.lpY - rects.endRect.bottom) : 9999;
+              var anchor = distStart <= distEnd ? getCollapsedRange(range, false) : getCollapsedRange(range, true);
+              S.dragActive = !!anchor;
+              S.dragRange = anchor;
+              if (S.dragActive) {
+                selLog('drag-start', selInfo());
+              }
+            }
+
+              clearLpTimer();
+              S.lpTimer = setTimeout(function(){
+                try {
+                  var el = document.elementFromPoint(S.lpX, S.lpY);
+                  var sel = window.getSelection && window.getSelection();
+                  var range = ensureRangeFromPoint(S.lpX, S.lpY);
+                  selLog('longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
+
+                  if (isEditable(el) || (sel && range)) {
+                    if (sel && range) {
+                      sel.removeAllRanges();
+                      sel.addRange(range);
+                      // Expand selection to word boundaries, if supported
+                      try {
+                        if (sel.modify) {
+                          sel.modify('move','backward','word');
+                          sel.modify('extend','forward','word');
+                        }
+                      } catch(_) {}
+                    }
+                    S.selectionCreated = true;
+                    S.dragRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : range;
+                    S.dragActive = !!S.dragRange;
+                    if (S.dragActive) {
+                      selLog('drag-start', selInfo());
+                    }
+                    selLog('selection-created', selInfo());
+                    scheduleHandleUpdate();
+                  } else {
+                    // Non-text element long-press → ask host to show custom menu here
+                    S.menuReq = { x: S.lpX, y: S.lpY };
+                    selLog('menu-req', { x: S.lpX, y: S.lpY });
+                  }
+                } catch(_) {}
+              }, LP_DELAY);
+            }, { capture: true, passive: true });
+
+          document.addEventListener('touchmove', function(ev){
+            if (S.handleDrag) return;
+            if (S.pointerTouching) return;
+            var t = ev.touches && ev.touches[0];
+            if (!t) return;
+            if (S.dragActive && S.dragRange) {
+                try { ev.preventDefault(); } catch(_) {}
+                var endRange = ensureRangeFromPoint(t.clientX, t.clientY);
+                setSelectionFromAnchor(S.dragRange, endRange);
+                scheduleHandleUpdate();
+                var now = Date.now();
+                if (!S.lastMoveLogTs || now - S.lastMoveLogTs > 120) {
+                  S.lastMoveLogTs = now;
+                  selLog('drag-move', { x: t.clientX, y: t.clientY, sel: selInfo() });
+                }
+                return;
+              }
+              if (Math.abs(t.clientX - S.lpX) > MOVE_TOL || Math.abs(t.clientY - S.lpY) > MOVE_TOL) {
+                S.moved = true;
+                clearLpTimer();
+                selLog('touchmove-cancel', { x: t.clientX, y: t.clientY });
+              }
+            }, { capture: true, passive: false });
+
+            function endTouch(){
+              S.touching = false;
+              S.lastTouchTs = Date.now();
+              clearLpTimer();
+              selLog('touchend', { ts: S.lastTouchTs });
+              scheduleHandleUpdate();
+            }
+            document.addEventListener('touchend', endTouch,   { capture: true, passive: true });
+            document.addEventListener('touchcancel', endTouch,{ capture: true, passive: true });
+
+            document.addEventListener('pointerdown', function(ev){
+              S.pointerTouching = true;
+              S.pointerId = ev.pointerId;
+              S.touching = true;
+              S.moved = false;
+              S.lpX = ev.clientX;
+              S.lpY = ev.clientY;
+              selLog('pointerdown', { x: S.lpX, y: S.lpY, buttons: ev.buttons });
+
+            var sel = window.getSelection && window.getSelection();
+            var active = document.activeElement;
+            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+              S.dragActive = true;
+              S.dragRange = sel.getRangeAt(0).cloneRange();
+              selLog('drag-start', selInfo());
+              return;
+            }
+
+              clearLpTimer();
+              S.lpTimer = setTimeout(function(){
+                try {
+                  var el = document.elementFromPoint(S.lpX, S.lpY);
+                  var range = ensureRangeFromPoint(S.lpX, S.lpY);
+                  var selection = window.getSelection && window.getSelection();
+                  selLog('pointer-longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
+                  if (selection && range) {
+                    selection.removeAllRanges();
+                    selection.addRange(range);
+                    try {
+                      if (selection.modify) {
+                        selection.modify('move','backward','word');
+                        selection.modify('extend','forward','word');
+                      }
+                    } catch(_) {}
+                  }
+                  S.selectionCreated = true;
+                  S.dragRange = selection && selection.rangeCount
+                    ? selection.getRangeAt(0).cloneRange()
+                    : range;
+                  S.dragActive = !!S.dragRange;
+                  if (S.dragActive) {
+                    selLog('drag-start', selInfo());
+                  }
+                  selLog('selection-created', selInfo());
+                } catch(_) {}
+              }, LP_DELAY);
+            }, { capture: true, passive: false });
+
+          document.addEventListener('pointermove', function(ev){
+            if (S.handleDrag) return;
+            if (S.pointerId !== null && ev.pointerId !== S.pointerId) return;
+            if (S.dragActive && S.dragRange) {
+              try { ev.preventDefault(); } catch(_) {}
+                var endRange = ensureRangeFromPoint(ev.clientX, ev.clientY);
+                setSelectionFromAnchor(S.dragRange, endRange);
+                scheduleHandleUpdate();
+                var now = Date.now();
+                if (!S.lastMoveLogTs || now - S.lastMoveLogTs > 120) {
+                  S.lastMoveLogTs = now;
+                  selLog('drag-move', { x: ev.clientX, y: ev.clientY, sel: selInfo() });
+                }
+                return;
+              }
+              if (!S.selectionCreated && (Math.abs(ev.clientX - S.lpX) > MOVE_TOL || Math.abs(ev.clientY - S.lpY) > MOVE_TOL)) {
+                S.moved = true;
+                clearLpTimer();
+                selLog('pointermove-cancel', { x: ev.clientX, y: ev.clientY });
+              }
+            }, { capture: true, passive: false });
+
+            function endPointer(){
+              S.pointerTouching = false;
+              S.pointerId = null;
+              S.dragActive = false;
+              S.dragRange = null;
+              S.touching = false;
+              S.lastTouchTs = Date.now();
+              clearLpTimer();
+              selLog('pointerend', { ts: S.lastTouchTs, sel: selInfo() });
+              scheduleHandleUpdate();
+            }
+
+            document.addEventListener('pointerup', function(ev){
+              endPointer();
+            }, { capture: true });
+
+            document.addEventListener('pointercancel', function(ev){
+              endPointer();
+            }, { capture: true });
+          }
+
+          scheduleHandleUpdate();
+          S.injecting = false;
+          return true;
+        } catch(e) {
+          try {
+            if (window.__mzrSel) {
+              window.__mzrSel.injecting = false;
+              window.__mzrSel.injected = false;
+            }
+          } catch(_) {}
+          return false;
+        }
+      })();
+    `;
+
+const installSelectionHandles = () => {
+  try {
+    const guard = `
+      !!window.__mzrSel && window.__mzrSel.injected === true
+    `;
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code: `
+      (function(){
+        try { if (${guard}) return; } catch(e) {}
+        ${SELECTION_CODE}
+      })();
+    ` }]);
+  } catch {
+    // ignore
+  }
+};
+
+// 2) запускаємо максимально рано + дубль на DOMContentLoaded як страховка
+try {
+  queueMicrotask(installSelectionHandles);
+  if (document.readyState === 'loading') {
+    document.addEventListener('DOMContentLoaded', installSelectionHandles, { once: true });
+  } else {
+    installSelectionHandles();
+  }
+} catch {}
+
 /** -------------------------------
  *  Mirror Notification to host
  *  ------------------------------- */
