@@ -667,6 +667,8 @@ const WebViewHost = forwardRef(function WebViewHost(
     border: 'none',
     ...style
   };
+  // Electron webview expects empty string to enable allowpopups.
+  const allowPopupsAttr = '' as unknown as boolean;
 
   return (
     <webview
@@ -676,7 +678,7 @@ const WebViewHost = forwardRef(function WebViewHost(
       // eslint-disable-next-line react/no-unknown-property
       partition={partition}
       // eslint-disable-next-line react/no-unknown-property
-      allowpopups={true}
+      allowpopups={allowPopupsAttr}
     />
   );
 });
