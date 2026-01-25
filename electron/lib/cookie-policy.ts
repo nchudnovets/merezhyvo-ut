@@ -1,6 +1,6 @@
 import { session as electronSession, type Session, type OnBeforeSendHeadersListenerDetails, type OnHeadersReceivedListenerDetails, webContents } from 'electron';
 import { getCookiePrivacyState, onCookiePrivacyChange } from './cookie-settings';
-import { getTopLevelHostForRequest, rememberTopLevelHost } from './windows';
+import { getTopLevelHostForRequest, getUserAgentForUrl, rememberTopLevelHost } from './windows';
 
 type Policy = {
   blockThirdParty: boolean;
@@ -173,6 +173,22 @@ const stripCookieHeader = (details: OnBeforeSendHeadersListenerDetails) => {
   return headers;
 };
 
+const applyUserAgentHeader = (
+  details: OnBeforeSendHeadersListenerDetails,
+  headers: Record<string, string | string[] | undefined>,
+  topHost: string | null
+) => {
+  try {
+    const targetUrl = topHost ? `https://${topHost}` : details.url;
+    const ua = getUserAgentForUrl(targetUrl);
+    const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
+    headers[uaKey] = ua;
+  } catch {
+    // noop
+  }
+  return headers;
+};
+
 const stripSetCookieHeader = (details: OnHeadersReceivedListenerDetails) => {
   const headers = { ...details.responseHeaders };
   for (const key of Object.keys(headers)) {
@@ -199,20 +215,21 @@ export const installCookiePolicy = (targetSession: Session | null | undefined = 
       const topHost = normalizeHost(getTopLevelHostForRequest(details));
       updateStatsForHost(wcId, topHost);
       const effective = getEffectivePolicy(topHost);
+      const baseHeaders = { ...details.requestHeaders };
       if (effective === 'allow') {
-        callback({ cancel: false, requestHeaders: details.requestHeaders });
+        callback({ cancel: false, requestHeaders: applyUserAgentHeader(details, baseHeaders, topHost) });
         return;
       }
       const thirdParty = isThirdParty(requestHost, topHost);
       if (thirdParty) {
         const blockedCount = countCookieHeader(details);
-        const headers = stripCookieHeader(details);
+        const headers = applyUserAgentHeader(details, stripCookieHeader(details), topHost);
         if (blockedCount > 0) {
           bumpBlockedCount(wcId, blockedCount);
         }
         callback({ cancel: false, requestHeaders: headers });
       } else {
-        callback({ cancel: false, requestHeaders: details.requestHeaders });
+        callback({ cancel: false, requestHeaders: applyUserAgentHeader(details, baseHeaders, topHost) });
       }
     } catch {
       callback({ cancel: false, requestHeaders: details.requestHeaders });

@@ -829,6 +829,13 @@ app.on('before-quit', () => {
 });
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
+  try {
+    if (typeof contents.getType === 'function' && contents.getType() !== 'devtools') {
+      windows.applyUserAgentToWebContents(contents, contents.getURL?.());
+    }
+  } catch {
+    // noop
+  }
   windows.installFileDialogHandler(contents);
   windows.setupSelectFileInterceptor(contents);
   if (typeof contents.getType === 'function' && contents.getType() === 'webview') {

@@ -7,6 +7,7 @@ import {
   BrowserWindow,
   screen,
   session,
+  webContents,
   type App,
   type DownloadItem,
   type Event,
@@ -33,10 +34,20 @@ import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
 export const DEFAULT_URL = 'https://start.duckduckgo.com';
+const resolveChromeVersion = (): { full: string; major: number } => {
+  const raw = typeof process.versions?.chrome === 'string' ? process.versions.chrome.trim() : '';
+  const major = raw ? Number.parseInt(raw.split('.')[0] ?? '0', 10) : 0;
+  const full = raw || (Number.isFinite(major) && major > 0 ? `${major}.0.0.0` : '0.0.0.0');
+  return { full, major: Number.isFinite(major) ? major : 0 };
+};
+
+const chromeVersion = resolveChromeVersion();
+const electronVersion = typeof process.versions?.electron === 'string' ? process.versions.electron.trim() : '';
+
 export const MOBILE_USER_AGENT =
-  'Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Mobile Safari/537.36';
+  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
 export const DESKTOP_USER_AGENT =
-  'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36';
+  `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
 
 const DESKTOP_ONLY_HOSTS = new Set<string>([
   'youtube.com',
@@ -424,29 +435,61 @@ function isDesktopOnlyUrl(url: string): boolean {
 export function installUserAgentOverride(targetSession: Session | null = session.defaultSession): void {
   if (!targetSession) return;
   const sessionWithFlag = targetSession as SessionWithOverride;
-  if (sessionWithFlag.__mzrUAOverrideInstalled) return;
+  const alreadyInstalled = sessionWithFlag.__mzrUAOverrideInstalled;
   sessionWithFlag.__mzrUAOverrideInstalled = true;
-  sessionWithFlag.webRequest.onBeforeSendHeaders((details, callback) => {
-    const headers = { ...details.requestHeaders };
-    const ua = isDesktopOnlyUrl(details.url)
-      ? DESKTOP_USER_AGENT
-      : currentUserAgentMode === 'mobile'
-      ? MOBILE_USER_AGENT
-      : DESKTOP_USER_AGENT;
-    headers['User-Agent'] = ua;
-    callback({ cancel: false, requestHeaders: headers });
-  });
+  try {
+    const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
+    targetSession.setUserAgent(baseUA);
+  } catch {
+    // noop
+  }
+  if (alreadyInstalled) return;
+  try {
+    targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
+      try {
+        if (details.resourceType === 'mainFrame') {
+          rememberTopLevelHost(details.webContentsId, details.url);
+        }
+        const topHost = getTopLevelHostForRequest(details);
+        const targetUrl = topHost ? `https://${topHost}` : details.url;
+        const ua = getUserAgentForUrl(targetUrl);
+        const headers = { ...details.requestHeaders };
+        const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
+        headers[uaKey] = ua;
+        callback({ cancel: false, requestHeaders: headers });
+      } catch {
+        callback({ cancel: false, requestHeaders: details.requestHeaders });
+      }
+    });
+  } catch {
+    // noop
+  }
 }
 
-export function applyUserAgentForUrl(contents: WebContents | null | undefined, url: string): void {
-  if (!contents) return;
+export const getUserAgentForUrl = (url: string | null | undefined): string => {
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
-  const ua = isDesktopOnlyUrl(url) ? DESKTOP_USER_AGENT : baseUA;
+  if (!url) return baseUA;
+  return isDesktopOnlyUrl(url) ? DESKTOP_USER_AGENT : baseUA;
+};
+
+export function applyUserAgentToWebContents(contents: WebContents | null | undefined, url?: string): void {
+  if (!contents) return;
+  const resolvedUrl = url ?? (typeof contents.getURL === 'function' ? contents.getURL() : '');
+  const ua = getUserAgentForUrl(resolvedUrl);
+  try {
+    installUserAgentOverride(contents.session);
+  } catch {
+    // noop
+  }
   try {
     contents.setUserAgent(ua);
   } catch {
     // noop
   }
+}
+
+export function applyUserAgentForUrl(contents: WebContents | null | undefined, url: string): void {
+  applyUserAgentToWebContents(contents, url);
 }
 
 const pickHost = (raw: string | undefined): string | null => {
@@ -493,17 +536,23 @@ const refreshUserAgentMode = (): void => {
   const nextMode = userAgentOverride ?? currentMode ?? 'desktop';
   if (currentUserAgentMode !== nextMode) {
     currentUserAgentMode = nextMode;
+    const baseUA = nextMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
     try {
-      session.defaultSession?.setUserAgent(
-        nextMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT
-      );
+      app.userAgentFallback = baseUA;
+    } catch {
+      // noop
+    }
+    try {
+      session.defaultSession?.setUserAgent(baseUA);
     } catch {
       // noop
     }
   }
   try {
-    for (const win of BrowserWindow.getAllWindows()) {
-      applyUserAgentForUrl(win.webContents, win.webContents.getURL());
+    for (const wc of webContents.getAllWebContents()) {
+      if (wc.isDestroyed?.()) continue;
+      if (typeof wc.getType === 'function' && wc.getType() === 'devtools') continue;
+      applyUserAgentToWebContents(wc, typeof wc.getURL === 'function' ? wc.getURL() : '');
     }
   } catch {
     // noop
