@@ -160,7 +160,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
       ? '#22c55e'
       : downloadIndicatorState === 'error'
       ? '#f97316'
-      : '#ffffff';
+      : 'var(--mzr-accent-strong)';
   const arrowStyle: CSSProperties = {
     width: 0,
     height: 0,
