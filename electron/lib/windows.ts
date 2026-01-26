@@ -45,9 +45,9 @@ const chromeVersion = resolveChromeVersion();
 const electronVersion = typeof process.versions?.electron === 'string' ? process.versions.electron.trim() : '';
 
 export const MOBILE_USER_AGENT =
-  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
+  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/0.0 Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
 export const DESKTOP_USER_AGENT =
-  `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
+  `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/0.0 Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
 
 const DESKTOP_ONLY_HOSTS = new Set<string>([
   'youtube.com',
