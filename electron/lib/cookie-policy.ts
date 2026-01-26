@@ -1,4 +1,5 @@
 import { session as electronSession, type Session, type OnBeforeSendHeadersListenerDetails, type OnHeadersReceivedListenerDetails, webContents } from 'electron';
+import { getDomain } from 'tldts';
 import { getCookiePrivacyState, onCookiePrivacyChange } from './cookie-settings';
 import { getTopLevelHostForRequest, getUserAgentForUrl, rememberTopLevelHost } from './windows';
 
@@ -33,10 +34,10 @@ const normalizeHost = (host: string | null | undefined): string | null => {
   return trimmed || null;
 };
 
-const isSubdomainOrSame = (host: string | null | undefined, top: string | null | undefined): boolean => {
-  if (!host || !top) return false;
-  if (host === top) return true;
-  return host.endsWith(`.${top}`);
+const getSiteKey = (host: string | null | undefined): string | null => {
+  const normalized = normalizeHost(host);
+  if (!normalized) return null;
+  return getDomain(normalized) ?? normalized;
 };
 
 const loadPolicy = async (): Promise<void> => {
@@ -66,8 +67,10 @@ onCookiePrivacyChange((next) => {
 });
 
 const isThirdParty = (requestHost: string | null | undefined, topLevelHost: string | null | undefined): boolean => {
-  if (!requestHost || !topLevelHost) return false;
-  return !isSubdomainOrSame(requestHost, topLevelHost);
+  const requestKey = getSiteKey(requestHost);
+  const topKey = getSiteKey(topLevelHost);
+  if (!requestKey || !topKey) return false;
+  return requestKey !== topKey;
 };
 
 const getStats = (wcId: number): CookieStats => {
@@ -95,13 +98,18 @@ const hasExceptionForHost = (host: string | null): boolean => {
   if (!host) return false;
   const exceptions = stateCache.policy.exceptions;
   if (exceptions[host]) return true;
-  return Object.keys(exceptions).some((key) => key && exceptions[key] && isSubdomainOrSame(host, key));
+  const hostKey = getSiteKey(host);
+  if (!hostKey) return false;
+  return Object.keys(exceptions).some((key) => {
+    if (!key || !exceptions[key]) return false;
+    return getSiteKey(key) === hostKey;
+  });
 };
 
 const getEffectivePolicy = (topLevelHost: string | null): 'allow' | 'block-third-party' => {
   const policy = stateCache.policy;
   if (!policy.blockThirdParty) return 'allow';
-  if (topLevelHost && policy.exceptions[topLevelHost]) return 'allow';
+  if (hasExceptionForHost(topLevelHost)) return 'allow';
   return 'block-third-party';
 };
 
@@ -173,11 +181,24 @@ const stripCookieHeader = (details: OnBeforeSendHeadersListenerDetails) => {
   return headers;
 };
 
+const normalizeHeaders = (
+  headers: Record<string, string | string[] | undefined>
+): Record<string, string | string[]> => {
+  const cleaned: Record<string, string | string[]> = {};
+  for (const key of Object.keys(headers)) {
+    const value = headers[key];
+    if (typeof value !== 'undefined') {
+      cleaned[key] = value;
+    }
+  }
+  return cleaned;
+};
+
 const applyUserAgentHeader = (
   details: OnBeforeSendHeadersListenerDetails,
   headers: Record<string, string | string[] | undefined>,
   topHost: string | null
-) => {
+): Record<string, string | string[]> => {
   try {
     const targetUrl = topHost ? `https://${topHost}` : details.url;
     const ua = getUserAgentForUrl(targetUrl);
@@ -186,7 +207,7 @@ const applyUserAgentHeader = (
   } catch {
     // noop
   }
-  return headers;
+  return normalizeHeaders(headers);
 };
 
 const stripSetCookieHeader = (details: OnHeadersReceivedListenerDetails) => {
