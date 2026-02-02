@@ -1,6 +1,33 @@
 # Changelog
 
 ----
+## v0.5.1 - 2026-02-02
+
+### New / Improved:
+
+- Redesigned context menu (fully reworked for a cleaner, more consistent UX).
+
+- New Help section explaining tab action buttons: Pin, Add to Favorites, Clear & Close, Close.
+
+- Copy URL button added to the address bar.
+
+- Background media playback: YouTube and other media sites can keep playing when the tab is not active.
+
+- Tor updated to the latest bundled version.
+
+### Fixes:
+
+- On-screen keyboard Enter handling improved: better distinction between newline vs submit in input fields.
+
+- Fixed Google Drive downloads (confirmation / popup flow now works correctly).
+
+- Text selection & copy now works in mobile mode (currently for regular page text only; not yet for form fields).
+
+### Other:
+
+- Various small UI tweaks and polish.
+
+----
 ## v0.4.9 - 2026-01-17
 
 ### New
