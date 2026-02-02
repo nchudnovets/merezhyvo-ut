@@ -36,6 +36,7 @@ export type UISettings = {
   theme?: 'dark' | 'light';
   webZoomMobile?: number;
   webZoomDesktop?: number;
+  releasePopupVersion?: string | null;
 };
 
 export type HttpsMode = 'strict' | 'preferred';
@@ -277,7 +278,8 @@ const DEFAULT_UI_SETTINGS: UISettings = {
   language: DEFAULT_LOCALE,
   theme: 'dark',
   webZoomMobile: 2.3,
-  webZoomDesktop: 1.0
+  webZoomDesktop: 1.0,
+  releasePopupVersion: null
 };
 
 const DEFAULT_MESSENGER_SETTINGS: MessengerSettings = {
@@ -395,7 +397,9 @@ export const sanitizeUiSettings = (raw: unknown): UISettings => {
   const desktopRaw = typeof source.webZoomDesktop === 'number' ? source.webZoomDesktop : DEFAULT_UI_SETTINGS.webZoomDesktop;
   const webZoomMobile = clampZoom(mobileRaw) ?? DEFAULT_UI_SETTINGS.webZoomMobile;
   const webZoomDesktop = clampZoom(desktopRaw) ?? DEFAULT_UI_SETTINGS.webZoomDesktop;
-  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language, theme, webZoomMobile, webZoomDesktop };
+  const releasePopupVersion =
+    typeof source.releasePopupVersion === 'string' ? source.releasePopupVersion : DEFAULT_UI_SETTINGS.releasePopupVersion;
+  return { scale: coerceScale(scaleRaw), hideFileDialogNote: hide, language, theme, webZoomMobile, webZoomDesktop, releasePopupVersion };
 };
 
 export const sanitizeDownloadsSettings = (raw: unknown): DownloadsSettings => {

@@ -18,6 +18,7 @@ import { MessengerToolbar } from './components/messenger/MessengerToolbar';
 import WebViewPane from './components/webview/WebViewPane';
 import ZoomBar from './components/zoom/ZoomBar';
 import { SettingsModal } from './components/modals/settingsModal/SettingsModal';
+import ReleasePopup from './components/modals/ReleasePopup';
 import { TabsPanel } from './components/modals/tabsPanel/TabsPanel';
 import { tabsPanelStyles } from './components/modals/tabsPanel/tabsPanelStyles';
 import CouponsFloatingButton from './components/coupons/CouponsFloatingButton';
@@ -225,6 +226,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [showTabsPanel, setShowTabsPanel] = useState<boolean>(false);
   const [showSettingsModal, setShowSettingsModal] = useState<boolean>(false);
   const [settingsScrollTarget, setSettingsScrollTarget] = useState<'passwords' | 'network' | null>(null);
+  const [showReleasePopup, setShowReleasePopup] = useState<boolean>(false);
   const { globalToast, showGlobalToast } = useGlobalToast();
   const {
     accessBlocked,
@@ -716,6 +718,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         });
         const themePref = state.ui?.theme === 'light' ? 'light' : 'dark';
         setTheme(themePref);
+        const seenReleaseVersion = typeof state.ui?.releasePopupVersion === 'string' ? state.ui.releasePopupVersion : null;
+        if (appInfo.version && seenReleaseVersion !== appInfo.version) {
+          setShowReleasePopup(true);
+        }
         setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
         setSslExceptions(Array.isArray(state.sslExceptions) ? state.sslExceptions : []);
         const wm = state.webrtcMode;
@@ -769,6 +775,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setUiScale(1);
           setWebZoomDefaults({ mobile: 2.3, desktop: 1.0 });
           setTheme('dark');
+          if (appInfo.version) {
+            setShowReleasePopup(true);
+          }
           setHttpsMode('strict');
           setSslExceptions([]);
           setWebrtcMode('always_on');
@@ -805,7 +814,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setSecureDnsCustomUrl,
     setSecureDnsError,
     applySavingsSettings,
-    markSavingsLoaded
+    markSavingsLoaded,
+    appInfo.version
   ]);
 
   const getActiveWebview: GetWebview = useCallback((): WebviewTag | null => {
@@ -2172,6 +2182,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setSettingsScrollTarget(null);
   }, []);
 
+  const handleReleasePopupClose = useCallback(() => {
+    setShowReleasePopup(false);
+    if (appInfo.version) {
+      void ipc.ui.update({ releasePopupVersion: appInfo.version });
+    }
+  }, [appInfo.version]);
+
   const handleOpenTorProjectLink = useCallback(() => {
     closeSettingsModal();
     newTabAction('https://www.torproject.org');
@@ -2906,6 +2923,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const tabsPanelBackdropStyle = useMemo<CSSProperties>(() => {
     return { ...tabsPanelStyles.backdrop };
   }, []);
+
   const webviewHostHeight = useMemo(() => {
     if (!kbVisible) return '100%';
     const offset = Math.max(0, keyboardHeight);
@@ -3654,6 +3672,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               displayTitle={displayTitleForTab}
               displaySubtitle={displaySubtitleForTab}
               fallbackInitial={fallbackInitialForTab}
+            />
+          )}
+
+          {showReleasePopup && (
+            <ReleasePopup
+              mode={mode}
+              theme={theme}
+              onClose={handleReleasePopupClose}
+              t={t}
             />
           )}
 

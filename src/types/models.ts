@@ -22,6 +22,7 @@ export interface UISettings {
   theme?: ThemeName;
   webZoomMobile?: number;
   webZoomDesktop?: number;
+  releasePopupVersion?: string | null;
 }
 
 export type TabKind = 'browser' | 'messenger';

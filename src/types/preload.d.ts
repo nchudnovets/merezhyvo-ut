@@ -91,6 +91,7 @@ export interface MerezhyvoUISettings {
   theme?: 'dark' | 'light';
   webZoomMobile?: number;
   webZoomDesktop?: number;
+  releasePopupVersion?: string | null;
 }
 
 export interface MerezhyvoAppInfo {
