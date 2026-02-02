@@ -49,21 +49,37 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
           return;
         }
       }
-      const endpoint = normalizedIp ? `https://ipapi.co/${normalizedIp}/json/` : 'https://ipapi.co/json/';
-      const response = await fetch(endpoint, { cache: 'no-store' });
-      if (!response.ok) {
-        setAccessBlocked(false);
-        return;
+      const fetchPrimary = async (): Promise<{ country: string; ip: string | null }> => {
+        const endpoint = normalizedIp ? `https://ipwho.is/${normalizedIp}` : 'https://ipwho.is/';
+        const response = await fetch(endpoint, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Primary geo failed');
+        const data = (await response.json().catch(() => ({}))) as {
+          country_code?: string;
+          ip?: string;
+          success?: boolean;
+        };
+        if (data.success === false) throw new Error('Primary geo failed');
+        return { country: normalizeCountry(data.country_code), ip: typeof data.ip === 'string' ? data.ip : null };
+      };
+      const fetchFallback = async (): Promise<{ country: string; ip: string | null }> => {
+        const endpoint = normalizedIp ? `https://ipapi.co/${normalizedIp}/json/` : 'https://ipapi.co/json/';
+        const response = await fetch(endpoint, { cache: 'no-store' });
+        if (!response.ok) throw new Error('Fallback geo failed');
+        const data = (await response.json().catch(() => ({}))) as { country_code?: string; ip?: string };
+        return { country: normalizeCountry(data.country_code), ip: typeof data.ip === 'string' ? data.ip : null };
+      };
+      let data = await fetchPrimary();
+      if (!data.country) {
+        data = await fetchFallback();
       }
-      const data = (await response.json().catch(() => ({}))) as { country_code?: string; ip?: string };
-      const country = normalizeCountry(data.country_code);
+      const country = data.country;
       if (country) {
         setAccessBlocked(bannedCountries.includes(country));
       } else {
         setAccessBlocked(false);
       }
       if (!torEnabled) {
-        const detectedIp = normalizedIp || (typeof data.ip === 'string' ? data.ip : null);
+        const detectedIp = normalizedIp || data.ip;
         if (detectedIp && country) {
           void ipc.settings.network.updateDetected({
             detectedIp,

@@ -4,6 +4,7 @@ import type { ServicePageProps } from '../services/types';
 import { useI18n } from '../../i18n/I18nProvider';
 import { useUrlSuggestions } from '../../hooks/useUrlSuggestions';
 import { ipc } from '../../services/ipc/ipc';
+import { normalizeCountryCode } from '../../utils/savings';
 
 const SEARCH_ENDPOINT = 'https://duckduckgo.com/?q=';
 const TOP_SITES_LIMIT = 6;
@@ -146,6 +147,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const [settingsOpen, setSettingsOpen] = useState(false);
   const [savingsEnabled, setSavingsEnabled] = useState(true);
   const [savingsCountry, setSavingsCountry] = useState<string | null>(null);
+  const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
+  const [catalogCountry, setCatalogCountry] = useState<string | null>(null);
   const [couponMerchants, setCouponMerchants] = useState<MerchantEntry[]>([]);
   const [favoriteInput, setFavoriteInput] = useState('');
   const [favoriteOpen, setFavoriteOpen] = useState(false);
@@ -154,6 +157,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const debounceRef = useRef<number | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
+  const savingsRefreshAttemptsRef = useRef(0);
   const favoriteInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteBlurTimeoutRef = useRef<number | null>(null);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(favoriteInput);
@@ -203,31 +207,52 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
 
   useEffect(() => {
     let cancelled = false;
+    let refreshTimer: number | null = null;
     const loadSavings = async () => {
       try {
-        const settings = await ipc.settings.savings.get();
+        const [settings, state] = await Promise.all([
+          ipc.settings.savings.get(),
+          ipc.settings.loadState()
+        ]);
         if (cancelled) return;
         setSavingsEnabled(Boolean(settings?.enabled));
         setSavingsCountry(settings?.countrySaved ?? null);
+        const detected = normalizeCountryCode(state?.network?.detectedCountry);
+        setDetectedCountry(detected);
         const catalog = settings?.catalog;
-        if (catalog && catalog.country && catalog.country === settings?.countrySaved) {
-          setCouponMerchants(Array.isArray(catalog.merchants) ? catalog.merchants : []);
-        } else {
-          setCouponMerchants([]);
-        }
+        setCatalogCountry(catalog?.country ?? null);
+        setCouponMerchants(Array.isArray(catalog?.merchants) ? catalog.merchants : []);
       } catch {
         if (!cancelled) {
           setSavingsEnabled(true);
           setSavingsCountry(null);
+          setDetectedCountry(null);
+          setCatalogCountry(null);
           setCouponMerchants([]);
         }
       }
     };
-    void loadSavings();
+    const scheduleRefresh = () => {
+      if (refreshTimer !== null) return;
+      refreshTimer = window.setTimeout(() => {
+        refreshTimer = null;
+        void loadSavings();
+      }, 5000);
+    };
+    void loadSavings().then(() => {
+      const needsRefresh = !savingsCountry && !detectedCountry;
+      if (needsRefresh && savingsRefreshAttemptsRef.current < 3) {
+        savingsRefreshAttemptsRef.current += 1;
+        scheduleRefresh();
+      }
+    });
     return () => {
       cancelled = true;
+      if (refreshTimer !== null) {
+        window.clearTimeout(refreshTimer);
+      }
     };
-  }, []);
+  }, [detectedCountry, savingsCountry]);
 
   useEffect(() => {
     const trimmed = query.trim();
@@ -275,7 +300,6 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     showPanels &&
     effectiveSettings.showCouponStores &&
     savingsEnabled &&
-    Boolean(savingsCountry) &&
     couponMerchants.length > 0;
 
   const fontSize = mode === 'mobile' ? 45 : 16;
@@ -431,15 +455,19 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
 
   const sortedCouponMerchants = useMemo(() => {
     const list = Array.isArray(couponMerchants) ? couponMerchants : [];
-    const locals: MerchantEntry[] = [];
-    const globals: MerchantEntry[] = [];
-    for (const m of list) {
-      if (m?.hasLocal) {
-        locals.push(m);
-      } else {
-        globals.push(m);
-      }
+    const savedCountry = normalizeCountryCode(savingsCountry);
+    const detected = normalizeCountryCode(detectedCountry);
+    const catalogDetected = normalizeCountryCode(catalogCountry);
+    let countryCode = savedCountry ?? detected ?? catalogDetected;
+    if (!savedCountry && detected === 'US' && catalogDetected && catalogDetected !== detected) {
+      countryCode = catalogDetected;
     }
+    const matchesCountry = (entry: MerchantEntry): boolean => {
+      if (!countryCode) return false;
+      const label = `${entry?.name ?? ''} ${entry?.domain ?? ''}`.toUpperCase();
+      const tokens = label.match(/[A-Z]{2,}/g) ?? [];
+      return tokens.some((token) => token.length === 2 && token === countryCode);
+    };
     const byFreshness = (a: MerchantEntry, b: MerchantEntry) => {
       const aTs = typeof a.freshestCoupon === 'string' ? Date.parse(a.freshestCoupon) : 0;
       const bTs = typeof b.freshestCoupon === 'string' ? Date.parse(b.freshestCoupon) : 0;
@@ -450,10 +478,24 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       const bName = (b.name ?? b.domain ?? '').toLowerCase();
       return aName.localeCompare(bName);
     };
-    locals.sort(byFreshness);
-    globals.sort(byFreshness);
-    return [...locals, ...globals].slice(0, 12);
-  }, [couponMerchants]);
+    const localsMatch: MerchantEntry[] = [];
+    const localsOther: MerchantEntry[] = [];
+    const globalsMatch: MerchantEntry[] = [];
+    const globalsOther: MerchantEntry[] = [];
+    for (const m of list) {
+      const isLocal = Boolean(m?.hasLocal);
+      const isMatch = matchesCountry(m);
+      if (isLocal && isMatch) localsMatch.push(m);
+      else if (isLocal) localsOther.push(m);
+      else if (isMatch) globalsMatch.push(m);
+      else globalsOther.push(m);
+    }
+    localsMatch.sort(byFreshness);
+    localsOther.sort(byFreshness);
+    globalsMatch.sort(byFreshness);
+    globalsOther.sort(byFreshness);
+    return [...localsMatch, ...localsOther, ...globalsMatch, ...globalsOther].slice(0, 12);
+  }, [couponMerchants, savingsCountry, detectedCountry, catalogCountry]);
 
   const handleRemoveTopSite = useCallback((origin: string) => {
     setTopSiteMenuOpen(null);
