@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import type { CSSProperties, ReactNode } from 'react';
 import type {
   Mode,
@@ -249,6 +249,12 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
     }
   }, [scrollToSection, onScrollSectionHandled]);
 
+  const handleNetworkExpandedChange = useCallback((expanded: boolean) => {
+    if (expanded) {
+      onNetworkSectionOpen?.();
+    }
+  }, [onNetworkSectionOpen]);
+
   const containerStyle =
     mode === 'mobile' ? styles.containerMobile : styles.container;
   const closeButtonStyle =
@@ -295,11 +301,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             expandedDefault={false}
             forceExpanded={shouldForceExpandNetwork}
             sectionRef={networkSectionRef}
-            onExpandedChange={(expanded) => {
-              if (expanded) {
-                onNetworkSectionOpen?.();
-              }
-            }}
+            onExpandedChange={handleNetworkExpandedChange}
             body={
               <NetworkSettings
                 mode={mode}
