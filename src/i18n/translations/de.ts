@@ -9,7 +9,7 @@ const de = {
   'release.popup.section1.body1': 'Wenn Sie von einer älteren Version aktualisiert haben, können einige zuvor geöffnete Websites eine Anti-Bot-Prüfung (Häkchen/Schieberegler) anzeigen oder den Zugriff vorübergehend blockieren.',
   'release.popup.section1.body2': 'So beheben Sie das:',
   'release.popup.section1.step1': 'Öffnen Sie die Seite „Website-Daten verwalten“ (Einstellungen/Datenschutz und Sicherheit -> Link am Ende des Abschnitts), suchen Sie den Eintrag für diese Website und klicken Sie auf „Cookies löschen“ und „Daten löschen“. Bestätigen Sie die Aktionen.',
-  'release.popup.section1.step2': 'Wenn der Zugriff blockiert wurde — warten Sie kurz und ändern Sie nach Möglichkeit vorübergehend Netzwerk/IP, verwenden Sie Tor, VPN oder mobiles Internet.',
+  'release.popup.section1.step2': 'Wenn der Zugriff blockiert ist, warten Sie einen Moment und ändern Sie, wenn möglich, vorübergehend das Netzwerk bzw. die IP-Adresse. Dazu können Sie Tor in Ihrem Browser aktivieren, Ihr Gerät mit einem VPN verbinden oder zwischen WLAN und mobilen Daten wechseln.',
   'release.popup.section1.step3': 'Schließen Sie danach den Tab und öffnen Sie die Website erneut.',
   'release.popup.section1.body3': 'Dies ist eine einmalige Situation bei Websites mit Anti-Bot-Prüfung. Nach dem erfolgreichen Laden funktioniert die Seite wie gewohnt, ohne zusätzliches Löschen.',
   'release.popup.section2.title': '2. Kontextmenü.',

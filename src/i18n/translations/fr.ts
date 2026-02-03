@@ -9,7 +9,7 @@ const fr = {
   'release.popup.section1.body1': 'Si vous avez mis à jour depuis une ancienne version, certains sites que vous aviez ouverts peuvent afficher une vérification anti‑bot (case/curseur) ou même bloquer temporairement l’accès.',
   'release.popup.section1.body2': 'Comment corriger :',
   'release.popup.section1.step1': 'Ouvrez la page « Gérer les données de site » (Paramètres/Confidentialité et sécurité -> lien à la fin de la section), trouvez l’entrée du site et cliquez sur « Effacer les cookies » et « Effacer les données ». Confirmez.',
-  'release.popup.section1.step2': 'Si l’accès a été bloqué — attendez un peu et, si possible, changez temporairement de réseau/IP, utilisez Tor, VPN ou internet mobile.',
+  'release.popup.section1.step2': "Si l'accès est bloqué, patientez quelques instants et, si possible, changez temporairement de réseau/d'adresse IP. Pour cela, vous pouvez activer Tor dans votre navigateur, connecter votre appareil à un VPN ou basculer entre la connexion Wi-Fi et les données mobiles.",
   'release.popup.section1.step3': 'Ensuite, fermez l’onglet et rouvrez le site.',
   'release.popup.section1.body3': 'C’est une situation ponctuelle pour les sites avec vérification anti‑bot. Après un chargement réussi, la page fonctionnera normalement sans nettoyage supplémentaire.',
   'release.popup.section2.title': '2. Menu contextuel.',

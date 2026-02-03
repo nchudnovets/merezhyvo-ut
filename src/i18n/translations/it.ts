@@ -9,7 +9,7 @@ const it = {
   'release.popup.section1.body1': 'Se hai aggiornato da una versione precedente, alcuni siti che avevi aperto possono mostrare un controllo anti‑bot (checkbox/cursore) o persino bloccare temporaneamente l’accesso.',
   'release.popup.section1.body2': 'Come risolvere:',
   'release.popup.section1.step1': 'Apri la pagina "Gestisci dati dei siti" (Impostazioni/Privacy e sicurezza -> trovi il link alla fine della sezione), trova la voce del sito e clicca "Cancella cookie" e "Cancella dati". Conferma.',
-  'release.popup.section1.step2': 'Se l’accesso è stato bloccato — attendi un po’ e, se possibile, cambia temporaneamente rete/IP, usa Tor, VPN o internet mobile.',
+  'release.popup.section1.step2': 'Se l’accesso è bloccato, attendi qualche istante e, se possibile, cambia temporaneamente rete/indirizzo IP. Per farlo, puoi attivare Tor nel browser, collegare il dispositivo a una VPN oppure passare dalla rete Wi-Fi ai dati mobili (e viceversa).',
   'release.popup.section1.step3': 'Poi chiudi la scheda del sito e riaprilo.',
   'release.popup.section1.body3': 'È una situazione una tantum per i siti con verifica anti‑bot. Dopo il caricamento riuscito, la pagina funzionerà normalmente senza ulteriori pulizie.',
   'release.popup.section2.title': '2. Menu contestuale.',

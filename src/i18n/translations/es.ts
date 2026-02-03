@@ -9,7 +9,7 @@ const es = {
   'release.popup.section1.body1': 'Si actualizaste desde una versión anterior, algunos sitios que abriste antes pueden mostrar una verificación anti‑bot (casilla/deslizador) o incluso bloquear temporalmente el acceso.',
   'release.popup.section1.body2': 'Cómo solucionarlo:',
   'release.popup.section1.step1': 'Abre la página "Administrar datos del sitio" (Configuración/Privacidad y seguridad -> busca el enlace al final de la sección), encuentra el registro del sitio y pulsa "Borrar cookies" y "Borrar datos". Confirma las acciones.',
-  'release.popup.section1.step2': 'Si el acceso fue bloqueado — espera un poco y, si es posible, cambia temporalmente de red/IP, usa Tor, VPN o internet móvil.',
+  'release.popup.section1.step2': 'Si el acceso está bloqueado, espere unos instantes y, si es posible, cambie temporalmente de red/dirección IP. Para ello, puede activar Tor en su navegador, conectar su dispositivo a una VPN o alternar entre la conexión Wi-Fi y los datos móviles.',
   'release.popup.section1.step3': 'Después cierra la pestaña del sitio y vuelve a abrirlo.',
   'release.popup.section1.body3': 'Es una situación única para sitios con verificación anti‑bot. Tras una carga exitosa, la página funcionará como siempre sin limpieza adicional.',
   'release.popup.section2.title': '2. Menú contextual.',

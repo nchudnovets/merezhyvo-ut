@@ -9,7 +9,7 @@ const en = {
   'release.popup.section1.body1': 'If you updated from an older version, some sites you opened earlier may show an anti-bot check (checkbox/slider) or even temporarily block access.',
   'release.popup.section1.body2': 'How to fix:',
   'release.popup.section1.step1': 'Open the "Manage site data" page (Settings/Privacy and Security -> find the link at the end of the section), find the entry for this site and click "Clear Cookies" and "Clear Data". Confirm the actions.',
-  'release.popup.section1.step2': 'If access was blocked — wait a bit and, if possible, temporarily change network/IP, use Tor, VPN, or mobile internet.',
+  'release.popup.section1.step2': 'If access is blocked, wait a few moments and, if possible, temporarily change your network/IP address. To do this, you can enable Tor in your browser, connect your device to a VPN, or switch between Wi-Fi and mobile data.',
   'release.popup.section1.step3': 'After that close the site tab and open the site again.',
   'release.popup.section1.body3': 'This is a one-time situation for sites with anti-bot checks. After a successful page load it will work as usual without extra cleanup.',
   'release.popup.section2.title': '2. Context menu.',

@@ -9,7 +9,7 @@ const pl = {
   'release.popup.section1.body1': 'Jeśli zaktualizowałeś z wcześniejszej wersji, niektóre strony, które otwierałeś wcześniej, mogą wyświetlić weryfikację anty‑bot (checkbox/suwak) lub tymczasowo zablokować dostęp.',
   'release.popup.section1.body2': 'Jak to naprawić:',
   'release.popup.section1.step1': 'Otwórz stronę „Zarządzaj danymi witryn” (Ustawienia/Prywatność i bezpieczeństwo -> link na końcu sekcji), znajdź wpis dla tej witryny i kliknij „Wyczyść cookies” oraz „Wyczyść dane”. Potwierdź.',
-  'release.popup.section1.step2': 'Jeśli dostęp został zablokowany — poczekaj chwilę i, jeśli to możliwe, tymczasowo zmień sieć/IP, użyj Tor, VPN lub internetu mobilnego.',
+  'release.popup.section1.step2': 'Jeśli dostęp jest zablokowany, odczekaj kilka chwil i, jeśli to możliwe, tymczasowo zmień sieć/adres IP. W tym celu możesz włączyć Tor w przeglądarce, połączyć urządzenie z VPN lub przełączyć się między Wi-Fi a danymi komórkowymi.',
   'release.popup.section1.step3': 'Następnie zamknij kartę i otwórz stronę ponownie.',
   'release.popup.section1.body3': 'To jednorazowa sytuacja dla stron z weryfikacją anty‑bot. Po udanym załadowaniu strona będzie działać normalnie bez dodatkowego czyszczenia.',
   'release.popup.section2.title': '2. Menu kontekstowe.',

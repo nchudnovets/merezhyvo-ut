@@ -9,7 +9,7 @@ const nl = {
   'release.popup.section1.body1': 'Als je hebt geüpdatet vanaf een oudere versie, kunnen sommige sites die je eerder opende een anti‑botcontrole (checkbox/schuif) tonen of de toegang tijdelijk blokkeren.',
   'release.popup.section1.body2': 'Zo los je dit op:',
   'release.popup.section1.step1': 'Open de pagina "Sitegegevens beheren" (Instellingen/Privacy en beveiliging -> link aan het einde van de sectie), zoek de vermelding voor deze site en klik "Cookies wissen" en "Gegevens wissen". Bevestig de acties.',
-  'release.popup.section1.step2': 'Als de toegang is geblokkeerd — wacht even en verander indien mogelijk tijdelijk van netwerk/IP, gebruik Tor, VPN of mobiel internet.',
+  'release.popup.section1.step2': 'Als de toegang is geblokkeerd, wacht dan even en wijzig, indien mogelijk, tijdelijk je netwerk/IP-adres. Je kunt hiervoor Tor in je browser inschakelen, je apparaat verbinden met een VPN of wisselen tussen Wi-Fi en mobiele data.',
   'release.popup.section1.step3': 'Sluit daarna het tabblad en open de site opnieuw.',
   'release.popup.section1.body3': 'Dit is een eenmalige situatie voor sites met anti‑botcontrole. Na een succesvolle laadbeurt werkt de pagina zoals gewoonlijk zonder extra opschoning.',
   'release.popup.section2.title': '2. Contextmenu.',

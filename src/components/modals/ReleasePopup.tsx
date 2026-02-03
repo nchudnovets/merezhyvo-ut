@@ -35,7 +35,7 @@ const ReleasePopup: React.FC<ReleasePopupProps> = ({ mode, theme, onClose, t }) 
     padding: 0,
     overflow: 'hidden',
     boxShadow: mode === 'mobile' ? 'none' : '0 20px 60px rgba(0, 0, 0, 0.35)',
-    fontSize: mode === 'mobile' ? '40px' : '16px',
+    fontSize: mode === 'mobile' ? '42px' : '16px',
     lineHeight: mode === 'mobile' ? '1.3' : '1.6',
     display: 'flex',
     flexDirection: 'column'
@@ -87,7 +87,7 @@ const ReleasePopup: React.FC<ReleasePopupProps> = ({ mode, theme, onClose, t }) 
     color: '#fff',
     borderRadius: mode === 'mobile' ? '18px' : '10px',
     padding: mode === 'mobile' ? '18px 28px' : '10px 18px',
-    fontSize: mode === 'mobile' ? '40px' : '16px',
+    fontSize: mode === 'mobile' ? '42px' : '16px',
     fontWeight: 600,
     cursor: 'pointer'
   }), [mode, themeVars]);
@@ -95,7 +95,7 @@ const ReleasePopup: React.FC<ReleasePopupProps> = ({ mode, theme, onClose, t }) 
   return (
     <div style={backdropStyle} role="dialog" aria-modal="true">
       <div style={cardStyle}>
-        <div style={contentStyle}>
+        <div style={contentStyle} className="service-scroll">
           <div style={titleStyle}>{t('release.popup.title')}</div>
           <div style={sectionTitleStyle}>{t('release.popup.section1.title')}</div>
           <p style={paragraphStyle}>{t('release.popup.section1.body1')}</p>

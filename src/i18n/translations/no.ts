@@ -9,7 +9,7 @@ const no = {
   'release.popup.section1.body1': 'Hvis du oppdaterte fra en eldre versjon, kan noen nettsteder du åpnet tidligere vise en anti‑bot‑sjekk (avkryssing/glider) eller midlertidig blokkere tilgang.',
   'release.popup.section1.body2': 'Slik fikser du det:',
   'release.popup.section1.step1': 'Åpne siden «Administrer nettsteddata» (Innstillinger/Personvern og sikkerhet -> finn lenken nederst i seksjonen), finn oppføringen for nettstedet og klikk «Slett informasjonskapsler» og «Slett data». Bekreft.',
-  'release.popup.section1.step2': 'Hvis tilgangen ble blokkert — vent litt og, om mulig, bytt midlertidig nettverk/IP, bruk Tor, VPN eller mobildata.',
+  'release.popup.section1.step2': 'Hvis tilgangen er blokkert, vent et øyeblikk og, hvis mulig, bytt midlertidig nettverk/IP-adresse. For å gjøre dette kan du aktivere Tor i nettleseren, koble enheten til en VPN eller bytte mellom Wi-Fi og mobildata.',
   'release.popup.section1.step3': 'Lukk deretter fanen og åpne nettstedet igjen.',
   'release.popup.section1.body3': 'Dette er en engangssituasjon for nettsteder med anti‑bot‑sjekk. Etter vellykket lasting vil siden fungere som vanlig uten ekstra opprydding.',
   'release.popup.section2.title': '2. Kontekstmeny.',
