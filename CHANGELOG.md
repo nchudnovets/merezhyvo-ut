@@ -17,6 +17,8 @@
 
 ### Fixes:
 
+- Fixed several bugs of savings and coupons functionality
+
 - On-screen keyboard Enter handling improved: better distinction between newline vs submit in input fields.
 
 - Fixed Google Drive downloads (confirmation / popup flow now works correctly).
