@@ -104,10 +104,14 @@ const ReleasePopup: React.FC<ReleasePopupProps> = ({ mode, theme, onClose, t }) 
             <li>{t('release.popup.section1.step1')}</li>
             <li>{t('release.popup.section1.step2')}</li>
             <li>{t('release.popup.section1.step3')}</li>
+            <li>{t('release.popup.section1.step4')}</li>
+            <li>{t('release.popup.section1.step5')}</li>
           </ul>
           <p style={paragraphStyle}>{t('release.popup.section1.body3')}</p>
           <div style={sectionTitleStyle}>{t('release.popup.section2.title')}</div>
           <p style={paragraphStyle}>{t('release.popup.section2.body1')}</p>
+          <div style={sectionTitleStyle}>{t('release.popup.section3.title')}</div>
+          <p style={paragraphStyle}>{t('release.popup.section3.body1')}</p>
           <p style={footerStyle}>{t('release.popup.footer')}</p>
         </div>
         <div style={actionsStyle}>
