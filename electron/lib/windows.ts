@@ -2,6 +2,7 @@
 
 import path from 'path';
 import fs from 'fs';
+import pkgJson from '../../package.json';
 import {
   app,
   BrowserWindow,
@@ -41,13 +42,47 @@ const resolveChromeVersion = (): { full: string; major: number } => {
   return { full, major: Number.isFinite(major) ? major : 0 };
 };
 
+const resolveArchToken = (): string => {
+  const arch = process.arch;
+  if (arch === 'arm64') return 'aarch64';
+  if (arch === 'x64') return 'x86_64';
+  return arch || 'x86_64';
+};
+
+type PackageMeta = {
+  productName?: string;
+  name?: string;
+  version?: string;
+};
+
+const pkg = pkgJson as PackageMeta;
+
+const resolveAppVersion = (): string => {
+  const pkgVersion = typeof pkg.version === 'string' ? pkg.version.trim() : '';
+  if (pkgVersion) return pkgVersion;
+  try {
+    const version = app.getVersion?.();
+    if (typeof version === 'string' && version.trim()) {
+      return version.trim();
+    }
+  } catch {
+    // noop
+  }
+  return '0.0.0';
+};
+
 const chromeVersion = resolveChromeVersion();
 const electronVersion = typeof process.versions?.electron === 'string' ? process.versions.electron.trim() : '';
+const appVersion = resolveAppVersion();
+const uaArchToken = resolveArchToken();
+const uaPlatformToken = `X11; Linux ${uaArchToken}`;
 
 export const MOBILE_USER_AGENT =
-  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/0.0 Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
+  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
 export const DESKTOP_USER_AGENT =
-  `Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/0.0 Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
+  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
+export const GOOGLE_MOBILE_USER_AGENT =
+  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
 
 const DESKTOP_ONLY_HOSTS = new Set<string>([
   'youtube.com',
@@ -432,6 +467,22 @@ function isDesktopOnlyUrl(url: string): boolean {
   }
 }
 
+function isGoogleServiceUrl(url: string): boolean {
+  try {
+    const hostname = new URL(url).hostname.replace(/^www\./, '').toLowerCase();
+    if (!hostname) return false;
+    if (hostname === 'google.com' || hostname.endsWith('.google.com')) return true;
+    if (hostname.endsWith('.googleusercontent.com')) return true;
+    if (hostname.endsWith('.googleapis.com')) return true;
+    if (hostname.endsWith('.gstatic.com')) return true;
+    if (hostname.endsWith('.ggpht.com')) return true;
+    if (hostname.endsWith('.googlevideo.com')) return true;
+    return false;
+  } catch {
+    return false;
+  }
+}
+
 export function installUserAgentOverride(targetSession: Session | null = session.defaultSession): void {
   if (!targetSession) return;
   const sessionWithFlag = targetSession as SessionWithOverride;
@@ -469,7 +520,11 @@ export function installUserAgentOverride(targetSession: Session | null = session
 export const getUserAgentForUrl = (url: string | null | undefined): string => {
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
   if (!url) return baseUA;
-  return isDesktopOnlyUrl(url) ? DESKTOP_USER_AGENT : baseUA;
+  if (isDesktopOnlyUrl(url)) return DESKTOP_USER_AGENT;
+  if (currentUserAgentMode === 'mobile' && isGoogleServiceUrl(url)) {
+    return GOOGLE_MOBILE_USER_AGENT;
+  }
+  return baseUA;
 };
 
 export function applyUserAgentToWebContents(contents: WebContents | null | undefined, url?: string): void {
