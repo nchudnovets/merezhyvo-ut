@@ -75,7 +75,7 @@ export const useTabViewLifecycle = ({
   handlers,
   setters
 }: Params) => {
-  const TAB_DEACTIVATE_DELAY_MS = 90_000;
+  const TAB_DEACTIVATE_DELAY_MS = 180_000;
   const {
     tabViewsRef,
     webviewHostRef,
