@@ -105,6 +105,8 @@ import { ZOOM_MAX, ZOOM_MIN, ZOOM_STEP } from './utils/zoom';
 // import { PermissionPrompt } from './components/modals/permissions/PermissionPrompt';
 // import { ToastCenter } from './components/notifications/ToastCenter';
 
+const RELEASE_POPUP_ENABLED = false;
+
 type ActiveInputTarget = 'url' | null;
 
 type LastLoadedInfo = {
@@ -719,7 +721,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const themePref = state.ui?.theme === 'light' ? 'light' : 'dark';
         setTheme(themePref);
         const seenReleaseVersion = typeof state.ui?.releasePopupVersion === 'string' ? state.ui.releasePopupVersion : null;
-        if (appInfo.version && seenReleaseVersion !== appInfo.version) {
+        if (RELEASE_POPUP_ENABLED && appInfo.version && seenReleaseVersion !== appInfo.version) {
           setShowReleasePopup(true);
         }
         setHttpsMode(state.httpsMode === 'preferred' ? 'preferred' : 'strict');
@@ -775,7 +777,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           setUiScale(1);
           setWebZoomDefaults({ mobile: 2.3, desktop: 1.0 });
           setTheme('dark');
-          if (appInfo.version) {
+          if (RELEASE_POPUP_ENABLED && appInfo.version) {
             setShowReleasePopup(true);
           }
           setHttpsMode('strict');
@@ -3675,7 +3677,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             />
           )}
 
-          {showReleasePopup && (
+          {RELEASE_POPUP_ENABLED && showReleasePopup && (
             <ReleasePopup
               mode={mode}
               theme={theme}

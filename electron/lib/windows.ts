@@ -483,6 +483,22 @@ function isGoogleServiceUrl(url: string): boolean {
   }
 }
 
+function isMailServiceUrl(url: string): boolean {
+  try {
+    const parsed = new URL(url);
+    const hostname = parsed.hostname.replace(/^www\./, '').toLowerCase();
+    const pathname = parsed.pathname.toLowerCase();
+    if (hostname === 'mailo.com' || hostname.endsWith('.mailo.com')) return true;
+    return pathname.includes('mail');
+  } catch {
+    return false;
+  }
+}
+
+function shouldUseAndroidMobileUa(url: string): boolean {
+  return isGoogleServiceUrl(url) || isMailServiceUrl(url);
+}
+
 export function installUserAgentOverride(targetSession: Session | null = session.defaultSession): void {
   if (!targetSession) return;
   const sessionWithFlag = targetSession as SessionWithOverride;
@@ -502,7 +518,9 @@ export function installUserAgentOverride(targetSession: Session | null = session
           rememberTopLevelHost(details.webContentsId, details.url);
         }
         const topHost = getTopLevelHostForRequest(details);
-        const targetUrl = topHost ? `https://${topHost}` : details.url;
+        const targetUrl = details.resourceType === 'mainFrame'
+          ? details.url
+          : (details.firstPartyURL || (topHost ? `https://${topHost}` : details.url));
         const ua = getUserAgentForUrl(targetUrl);
         const headers = { ...details.requestHeaders };
         const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
@@ -521,7 +539,7 @@ export const getUserAgentForUrl = (url: string | null | undefined): string => {
   const baseUA = currentUserAgentMode === 'mobile' ? MOBILE_USER_AGENT : DESKTOP_USER_AGENT;
   if (!url) return baseUA;
   if (isDesktopOnlyUrl(url)) return DESKTOP_USER_AGENT;
-  if (currentUserAgentMode === 'mobile' && isGoogleServiceUrl(url)) {
+  if (currentUserAgentMode === 'mobile' && shouldUseAndroidMobileUa(url)) {
     return GOOGLE_MOBILE_USER_AGENT;
   }
   return baseUA;
