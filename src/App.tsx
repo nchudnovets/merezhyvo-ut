@@ -835,7 +835,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     injectEnterToWeb,
     injectArrowToWeb,
     isActiveMultiline,
-    ensureSelectionCssInjected,
     hasSelection,
     getSelectionRect,
     clearSelection: _clearSelection,
@@ -996,7 +995,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const id = window.setInterval(() => { void tick(); }, 80);
   return () => { cancelled = true; window.clearInterval(id); };
 }, [
-  ensureSelectionCssInjected,
   hasSelection,
   getSelectionRect,
   getSelectionTouchState,
@@ -1411,34 +1409,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (activeIdRef.current === tabId) {
       try { view.focus(); } catch {}
     }
-
-    // Inject long-press selection handlers for non-excluded sites
-    (async () => {
-      try {
-        const url = typeof view.getURL === 'function' ? view.getURL() : '';
-        if (url && isCtxtExcludedSite(url)) return;
-        await ensureSelectionCssInjected();
-      } catch {
-        // ignore transient failures
-      }
-    })();
     handleCouponsDomReady(tabId);
-  }, [activeIdRef, handleCouponsDomReady, ensureSelectionCssInjected, tabViewsRef]);
-  
-  useEffect(() => {
-    const run = async () => {
-      try {
-        const view = getActiveWebview();
-        if (!view) return;
-        const currentUrl = typeof view.getURL === 'function' ? view.getURL() : '';
-        if (currentUrl && isCtxtExcludedSite(currentUrl)) return;
-        await ensureSelectionCssInjected();
-      } catch {
-        // ignore transient failures
-      }
-    };
-    void run();
-  }, [activeViewRevision, ensureSelectionCssInjected, getActiveWebview]);
+  }, [activeIdRef, handleCouponsDomReady, tabViewsRef]);
 
   const [webZoomDefaults, setWebZoomDefaults] = useState<{ mobile: number; desktop: number }>({ mobile: 2.3, desktop: 1.0 });
 
