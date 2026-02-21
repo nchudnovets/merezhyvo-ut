@@ -29,10 +29,16 @@ const SELECTION_CODE = `
               handleDrag: false,
               handleSide: null,
               handleAnchor: null,
+              handleTextControl: null,
+              handleAnchorIndex: null,
+              handleGrabDx: 0,
+              handleGrabDy: 0,
               handleUpdateScheduled: false,
               lastHandleLogTs: 0,
               handles: null,
-              listenersAttached: false
+              listenersAttached: false,
+              dragTextControl: null,
+              dragAnchorIndex: null
             };
           }
           var S = window.__mzrSel;
@@ -56,18 +62,9 @@ const SELECTION_CODE = `
             }
           }
 
-          function selLog(type, extra){
-            try {
-              var payload = { type: type, extra: extra || null, ts: Date.now() };
-              if (typeof window.__mzrSelLog === 'function') {
-                window.__mzrSelLog(payload);
-              } else {
-                window.postMessage({ __mzrSelLog: payload }, '*');
-              }
-            } catch(_) {}
+          function selLog(){
+            // debug logging disabled
           }
-
-          selLog('inject-init', { host: location && location.host ? location.host : '' });
 
           // Hide default touch-callout bubble inside the page
           var cssId = 'mzr-selection-css';
@@ -96,6 +93,237 @@ const SELECTION_CODE = `
               if (tag === 'textarea' || tag === 'input') return true;
             } catch(_) {}
             return false;
+          }
+
+          function isTextControl(node){
+            if (!node) return false;
+            try {
+              var el = node && node.nodeType === 1 ? node : (node && node.parentElement);
+              if (!el) return false;
+              var tag = (el.tagName || '').toLowerCase();
+              if (tag === 'textarea') return !el.disabled && !el.readOnly;
+              if (tag !== 'input') return false;
+              var type = (el.getAttribute('type') || '').toLowerCase();
+              var nonText = {
+                button: 1, submit: 1, reset: 1, checkbox: 1, radio: 1,
+                range: 1, color: 1, file: 1, image: 1, hidden: 1
+              };
+              if (nonText[type]) return false;
+              return !el.disabled && !el.readOnly;
+            } catch(_) {}
+            return false;
+          }
+
+          function clampIndex(n, max){
+            var value = Number(n);
+            if (!Number.isFinite(value)) value = 0;
+            if (value < 0) value = 0;
+            if (value > max) value = max;
+            return Math.round(value);
+          }
+
+          function getActiveTextControl(){
+            try {
+              var el = document.activeElement;
+              return isTextControl(el) ? el : null;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getTextControlSelection(el){
+            if (!el || !isTextControl(el)) return null;
+            try {
+              var value = String(el.value || '');
+              var max = value.length;
+              var start = clampIndex(el.selectionStart, max);
+              var end = clampIndex(el.selectionEnd, max);
+              if (end <= start) return null;
+              return { start: start, end: end, value: value };
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getTextControlLineHeight(el){
+            try {
+              var cs = window.getComputedStyle(el);
+              var lh = parseFloat(cs.lineHeight || '');
+              if (!Number.isFinite(lh) || lh <= 0) {
+                var fs = parseFloat(cs.fontSize || '');
+                if (!Number.isFinite(fs) || fs <= 0) fs = 16;
+                lh = fs * 1.2;
+              }
+              return Math.max(14, Math.min(56, lh));
+            } catch(_) {
+              return 20;
+            }
+          }
+
+          function copyTextControlStyles(cs, target){
+            var props = [
+              'box-sizing',
+              'font-family', 'font-size', 'font-style', 'font-variant', 'font-weight', 'font-stretch',
+              'line-height', 'letter-spacing', 'text-transform', 'text-indent', 'text-align',
+              'direction', 'word-spacing', 'tab-size',
+              'padding-top', 'padding-right', 'padding-bottom', 'padding-left',
+              'border-top-width', 'border-right-width', 'border-bottom-width', 'border-left-width',
+              'border-top-style', 'border-right-style', 'border-bottom-style', 'border-left-style',
+              'border-top-color', 'border-right-color', 'border-bottom-color', 'border-left-color'
+            ];
+            for (var i = 0; i < props.length; i++) {
+              var name = props[i];
+              try {
+                target.style.setProperty(name, cs.getPropertyValue(name));
+              } catch(_) {}
+            }
+          }
+
+          function textControlIndexToPoint(el, index){
+            try {
+              var value = String(el.value || '');
+              var len = value.length;
+              var idx = clampIndex(index, len);
+              var rect = el.getBoundingClientRect();
+              var tag = (el.tagName || '').toLowerCase();
+              var before = value.slice(0, idx);
+              var after = value.slice(idx);
+              var mirror = document.createElement('div');
+              var cs = window.getComputedStyle(el);
+              mirror.style.position = 'fixed';
+              mirror.style.left = rect.left + 'px';
+              mirror.style.top = rect.top + 'px';
+              mirror.style.width = Math.max(1, rect.width) + 'px';
+              mirror.style.height = Math.max(1, rect.height) + 'px';
+              mirror.style.visibility = 'hidden';
+              mirror.style.pointerEvents = 'none';
+              mirror.style.zIndex = '-1';
+              mirror.style.overflow = 'hidden';
+              mirror.style.whiteSpace = tag === 'textarea' ? 'pre-wrap' : 'pre';
+              mirror.style.wordWrap = 'break-word';
+              mirror.style.overflowWrap = 'break-word';
+              copyTextControlStyles(cs, mirror);
+
+              mirror.textContent = before;
+              var marker = document.createElement('span');
+              marker.textContent = '\u200b';
+              mirror.appendChild(marker);
+              if (after.length) {
+                mirror.appendChild(document.createTextNode(after));
+              }
+
+              document.documentElement.appendChild(mirror);
+              var markerRect = marker.getBoundingClientRect();
+              var x = markerRect.left - (el.scrollLeft || 0);
+              var y = markerRect.bottom - (el.scrollTop || 0);
+              var h = markerRect.height || getTextControlLineHeight(el);
+              try { mirror.remove(); } catch(_) {
+                try { if (mirror.parentNode) mirror.parentNode.removeChild(mirror); } catch(__) {}
+              }
+              return { x: x, y: y, h: h };
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getTextControlSelectionRects(el, start, end){
+            try {
+              var s = textControlIndexToPoint(el, start);
+              var e = textControlIndexToPoint(el, end);
+              if (!s || !e) return null;
+              var lineH = Math.max(
+                14,
+                Math.min(
+                  56,
+                  Math.max(getTextControlLineHeight(el), s.h || 0, e.h || 0)
+                )
+              );
+              return {
+                startRect: { left: s.x, right: s.x, top: s.y - lineH, bottom: s.y },
+                endRect: { left: e.x, right: e.x, top: e.y - lineH, bottom: e.y }
+              };
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getTextControlIndexFromPoint(el, x, y){
+            if (!el || !isTextControl(el)) return 0;
+            try {
+              var value = String(el.value || '');
+              var len = value.length;
+              if (len <= 0) return 0;
+
+              var lineH = getTextControlLineHeight(el);
+              var lo = 0;
+              var hi = len;
+              while (lo < hi) {
+                var mid = Math.floor((lo + hi + 1) / 2);
+                var p = textControlIndexToPoint(el, mid);
+                if (!p) {
+                  hi = mid - 1;
+                  continue;
+                }
+                var before =
+                  p.y < (y - lineH * 0.45) ||
+                  (Math.abs(p.y - y) <= lineH * 0.45 && p.x <= x);
+                if (before) lo = mid;
+                else hi = mid - 1;
+              }
+
+              var best = clampIndex(lo, len);
+              var bestD = Number.POSITIVE_INFINITY;
+              var start = Math.max(0, best - 2);
+              var end = Math.min(len, best + 2);
+              for (var i = start; i <= end; i++) {
+                var pt = textControlIndexToPoint(el, i);
+                if (!pt) continue;
+                var d = Math.hypot(pt.x - x, pt.y - y);
+                if (d < bestD) {
+                  bestD = d;
+                  best = i;
+                }
+              }
+              return clampIndex(best, len);
+            } catch(_) {
+              return 0;
+            }
+          }
+
+          function setTextControlSelectionFromAnchor(el, anchorIndex, targetIndex){
+            if (!el || !isTextControl(el)) return;
+            try {
+              var value = String(el.value || '');
+              var max = value.length;
+              var anchor = clampIndex(anchorIndex, max);
+              var target = clampIndex(targetIndex, max);
+              var start = Math.min(anchor, target);
+              var end = Math.max(anchor, target);
+              try { el.focus({ preventScroll: true }); } catch(_) { try { el.focus(); } catch(__) {} }
+              if (typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(start, end, target >= anchor ? 'forward' : 'backward');
+              }
+              S.selectionCreated = end > start;
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch(_) {}
+            } catch(_) {}
+          }
+
+          function selectWordInTextControl(el, index){
+            if (!el || !isTextControl(el)) return null;
+            try {
+              var value = String(el.value || '');
+              if (!value.length) return null;
+              var idx = clampIndex(index, value.length);
+              var left = idx;
+              var right = idx;
+              while (left > 0 && !/\\s/.test(value.charAt(left - 1))) left--;
+              while (right < value.length && !/\\s/.test(value.charAt(right))) right++;
+              if (right === left) right = Math.min(value.length, left + 1);
+              setTextControlSelectionFromAnchor(el, left, right);
+              return { start: left, end: right };
+            } catch(_) {
+              return null;
+            }
           }
 
           function isInsideHandles(node){
@@ -182,6 +410,11 @@ const SELECTION_CODE = `
           }
 
           function shouldShowHandles(){
+            var textControl = getActiveTextControl();
+            if (textControl) {
+              var textSel = getTextControlSelection(textControl);
+              if (textSel && textSel.end > textSel.start) return true;
+            }
             var sel = window.getSelection && window.getSelection();
             if (!sel || sel.rangeCount === 0) return false;
             var r = sel.getRangeAt(0);
@@ -257,10 +490,32 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleTextControl = null;
+              S.handleAnchorIndex = null;
+              S.handleGrabDx = 0;
+              S.handleGrabDy = 0;
               S.dragActive = false;
               S.dragRange = null;
+              S.dragTextControl = null;
+              S.dragAnchorIndex = null;
               S.selectionCreated = false;
               return;
+            }
+            var textControl = getActiveTextControl();
+            if (textControl) {
+              var textSel = getTextControlSelection(textControl);
+              if (textSel) {
+                var textRects = getTextControlSelectionRects(textControl, textSel.start, textSel.end);
+                if (textRects && textRects.startRect && textRects.endRect) {
+                  handles.start.style.display = 'block';
+                  handles.end.style.display = 'block';
+                  handles.start.style.left = (textRects.startRect.left - HANDLE_SIZE / 2) + 'px';
+                  handles.start.style.top = (textRects.startRect.bottom - HANDLE_SIZE / 2) + 'px';
+                  handles.end.style.left = (textRects.endRect.right - HANDLE_SIZE / 2) + 'px';
+                  handles.end.style.top = (textRects.endRect.bottom - HANDLE_SIZE / 2) + 'px';
+                  return;
+                }
+              }
             }
             var sel = window.getSelection && window.getSelection();
             if (!sel || sel.rangeCount === 0) return;
@@ -323,11 +578,68 @@ const SELECTION_CODE = `
 
             function onHandleStart(ev){
               try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
-              var sel = window.getSelection && window.getSelection();
-              if (!sel || sel.rangeCount === 0) return;
-              var r = sel.getRangeAt(0);
-              if (r.collapsed) return;
               var side = ev.currentTarget && ev.currentTarget.dataset ? ev.currentTarget.dataset.side : null;
+              if (!side) return;
+              var t = ev.touches && ev.touches[0];
+              var startX = t ? t.clientX : ev.clientX;
+              var startY = t ? t.clientY : ev.clientY;
+              startHandleDragBySide(side, startX, startY);
+            }
+
+            function getHandleCenter(side){
+              if (!handles) return null;
+              var h = side === 'start' ? handles.start : handles.end;
+              if (!h) return null;
+              try {
+                var rect = h.getBoundingClientRect();
+                return {
+                  x: rect.left + rect.width / 2,
+                  y: rect.top + rect.height / 2
+                };
+              } catch(_) {
+                return null;
+              }
+            }
+
+            function setHandleGrabOffset(side, startX, startY){
+              var center = getHandleCenter(side);
+              if (Number.isFinite(startX) && Number.isFinite(startY) && center) {
+                S.handleGrabDx = startX - center.x;
+                S.handleGrabDy = startY - center.y;
+              } else {
+                S.handleGrabDx = 0;
+                S.handleGrabDy = 0;
+              }
+            }
+
+            function startHandleDragBySide(side, startX, startY){
+              var textControl = getActiveTextControl();
+              if (textControl) {
+                var textSel = getTextControlSelection(textControl);
+                if (textSel) {
+                  var anchorIndex = side === 'start' ? textSel.end : textSel.start;
+                  S.handleDrag = true;
+                  if (handles) {
+                    handles.start.style.pointerEvents = 'none';
+                    handles.end.style.pointerEvents = 'none';
+                  }
+                  S.handleSide = side;
+                  S.handleAnchor = null;
+                  S.handleTextControl = textControl;
+                  S.handleAnchorIndex = anchorIndex;
+                  setHandleGrabOffset(side, startX, startY);
+                  S.dragActive = true;
+                  S.dragRange = null;
+                  S.dragTextControl = textControl;
+                  S.dragAnchorIndex = anchorIndex;
+                  selLog('handle-drag-start', { side: side, editable: true });
+                  return true;
+                }
+              }
+              var sel = window.getSelection && window.getSelection();
+              if (!sel || sel.rangeCount === 0) return false;
+              var r = sel.getRangeAt(0);
+              if (r.collapsed) return false;
               var anchor = side === 'start' ? getCollapsedRange(r, false) : getCollapsedRange(r, true);
               S.handleDrag = true;
               if (handles) {
@@ -336,18 +648,49 @@ const SELECTION_CODE = `
               }
               S.handleSide = side;
               S.handleAnchor = anchor;
+              setHandleGrabOffset(side, startX, startY);
               S.dragActive = true;
               S.dragRange = anchor;
               selLog('handle-drag-start', { side: side });
+              return true;
+            }
+
+            function tryStartHandleDragFromPoint(x, y){
+              if (S.handleDrag) return true;
+              if (!handles) return false;
+              if (handles.start.style.display === 'none' && handles.end.style.display === 'none') return false;
+              var startRect = handles.start.getBoundingClientRect();
+              var endRect = handles.end.getBoundingClientRect();
+              if (!startRect || !endRect) return false;
+              var sx = startRect.left + startRect.width / 2;
+              var sy = startRect.top + startRect.height / 2;
+              var ex = endRect.left + endRect.width / 2;
+              var ey = endRect.top + endRect.height / 2;
+              var sd = Math.hypot(x - sx, y - sy);
+              var ed = Math.hypot(x - ex, y - ey);
+              var hitRadius = Math.max(46, HANDLE_SIZE * 1.8);
+              if (sd > hitRadius && ed > hitRadius) return false;
+              var side = sd <= ed ? 'start' : 'end';
+              return startHandleDragBySide(side, x, y);
             }
 
             function onHandleMove(ev){
-              if (!S.handleDrag || !S.handleAnchor) return;
+              if (!S.handleDrag) return;
               try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
               var t = ev.touches && ev.touches[0];
               var x = t ? t.clientX : ev.clientX;
               var y = t ? t.clientY : ev.clientY;
-              var endRange = ensureRangeFromPoint(x, y);
+              var probeX = x - (S.handleGrabDx || 0);
+              var probeY = y - (S.handleGrabDy || 0);
+              if (S.handleTextControl && typeof S.handleAnchorIndex === 'number') {
+                var idx = getTextControlIndexFromPoint(S.handleTextControl, probeX, probeY);
+                setTextControlSelectionFromAnchor(S.handleTextControl, S.handleAnchorIndex, idx);
+                selLog('handle-drag-move', { x: x, y: y, editable: true, index: idx });
+                updateHandles();
+                return;
+              }
+              if (!S.handleAnchor) return;
+              var endRange = ensureRangeFromPoint(probeX, probeY);
               setSelectionFromAnchor(S.handleAnchor, endRange);
               selLog('handle-drag-move', { x: x, y: y, sel: selInfo() });
               updateHandles();
@@ -362,8 +705,14 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleTextControl = null;
+              S.handleAnchorIndex = null;
+              S.handleGrabDx = 0;
+              S.handleGrabDy = 0;
               S.dragActive = false;
               S.dragRange = null;
+              S.dragTextControl = null;
+              S.dragAnchorIndex = null;
               selLog('handle-drag-end', selInfo());
             }
 
@@ -389,10 +738,28 @@ const SELECTION_CODE = `
               S.lpX = t.clientX;
               S.lpY = t.clientY;
               selLog('touchstart', { x: S.lpX, y: S.lpY });
+              if (tryStartHandleDragFromPoint(S.lpX, S.lpY)) {
+                clearLpTimer();
+                return;
+              }
 
             var sel = window.getSelection && window.getSelection();
             var active = document.activeElement;
-            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            var activeTextControl = isTextControl(active) ? active : null;
+            if (activeTextControl) {
+              var textSel = getTextControlSelection(activeTextControl);
+              if (textSel) {
+                var textRects = getTextControlSelectionRects(activeTextControl, textSel.start, textSel.end);
+                var textDistStart = textRects && textRects.startRect ? Math.hypot(S.lpX - textRects.startRect.left, S.lpY - textRects.startRect.top) : 9999;
+                var textDistEnd = textRects && textRects.endRect ? Math.hypot(S.lpX - textRects.endRect.right, S.lpY - textRects.endRect.bottom) : 9999;
+                var textAnchor = textDistStart <= textDistEnd ? textSel.end : textSel.start;
+                S.dragActive = true;
+                S.dragRange = null;
+                S.dragTextControl = activeTextControl;
+                S.dragAnchorIndex = textAnchor;
+                selLog('drag-start', { editable: true, start: textSel.start, end: textSel.end });
+              }
+            } else if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
               var range = sel.getRangeAt(0);
               var rects = getSelectionHandleRects(range);
               var distStart = rects.startRect ? Math.hypot(S.lpX - rects.startRect.left, S.lpY - rects.startRect.top) : 9999;
@@ -400,6 +767,8 @@ const SELECTION_CODE = `
               var anchor = distStart <= distEnd ? getCollapsedRange(range, false) : getCollapsedRange(range, true);
               S.dragActive = !!anchor;
               S.dragRange = anchor;
+              S.dragTextControl = null;
+              S.dragAnchorIndex = null;
               if (S.dragActive) {
                 selLog('drag-start', selInfo());
               }
@@ -409,6 +778,20 @@ const SELECTION_CODE = `
               S.lpTimer = setTimeout(function(){
                 try {
                   var el = document.elementFromPoint(S.lpX, S.lpY);
+                  if (isTextControl(el)) {
+                    var idx = getTextControlIndexFromPoint(el, S.lpX, S.lpY);
+                    var word = selectWordInTextControl(el, idx);
+                    if (word) {
+                      S.selectionCreated = true;
+                      S.dragActive = true;
+                      S.dragRange = null;
+                      S.dragTextControl = el;
+                      S.dragAnchorIndex = word.start;
+                      selLog('selection-created', { editable: true, start: word.start, end: word.end });
+                      scheduleHandleUpdate();
+                      return;
+                    }
+                  }
                   var sel = window.getSelection && window.getSelection();
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
                   selLog('longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
@@ -428,6 +811,8 @@ const SELECTION_CODE = `
                     S.selectionCreated = true;
                     S.dragRange = sel && sel.rangeCount ? sel.getRangeAt(0).cloneRange() : range;
                     S.dragActive = !!S.dragRange;
+                    S.dragTextControl = null;
+                    S.dragAnchorIndex = null;
                     if (S.dragActive) {
                       selLog('drag-start', selInfo());
                     }
@@ -447,6 +832,18 @@ const SELECTION_CODE = `
             if (S.pointerTouching) return;
             var t = ev.touches && ev.touches[0];
             if (!t) return;
+            if (S.dragActive && S.dragTextControl && typeof S.dragAnchorIndex === 'number') {
+                try { ev.preventDefault(); } catch(_) {}
+                var idx = getTextControlIndexFromPoint(S.dragTextControl, t.clientX, t.clientY);
+                setTextControlSelectionFromAnchor(S.dragTextControl, S.dragAnchorIndex, idx);
+                scheduleHandleUpdate();
+                var nowText = Date.now();
+                if (!S.lastMoveLogTs || nowText - S.lastMoveLogTs > 120) {
+                  S.lastMoveLogTs = nowText;
+                  selLog('drag-move', { x: t.clientX, y: t.clientY, editable: true, index: idx });
+                }
+                return;
+              }
             if (S.dragActive && S.dragRange) {
                 try { ev.preventDefault(); } catch(_) {}
                 var endRange = ensureRangeFromPoint(t.clientX, t.clientY);
@@ -484,12 +881,35 @@ const SELECTION_CODE = `
               S.lpX = ev.clientX;
               S.lpY = ev.clientY;
               selLog('pointerdown', { x: S.lpX, y: S.lpY, buttons: ev.buttons });
+              if (tryStartHandleDragFromPoint(S.lpX, S.lpY)) {
+                try { ev.preventDefault(); ev.stopPropagation(); } catch(_) {}
+                clearLpTimer();
+                return;
+              }
 
             var sel = window.getSelection && window.getSelection();
             var active = document.activeElement;
+            var activeTextControl = isTextControl(active) ? active : null;
+            if (activeTextControl) {
+              var textSel = getTextControlSelection(activeTextControl);
+              if (textSel) {
+                var textRects = getTextControlSelectionRects(activeTextControl, textSel.start, textSel.end);
+                var textDistStart = textRects && textRects.startRect ? Math.hypot(S.lpX - textRects.startRect.left, S.lpY - textRects.startRect.top) : 9999;
+                var textDistEnd = textRects && textRects.endRect ? Math.hypot(S.lpX - textRects.endRect.right, S.lpY - textRects.endRect.bottom) : 9999;
+                var textAnchor = textDistStart <= textDistEnd ? textSel.end : textSel.start;
+                S.dragActive = true;
+                S.dragRange = null;
+                S.dragTextControl = activeTextControl;
+                S.dragAnchorIndex = textAnchor;
+                selLog('drag-start', { editable: true, start: textSel.start, end: textSel.end });
+                return;
+              }
+            }
             if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
               S.dragActive = true;
               S.dragRange = sel.getRangeAt(0).cloneRange();
+              S.dragTextControl = null;
+              S.dragAnchorIndex = null;
               selLog('drag-start', selInfo());
               return;
             }
@@ -498,6 +918,20 @@ const SELECTION_CODE = `
               S.lpTimer = setTimeout(function(){
                 try {
                   var el = document.elementFromPoint(S.lpX, S.lpY);
+                  if (isTextControl(el)) {
+                    var idx = getTextControlIndexFromPoint(el, S.lpX, S.lpY);
+                    var word = selectWordInTextControl(el, idx);
+                    if (word) {
+                      S.selectionCreated = true;
+                      S.dragActive = true;
+                      S.dragRange = null;
+                      S.dragTextControl = el;
+                      S.dragAnchorIndex = word.start;
+                      selLog('selection-created', { editable: true, start: word.start, end: word.end });
+                      scheduleHandleUpdate();
+                      return;
+                    }
+                  }
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
                   var selection = window.getSelection && window.getSelection();
                   selLog('pointer-longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
@@ -516,6 +950,8 @@ const SELECTION_CODE = `
                     ? selection.getRangeAt(0).cloneRange()
                     : range;
                   S.dragActive = !!S.dragRange;
+                  S.dragTextControl = null;
+                  S.dragAnchorIndex = null;
                   if (S.dragActive) {
                     selLog('drag-start', selInfo());
                   }
@@ -527,6 +963,18 @@ const SELECTION_CODE = `
           document.addEventListener('pointermove', function(ev){
             if (S.handleDrag) return;
             if (S.pointerId !== null && ev.pointerId !== S.pointerId) return;
+            if (S.dragActive && S.dragTextControl && typeof S.dragAnchorIndex === 'number') {
+              try { ev.preventDefault(); } catch(_) {}
+                var idx = getTextControlIndexFromPoint(S.dragTextControl, ev.clientX, ev.clientY);
+                setTextControlSelectionFromAnchor(S.dragTextControl, S.dragAnchorIndex, idx);
+                scheduleHandleUpdate();
+                var nowText = Date.now();
+                if (!S.lastMoveLogTs || nowText - S.lastMoveLogTs > 120) {
+                  S.lastMoveLogTs = nowText;
+                  selLog('drag-move', { x: ev.clientX, y: ev.clientY, editable: true, index: idx });
+                }
+                return;
+              }
             if (S.dragActive && S.dragRange) {
               try { ev.preventDefault(); } catch(_) {}
                 var endRange = ensureRangeFromPoint(ev.clientX, ev.clientY);
@@ -551,6 +999,8 @@ const SELECTION_CODE = `
               S.pointerId = null;
               S.dragActive = false;
               S.dragRange = null;
+              S.dragTextControl = null;
+              S.dragAnchorIndex = null;
               S.touching = false;
               S.lastTouchTs = Date.now();
               clearLpTimer();

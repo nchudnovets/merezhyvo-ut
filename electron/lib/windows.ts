@@ -320,17 +320,51 @@ function ensureDir(p: string): void {
 
 // temporary silent one
 
-const TS_WEBVIEW_PRELOAD = path.join(__dirname, '..', 'electron', 'webview-preload.ts');
+type PreloadSource = {
+  sourcePath: string;
+  source: string;
+  isTs: boolean;
+};
+
+const resolveWebviewPreloadSource = (): PreloadSource | null => {
+  const appPath = (() => {
+    try {
+      return app.getAppPath();
+    } catch {
+      return '';
+    }
+  })();
+  const candidates = [
+    path.join(__dirname, '..', 'webview-preload.ts'),
+    path.join(__dirname, '..', 'webview-preload.js'),
+    appPath ? path.join(appPath, 'electron', 'webview-preload.ts') : '',
+    appPath ? path.join(appPath, 'electron', 'webview-preload.js') : '',
+    appPath ? path.join(appPath, 'dist-electron', 'webview-preload.js') : '',
+    path.join(process.cwd(), 'electron', 'webview-preload.ts'),
+    path.join(process.cwd(), 'electron', 'webview-preload.js')
+  ].filter((candidate) => Boolean(candidate));
+
+  for (const candidate of candidates) {
+    try {
+      if (!fs.existsSync(candidate)) continue;
+      const source = fs.readFileSync(candidate, 'utf8');
+      if (!source.trim()) continue;
+      return {
+        sourcePath: candidate,
+        source,
+        isTs: candidate.endsWith('.ts')
+      };
+    } catch {
+      // try next candidate
+    }
+  }
+  return null;
+};
 
 function ensureWebviewPreloadOnDisk(): string {
   const dir = app.getPath('userData');
   const file = path.join(dir, 'webview-preload.js');
-  let source = '';
-  try {
-    source = fs.readFileSync(TS_WEBVIEW_PRELOAD, 'utf8');
-  } catch {
-    source = '';
-  }
+  const resolved = resolveWebviewPreloadSource();
   const transpile = (src: string): string => {
     try {
       const transpiled = transpileModule(src, {
@@ -345,7 +379,9 @@ function ensureWebviewPreloadOnDisk(): string {
       return '';
     }
   };
-  const payload = source ? transpile(source) : '';
+  const payload = resolved
+    ? (resolved.isTs ? transpile(resolved.source) : resolved.source)
+    : '';
   const content = payload || `
     console.log('[webview] fallback preload loaded');
   `;
@@ -357,7 +393,9 @@ function ensureWebviewPreloadOnDisk(): string {
   }
   try {
     const sz = fs.statSync(file).size;
-    geoIpcLog(`ensurePreload wrote ${file} (${sz} bytes)`);
+    geoIpcLog(
+      `ensurePreload wrote ${file} (${sz} bytes) source=${resolved?.sourcePath || 'fallback'} isTs=${resolved?.isTs ? '1' : '0'}`
+    );
   } catch {}
   return file;
 }
