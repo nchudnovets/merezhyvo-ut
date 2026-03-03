@@ -1,6 +1,19 @@
 # Changelog
 
 ----
+## v0.5.2 - 2026-03-03
+
+### Fixes:
+
+- Text selection & copy now works in form fields.
+
+- Downloads wok in Tor mode.
+
+- Downloads fixes in Regular mode.
+
+- Emoji issues fixes.
+
+----
 ## v0.5.1 - 2026-02-07
 
 ### New / Improved:
