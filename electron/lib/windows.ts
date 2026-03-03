@@ -913,25 +913,58 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
   });
   const typedWin = win as MerezhyvoWindow;
 
-const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string): void => {
-    if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return;
-    if (contents === typedWin.webContents) return;
-    const host = (contents as WebContentsWithHost).hostWebContents;
-    if (host) return;
-    if (contents.id === typedWin.webContents.id) return;
+  const normalizeUrl = (value: string): string => value.trim().replace(/\/+$/, '').toLowerCase();
+  const isBlankLikeUrl = (value: string): boolean => {
+    const current = normalizeUrl(value);
+    return (
+      !current ||
+      current === 'about:blank' ||
+      current.startsWith('about:blank?') ||
+      current === 'chrome://newtab' ||
+      current === 'chrome://newtab/'
+    );
+  };
+  const shouldAutoCloseDownloadContents = (
+    contents: WebContents | null,
+    downloadUrl: string
+  ): boolean => {
+    if (!contents || typeof contents.isDestroyed !== 'function' || contents.isDestroyed()) return false;
+    if (contents === typedWin.webContents) return false;
+    if (contents.id === typedWin.webContents.id) return false;
     try {
       const canGoBack = typeof contents.canGoBack === 'function' ? contents.canGoBack() : false;
+      if (canGoBack) return false;
       const currentUrl = typeof contents.getURL === 'function' ? contents.getURL() || '' : '';
-      if (canGoBack) return;
-      if (!currentUrl || currentUrl === downloadUrl) {
-        const owner = BrowserWindow.fromWebContents(contents);
-        if (owner && !owner.isDestroyed()) {
-          owner.close();
-        }
-      }
+      if (isBlankLikeUrl(currentUrl)) return true;
+      if (!downloadUrl) return false;
+      return normalizeUrl(currentUrl) === normalizeUrl(downloadUrl);
     } catch {
-      // noop
+      return false;
     }
+  };
+  const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string): void => {
+    const tryClose = (): boolean => {
+      try {
+        if (!shouldAutoCloseDownloadContents(contents, downloadUrl)) return false;
+        if (!contents || contents.isDestroyed()) return true;
+        const owner = BrowserWindow.fromWebContents(contents);
+        if (owner && !owner.isDestroyed() && owner !== typedWin && owner.webContents === contents) {
+          owner.close();
+          return true;
+        }
+        typedWin.webContents.send('mzr-close-tab', {
+          webContentsId: contents.id,
+          url: downloadUrl
+        });
+        return true;
+      } catch {
+        return false;
+      }
+    };
+    if (tryClose()) return;
+    setTimeout(() => {
+      void tryClose();
+    }, 450);
   };
 
     const closeDownloadContentsIfNeeded = (
@@ -940,10 +973,12 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
   ): void => {
     if (!downloadContents) return;
     if (downloadContents === typedWin.webContents) return;
+    const shouldAutoClose = shouldAutoCloseDownloadContents(downloadContents, downloadUrl);
     if (autoCloseSkipIds.has(downloadContents.id)) {
       autoCloseSkipIds.delete(downloadContents.id);
-      return;
+      if (!shouldAutoClose) return;
     }
+    if (!shouldAutoClose) return;
     typedWin.webContents.send('mzr-close-tab', {
       webContentsId: downloadContents.id,
       url: downloadUrl
@@ -995,9 +1030,12 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
       console.error('[downloads] native download handling failed', err);
     }
   };
-  const handleWillDownload = (event: Event, item: DownloadItem, downloadContents: WebContents | null) => {
+  const handleWillDownload = (
+    _event: Event,
+    item: DownloadItem,
+    downloadContents: WebContents | null
+  ) => {
     const url = typeof item.getURL === 'function' ? item.getURL() || '' : '';
-    const isHttpDownload = /^https?:\/\//.test(url);
     closeBlankDownloadTab(downloadContents, url);
     const downloadHost = (downloadContents as WebContentsWithHost | null)?.hostWebContents;
     if (downloadContents && downloadHost) {
@@ -1006,27 +1044,17 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     if (downloadContents && downloadContents === typedWin.webContents) {
       skipAutoCloseForDownload(downloadContents.id);
     }
-    if (!isHttpDownload) {
-      handleNativeItemDownload(item, url);
-      closeDownloadContentsIfNeeded(downloadContents, url);
-      return;
-    }
-    event.preventDefault();
-    const refGetter = (item as { getReferrerURL?: () => unknown }).getReferrerURL;
-    let referer =
-      typeof refGetter === 'function' ? (refGetter() as string | undefined) : undefined;
-    if (!referer) {
-      try {
-        const fallback = downloadContents?.getURL();
-        if (fallback) referer = fallback;
-      } catch {
-        // noop
-      }
-    }
-    downloads.enqueue(url, referer, downloadContents?.session ?? session.defaultSession);
+    handleNativeItemDownload(item, url);
     closeDownloadContentsIfNeeded(downloadContents, url);
   };
-  typedWin.webContents.session.on('will-download', handleWillDownload);
+  const downloadSessions = new Set<Session>();
+  const ensureWillDownloadHook = (targetSession: Session | null | undefined): void => {
+    if (!targetSession) return;
+    if (downloadSessions.has(targetSession)) return;
+    downloadSessions.add(targetSession);
+    targetSession.on('will-download', handleWillDownload);
+  };
+  ensureWillDownloadHook(typedWin.webContents.session);
   try {
     applyUserAgentForUrl(typedWin.webContents, startUrl);
   } catch {
@@ -1052,6 +1080,7 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
   );
 
   typedWin.webContents.on('did-attach-webview', (_event, contents) => {
+    ensureWillDownloadHook(contents.session);
     try {
       const current = typeof contents.getURL === 'function' ? contents.getURL() : '';
       applyUserAgentForUrl(contents, current);
@@ -1272,11 +1301,14 @@ const closeBlankDownloadTab = (contents: WebContents | null, downloadUrl: string
     screen.off('display-metrics-changed', rebalanceBounds);
     screen.off('display-added', rebalanceBounds);
     screen.off('display-removed', rebalanceBounds);
-    try {
-      typedWin.webContents.session.off('will-download', handleWillDownload);
-    } catch {
-      // noop
+    for (const targetSession of downloadSessions) {
+      try {
+        targetSession.off('will-download', handleWillDownload);
+      } catch {
+        // noop
+      }
     }
+    downloadSessions.clear();
   });
 
   const role: WindowRole = opts.role ?? 'main';

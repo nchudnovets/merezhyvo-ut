@@ -196,6 +196,54 @@ function extractButtonFromTarget(
   return { btn, rect, element: el };
 }
 
+function toSingleEmoji(emojiData: EmojiClickData): string {
+  const normalizeGenderSuffix = (value: string): string => {
+    let out = value;
+    const zwjIndex = out.indexOf('\u200D');
+    if (zwjIndex >= 0) {
+      // Keep only the base emoji before any ZWJ chain (gender/profession/etc),
+      // because some site engines split the tail and render extra symbols.
+      out = out.slice(0, zwjIndex);
+    }
+    // Strip presentation selectors and leftover gender-like symbols.
+    out = out
+      .replace(/[\uFE0E\uFE0F]/gu, '')
+      .replace(/[\u2640\u2642\u26A7]/gu, '');
+    return out;
+  };
+
+  const raw = typeof emojiData.emoji === 'string' ? emojiData.emoji : '';
+  if (!raw) return '';
+  try {
+    type GraphemePart = { segment: string };
+    type SegmenterShape = {
+      segment: (input: string) => Iterable<GraphemePart>;
+    };
+    const maybeIntl = Intl as unknown as {
+      Segmenter?: new (
+        locales?: string | string[],
+        options?: { granularity: 'grapheme' }
+      ) => SegmenterShape;
+    };
+    if (typeof maybeIntl.Segmenter === 'function') {
+      const seg = new maybeIntl.Segmenter(undefined, { granularity: 'grapheme' });
+      const iter = seg.segment(raw)[Symbol.iterator]() as Iterator<GraphemePart>;
+      const first = iter.next();
+      const part = first?.value?.segment;
+      if (typeof part === 'string' && part.length > 0) {
+        return normalizeGenderSuffix(part);
+      }
+    }
+  } catch {
+    // fallback below
+  }
+  const first = Array.from(raw)[0] ?? raw;
+  // Some chat engines break gender ZWJ sequences on submit and render
+  // an extra male/female symbol. Normalize to neutral base emoji.
+  const normalized = normalizeGenderSuffix(first);
+  return normalized || first;
+}
+
 const KeyboardPane: React.FC<Props> = (p) => {
   const {
     visible,
@@ -246,6 +294,25 @@ const KeyboardPane: React.FC<Props> = (p) => {
   const [emojiPickerHeight, setEmojiPickerHeight] = useState(320);
   const emojiPanelRef = useRef<HTMLDivElement | null>(null);
   const emojiDismissedRef = useRef(false);
+  const emojiTapStateRef = useRef<{
+    id: number;
+    consumed: boolean;
+    x: number;
+    y: number;
+    ts: number;
+  }>({
+    id: 0,
+    consumed: true,
+    x: 0,
+    y: 0,
+    ts: 0,
+  });
+  const lastEmojiPhysicalTapRef = useRef<{ x: number; y: number; ts: number }>({
+    x: 0,
+    y: 0,
+    ts: 0,
+  });
+  const lastEmojiInsertTsRef = useRef(0);
   const emojiPanelActive = emojiOpen && visible && !isSymbols(layoutId);
 
    // Keep the webview focused while interacting with the OSK.
@@ -591,6 +658,23 @@ const KeyboardPane: React.FC<Props> = (p) => {
       if (!visible) return;
       const emojiTarget = e.target;
       if (emojiPanelActive && emojiTarget instanceof Node && emojiPanelRef.current?.contains(emojiTarget)) {
+        const now = Date.now();
+        const x = e.clientX;
+        const y = e.clientY;
+        const prevPhysical = lastEmojiPhysicalTapRef.current;
+        const dist = Math.hypot(x - prevPhysical.x, y - prevPhysical.y);
+        // Some devices dispatch an extra synthetic tap near the same point.
+        const isGhostTap = now - prevPhysical.ts < 650 && dist < 56;
+        if (!isGhostTap) {
+          const prev = emojiTapStateRef.current;
+          emojiTapStateRef.current = {
+            id: prev.id + 1,
+            consumed: false,
+            x,
+            y,
+            ts: now
+          };
+        }
         startInteraction();
         return;
       }
@@ -682,7 +766,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
     [visible, emojiPanelActive, startInteraction, setActiveButton, lpMap, typeKey]
   );
 
-  const onPointerUpCapture = useCallback(() => {
+  const onPointerUpCapture = useCallback((e: React.PointerEvent<HTMLDivElement>) => {
+    const target = e.target;
+    if (emojiPanelActive && target instanceof Node && emojiPanelRef.current?.contains(target)) {
+      clearHold();
+      isPressing.current = false;
+      endInteraction();
+      return;
+    }
     if (suppressInteractionEndRef.current) {
       suppressInteractionEndRef.current = false;
       clearHold();
@@ -696,7 +787,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
     clearHold();
     isPressing.current = false;
     endInteraction();
-  }, [clearHold, endInteraction, typeKey]);
+  }, [clearHold, emojiPanelActive, endInteraction, typeKey]);
 
   const onPointerCancel = useCallback(() => {
     if (suppressInteractionEndRef.current) {
@@ -753,6 +844,37 @@ const KeyboardPane: React.FC<Props> = (p) => {
     window.addEventListener('pointerdown', handleOutside, true);
     return () => window.removeEventListener('pointerdown', handleOutside, true);
   }, [popup]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const stopGhostClick = (event: MouseEvent) => {
+      const target = event.target;
+      if (!(target instanceof Node)) return;
+      if (containerRef.current?.contains(target)) return;
+      const now = Date.now();
+      const lastInsertTs = lastEmojiInsertTsRef.current;
+      if (!lastInsertTs || now - lastInsertTs > 320) return;
+      const p = lastEmojiPhysicalTapRef.current;
+      const x = typeof event.clientX === 'number' ? event.clientX : p.x;
+      const y = typeof event.clientY === 'number' ? event.clientY : p.y;
+      const dist = Math.hypot(x - p.x, y - p.y);
+      if (dist > 72) return;
+      event.preventDefault();
+      event.stopPropagation();
+      try {
+        (event as unknown as { stopImmediatePropagation?: () => void }).stopImmediatePropagation?.();
+      } catch {
+        // noop
+      }
+    };
+
+    window.addEventListener('click', stopGhostClick, true);
+    document.addEventListener('click', stopGhostClick, true);
+    return () => {
+      window.removeEventListener('click', stopGhostClick, true);
+      document.removeEventListener('click', stopGhostClick, true);
+    };
+  }, [visible]);
 
   if (!visible) return null;
 
@@ -847,7 +969,23 @@ const KeyboardPane: React.FC<Props> = (p) => {
               '--epr-category-label-height': '42px'
             } as React.CSSProperties}
             onEmojiClick={(emojiData: EmojiClickData) => {
-              injectText(emojiData.emoji);
+              const now = Date.now();
+              // Global debounce for stray second callback from one physical tap.
+              if (now - lastEmojiInsertTsRef.current < 320) {
+                return;
+              }
+              const tap = emojiTapStateRef.current;
+              // Allow only one emoji insert for a physical tap cycle.
+              if (tap.consumed) {
+                return;
+              }
+              tap.consumed = true;
+              emojiTapStateRef.current = tap;
+              lastEmojiInsertTsRef.current = now;
+              lastEmojiPhysicalTapRef.current = { x: tap.x, y: tap.y, ts: now };
+              const emoji = toSingleEmoji(emojiData);
+              if (!emoji) return;
+              injectText(emoji);
             }}
           />
         </div>

@@ -69,28 +69,164 @@ export const sanitizeFilename = (raw: string): string => {
   return name.replace(illegal, '_').replace(/\.+$/, '') || 'download';
 };
 
-const extractFilename = (urlStr: string, disposition?: string): string => {
-  if (disposition) {
-    const match = /filename\*?=(?:UTF-8'')?["']?([^"';]+)["']?/i.exec(disposition);
-    if (match && match[1]) {
-      try {
-        const decoded = decodeURIComponent(match[1]);
-        return sanitizeFilename(decoded);
-      } catch {
-        return sanitizeFilename(match[1]);
-      }
-    }
+const CONTENT_TYPE_EXTENSIONS: Record<string, string> = {
+  'application/pdf': '.pdf',
+  'application/zip': '.zip',
+  'application/json': '.json',
+  'application/msword': '.doc',
+  'application/vnd.ms-excel': '.xls',
+  'application/vnd.ms-powerpoint': '.ppt',
+  'application/vnd.openxmlformats-officedocument.wordprocessingml.document': '.docx',
+  'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet': '.xlsx',
+  'application/vnd.openxmlformats-officedocument.presentationml.presentation': '.pptx',
+  'image/jpeg': '.jpg',
+  'image/png': '.png',
+  'image/gif': '.gif',
+  'image/webp': '.webp',
+  'text/plain': '.txt',
+  'text/csv': '.csv'
+};
+
+const SERVER_SCRIPT_EXTENSIONS = new Set(['.php', '.asp', '.aspx', '.jsp', '.cgi']);
+const QUERY_FILENAME_KEYS = new Set(['filename', 'file', 'name', 'download', 'attachment']);
+const GENERIC_BASE_NAMES = new Set(['download', 'attachment', 'file', 'msg_getattachment']);
+
+type FilenameSource = 'disposition' | 'query' | 'path' | 'fallback';
+
+const decodeLooseUriComponent = (value: string): string => {
+  try {
+    return decodeURIComponent(value);
+  } catch {
+    return value;
   }
+};
+
+const parseContentDispositionFilename = (disposition?: string): string | undefined => {
+  if (!disposition) return undefined;
+
+  const filenameStarMatch = /(?:^|;)\s*filename\*\s*=\s*([^;]+)/i.exec(disposition);
+  if (filenameStarMatch && filenameStarMatch[1]) {
+    const rawValue = filenameStarMatch[1].trim().replace(/^"(.*)"$/, '$1');
+    const charsetEncodedMatch = /^([^']*)'[^']*'(.*)$/.exec(rawValue);
+    const encodedPart = charsetEncodedMatch?.[2] ?? rawValue;
+    const decoded = decodeLooseUriComponent(encodedPart);
+    const normalized = sanitizeFilename(decoded);
+    if (normalized) return normalized;
+  }
+
+  const filenameMatch = /(?:^|;)\s*filename\s*=\s*("(?:[^"\\]|\\.)*"|[^;]+)/i.exec(disposition);
+  if (!filenameMatch || !filenameMatch[1]) return undefined;
+  const raw = filenameMatch[1].trim();
+  const unquoted =
+    raw.startsWith('"') && raw.endsWith('"') ? raw.slice(1, -1).replace(/\\(["\\])/g, '$1') : raw;
+  const normalized = sanitizeFilename(unquoted);
+  return normalized || undefined;
+};
+
+const parseQueryFilename = (urlStr: string): string | undefined => {
   try {
     const parsed = new URL(urlStr);
-    if (parsed.pathname) {
-      return sanitizeFilename(path.basename(parsed.pathname)) || 'download';
+    for (const [key, value] of parsed.searchParams.entries()) {
+      const lowerKey = key.toLowerCase();
+      if (!value) continue;
+      if (!QUERY_FILENAME_KEYS.has(lowerKey) && !lowerKey.includes('filename')) continue;
+      const decoded = decodeLooseUriComponent(value);
+      const normalized = sanitizeFilename(decoded);
+      if (normalized) return normalized;
     }
   } catch {
     // noop
   }
-  const fallback = urlStr.split('/').pop() || 'download';
-  return sanitizeFilename(fallback);
+  return undefined;
+};
+
+const parsePathFilename = (urlStr: string): string | undefined => {
+  try {
+    const parsed = new URL(urlStr);
+    const decodedPath = decodeLooseUriComponent(parsed.pathname || '');
+    const basename = path.basename(decodedPath);
+    const normalized = sanitizeFilename(basename);
+    return normalized || undefined;
+  } catch {
+    // noop
+  }
+
+  const fallback = urlStr.split('/').pop();
+  if (!fallback) return undefined;
+  const normalized = sanitizeFilename(fallback);
+  return normalized || undefined;
+};
+
+const resolveContentTypeExtension = (contentType?: string): string | undefined => {
+  if (!contentType) return undefined;
+  const mime = contentType.split(';')[0]?.trim().toLowerCase();
+  if (!mime) return undefined;
+  return CONTENT_TYPE_EXTENSIONS[mime];
+};
+
+const isGenericFilename = (filename: string): boolean => {
+  const ext = path.extname(filename).toLowerCase();
+  const base = path.basename(filename, ext).toLowerCase();
+  if (SERVER_SCRIPT_EXTENSIONS.has(ext)) return true;
+  if (GENERIC_BASE_NAMES.has(base)) return true;
+  return false;
+};
+
+const isMediaMime = (contentType?: string): boolean => {
+  if (!contentType) return false;
+  const mime = contentType.split(';')[0]?.trim().toLowerCase();
+  if (!mime) return false;
+  return mime.startsWith('image/') || mime.startsWith('video/') || mime.startsWith('audio/');
+};
+
+const withContentTypeExtension = (
+  filename: string,
+  source: FilenameSource,
+  contentType?: string
+): string => {
+  const inferredExt = resolveContentTypeExtension(contentType);
+  if (!inferredExt) return filename;
+
+  const currentExt = path.extname(filename).toLowerCase();
+  if (!currentExt) {
+    return `${filename}${inferredExt}`;
+  }
+  if (currentExt === inferredExt) {
+    return filename;
+  }
+  if (
+    source !== 'disposition' &&
+    (SERVER_SCRIPT_EXTENSIONS.has(currentExt) || isMediaMime(contentType))
+  ) {
+    return `${path.basename(filename, currentExt)}${inferredExt}`;
+  }
+  return filename;
+};
+
+const extractFilename = (urlStr: string, disposition?: string, contentType?: string): string => {
+  const fromDisposition = parseContentDispositionFilename(disposition);
+  if (fromDisposition) {
+    return withContentTypeExtension(fromDisposition, 'disposition', contentType);
+  }
+
+  const fromPath = parsePathFilename(urlStr);
+  if (fromPath) {
+    const adjusted = withContentTypeExtension(fromPath, 'path', contentType);
+    if (!isGenericFilename(fromPath)) return adjusted;
+    const fromQuery = parseQueryFilename(urlStr);
+    if (fromQuery) {
+      return withContentTypeExtension(fromQuery, 'query', contentType);
+    }
+    if (adjusted !== fromPath) return adjusted;
+    return adjusted;
+  }
+
+  const fromQuery = parseQueryFilename(urlStr);
+  if (fromQuery) {
+    return withContentTypeExtension(fromQuery, 'query', contentType);
+  }
+
+  return withContentTypeExtension('download', 'fallback', contentType);
 };
 
 const ensureUniqueFilename = async (dir: string, base: string): Promise<string> => {
@@ -258,19 +394,24 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
   issueRequest(entry, dir);
 };
 
-  const handleResponse = async (
-    entry: DownloadEntry,
-    response: IncomingMessage,
-    dir: string
-  ): Promise<void> => {
-    const status = response.statusCode ?? 0;
-    if (status >= 400) {
-      console.error(`[downloads] bad status ${entry.id} ${status}`);
-      finalizeEntry(entry, false, `http status ${status}`);
-      return;
-    }
+const handleResponse = async (
+  entry: DownloadEntry,
+  response: IncomingMessage,
+  dir: string
+): Promise<void> => {
+  const status = response.statusCode ?? 0;
+  if (status >= 400) {
+    console.error(`[downloads] bad status ${entry.id} ${status}`);
+    finalizeEntry(entry, false, `http status ${status}`);
+    return;
+  }
   const disposition = response.headers['content-disposition'];
-  const suggested = extractFilename(entry.url, Array.isArray(disposition) ? disposition[0] : disposition);
+  const contentType = response.headers['content-type'];
+  const suggested = extractFilename(
+    entry.url,
+    Array.isArray(disposition) ? disposition[0] : disposition,
+    Array.isArray(contentType) ? contentType[0] : contentType
+  );
   const filename = await ensureUniqueFilename(dir, suggested);
   entry.filename = filename;
   entry.total = Number(response.headers['content-length'] ?? 0);
@@ -309,14 +450,15 @@ const startEntry = async (entry: DownloadEntry): Promise<void> => {
 
   const onEnd = async () => {
     cleanup();
-    stream.end();
-    try {
-      await fs.promises.rename(tempPath, finalPath);
-      finalizeEntry(entry, true);
-    } catch (err: unknown) {
-      await fs.promises.unlink(tempPath).catch(() => {});
-      finalizeEntry(entry, false, String(err));
-    }
+    stream.end(async () => {
+      try {
+        await fs.promises.rename(tempPath, finalPath);
+        finalizeEntry(entry, true);
+      } catch (err: unknown) {
+        await fs.promises.unlink(tempPath).catch(() => {});
+        finalizeEntry(entry, false, String(err));
+      }
+    });
   };
 
   const onErr = async (err: unknown) => {

@@ -3001,6 +3001,26 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           ? detail.webContentsId
           : null;
       const currentTabs = tabsRef.current;
+      const closeAndRestore = (tabIdToClose: string) => {
+        if (!tabIdToClose) return;
+        const wasActive = activeIdRef.current === tabIdToClose;
+        let restoreId: string | null = null;
+        if (wasActive) {
+          const remaining = currentTabs.filter((tab) => tab.id !== tabIdToClose);
+          if (remaining.length) {
+            const sorted = remaining
+              .slice()
+              .sort((a, b) => (b.lastUsedAt ?? 0) - (a.lastUsedAt ?? 0));
+            restoreId = sorted[0]?.id ?? null;
+          }
+        }
+        closeTabAction(tabIdToClose);
+        if (wasActive && restoreId && restoreId !== activeIdRef.current) {
+          window.setTimeout(() => {
+            activateTabAction(restoreId);
+          }, 0);
+        }
+      };
       if (targetId !== null) {
         for (const tab of currentTabs) {
           const entry = tabViewsRef.current.get(tab.id);
@@ -3009,7 +3029,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
           try {
             const wcId = view.getWebContentsId();
             if (wcId === targetId) {
-              closeTabAction(tab.id);
+              closeAndRestore(tab.id);
               return;
             }
           } catch {
@@ -3021,7 +3041,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (targetUrl) {
         const candidate = currentTabs.find((tab) => tab.url === targetUrl && !tab.pinned);
         if (candidate) {
-          closeTabAction(candidate.id);
+          closeAndRestore(candidate.id);
         }
       }
     };
@@ -3029,7 +3049,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     return () => {
       window.removeEventListener('mzr-close-tab' as unknown as keyof WindowEventMap, handleClose as EventListener);
     };
-  }, [closeTabAction, tabViewsRef]);
+  }, [activateTabAction, closeTabAction, tabViewsRef]);
 
   const openTabsPanel = useCallback(() => {
     if (!tabsReady) return;

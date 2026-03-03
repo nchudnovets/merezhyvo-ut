@@ -13,6 +13,12 @@ type DownloadStateDetail = {
   state?: 'queued' | 'downloading' | 'completed' | 'failed';
 };
 
+type DownloadProgressDetail = {
+  id?: string;
+  received?: number;
+  total?: number;
+};
+
 export const useDownloadIndicators = () => {
   const [downloadIndicatorState, setDownloadIndicatorState] =
     useState<DownloadIndicatorState>('hidden');
@@ -22,11 +28,18 @@ export const useDownloadIndicators = () => {
   const completedDownloadsRef = useRef<Set<string>>(new Set());
   const activeDownloadsRef = useRef<Set<string>>(new Set());
   const downloadIndicatorTimerRef = useRef<number | null>(null);
+  const completionSettleTimerRef = useRef<number | null>(null);
 
   const clearDownloadIndicatorTimer = useCallback(() => {
     if (downloadIndicatorTimerRef.current) {
       window.clearTimeout(downloadIndicatorTimerRef.current);
       downloadIndicatorTimerRef.current = null;
+    }
+  }, []);
+  const clearCompletionSettleTimer = useCallback(() => {
+    if (completionSettleTimerRef.current) {
+      window.clearTimeout(completionSettleTimerRef.current);
+      completionSettleTimerRef.current = null;
     }
   }, []);
 
@@ -87,7 +100,8 @@ export const useDownloadIndicators = () => {
       } else if (state === 'failed') {
         completedSet.delete(targetId);
       }
-      if (state === 'downloading') {
+      if (state === 'queued' || state === 'downloading') {
+        clearCompletionSettleTimer();
         activeSet.add(targetId);
         clearDownloadIndicatorTimer();
         setDownloadIndicatorState('active');
@@ -96,25 +110,36 @@ export const useDownloadIndicators = () => {
       if (state === 'completed' || state === 'failed') {
         activeSet.delete(targetId);
         if (activeSet.size > 0) return;
-        clearDownloadIndicatorTimer();
+        clearCompletionSettleTimer();
         if (state === 'completed') {
-          setDownloadIndicatorState('completed');
-          downloadIndicatorTimerRef.current = window.setTimeout(() => {
-            setDownloadIndicatorState('hidden');
-            downloadIndicatorTimerRef.current = null;
-          }, 10000);
+          completionSettleTimerRef.current = window.setTimeout(() => {
+            completionSettleTimerRef.current = null;
+            if (activeSet.size > 0) return;
+            clearDownloadIndicatorTimer();
+            setDownloadIndicatorState('completed');
+            downloadIndicatorTimerRef.current = window.setTimeout(() => {
+              setDownloadIndicatorState('hidden');
+              downloadIndicatorTimerRef.current = null;
+            }, 10000);
+          }, 350);
         } else {
+          clearDownloadIndicatorTimer();
           showFailureToast();
           setDownloadIndicatorState('error');
         }
       }
     };
 
-    const handleProgress = () => {
-      if (activeSet.size > 0) {
-        clearDownloadIndicatorTimer();
-        setDownloadIndicatorState('active');
+    const handleProgress = (event: CustomEvent<DownloadProgressDetail>) => {
+      const detail = event.detail ?? {};
+      const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
+      if (targetId) {
+        activeSet.add(targetId);
       }
+      if (activeSet.size <= 0) return;
+      clearCompletionSettleTimer();
+      clearDownloadIndicatorTimer();
+      setDownloadIndicatorState('active');
     };
 
     window.addEventListener('merezhyvo:downloads:state', handler as EventListener);
@@ -122,11 +147,12 @@ export const useDownloadIndicators = () => {
     return () => {
       window.removeEventListener('merezhyvo:downloads:state', handler as EventListener);
       window.removeEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
+      clearCompletionSettleTimer();
       clearDownloadIndicatorTimer();
       activeSet.clear();
       setDownloadIndicatorState('hidden');
     };
-  }, [clearDownloadIndicatorTimer]);
+  }, [clearCompletionSettleTimer, clearDownloadIndicatorTimer]);
 
   return {
     downloadIndicatorState,

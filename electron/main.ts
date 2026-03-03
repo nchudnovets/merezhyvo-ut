@@ -2090,8 +2090,17 @@ ipcMain.handle(
   (_e, { wcId, text }: { wcId: number; text: string }) => {
     const wc = webContents.fromId(Number(wcId));
     if (!wc) return { ok: false, error: 'webContents not found' };
-    // Send printable characters as 'char' so pages receive trusted events
-    for (const ch of Array.from(String(text ?? ''))) {
+    const payload = String(text ?? '');
+    if (!payload) return { ok: true };
+    const graphemes = Array.from(payload);
+    // Keep complex Unicode sequences (emoji with ZWJ/VS/modifiers, flags, etc.) atomic.
+    // Sending them as per-char input events can split sequences into stray symbols.
+    if (graphemes.length > 1) {
+      wc.insertText(payload);
+      return { ok: true };
+    }
+    // Single printable character: use trusted 'char' input event.
+    for (const ch of graphemes) {
       wc.sendInputEvent({ type: 'char', keyCode: ch });
     }
     return { ok: true };

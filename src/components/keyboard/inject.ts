@@ -510,9 +510,7 @@ export function makeWebInjects(
     const wcId = getWcId();
     if (wcId == null) return false;
     await ensureEditableFocus();
-    for (const ch of Array.from(String(text))) {
-      await ipc.osk.char(wcId, ch);
-    }
+    await ipc.osk.char(wcId, String(text));
     // Ensure focus stays inside the active editable
     await ensureEditableFocus();
     return true;
