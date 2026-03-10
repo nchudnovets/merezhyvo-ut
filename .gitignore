@@ -37,6 +37,7 @@ Thumbs.db
 
 # Caches / temp
 .cache/
+docs/
 coverage/
 tmp/
 **/.gitkeep
