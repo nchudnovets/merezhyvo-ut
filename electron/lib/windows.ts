@@ -552,13 +552,14 @@ export function installUserAgentOverride(targetSession: Session | null = session
   try {
     targetSession.webRequest.onBeforeSendHeaders((details, callback) => {
       try {
+        const firstPartyURL = (details as { firstPartyURL?: string }).firstPartyURL;
         if (details.resourceType === 'mainFrame') {
           rememberTopLevelHost(details.webContentsId, details.url);
         }
         const topHost = getTopLevelHostForRequest(details);
         const targetUrl = details.resourceType === 'mainFrame'
           ? details.url
-          : (details.firstPartyURL || (topHost ? `https://${topHost}` : details.url));
+          : (firstPartyURL || (topHost ? `https://${topHost}` : details.url));
         const ua = getUserAgentForUrl(targetUrl);
         const headers = { ...details.requestHeaders };
         const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
@@ -662,7 +663,8 @@ const refreshUserAgentMode = (): void => {
   try {
     for (const wc of webContents.getAllWebContents()) {
       if (wc.isDestroyed?.()) continue;
-      if (typeof wc.getType === 'function' && wc.getType() === 'devtools') continue;
+      const contentsType = typeof wc.getType === 'function' ? (wc.getType() as string) : '';
+      if (contentsType === 'devtools') continue;
       applyUserAgentToWebContents(wc, typeof wc.getURL === 'function' ? wc.getURL() : '');
     }
   } catch {
