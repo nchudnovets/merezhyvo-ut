@@ -242,7 +242,7 @@ const fr = {
   'settings.messenger.moveUp': 'Monter {title}',
   'settings.messenger.moveDown': 'Descendre {title}',
   'settings.messenger.hideToolbar': 'Masquer la barre des messageries',
-  'toolbar.openMessenger': 'Ouvrir le mode messagerie',
+  'toolbar.openMessenger': 'Ouvrir le mode messageries',
   'toolbar.openSettings': 'Ouvrir les paramètres',
   'toolbar.tor.enable': 'Activer Tor',
   'toolbar.tor.disable': 'Désactiver Tor',
