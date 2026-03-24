@@ -586,6 +586,7 @@ export const getUserAgentForUrl = (url: string | null | undefined): string => {
 
 export function applyUserAgentToWebContents(contents: WebContents | null | undefined, url?: string): void {
   if (!contents) return;
+  if (isDevToolsWebContents(contents)) return;
   const resolvedUrl = url ?? (typeof contents.getURL === 'function' ? contents.getURL() : '');
   const ua = getUserAgentForUrl(resolvedUrl);
   try {

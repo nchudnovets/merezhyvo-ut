@@ -838,9 +838,10 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
       return null;
     }
   })();
+  const isDevTools = windows.isDevToolsWebContents(contents);
 
   try {
-    if (contentsType !== 'devtools') {
+    if (!isDevTools) {
       windows.applyUserAgentToWebContents(contents, contents.getURL?.());
     }
   } catch {
@@ -1007,6 +1008,8 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       const params = ctx?.params ?? null;
       const x = typeof params?.x === 'number' ? params.x : null;
       const y = typeof params?.y === 'number' ? params.y : null;
+      const src = typeof params?.srcURL === 'string' ? params.srcURL : '';
+      const isDataImage = src.startsWith('data:');
       let copied = false;
       if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
         try {
@@ -1016,10 +1019,9 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
           // noop
         }
       }
-      if (copied) return;
-      const src = typeof params?.srcURL === 'string' ? params.srcURL : '';
-      if (!src) return;
-      if (src.startsWith('data:')) {
+      if (copied && !isDataImage) return;
+      if (!isDataImage) return;
+      if (src) {
         try {
           const image = nativeImage.createFromDataURL(src);
           if (!image.isEmpty()) clipboard.writeImage(image);
