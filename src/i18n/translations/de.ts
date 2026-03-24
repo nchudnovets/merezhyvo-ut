@@ -242,7 +242,7 @@ const de = {
   'settings.messenger.moveUp': '{title} nach oben',
   'settings.messenger.moveDown': '{title} nach unten',
   'settings.messenger.hideToolbar': 'Messenger-Leiste ausblenden',
-  'toolbar.openMessenger': 'Messenger-Modus öffnen',
+  'toolbar.openMessenger': 'Modus für Messenger öffnen',
   'toolbar.openSettings': 'Einstellungen öffnen',
   'toolbar.tor.enable': 'Tor aktivieren',
   'toolbar.tor.disable': 'Tor deaktivieren',
