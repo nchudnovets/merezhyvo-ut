@@ -242,7 +242,7 @@ const uk = {
   'settings.messenger.moveUp': 'Перемістити {title} вгору',
   'settings.messenger.moveDown': 'Перемістити {title} вниз',
   'settings.messenger.hideToolbar': 'Не показувати панель месенджерів',
-  'toolbar.openMessenger': 'Відкрити режим месенджера',
+  'toolbar.openMessenger': 'Відкрити режим месенджерів',
   'toolbar.openSettings': 'Відкрити налаштування',
   'toolbar.tor.enable': 'Увімкнути Tor',
   'toolbar.tor.disable': 'Вимкнути Tor',
