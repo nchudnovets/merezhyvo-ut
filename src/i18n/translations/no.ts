@@ -266,7 +266,7 @@ const no = {
   'settings.messenger.moveDown': 'Flytt {title} ned',
   'settings.messenger.hideToolbar': 'Skjul meldingslinjen',
 
-  'toolbar.openMessenger': 'Åpne meldingsmodus',
+  'toolbar.openMessenger': 'Åpne modus for meldingsapper',
   'toolbar.openSettings': 'Åpne innstillinger',
   'toolbar.tor.enable': 'Aktiver Tor',
   'toolbar.tor.disable': 'Deaktiver Tor',
