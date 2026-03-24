@@ -242,7 +242,7 @@ const nl = {
   'settings.messenger.moveUp': 'Verplaats {title} omhoog',
   'settings.messenger.moveDown': 'Verplaats {title} omlaag',
   'settings.messenger.hideToolbar': 'Messengerbalk verbergen',
-  'toolbar.openMessenger': 'Messenger-modus openen',
+  'toolbar.openMessenger': 'Messengers-modus openen',
   'toolbar.openSettings': 'Instellingen openen',
   'toolbar.tor.enable': 'Tor inschakelen',
   'toolbar.tor.disable': 'Tor uitschakelen',
