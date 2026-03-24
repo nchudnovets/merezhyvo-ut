@@ -841,7 +841,7 @@ app.on('before-quit', () => {
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   const contentsType = getWebContentsType(contents);
-  const isDevTools = contentsType === 'devtools';
+  const isDevTools = windows.isDevToolsWebContents(contents);
 
   try {
     if (!isDevTools) {
