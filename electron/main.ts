@@ -830,7 +830,7 @@ app.on('before-quit', () => {
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   try {
-    if (typeof contents.getType === 'function' && contents.getType() !== 'devtools') {
+    if (typeof contents.getType === 'function') {
       windows.applyUserAgentToWebContents(contents, contents.getURL?.());
     }
   } catch {
@@ -1000,11 +1000,8 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       let copied = false;
       if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
         try {
-          const image = wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
-          if (image && !image.isEmpty()) {
-            clipboard.writeImage(image);
-            copied = true;
-          }
+          wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
+          copied = true;
         } catch {
           // noop
         }
