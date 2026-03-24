@@ -284,6 +284,17 @@ let playbackBlockerId: number | null = null;
 let ctxOpening = false;
 let ctxMenuMode: ContextMenuMode = 'desktop';
 
+const getWebContentsType = (contents: WebContents | null | undefined): string | null => {
+  if (!contents) return null;
+  const getType = (contents as { getType?: () => string }).getType;
+  if (typeof getType !== 'function') return null;
+  try {
+    return getType.call(contents);
+  } catch {
+    return null;
+  }
+};
+
 global.lastCtx = global.lastCtx ?? {
   wcId: null,
   params: null,
@@ -829,16 +840,8 @@ app.on('before-quit', () => {
 });
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
-  const contentsType = (() => {
-    const getType = (contents as { getType?: () => string }).getType;
-    if (typeof getType !== 'function') return null;
-    try {
-      return getType.call(contents);
-    } catch {
-      return null;
-    }
-  })();
-  const isDevTools = windows.isDevToolsWebContents(contents);
+  const contentsType = getWebContentsType(contents);
+  const isDevTools = contentsType === 'devtools';
 
   try {
     if (!isDevTools) {
@@ -1014,7 +1017,15 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
         try {
           wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
-          copied = true;
+          if (isDataImage) {
+            try {
+              copied = !clipboard.readImage().isEmpty();
+            } catch {
+              copied = false;
+            }
+          } else {
+            copied = true;
+          }
         } catch {
           // noop
         }
