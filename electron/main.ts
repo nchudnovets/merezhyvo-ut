@@ -1000,9 +1000,25 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       const y = typeof params?.y === 'number' ? params.y : null;
       let copied = false;
       if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
+        let beforeDataUrl = '';
+        try {
+          const beforeImage = clipboard.readImage();
+          if (!beforeImage.isEmpty()) {
+            beforeDataUrl = beforeImage.toDataURL();
+          }
+        } catch {
+          // noop
+        }
         try {
           wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
-          copied = true;
+        } catch {
+          // noop
+        }
+        try {
+          const afterImage = clipboard.readImage();
+          if (!afterImage.isEmpty()) {
+            copied = !beforeDataUrl || afterImage.toDataURL() !== beforeDataUrl;
+          }
         } catch {
           // noop
         }
