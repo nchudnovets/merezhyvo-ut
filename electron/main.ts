@@ -999,25 +999,17 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       const x = typeof params?.x === 'number' ? params.x : null;
       const y = typeof params?.y === 'number' ? params.y : null;
       let copied = false;
-      if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
-        let beforeDataUrl = '';
-        try {
-          const beforeImage = clipboard.readImage();
-          if (!beforeImage.isEmpty()) {
-            beforeDataUrl = beforeImage.toDataURL();
-          }
-        } catch {
-          // noop
+      const copyImageAt = (
+        wc as WebContents & {
+          copyImageAt?: (x: number, y: number) => Electron.NativeImage | void;
         }
+      ).copyImageAt;
+      if (Number.isFinite(x) && Number.isFinite(y) && typeof copyImageAt === 'function') {
         try {
-          wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
-        } catch {
-          // noop
-        }
-        try {
-          const afterImage = clipboard.readImage();
-          if (!afterImage.isEmpty()) {
-            copied = !beforeDataUrl || afterImage.toDataURL() !== beforeDataUrl;
+          const image = copyImageAt.call(wc, Math.round(x ?? 0), Math.round(y ?? 0));
+          if (image && !image.isEmpty()) {
+            clipboard.writeImage(image);
+            copied = true;
           }
         } catch {
           // noop
