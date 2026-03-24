@@ -249,7 +249,7 @@ const en = {
   'toolbar.openSettings': 'Open settings',
   'toolbar.tor.enable': 'Enable Tor',
   'toolbar.tor.disable': 'Disable Tor',
-  'about.description': 'A browser designed for Ubuntu Touch. Powered by Electron and Chromium {chromium}.',
+  'about.description': 'A simple browser for Ubuntu Touch, powered by Electron and Chromium {chromium}.',
   'about.version': 'Version {version}',
   'about.freeToUse': 'Merezhyvo is free to use.',
   'about.rights': 'All rights reserved by the author.',
@@ -257,7 +257,7 @@ const en = {
   'about.torVersion': 'Tor version: {version}',
   'about.torVersionUnavailable': 'Tor version: not available',
   'about.torDisclaimer':
-    'This browser includes Tor as an optional connection layer, but it is not the official Tor Browser and does not implement all of Tor Browser’s security and fingerprinting protections. Using Tor may improve your privacy and help hide your IP address, but it does not automatically make you anonymous or protect you from all tracking or deanonymization techniques. For sensitive use, combine Tor with good security habits (no logins you care about, minimal extensions, careful with downloads) and follow the recommendations from the Tor Project.',
+    'Tor is available as an optional connection mode. This app is not the official Tor Browser and does not include all of its protections. Tor can improve privacy and hide your IP address, but it does not guarantee full anonymity. For sensitive use, follow Tor Project guidance and use safe browsing habits.',
   'nav.back': 'Back',
   'nav.forward': 'Forward',
   'nav.reload': 'Reload',
