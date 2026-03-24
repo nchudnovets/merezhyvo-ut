@@ -829,8 +829,18 @@ app.on('before-quit', () => {
 });
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
+  const contentsType = (() => {
+    const getType = (contents as { getType?: () => string }).getType;
+    if (typeof getType !== 'function') return null;
+    try {
+      return getType.call(contents);
+    } catch {
+      return null;
+    }
+  })();
+
   try {
-    if (typeof contents.getType === 'function') {
+    if (contentsType !== 'devtools') {
       windows.applyUserAgentToWebContents(contents, contents.getURL?.());
     }
   } catch {
@@ -838,11 +848,11 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   }
   windows.installFileDialogHandler(contents);
   windows.setupSelectFileInterceptor(contents);
-  if (typeof contents.getType === 'function' && contents.getType() === 'webview') {
+  if (contentsType === 'webview') {
     links.attachLinkPolicy(contents);
     attachCertificateTracking(contents);
   }
-  if (typeof contents.getType !== 'function') {
+  if (contentsType == null) {
     attachCertificateTracking(contents);
   }
   

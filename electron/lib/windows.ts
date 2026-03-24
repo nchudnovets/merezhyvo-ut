@@ -604,6 +604,20 @@ export function applyUserAgentForUrl(contents: WebContents | null | undefined, u
   applyUserAgentToWebContents(contents, url);
 }
 
+const getWebContentsType = (contents: WebContents | null | undefined): string | null => {
+  if (!contents) return null;
+  const getType = (contents as { getType?: () => string }).getType;
+  if (typeof getType !== 'function') return null;
+  try {
+    return getType.call(contents);
+  } catch {
+    return null;
+  }
+};
+
+export const isDevToolsWebContents = (contents: WebContents | null | undefined): boolean =>
+  getWebContentsType(contents) === 'devtools';
+
 const pickHost = (raw: string | undefined): string | null => {
   if (!raw) return null;
   try {
@@ -663,6 +677,7 @@ const refreshUserAgentMode = (): void => {
   try {
     for (const wc of webContents.getAllWebContents()) {
       if (wc.isDestroyed?.()) continue;
+      if (isDevToolsWebContents(wc)) continue;
       applyUserAgentToWebContents(wc, typeof wc.getURL === 'function' ? wc.getURL() : '');
     }
   } catch {
