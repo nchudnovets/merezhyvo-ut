@@ -272,7 +272,7 @@ const no = {
   'toolbar.tor.disable': 'Deaktiver Tor',
 
   'about.description':
-    'En nettleser laget for Ubuntu Touch. Drevet av Electron og Chromium {chromium}.',
+    'En enkel nettleser for Ubuntu Touch, drevet av Electron og Chromium {chromium}.',
   'about.version': 'Versjon {version}',
   'about.freeToUse': 'Merezhyvo er gratis å bruke.',
   'about.rights': 'Alle rettigheter forbeholdt av forfatteren.',
@@ -281,7 +281,7 @@ const no = {
   'about.torVersion': 'Tor-versjon: {version}',
   'about.torVersionUnavailable': 'Tor-versjon: ikke tilgjengelig',
   'about.torDisclaimer':
-    'Denne nettleseren inkluderer Tor som et valgfritt tilkoblingslag, men den er ikke den offisielle Tor Browser og implementerer ikke alle Tor Browsers sikkerhets- og fingeravtrykksbeskyttelser. Bruk av Tor kan forbedre personvernet ditt og hjelpe med å skjule IP-adressen din, men det gjør deg ikke automatisk anonym og beskytter deg ikke mot all sporing eller alle teknikker for av-anonymisering. For sensitiv bruk, kombiner Tor med gode sikkerhetsvaner (ingen innlogginger du bryr deg om, minimale utvidelser, vær forsiktig med nedlastinger) og følg anbefalingene fra Tor Project.',
+    'Tor er tilgjengelig som en valgfri tilkoblingsmodus. Denne appen er ikke den offisielle Tor Browser og inkluderer ikke alle beskyttelsene den har. Tor kan forbedre personvernet og skjule IP-adressen din, men garanterer ikke full anonymitet. For sensitiv bruk, følg anbefalingene fra Tor Project og bruk trygge nettvaner.',
   'nav.back': 'Tilbake',
   'nav.forward': 'Frem',
   'nav.reload': 'Last inn på nytt',
