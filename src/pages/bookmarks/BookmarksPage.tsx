@@ -1479,12 +1479,40 @@ const handleDeleteSelection = () => {
       {confirmState && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <p style={{...styles.dialogMessage, ...modeStyles.dialogMessage}}>{confirmState.message}</p>
+            <p
+              style={{
+                ...styles.dialogMessage,
+                ...modeStyles.dialogMessage,
+                color: 'var(--mzr-text-primary)'
+              }}
+            >
+              {confirmState.message}
+            </p>
             <div style={styles.dialogActions}>
-              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setConfirmState(null)}>
+              <button
+                style={{
+                  ...styles.smallButton,
+                  ...modeStyles.smallButton,
+                  border: '1px solid var(--mzr-border-strong)',
+                  background: 'var(--mzr-surface-muted)',
+                  color: 'var(--mzr-text-primary)'
+                }}
+                type="button"
+                onClick={() => setConfirmState(null)}
+              >
                 {confirmState.cancelLabel ?? t('bookmarks.button.cancel')}
               </button>
-              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
+              <button
+                style={{
+                  ...styles.button,
+                  ...modeStyles.button,
+                  border: '1px solid var(--mzr-danger)',
+                  background: 'var(--mzr-danger-tint)',
+                  color: 'var(--mzr-danger)'
+                }}
+                type="button"
+                onClick={confirmState.onConfirm}
+              >
                 {confirmState.confirmLabel}
               </button>
             </div>
