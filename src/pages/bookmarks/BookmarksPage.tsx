@@ -1480,11 +1480,11 @@ const handleDeleteSelection = () => {
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
             <p style={{...styles.dialogMessage, ...modeStyles.dialogMessage}}>{confirmState.message}</p>
-            <div style={styles.dialogActions}>
+            <div style={{...styles.dialogActions, ...modeStyles.dialogActions}}>
               <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setConfirmState(null)}>
                 {confirmState.cancelLabel ?? t('bookmarks.button.cancel')}
               </button>
-              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
+              <button style={{...styles.button, ...styles.dialogDangerButton, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
                 {confirmState.confirmLabel}
               </button>
             </div>
