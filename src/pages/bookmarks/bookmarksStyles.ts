@@ -53,6 +53,7 @@ export type BookmarksStyleKeys =
   | 'dialogInput'
   | 'dialogActions'
   | 'dialogMessage'
+  | 'dialogDangerButton'
   | 'dialogRadioInput'
   | 'folderListPicker'
   | 'folderPickerRow'
@@ -501,8 +502,13 @@ export const bookmarksStyles: Record<BookmarksStyleKeys, CSSProperties> = {
   dialogMessage: {
     margin: 0,
     fontSize: '16px',
-    color: '#fecaca',
+    color: 'var(--mzr-text-primary)',
     textAlign: 'center'
+  },
+  dialogDangerButton: {
+    border: '1px solid var(--mzr-danger)',
+    background: 'var(--mzr-danger-tint)',
+    color: 'var(--mzr-danger)'
   },
   folderListPicker: {
     display: 'flex',
