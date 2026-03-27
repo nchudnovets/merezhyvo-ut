@@ -184,12 +184,20 @@ const AddressBar: React.FC<AddressBarProps> = ({
         ? '100%'
         : downloadIndicator.state === 'error'
         ? '100%'
-        : '40%',
+        : '100%',
     borderRadius: 'inherit',
     background:
       downloadIndicator.state === 'active' && downloadIndicator.indeterminate
-        ? `linear-gradient(90deg, transparent, ${indicatorColor}, transparent)`
-        : indicatorColor
+        ? `linear-gradient(90deg, transparent 0%, ${indicatorColor} 50%, transparent 100%)`
+        : indicatorColor,
+    backgroundSize:
+      downloadIndicator.state === 'active' && downloadIndicator.indeterminate ? '40% 100%' : undefined,
+    backgroundRepeat:
+      downloadIndicator.state === 'active' && downloadIndicator.indeterminate ? 'no-repeat' : undefined,
+    animation:
+      downloadIndicator.state === 'active' && downloadIndicator.indeterminate
+        ? 'mzr-download-indeterminate 1.2s ease-in-out infinite'
+        : undefined
   };
   const indicatorText =
     downloadIndicator.state === 'active' && !downloadIndicator.indeterminate
@@ -312,6 +320,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
             </svg>
           </button>
         )}
+      <style>{`@keyframes mzr-download-indeterminate { 0% { background-position: -50% 0; } 100% { background-position: 150% 0; } }`}</style>
       {showIndicator && (
           <button
             type="button"
