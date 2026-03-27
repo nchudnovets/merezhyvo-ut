@@ -129,8 +129,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
     setStatus(t('passwordSettings.status.locked'));
   };
 
-  const hasMaster = statusInfo?.hasMaster ?? false;
-  const isPasswordsLocked = statusInfo?.locked ?? false;
+  const hasMaster = statusInfo?.hasMaster === true;
+  const isPasswordsLocked = statusInfo?.locked === true;
   const lockedMessage = t('passwordSettings.status.locked');
   const unlockedMessage = t('passwordSettings.status.unlocked');
 
@@ -200,12 +200,14 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
     : styles.settingsLinkButton;
   const changeButtonDisabled = saving || (hasMaster && isPasswordsLocked);
   const lockButtonDisabled = saving || !hasMaster;
-  const showLockAction = hasMaster && !isPasswordsLocked;
+  const showProtectedControls = hasMaster && !isPasswordsLocked;
+  const showCreateMasterAction = statusInfo?.hasMaster === false;
+  const showLockAction = showProtectedControls;
   const showUnlockAction = hasMaster && isPasswordsLocked;
 
   return (
     <div style={styles.passwordSettings}>
-      {!isPasswordsLocked && (
+      {showProtectedControls && (
         <>
           {([
             { field: 'saveAndFill', label: t('passwordSettings.toggle.saveAndFill') },
@@ -288,18 +290,16 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
               ))}
             </select>
           </div>
-          {(!hasMaster || !isPasswordsLocked) && (
-            <div style={rowStyle}>
-              <button
-                type="button"
-                style={buttonStyle}
-                onClick={handleChangeMasterPassword}
-                disabled={changeButtonDisabled}
-              >
-                {hasMaster ? t('passwordSettings.button.changeMaster') : t('passwordSettings.button.createMaster')}
-              </button>
-            </div>
-          )}
+          <div style={rowStyle}>
+            <button
+              type="button"
+              style={buttonStyle}
+              onClick={handleChangeMasterPassword}
+              disabled={changeButtonDisabled}
+            >
+              {t('passwordSettings.button.changeMaster')}
+            </button>
+          </div>
           {showLockAction && (
             <div style={rowStyle}>
               <button
@@ -314,6 +314,18 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           )}
         </>
       )}
+      {showCreateMasterAction && (
+        <div style={rowStyle}>
+          <button
+            type="button"
+            style={buttonStyle}
+            onClick={handleChangeMasterPassword}
+            disabled={changeButtonDisabled}
+          >
+            {t('passwordSettings.button.createMaster')}
+          </button>
+        </div>
+      )}
       {showUnlockAction && (
         <div style={rowStyle}>
           <button
@@ -326,7 +338,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
           </button>
         </div>
       )}
-      {!isPasswordsLocked && (
+      {showProtectedControls && (
         <div style={linkRowStyle}>
           <button
             type="button"
