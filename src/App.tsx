@@ -266,7 +266,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   
   const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
-  const { downloadIndicatorState, downloadToast, handleDownloadIndicatorClick } = useDownloadIndicators();
+  const {
+    downloadIndicatorState,
+    downloadIndicatorProgress,
+    downloadToast,
+    handleDownloadIndicatorClick
+  } = useDownloadIndicators();
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
   const [certStatus, setCertStatus] = useState<CertificateInfo | null>(null);
   const [displayCert, setDisplayCert] = useState<CertificateInfo | null>(null);
@@ -3587,6 +3592,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onEnterMessengerMode={handleEnterMessengerMode}
               showMessengerButton={!messengerSettingsState?.hideToolbar}
               downloadIndicatorState={downloadIndicatorState}
+              downloadIndicatorProgress={downloadIndicatorProgress}
               onDownloadIndicatorClick={handleDownloadIndicatorClick}
               toolbarRef={toolbarRef}
               suggestions={urlSuggestions}
