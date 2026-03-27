@@ -6,6 +6,7 @@ import AddressBar from './AddressBar';
 import type { Mode, TrackerStatus } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { TelegramIcon } from '../messenger/MessengerIcon';
+import type { DownloadIndicatorModel } from '../../hooks/useDownloadIndicators';
 
 interface ToolbarProps {
   mode: Mode;
@@ -34,7 +35,7 @@ interface ToolbarProps {
   onOpenSettings: () => void;
   onEnterMessengerMode: () => void;
   showMessengerButton?: boolean;
-  downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  downloadIndicator: DownloadIndicatorModel;
   onDownloadIndicatorClick: () => void;
   toolbarRef?: RefObject<HTMLDivElement>;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
@@ -97,7 +98,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onOpenSettings,
   onEnterMessengerMode,
   showMessengerButton = true,
-  downloadIndicatorState,
+  downloadIndicator,
   onDownloadIndicatorClick,
   toolbarRef,
   suggestions,
@@ -166,7 +167,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onBlur={onInputBlur}
       onOpenTabsPanel={onOpenTabsPanel}
       onNewTab={onNewTab}
-      downloadIndicatorState={downloadIndicatorState}
+      downloadIndicator={downloadIndicator}
       onDownloadIndicatorClick={onDownloadIndicatorClick}
       showTabsButton={!compact}
       inputFocused={inputFocused}

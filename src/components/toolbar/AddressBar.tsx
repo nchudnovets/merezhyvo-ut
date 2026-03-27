@@ -12,6 +12,7 @@ import type { Mode, TrackerStatus } from '../../types/models';
 import { useI18n } from '../../i18n/I18nProvider';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { SecurityShield } from './SecurityShield';
+import type { DownloadIndicatorModel } from '../../hooks/useDownloadIndicators';
 
 interface AddressBarProps {
   mode: Mode;
@@ -26,7 +27,7 @@ interface AddressBarProps {
   onBlur: (event: FocusEvent<HTMLInputElement>) => void;
   onOpenTabsPanel: () => void;
   onNewTab: () => void;
-  downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  downloadIndicator: DownloadIndicatorModel;
   onDownloadIndicatorClick: () => void;
   showTabsButton?: boolean;
   inputFocused?: boolean;
@@ -78,7 +79,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onBlur,
   onOpenTabsPanel,
   onNewTab,
-  downloadIndicatorState,
+  downloadIndicator,
   onDownloadIndicatorClick,
   showTabsButton = true,
   inputFocused = false,
@@ -103,14 +104,15 @@ const AddressBar: React.FC<AddressBarProps> = ({
 }) => {
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
-  const showIndicator = downloadIndicatorState !== 'hidden';
-  const indicatorSize = mode === 'mobile' ? 55 : 16;
+  const showIndicator = downloadIndicator.state !== 'hidden';
+  const indicatorWidth = mode === 'mobile' ? 220 : 120;
+  const indicatorHeight = mode === 'mobile' ? 44 : 22;
   const copyButtonVisible = inputFocused;
   const copyButtonSize = mode === 'mobile' ? 64 : 22;
   const actionGap = mode === 'mobile' ? 16 : 8;
   const paddingRight =
     (copyButtonVisible ? copyButtonSize + actionGap : 0) +
-    (showIndicator ? indicatorSize + actionGap : 0);
+    (showIndicator ? indicatorWidth + actionGap : 0);
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
@@ -150,37 +152,70 @@ const AddressBar: React.FC<AddressBarProps> = ({
     background: 'transparent'
   };
   const indicatorLabel =
-    downloadIndicatorState === 'completed'
+    downloadIndicator.state === 'completed'
       ? t('address.downloads.complete')
-      : downloadIndicatorState === 'error'
+      : downloadIndicator.state === 'error'
       ? t('address.downloads.error')
       : t('address.downloads.inProgress');
-  const arrowColor =
-    downloadIndicatorState === 'completed'
+  const indicatorColor =
+    downloadIndicator.state === 'completed'
       ? '#22c55e'
-      : downloadIndicatorState === 'error'
+      : downloadIndicator.state === 'error'
       ? '#f97316'
       : 'var(--mzr-accent-strong)';
-  const arrowStyle: CSSProperties = {
-    width: 0,
-    height: 0,
-    borderLeft: `${indicatorSize/2}px solid transparent`,
-    borderRight: `${indicatorSize/2}px solid transparent`,
-    borderTop: `${indicatorSize/2+(mode === 'mobile' ? 10 : 1)}px solid ${arrowColor}`,
-    display: 'block',
-    ...(downloadIndicatorState === 'active'
-      ? { animation: 'download-arrow 0.9s ease-in-out infinite' }
-      : {})
+  const progressTrackStyle: CSSProperties = {
+    width: mode === 'mobile' ? 96 : 56,
+    height: mode === 'mobile' ? 8 : 6,
+    borderRadius: 999,
+    background: 'rgba(148,163,184,0.28)',
+    position: 'relative',
+    overflow: 'hidden',
+    flexShrink: 0
   };
+  const progressFillStyle: CSSProperties = {
+    position: 'absolute',
+    left: 0,
+    top: 0,
+    bottom: 0,
+    width:
+      downloadIndicator.state === 'active' && !downloadIndicator.indeterminate
+        ? `${downloadIndicator.percent ?? 0}%`
+        : downloadIndicator.state === 'completed'
+        ? '100%'
+        : downloadIndicator.state === 'error'
+        ? '100%'
+        : '40%',
+    borderRadius: 'inherit',
+    background:
+      downloadIndicator.state === 'active' && downloadIndicator.indeterminate
+        ? `linear-gradient(90deg, transparent, ${indicatorColor}, transparent)`
+        : indicatorColor
+  };
+  const indicatorText =
+    downloadIndicator.state === 'active' && !downloadIndicator.indeterminate
+      ? `${downloadIndicator.percent ?? 0}%`
+      : downloadIndicator.state === 'active'
+      ? '...'
+      : downloadIndicator.state === 'error'
+      ? `!${downloadIndicator.failedCount > 1 ? ` ${downloadIndicator.failedCount}` : ''}`
+      : '100%';
   const buttonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
-    width: indicatorSize,
-    height: indicatorSize,
+    width: indicatorWidth,
+    height: indicatorHeight,
     right: copyButtonVisible
       ? `${(mode === 'mobile' ? 16 : 8) + copyButtonSize + actionGap}px`
       : mode === 'mobile'
         ? '20px'
-        : '10px'
+        : '8px',
+    border: `1px solid ${downloadIndicator.state === 'error' ? '#f97316' : 'var(--mzr-input-border)'}`,
+    borderRadius: 999,
+    padding: mode === 'mobile' ? '0 12px' : '0 8px',
+    background: 'var(--mzr-surface)',
+    color: 'var(--mzr-text-primary)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+    gap: mode === 'mobile' ? 10 : 7,
+    justifyContent: 'flex-start'
   };
   const copyButtonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
@@ -281,12 +316,41 @@ const AddressBar: React.FC<AddressBarProps> = ({
           <button
             type="button"
             aria-label={indicatorLabel}
+            title={indicatorLabel}
             onClick={onDownloadIndicatorClick}
             style={buttonStyle}
           >
-          <span style={arrowStyle} />
-        </button>
-      )}
+            <span
+              aria-hidden="true"
+              style={{
+                width: mode === 'mobile' ? 12 : 9,
+                height: mode === 'mobile' ? 12 : 9,
+                borderRadius: '50%',
+                background: indicatorColor,
+                boxShadow: `0 0 0 2px ${downloadIndicator.state === 'error' ? 'rgba(249,115,22,0.2)' : 'rgba(59,130,246,0.18)'}`
+              }}
+            />
+            <span style={progressTrackStyle} aria-hidden="true">
+              <span style={progressFillStyle} />
+            </span>
+            <span
+              aria-hidden="true"
+              style={{
+                fontSize: mode === 'mobile' ? 21 : 11,
+                fontWeight: 700,
+                lineHeight: 1,
+                color: downloadIndicator.state === 'error' ? '#f97316' : 'var(--mzr-text-secondary)',
+                minWidth: mode === 'mobile' ? 50 : 36,
+                textAlign: 'right'
+              }}
+            >
+              {indicatorText}
+              {downloadIndicator.state === 'active' && downloadIndicator.activeCount > 1
+                ? ` · ${downloadIndicator.activeCount}`
+                : ''}
+            </span>
+          </button>
+        )}
         {inputFocused && suggestions.length > 0 && value.trim().length > 0 && (
           <ul style={suggestionsStyle}>
             {suggestions.map((item, idx) => (
