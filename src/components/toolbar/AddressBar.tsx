@@ -125,7 +125,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
     (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
     (mode === 'mobile' ? '36px' : '15px');
   const baseFontSize = typeof baseInputFont === 'number' ? `${baseInputFont}px` : baseInputFont;
-  const secondaryFontSize = mode === 'mobile' ? '28px' : '14px';
+  const secondaryFontSize = mode === 'mobile' ? '36px' : '14px';
 
   const suggestionsStyle: CSSProperties = {
     position: 'absolute',
