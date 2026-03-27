@@ -119,6 +119,18 @@
       50% { transform: translateY(15%); }
       100% { transform: translateY(-35%); }
     }
+
+    @keyframes download-indeterminate {
+      0% { transform: translateX(-70%); }
+      50% { transform: translateX(35%); }
+      100% { transform: translateX(140%); }
+    }
+
+    @-webkit-keyframes download-indeterminate {
+      0% { -webkit-transform: translateX(-70%); }
+      50% { -webkit-transform: translateX(35%); }
+      100% { -webkit-transform: translateX(140%); }
+    }
   </style>
   <style>
     .hg-theme-default {
