@@ -107,7 +107,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
   const showIndicator = downloadIndicatorState !== 'hidden';
-  const indicatorButtonWidth = mode === 'mobile' ? 220 : 122;
+  const indicatorButtonWidth = mode === 'mobile' ? 132 : 64;
   const copyButtonVisible = inputFocused;
   const copyButtonSize = mode === 'mobile' ? 64 : 22;
   const actionGap = mode === 'mobile' ? 16 : 8;
@@ -164,34 +164,38 @@ const AddressBar: React.FC<AddressBarProps> = ({
       : downloadIndicatorState === 'error'
       ? '#f97316'
       : 'var(--mzr-accent-strong)';
-  const indicatorBarWidth = mode === 'mobile' ? 130 : 54;
-  const progressTrackStyle: CSSProperties = {
-    width: indicatorBarWidth,
-    height: mode === 'mobile' ? 14 : 6,
-    borderRadius: 999,
-    background: 'var(--mzr-divider)',
-    overflow: 'hidden'
-  };
   const progressWidth =
     downloadIndicatorState === 'completed'
       ? 100
-      : downloadIndicatorProgress.percent ?? 40;
-  const progressFillStyle: CSSProperties = {
+      : downloadIndicatorProgress.fraction != null
+      ? downloadIndicatorProgress.fraction * 100
+      : 40;
+  const progressLineTrackStyle: CSSProperties = {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: mode === 'mobile' ? 4 : 2,
+    borderRadius: 999,
+    background: 'var(--mzr-divider)',
+    overflow: 'hidden',
+    pointerEvents: 'none'
+  };
+  const progressLineFillStyle: CSSProperties = {
+    display: 'block',
     height: '100%',
     width: `${progressWidth}%`,
     borderRadius: 999,
     background: barColor,
     transition: 'width 0.2s ease',
-    ...(downloadIndicatorState === 'active' && downloadIndicatorProgress.indeterminate
-      ? { animation: 'download-indeterminate 1.05s ease-in-out infinite', width: '55%' }
-      : {})
+    ...(downloadIndicatorState === 'active' && downloadIndicatorProgress.indeterminate ? { width: '55%' } : {})
   };
   const progressTextStyle: CSSProperties = {
-    minWidth: mode === 'mobile' ? 62 : 36,
+    minWidth: mode === 'mobile' ? 84 : 36,
     textAlign: 'right',
     color: 'var(--mzr-text-primary)',
     fontWeight: 700,
-    fontSize: mode === 'mobile' ? 24 : 11,
+    fontSize: mode === 'mobile' ? baseFontSize : 11,
     lineHeight: 1,
     fontVariantNumeric: 'tabular-nums'
   };
@@ -216,8 +220,8 @@ const AddressBar: React.FC<AddressBarProps> = ({
     borderRadius: 999,
     background: 'var(--mzr-surface)',
     boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
-    padding: mode === 'mobile' ? '0 10px' : '0 8px',
-    gap: mode === 'mobile' ? 10 : 6
+    padding: mode === 'mobile' ? '0 16px' : '0 8px',
+    gap: mode === 'mobile' ? 0 : 6
   };
   const copyButtonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
@@ -314,19 +318,21 @@ const AddressBar: React.FC<AddressBarProps> = ({
             </svg>
           </button>
         )}
-      {showIndicator && (
+        {showIndicator && (
+          <span style={progressLineTrackStyle} aria-hidden="true">
+            <span style={progressLineFillStyle} />
+          </span>
+        )}
+        {showIndicator && (
           <button
             type="button"
             aria-label={`${indicatorLabel}${downloadIndicatorProgress.percent != null ? ` ${downloadIndicatorProgress.percent}%` : ''}`}
             onClick={onDownloadIndicatorClick}
             style={buttonStyle}
           >
-            <span style={progressTrackStyle}>
-              <span style={progressFillStyle} />
-            </span>
             <span style={progressTextStyle}>{progressText}</span>
-        </button>
-      )}
+          </button>
+        )}
         {inputFocused && suggestions.length > 0 && value.trim().length > 0 && (
           <ul style={suggestionsStyle}>
             {suggestions.map((item, idx) => (
