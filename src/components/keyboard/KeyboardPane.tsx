@@ -26,8 +26,7 @@ type Props = {
   visible: boolean;
   layoutId: LayoutId;
   enabledLayouts: LayoutId[];
-  // Placeholder for future context-specific tweaks
-  context?: 'text' | 'email';
+  context?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'search';
   injectText: (text: string) => void;
   injectBackspace: () => void;
   injectEnter: () => void;
@@ -249,6 +248,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
     visible,
     layoutId,
     enabledLayouts,
+    context = 'text',
     injectText,
     injectBackspace,
     injectEnter,
@@ -367,6 +367,14 @@ const KeyboardPane: React.FC<Props> = (p) => {
       return () => window.clearTimeout(id);
     }
   }, [visible, emojiOpen]);
+
+  useEffect(() => {
+    if (!visible) return;
+    const numericLike = context === 'numeric' || context === 'decimal' || context === 'tel';
+    if (!numericLike) return;
+    if (isSymbols(layoutId)) return;
+    onSetLayout?.('symbols1');
+  }, [context, layoutId, onSetLayout, visible]);
 
   useEffect(() => {
     if (typeof document === 'undefined') return;

@@ -2,13 +2,16 @@ import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import type { WebviewTag } from 'electron';
 import type { Mode } from '../types/models';
+import { DEFAULT_ACTIVE_INPUT_CONTEXT, type ActiveInputContext } from '../services/window/window';
 
 type UseMobileSoftKeyboardParams = {
   mode: Mode;
-  isEditableElement: (el: Element | null) => boolean;
+  getMainInputContext: (el: Element | null) => ActiveInputContext;
+  probeWebInputContext: () => Promise<ActiveInputContext>;
   getActiveWebview: () => WebviewTag | null;
   activeId: string | null;
   activeViewRevision: number;
+  setActiveInputContext: (ctx: ActiveInputContext) => void;
   setKbVisible: (flag: boolean) => void;
   oskPressGuardRef: MutableRefObject<boolean>;
   ctxMenuGuardRef?: MutableRefObject<boolean>;
@@ -19,10 +22,12 @@ const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
 
 export const useMobileSoftKeyboard = ({
   mode,
-  isEditableElement,
+  getMainInputContext,
+  probeWebInputContext,
   getActiveWebview,
   activeId,
   activeViewRevision,
+  setActiveInputContext,
   setKbVisible,
   oskPressGuardRef,
   ctxMenuGuardRef
@@ -47,7 +52,9 @@ export const useMobileSoftKeyboard = ({
       ) {
         return;
       }
-      if (!isEditableElement(t)) setKbVisible(false);
+      const ctx = getMainInputContext(t);
+      setActiveInputContext(ctx);
+      if (!ctx.editable) setKbVisible(false);
     };
 
     const onFocusIn = (e: FocusEvent) => {
@@ -55,7 +62,9 @@ export const useMobileSoftKeyboard = ({
       if (ctxMenuGuardRef?.current) return;
       const t = e.target as HTMLElement | null;
       if (!t) return;
-      if (isEditableElement(t)) setKbVisible(true);
+      const ctx = getMainInputContext(t);
+      setActiveInputContext(ctx);
+      if (ctx.editable) setKbVisible(true);
     };
 
     const onFocusOut = (event: FocusEvent) => {
@@ -73,7 +82,9 @@ export const useMobileSoftKeyboard = ({
       if (related && related.closest('[data-soft-keyboard="true"]')) return;
       const active = document.activeElement as HTMLElement | null;
       if (active && active.closest('[data-soft-keyboard="true"]')) return;
-      if (!isEditableElement(active)) {
+      const ctx = getMainInputContext(active);
+      setActiveInputContext(ctx);
+      if (!ctx.editable) {
         setKbVisible(false);
       }
     };
@@ -87,7 +98,14 @@ export const useMobileSoftKeyboard = ({
       document.removeEventListener('focusin', onFocusIn, true);
       document.removeEventListener('focusout', onFocusOut, true);
     };
-  }, [mode, isEditableElement, oskPressGuardRef, setKbVisible, ctxMenuGuardRef]);
+  }, [
+    mode,
+    getMainInputContext,
+    oskPressGuardRef,
+    setActiveInputContext,
+    setKbVisible,
+    ctxMenuGuardRef
+  ]);
 
   // Bridge focus/selection events inside the active webview back to the host.
   useEffect(() => {
@@ -309,11 +327,19 @@ export const useMobileSoftKeyboard = ({
       } catch {}
     };
 
+    const syncWebInputContext = () => {
+      void (async () => {
+        const ctx = await probeWebInputContext();
+        setActiveInputContext(ctx);
+        setKbVisible(ctx.editable);
+      })();
+    };
+
     const onConsole = (event: any) => {
       const msg: string = (event && event.message) || '';
       if (msg === FOCUS_CONSOLE_ACTIVE) {
         if (oskPressGuardRef.current) return;
-        setKbVisible(true);
+        syncWebInputContext();
       } else if (msg === FOCUS_CONSOLE_INACTIVE) {
         if (
           document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
@@ -322,6 +348,7 @@ export const useMobileSoftKeyboard = ({
           return;
         }
         if (oskPressGuardRef.current) return;
+        setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
         setKbVisible(false);
       }
     };
@@ -338,5 +365,14 @@ export const useMobileSoftKeyboard = ({
       wv.removeEventListener('did-navigate-in-page', install);
       wv.removeEventListener('console-message', onConsole);
     };
-  }, [mode, getActiveWebview, activeId, activeViewRevision, setKbVisible, oskPressGuardRef]);
+  }, [
+    mode,
+    getActiveWebview,
+    activeId,
+    activeViewRevision,
+    setActiveInputContext,
+    setKbVisible,
+    oskPressGuardRef,
+    probeWebInputContext
+  ]);
 };
