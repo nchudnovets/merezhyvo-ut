@@ -46,8 +46,8 @@ const labelStyle: CSSProperties = {
 const inputBaseStyle: CSSProperties = {
   width: '95%',
   borderRadius: '14px',
-  border: '1px solid var(--mzr-border)',
-  background: '#0b1220',
+  border: '1px solid var(--mzr-input-border)',
+  background: 'var(--mzr-surface)',
   color: 'var(--mzr-text-primary)',
   padding: '14px 12px'
 };
