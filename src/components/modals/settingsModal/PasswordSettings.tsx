@@ -1,7 +1,7 @@
 'use strict';
 
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import type { Mode, PasswordSettings, PasswordStatus, PasswordChangeMasterResult } from '../../../types/models';
+import type { Mode, ThemeName, PasswordSettings, PasswordStatus, PasswordChangeMasterResult } from '../../../types/models';
 import { useI18n } from '../../../i18n/I18nProvider';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
@@ -17,11 +17,12 @@ const LOCK_OPTIONS: Array<{ value: number; key: string }> = [
 
 type Props = {
   mode: Mode;
+  theme: ThemeName;
   onManagePasswords: () => void;
   onRequestUnlock: (fromSettings?: boolean) => void;
 };
 
-const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestUnlock }) => {
+const PasswordSettings: React.FC<Props> = ({ mode, theme, onManagePasswords, onRequestUnlock }) => {
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const isMobile = mode === 'mobile';
@@ -204,6 +205,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
   const showCreateMasterAction = statusInfo?.hasMaster === false;
   const showLockAction = showProtectedControls;
   const showUnlockAction = hasMaster && isPasswordsLocked;
+  const isLightTheme = theme === 'light';
+  const emphasizeTextStyle = isLightTheme ? { color: '#fff' } : {};
 
   return (
     <div style={styles.passwordSettings}>
@@ -318,7 +321,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         <div style={rowStyle}>
           <button
             type="button"
-            style={buttonStyle}
+            style={{ ...buttonStyle, ...emphasizeTextStyle }}
             onClick={handleChangeMasterPassword}
             disabled={changeButtonDisabled}
           >
@@ -330,7 +333,7 @@ const PasswordSettings: React.FC<Props> = ({ mode, onManagePasswords, onRequestU
         <div style={rowStyle}>
           <button
             type="button"
-            style={buttonStyle}
+            style={{ ...buttonStyle, ...emphasizeTextStyle }}
             onClick={() => onRequestUnlock(true)}
             disabled={saving}
           >
