@@ -64,7 +64,11 @@ import { JsDialogHost } from './components/modals/jsDialog/JsDialogHost';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
-import { windowHelpers } from './services/window/window';
+import {
+  windowHelpers,
+  DEFAULT_ACTIVE_INPUT_CONTEXT,
+  type ActiveInputContext
+} from './services/window/window';
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
@@ -72,7 +76,7 @@ import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
-import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
+import { makeMainInjects, makeWebInjects, probeWebActiveInputContext } from './components/keyboard/inject';
 import type {
   Mode,
   Tab,
@@ -256,6 +260,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [showTorKeepWarning, setShowTorKeepWarning] = useState<boolean>(false);
   const [torDisableBusy, setTorDisableBusy] = useState<boolean>(false);
   const [kbVisible, setKbVisible] = useState<boolean>(false);
+  const [activeInputContext, setActiveInputContext] = useState<ActiveInputContext>(
+    DEFAULT_ACTIVE_INPUT_CONTEXT
+  );
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
   const [ctxMenuVisible, setCtxMenuVisible] = useState<boolean>(false);
@@ -1007,11 +1014,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   getActiveWebview,
 ]);
 
-  const isEditableElement = useCallback((element: Element | null) => {
-    if (!element) return false;
-    if (element === inputRef.current) return true;
-    return windowHelpers.isEditableElement(element);
+  const getMainInputContext = useCallback((element: Element | null): ActiveInputContext => {
+    if (!element) return DEFAULT_ACTIVE_INPUT_CONTEXT;
+    if (element === inputRef.current) {
+      return { editable: true, kind: 'text', multiline: false };
+    }
+    return windowHelpers.getActiveInputContext(element);
   }, [inputRef]);
+
+  const isEditableElement = useCallback((element: Element | null) => {
+    return getMainInputContext(element).editable;
+  }, [getMainInputContext]);
 
   const isEditableMainNow = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
@@ -1021,9 +1034,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (webviewFocusedRef.current) {
       return false;
     }
-    if (isEditableElement(el)) return true;
+    if (getMainInputContext(el).editable) return true;
     return false;
-  }, [isEditableElement]);
+  }, [getMainInputContext]);
+
+  const probeActiveWebInputContext = useCallback(async (): Promise<ActiveInputContext> => {
+    return probeWebActiveInputContext(getActiveWebview);
+  }, [getActiveWebview]);
 
   const focusLastMainEditable = useCallback(() => {
     const last = lastEditableMainRef.current;
@@ -1059,6 +1076,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const closeKeyboard = useCallback(() => {
     setKbVisible(false);
+    setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
     oskPressGuardRef.current = true;
     window.setTimeout(() => { oskPressGuardRef.current = false; }, 300);
     const active = document.activeElement as HTMLElement | null;
@@ -1074,12 +1092,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       injectTextToMain(text);
       return;
     }
-    const ok = await probeWebEditable(getActiveWebview);
+    const context = await probeActiveWebInputContext();
+    setActiveInputContext(context);
     await injectTextToWeb(text);
-    if (!ok) {
-      // best-effort: even if probe failed, we tried to inject via web
-    }
-  }, [focusLastMainEditable, getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, injectTextToMain, injectTextToWeb, isEditableMainNow, probeActiveWebInputContext]);
 
   const injectBackspace = React.useCallback(async () => {
     if (isEditableMainNow()) {
@@ -2504,10 +2520,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useMobileSoftKeyboard({
     mode,
-    isEditableElement,
+    getMainInputContext,
+    probeWebInputContext: probeActiveWebInputContext,
     getActiveWebview,
     activeId,
     activeViewRevision,
+    setActiveInputContext,
     setKbVisible,
     oskPressGuardRef,
     ctxMenuGuardRef
@@ -3855,7 +3873,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             visible={kbVisible}
             layoutId={kbLayout}
             enabledLayouts={enabledKbLayouts}
-            context="text"
+            context={activeInputContext.kind}
             theme={theme}
             themeVars={themeVars}
             injectText={injectText}

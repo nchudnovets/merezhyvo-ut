@@ -1,4 +1,5 @@
 import { ipc } from '../../services/ipc/ipc';
+import type { ActiveInputContext } from '../../services/window/window';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -1120,27 +1121,147 @@ export function makeWebInjects(
    PROBE (webview): is there an editable element active?
    ========================= */
 
-export async function probeWebEditable(getWebview: GetWebview): Promise<boolean> {
+export async function probeWebActiveInputContext(getWebview: GetWebview): Promise<ActiveInputContext> {
   const wv = getWebview();
-  if (!wv) return false;
+  if (!wv) {
+    return { editable: false, kind: 'text', multiline: false };
+  }
   try {
     const code = `
       (function(){
         try{
-          var el = document.activeElement;
-          if(!el) return false;
-          var tag = (el.tagName||'').toLowerCase();
-          var type = (el.getAttribute ? (el.getAttribute('type')||'').toLowerCase() : '');
           var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
-          return !!(el.isContentEditable || tag==='textarea' || (tag==='input' && !nonText[type]));
-        }catch(e){ return false; }
+          var kindByInputMode = { text:'text', email:'email', numeric:'numeric', decimal:'decimal', tel:'tel', search:'search' };
+          var kindByType = { text:'text', email:'email', number:'numeric', tel:'tel', search:'search' };
+
+          function base() {
+            return { editable: false, kind: 'text', multiline: false };
+          }
+
+	          function isLikelyNumericPattern(pattern) {
+	            if (!pattern) return false;
+            var normalized = String(pattern).trim();
+            if (!normalized) return false;
+            if (/[a-z]/i.test(normalized)) return false;
+            return (
+              normalized.indexOf('\\\\d') !== -1 ||
+              normalized.indexOf('[0-9]') !== -1 ||
+              normalized.indexOf('[\\\\d]') !== -1
+	            );
+	          }
+
+	          function inferInputKind(input) {
+            var inputMode = (input.getAttribute('inputmode') || '').toLowerCase().trim();
+            if (inputMode && kindByInputMode[inputMode]) return kindByInputMode[inputMode];
+
+            var type = (input.getAttribute('type') || input.type || 'text').toLowerCase().trim();
+            if (type && kindByType[type]) return kindByType[type];
+
+            var autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase().trim();
+            if (autocomplete === 'one-time-code') return 'numeric';
+
+	            if (isLikelyNumericPattern(input.getAttribute('pattern') || '')) return 'numeric';
+
+	            return 'text';
+	          }
+
+          function fromElement(el) {
+            if (!el) return base();
+            var tag = (el.tagName || '').toLowerCase();
+
+            if (el.isContentEditable) {
+              var ariaMultiline = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              var dataSingle = (el.getAttribute('data-singleline') || '').toLowerCase();
+              return {
+                editable: true,
+                kind: 'text',
+                multiline: !(ariaMultiline === 'false' || dataSingle === 'true')
+              };
+            }
+
+            if (tag === 'textarea') {
+              if (el.disabled || el.readOnly) return base();
+              return { editable: true, kind: 'text', multiline: true };
+            }
+
+            if (tag === 'input') {
+              var type = (el.getAttribute('type') || '').toLowerCase();
+              if (nonText[type]) return base();
+              if (el.disabled || el.readOnly) return base();
+              return {
+                editable: true,
+                kind: inferInputKind(el),
+                multiline: false
+              };
+            }
+
+            return base();
+          }
+
+          function deepActive() {
+            var current = document.activeElement;
+            var depth = 0;
+            while (current && depth < 5) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              if (current.tagName === 'IFRAME') {
+                try {
+                  var frameDoc = current.contentWindow && current.contentWindow.document;
+                  if (!frameDoc) break;
+                  var next = frameDoc.activeElement;
+                  if (!next || next === current) break;
+                  current = next;
+                  depth++;
+                  continue;
+                } catch (_) {
+                  return { iframeBoundary: true, el: current };
+                }
+              }
+              break;
+            }
+            return { iframeBoundary: false, el: current };
+          }
+
+	          var resolved = deepActive();
+	          if (resolved.iframeBoundary) {
+	            return { editable: true, kind: 'text', multiline: false };
+	          }
+	          return fromElement(resolved.el);
+        }catch(e){
+          return { editable: false, kind: 'text', multiline: false };
+        }
       })();
     `;
     const result = await wv.executeJavaScript(code, false);
-    return Boolean(result);
+    if (!result || typeof result !== 'object') {
+      return { editable: false, kind: 'text', multiline: false };
+    }
+    const candidate = result as Partial<ActiveInputContext>;
+    const kind = candidate.kind;
+    const normalizedKind =
+      kind === 'email' ||
+      kind === 'numeric' ||
+      kind === 'decimal' ||
+      kind === 'tel' ||
+      kind === 'search'
+        ? kind
+        : 'text';
+    return {
+      editable: Boolean(candidate.editable),
+      kind: normalizedKind,
+      multiline: Boolean(candidate.multiline)
+    };
   } catch {
-    return false;
+    return { editable: false, kind: 'text', multiline: false };
   }
+}
+
+export async function probeWebEditable(getWebview: GetWebview): Promise<boolean> {
+  const context = await probeWebActiveInputContext(getWebview);
+  return context.editable;
 }
 
 export type MainInjects = ReturnType<typeof makeMainInjects>;
