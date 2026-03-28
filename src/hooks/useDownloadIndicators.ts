@@ -4,6 +4,7 @@ export type DownloadIndicatorState = 'hidden' | 'active' | 'completed' | 'error'
 
 export type DownloadIndicatorProgress = {
   percent: number | null;
+  fraction: number | null;
   indeterminate: boolean;
   activeCount: number;
 };
@@ -30,6 +31,7 @@ export const useDownloadIndicators = () => {
     useState<DownloadIndicatorState>('hidden');
   const [downloadIndicatorProgress, setDownloadIndicatorProgress] = useState<DownloadIndicatorProgress>({
     percent: null,
+    fraction: null,
     indeterminate: false,
     activeCount: 0
   });
@@ -91,7 +93,7 @@ export const useDownloadIndicators = () => {
     const updateAggregatedProgress = (): number => {
       const activeIds = getActiveIds();
       if (activeIds.length === 0) {
-        setDownloadIndicatorProgress({ percent: null, indeterminate: false, activeCount: 0 });
+        setDownloadIndicatorProgress({ percent: null, fraction: null, indeterminate: false, activeCount: 0 });
         return 0;
       }
       let totalReceived = 0;
@@ -108,12 +110,12 @@ export const useDownloadIndicators = () => {
           hasUnknownTotal = true;
         }
       }
-      const percent =
-        !hasUnknownTotal && totalExpected > 0
-          ? Math.max(0, Math.min(100, Math.round((totalReceived / totalExpected) * 100)))
-          : null;
+      const fraction =
+        !hasUnknownTotal && totalExpected > 0 ? Math.max(0, Math.min(1, totalReceived / totalExpected)) : null;
+      const percent = fraction != null ? Math.max(0, Math.min(100, Math.round(fraction * 100))) : null;
       setDownloadIndicatorProgress({
         percent,
+        fraction,
         indeterminate: percent === null,
         activeCount: activeIds.length
       });
@@ -221,7 +223,7 @@ export const useDownloadIndicators = () => {
       stateMap.clear();
       progressMap.clear();
       batchHasFailureRef.current = false;
-      setDownloadIndicatorProgress({ percent: null, indeterminate: false, activeCount: 0 });
+      setDownloadIndicatorProgress({ percent: null, fraction: null, indeterminate: false, activeCount: 0 });
       setDownloadIndicatorState('hidden');
     };
   }, [clearCompletionSettleTimer, clearDownloadIndicatorTimer]);

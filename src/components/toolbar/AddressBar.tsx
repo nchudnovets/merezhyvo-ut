@@ -167,7 +167,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const progressWidth =
     downloadIndicatorState === 'completed'
       ? 100
-      : downloadIndicatorProgress.percent ?? 40;
+      : downloadIndicatorProgress.fraction != null
+      ? downloadIndicatorProgress.fraction * 100
+      : 40;
   const progressLineTrackStyle: CSSProperties = {
     position: 'absolute',
     left: 0,
