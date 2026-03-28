@@ -119,44 +119,94 @@ export const useMobileSoftKeyboard = ({
           window.__mzrFocusBridgeInstalled = true;
 
           var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
-          function isEditable(el){
-            if(!el) return false;
-            if(el.isContentEditable) return true;
-            var tag = (el.tagName||'').toLowerCase();
-            if(tag==='textarea') return !el.disabled && !el.readOnly;
-            if(tag==='input'){
-              var type = (el.getAttribute('type')||'').toLowerCase();
-              if(nonText.has(type)) return false;
-              return !el.disabled && !el.readOnly;
-            }
-            return false;
-          }
+	          function isEditable(el){
+	            if(!el) return false;
+	            if(el.isContentEditable) return true;
+	            var tag = (el.tagName||'').toLowerCase();
+	            if(tag==='textarea') return !el.disabled && !el.readOnly;
+	            if(tag==='input'){
+	              var type = (el.getAttribute('type')||'').toLowerCase();
+	              if(nonText.has(type)) return false;
+	              return !el.disabled && !el.readOnly;
+	            }
+	            return false;
+	          }
 
-          function markLast(el){
-            try { window.__mzrLastEditable = el; } catch(e) {}
-          }
+	          function deepActive(startEl){
+	            var current = startEl || document.activeElement;
+	            var depth = 0;
+	            while (current && depth < 5) {
+	              if (current.shadowRoot && current.shadowRoot.activeElement) {
+	                current = current.shadowRoot.activeElement;
+	                depth++;
+	                continue;
+	              }
+	              if ((current.tagName || '').toUpperCase() === 'IFRAME') {
+	                try {
+	                  var frameDoc = current.contentWindow && current.contentWindow.document;
+	                  if (!frameDoc) {
+	                    return { iframeBoundary: true, el: current };
+	                  }
+	                  var next = frameDoc.activeElement;
+	                  if (!next || next === current) {
+	                    return { iframeBoundary: true, el: current };
+	                  }
+	                  current = next;
+	                  depth++;
+	                  continue;
+	                } catch(_) {
+	                  return { iframeBoundary: true, el: current };
+	                }
+	              }
+	              break;
+	            }
+	            return { iframeBoundary: false, el: current };
+	          }
 
-          function notify(flag){
-            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
-          }
+	          function resolveEditableState(startEl){
+	            var resolved = deepActive(startEl);
+	            if (resolved.iframeBoundary) return { editable: true, el: resolved.el };
+	            if (isEditable(resolved.el)) return { editable: true, el: resolved.el };
+	            if (startEl !== document.activeElement) {
+	              var activeResolved = deepActive(document.activeElement);
+	              if (activeResolved.iframeBoundary) return { editable: true, el: activeResolved.el };
+	              if (isEditable(activeResolved.el)) return { editable: true, el: activeResolved.el };
+	            }
+	            return { editable: false, el: resolved.el };
+	          }
 
-          document.addEventListener('focusin', function(ev){
-            if (isEditable(ev.target)) { markLast(ev.target); notify(true); }
-          }, true);
+	          function markLast(el){
+	            try { window.__mzrLastEditable = el; } catch(e) {}
+	          }
 
-          document.addEventListener('focusout', function(ev){
-            if (!isEditable(ev.target)) return;
-            setTimeout(function(){
-              var still = isEditable(document.activeElement);
-              if (still) markLast(document.activeElement);
-              notify(still);
-            }, 0);
-          }, true);
+	          function notify(flag){
+	            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
+	          }
 
-          document.addEventListener('pointerdown', function(ev){
-            var t = ev.target;
-            if (isEditable(t)) { markLast(t); notify(true); }
-          }, true);
+	          document.addEventListener('focusin', function(ev){
+	            var state = resolveEditableState(ev.target);
+	            if (state.editable) {
+	              markLast(state.el || ev.target);
+	              notify(true);
+	            }
+	          }, true);
+
+	          document.addEventListener('focusout', function(ev){
+	            setTimeout(function(){
+	              var state = resolveEditableState(document.activeElement);
+	              var still = state.editable;
+	              if (still) markLast(state.el || document.activeElement);
+	              notify(still);
+	            }, 0);
+	          }, true);
+
+	          document.addEventListener('pointerdown', function(ev){
+	            var state = resolveEditableState(ev.target);
+	            if (state.editable) {
+	              markLast(state.el || ev.target);
+	              notify(true);
+	            }
+	          }, true);
 
            // === Merezhyvo: custom <select> overlay for mobile ===
           (function(){

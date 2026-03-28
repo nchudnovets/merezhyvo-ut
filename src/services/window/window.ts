@@ -55,6 +55,34 @@ const isLikelyNumericPattern = (pattern: string): boolean => {
   );
 };
 
+const OTP_HINT_TOKENS = [
+  'otp',
+  'one-time',
+  'verification',
+  'verify',
+  'code',
+  'pin',
+  'passcode',
+  '2fa',
+  'auth',
+  'sms',
+  'captcha'
+];
+
+const hasOtpLikeHint = (input: HTMLInputElement): boolean => {
+  const hint = [
+    input.getAttribute('id') || '',
+    input.getAttribute('name') || '',
+    input.getAttribute('aria-label') || '',
+    input.getAttribute('placeholder') || '',
+    input.getAttribute('autocomplete') || ''
+  ]
+    .join(' ')
+    .toLowerCase();
+  if (!hint) return false;
+  return OTP_HINT_TOKENS.some((token) => hint.includes(token));
+};
+
 const inferInputKind = (input: HTMLInputElement): ActiveInputKind => {
   const inputMode = (input.getAttribute('inputmode') || '').toLowerCase().trim();
   if (inputMode && INPUTMODE_KIND[inputMode]) {
@@ -77,7 +105,12 @@ const inferInputKind = (input: HTMLInputElement): ActiveInputKind => {
   }
 
   const maxLength = Number(input.getAttribute('maxlength') || input.maxLength || 0);
-  if (Number.isFinite(maxLength) && maxLength > 0 && maxLength <= 8) {
+  if (
+    Number.isFinite(maxLength) &&
+    maxLength > 0 &&
+    maxLength <= 8 &&
+    hasOtpLikeHint(input)
+  ) {
     return 'numeric';
   }
 

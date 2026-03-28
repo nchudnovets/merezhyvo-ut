@@ -1138,8 +1138,8 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
             return { editable: false, kind: 'text', multiline: false };
           }
 
-          function isLikelyNumericPattern(pattern) {
-            if (!pattern) return false;
+	          function isLikelyNumericPattern(pattern) {
+	            if (!pattern) return false;
             var normalized = String(pattern).trim();
             if (!normalized) return false;
             if (/[a-z]/i.test(normalized)) return false;
@@ -1147,10 +1147,26 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
               normalized.indexOf('\\\\d') !== -1 ||
               normalized.indexOf('[0-9]') !== -1 ||
               normalized.indexOf('[\\\\d]') !== -1
-            );
-          }
+	            );
+	          }
 
-          function inferInputKind(input) {
+	          var otpHintTokens = ['otp','one-time','verification','verify','code','pin','passcode','2fa','auth','sms','captcha'];
+	          function hasOtpLikeHint(input) {
+	            var hint = [
+	              input.getAttribute('id') || '',
+	              input.getAttribute('name') || '',
+	              input.getAttribute('aria-label') || '',
+	              input.getAttribute('placeholder') || '',
+	              input.getAttribute('autocomplete') || ''
+	            ].join(' ').toLowerCase();
+	            if (!hint) return false;
+	            for (var i = 0; i < otpHintTokens.length; i++) {
+	              if (hint.indexOf(otpHintTokens[i]) !== -1) return true;
+	            }
+	            return false;
+	          }
+
+	          function inferInputKind(input) {
             var inputMode = (input.getAttribute('inputmode') || '').toLowerCase().trim();
             if (inputMode && kindByInputMode[inputMode]) return kindByInputMode[inputMode];
 
@@ -1160,13 +1176,13 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
             var autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase().trim();
             if (autocomplete === 'one-time-code') return 'numeric';
 
-            if (isLikelyNumericPattern(input.getAttribute('pattern') || '')) return 'numeric';
+	            if (isLikelyNumericPattern(input.getAttribute('pattern') || '')) return 'numeric';
 
-            var maxLength = Number(input.getAttribute('maxlength') || input.maxLength || 0);
-            if (maxLength > 0 && maxLength <= 8) return 'numeric';
+	            var maxLength = Number(input.getAttribute('maxlength') || input.maxLength || 0);
+	            if (maxLength > 0 && maxLength <= 8 && hasOtpLikeHint(input)) return 'numeric';
 
-            return 'text';
-          }
+	            return 'text';
+	          }
 
           function fromElement(el) {
             if (!el) return base();
@@ -1228,11 +1244,11 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
             return { iframeBoundary: false, el: current };
           }
 
-          var resolved = deepActive();
-          if (resolved.iframeBoundary) {
-            return { editable: true, kind: 'numeric', multiline: false };
-          }
-          return fromElement(resolved.el);
+	          var resolved = deepActive();
+	          if (resolved.iframeBoundary) {
+	            return { editable: true, kind: 'text', multiline: false };
+	          }
+	          return fromElement(resolved.el);
         }catch(e){
           return { editable: false, kind: 'text', multiline: false };
         }
