@@ -439,6 +439,120 @@ const handleKeyInEditableFrame = async (
   }
 };
 
+const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> => {
+  try {
+    const found = await findEditableFrame(wc);
+    const frame = found.frame;
+    if (!frame) return false;
+    const result = await frame.executeJavaScript(
+      `(function(){
+        try {
+          var el = document.activeElement;
+          if (!el) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea' || tag === 'input') {
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            if (typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+              el.setSelectionRange(el.selectionStart, el.selectionEnd);
+            }
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            return true;
+          }
+          if (el.isContentEditable) {
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            return true;
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      })();`,
+      true
+    );
+    return result === true;
+  } catch {
+    return false;
+  }
+};
+
+const restoreCaretInTopDocument = async (wc: WebContents): Promise<boolean> => {
+  try {
+    const result = await wc.executeJavaScript(
+      `(function(){
+        try {
+          var el = document.activeElement;
+          if (!el) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          var isEditable =
+            !!el.isContentEditable ||
+            tag === 'textarea' ||
+            tag === 'input';
+          if (!isEditable) return false;
+          try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+          if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+            el.setSelectionRange(el.selectionStart, el.selectionEnd);
+          }
+          try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+          return true;
+        } catch (error) {
+          return false;
+        }
+      })();`,
+      false
+    );
+    return result === true;
+  } catch {
+    return false;
+  }
+};
+
+const scheduleCaretRestoreInTopDocument = async (wc: WebContents): Promise<void> => {
+  try {
+    await wc.executeJavaScript(
+      `(function(){
+        try {
+          if (window.__mzrCaretRestoreTimerIds && Array.isArray(window.__mzrCaretRestoreTimerIds)) {
+            for (var i = 0; i < window.__mzrCaretRestoreTimerIds.length; i++) {
+              try { window.clearTimeout(window.__mzrCaretRestoreTimerIds[i]); } catch (_) {}
+            }
+          }
+          window.__mzrCaretRestoreTimerIds = [];
+          var delays = [0, 24, 80, 180];
+          function isEditable(el) {
+            if (!el) return false;
+            if (el.isContentEditable) return true;
+            var tag = (el.tagName || '').toLowerCase();
+            return tag === 'textarea' || tag === 'input';
+          }
+          function restore() {
+            try {
+              var el = document.activeElement;
+              if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+                el = window.__mzrLastEditable;
+              }
+              if (!isEditable(el)) return;
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              var tag = (el.tagName || '').toLowerCase();
+              if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(el.selectionStart, el.selectionEnd);
+              }
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            } catch (_) {}
+          }
+          for (var d = 0; d < delays.length; d++) {
+            var id = window.setTimeout(restore, delays[d]);
+            window.__mzrCaretRestoreTimerIds.push(id);
+          }
+        } catch (_) {}
+      })();`,
+      false
+    );
+  } catch {
+    // noop
+  }
+};
+
 const getTorVersionCandidates = (): string[] => {
   const cwd = process.cwd();
   const candidates = [
@@ -2430,18 +2544,23 @@ ipcMain.handle(
     // and wc.insertText() was unstable in this scenario on UT.
     if (preferInsertText) {
       const frameInsert = await insertTextIntoFocusedFrame(wc, payload);
-      if (frameInsert.ok) return { ok: true };
+      if (frameInsert.ok) {
+        await restoreCaretInEditableFrame(wc);
+        return { ok: true };
+      }
     }
     // Keep complex Unicode sequences (emoji with ZWJ/VS/modifiers, flags, etc.) atomic.
     // Sending them as per-char input events can split sequences into stray symbols.
     if (graphemes.length > 1) {
       wc.insertText(payload);
+      await scheduleCaretRestoreInTopDocument(wc);
       return { ok: true };
     }
     // Single printable character: use trusted 'char' input event.
     for (const ch of graphemes) {
       wc.sendInputEvent({ type: 'char', keyCode: ch });
     }
+    await scheduleCaretRestoreInTopDocument(wc);
     return { ok: true };
   }
 );
@@ -2474,6 +2593,7 @@ ipcMain.handle(
     if (preferFrameDom && (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter')) {
       const frameKey = await handleKeyInEditableFrame(wc, key);
       if (frameKey.ok) {
+        await restoreCaretInEditableFrame(wc);
         return { ok: true };
       }
     }
@@ -2491,6 +2611,7 @@ ipcMain.handle(
     const down: KeyboardInputEvent = { type: 'keyDown', keyCode, modifiers };
     wc.sendInputEvent(down);
     wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
+    await scheduleCaretRestoreInTopDocument(wc);
 
     return { ok: true };
   }

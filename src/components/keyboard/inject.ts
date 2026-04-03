@@ -394,6 +394,23 @@ export function makeWebInjects(
     const wv = getActiveWebview();
     return wv ? wv.getWebContentsId() : null;
   };
+  const focusWebviewElement = (): void => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    try {
+      wv.focus();
+    } catch {
+      // noop
+    }
+  };
+  const scheduleWebviewRefocus = (): void => {
+    focusWebviewElement();
+    for (const delay of [0, 24, 80]) {
+      window.setTimeout(() => {
+        focusWebviewElement();
+      }, delay);
+    }
+  };
   const shouldUseDomInjection = (): boolean => {
     try {
       const wv = getActiveWebview();
@@ -510,8 +527,11 @@ export function makeWebInjects(
     }
     const wcId = getWcId();
     if (wcId == null) return false;
-    await ensureEditableFocus();
+    const hadEditableFocus = await ensureEditableFocus();
     await ipc.osk.char(wcId, String(text));
+    if (hadEditableFocus) {
+      scheduleWebviewRefocus();
+    }
     // Ensure focus stays inside the active editable
     await ensureEditableFocus();
     return true;
@@ -520,8 +540,14 @@ export function makeWebInjects(
   const sendKeyTrusted = async (key: string): Promise<boolean> => {
     const wcId = getWcId();
     if (wcId == null) return false;
-    await ensureEditableFocus();
+    const hadEditableFocus = await ensureEditableFocus();
+    if (hadEditableFocus) {
+      focusWebviewElement();
+    }
     await ipc.osk.key(wcId, key);
+    if (hadEditableFocus) {
+      scheduleWebviewRefocus();
+    }
     // Ensure focus stays inside the active editable
     await ensureEditableFocus();
     return true;
