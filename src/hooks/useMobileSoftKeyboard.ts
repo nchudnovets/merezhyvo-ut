@@ -449,13 +449,57 @@ export const useMobileSoftKeyboard = ({
       } catch {}
     };
     const syncTimers = new Set<number>();
+    let syncInFlight = false;
+    let transientPollTimer: number | null = null;
+    let transientPollStopTimer: number | null = null;
+    const inactiveTimers = new Set<number>();
 
     const syncWebInputContext = () => {
       void (async () => {
+        if (syncInFlight) return;
         if (ctxMenuGuardRef?.current) return;
-        const ctx = await probeWebInputContext();
-        setActiveInputContext(ctx);
-        setKbVisible(ctx.editable);
+        syncInFlight = true;
+        try {
+          const ctx = await probeWebInputContext();
+          setActiveInputContext(ctx);
+          setKbVisible(ctx.editable);
+          if (ctx.editable) {
+            if (transientPollTimer != null) {
+              window.clearInterval(transientPollTimer);
+              transientPollTimer = null;
+            }
+            if (transientPollStopTimer != null) {
+              window.clearTimeout(transientPollStopTimer);
+              transientPollStopTimer = null;
+            }
+          }
+        } finally {
+          syncInFlight = false;
+        }
+      })();
+    };
+
+    const syncWebInputContextPositive = () => {
+      void (async () => {
+        if (syncInFlight) return;
+        if (ctxMenuGuardRef?.current) return;
+        syncInFlight = true;
+        try {
+          const ctx = await probeWebInputContext();
+          if (!ctx.editable) return;
+          setActiveInputContext(ctx);
+          setKbVisible(true);
+          if (transientPollTimer != null) {
+            window.clearInterval(transientPollTimer);
+            transientPollTimer = null;
+          }
+          if (transientPollStopTimer != null) {
+            window.clearTimeout(transientPollStopTimer);
+            transientPollStopTimer = null;
+          }
+        } finally {
+          syncInFlight = false;
+        }
       })();
     };
 
@@ -464,9 +508,60 @@ export const useMobileSoftKeyboard = ({
       delays.forEach((delay) => {
         const timer = window.setTimeout(() => {
           syncTimers.delete(timer);
-          syncWebInputContext();
+          syncWebInputContextPositive();
         }, delay);
         syncTimers.add(timer);
+      });
+    };
+
+    const stopTransientPolling = () => {
+      if (transientPollTimer != null) {
+        window.clearInterval(transientPollTimer);
+        transientPollTimer = null;
+      }
+      if (transientPollStopTimer != null) {
+        window.clearTimeout(transientPollStopTimer);
+        transientPollStopTimer = null;
+      }
+    };
+
+    const startTransientPolling = () => {
+      if (ctxMenuGuardRef?.current) return;
+      if (transientPollTimer != null) return;
+      transientPollTimer = window.setInterval(() => {
+        syncWebInputContextPositive();
+      }, 220);
+      transientPollStopTimer = window.setTimeout(() => {
+        stopTransientPolling();
+      }, 4000);
+    };
+
+    const scheduleInactiveProbe = () => {
+      const delays = [90, 220, 420];
+      delays.forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          inactiveTimers.delete(timer);
+          if (
+            document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+            document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+          ) {
+            return;
+          }
+          if (oskPressGuardRef.current) return;
+          if (ctxMenuGuardRef?.current) return;
+          void (async () => {
+            const ctx = await probeWebInputContext();
+            if (ctx.editable) {
+              setActiveInputContext(ctx);
+              setKbVisible(true);
+              return;
+            }
+            if (delay !== delays[delays.length - 1]) return;
+            setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
+            setKbVisible(false);
+          })();
+        }, delay);
+        inactiveTimers.add(timer);
       });
     };
 
@@ -483,8 +578,7 @@ export const useMobileSoftKeyboard = ({
           return;
         }
         if (oskPressGuardRef.current) return;
-        setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
-        setKbVisible(false);
+        scheduleInactiveProbe();
       }
     };
 
@@ -492,7 +586,21 @@ export const useMobileSoftKeyboard = ({
       if (oskPressGuardRef.current) return;
       if (ctxMenuGuardRef?.current) return;
       scheduleSyncWebInputContext();
+      startTransientPolling();
     };
+
+    const positivePollingTimer = window.setInterval(() => {
+      if (oskPressGuardRef.current) return;
+      if (ctxMenuGuardRef?.current) return;
+      if (
+        document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+        document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+      ) {
+        return;
+      }
+      if (document.activeElement !== wv) return;
+      syncWebInputContextPositive();
+    }, 320);
 
     install();
     wv.addEventListener('dom-ready', install);
@@ -502,10 +610,18 @@ export const useMobileSoftKeyboard = ({
     wv.addEventListener('focus', onFocusFallback);
     wv.addEventListener('mousedown', onFocusFallback as EventListener);
     wv.addEventListener('pointerdown', onFocusFallback as EventListener);
+    wv.addEventListener('touchstart', onFocusFallback as EventListener);
+    wv.addEventListener('mouseup', onFocusFallback as EventListener);
+    wv.addEventListener('click', onFocusFallback as EventListener);
+    wv.addEventListener('touchend', onFocusFallback as EventListener);
 
     return () => {
       syncTimers.forEach((timer) => window.clearTimeout(timer));
       syncTimers.clear();
+      inactiveTimers.forEach((timer) => window.clearTimeout(timer));
+      inactiveTimers.clear();
+      stopTransientPolling();
+      window.clearInterval(positivePollingTimer);
       wv.removeEventListener('dom-ready', install);
       wv.removeEventListener('did-navigate', install);
       wv.removeEventListener('did-navigate-in-page', install);
@@ -513,6 +629,10 @@ export const useMobileSoftKeyboard = ({
       wv.removeEventListener('focus', onFocusFallback);
       wv.removeEventListener('mousedown', onFocusFallback as EventListener);
       wv.removeEventListener('pointerdown', onFocusFallback as EventListener);
+      wv.removeEventListener('touchstart', onFocusFallback as EventListener);
+      wv.removeEventListener('mouseup', onFocusFallback as EventListener);
+      wv.removeEventListener('click', onFocusFallback as EventListener);
+      wv.removeEventListener('touchend', onFocusFallback as EventListener);
     };
   }, [
     mode,

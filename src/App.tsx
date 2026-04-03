@@ -3887,15 +3887,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onHeightChange={handleKeyboardHeightChange}
             onInteractionStart={() => {
               oskPressGuardRef.current = true;
-              if (!isEditableMainNow()) {
-                try { getActiveWebview()?.focus?.(); } catch {}
-              }
             }}
             onInteractionEnd={() => {
               window.setTimeout(() => { oskPressGuardRef.current = false; }, 150);
-              if (!isEditableMainNow()) {
-                try { getActiveWebview()?.focus?.(); } catch {}
-              }
             }}
           />
       <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />
