@@ -162,11 +162,13 @@ const AddressBar: React.FC<AddressBarProps> = ({
     downloadIndicatorState === 'completed'
       ? '#22c55e'
       : downloadIndicatorState === 'error'
-      ? '#f97316'
+      ? 'var(--mzr-danger)'
       : 'var(--mzr-accent-strong)';
   const progressWidth =
     downloadIndicatorState === 'completed'
       ? 100
+      : downloadIndicatorState === 'error'
+      ? Math.max(0, Math.min(100, downloadIndicatorProgress.percent ?? 0))
       : downloadIndicatorProgress.fraction != null
       ? downloadIndicatorProgress.fraction * 100
       : 40;
@@ -175,9 +177,9 @@ const AddressBar: React.FC<AddressBarProps> = ({
     left: 0,
     right: 0,
     bottom: 0,
-    height: mode === 'mobile' ? 4 : 2,
+    height: mode === 'mobile' ? 5 : 3,
     borderRadius: 999,
-    background: 'var(--mzr-divider)',
+    background: 'rgba(148, 163, 184, 0.34)',
     overflow: 'hidden',
     pointerEvents: 'none'
   };
@@ -187,13 +189,19 @@ const AddressBar: React.FC<AddressBarProps> = ({
     width: `${progressWidth}%`,
     borderRadius: 999,
     background: barColor,
+    boxShadow: `0 0 8px ${barColor}`,
     transition: 'width 0.2s ease',
     ...(downloadIndicatorState === 'active' && downloadIndicatorProgress.indeterminate ? { width: '55%' } : {})
   };
   const progressTextStyle: CSSProperties = {
     minWidth: mode === 'mobile' ? 84 : 36,
     textAlign: 'right',
-    color: 'var(--mzr-text-primary)',
+    color:
+      downloadIndicatorState === 'completed'
+        ? '#22c55e'
+        : downloadIndicatorState === 'error'
+        ? 'var(--mzr-danger)'
+        : 'var(--mzr-text-primary)',
     fontWeight: 700,
     fontSize: mode === 'mobile' ? baseFontSize : 11,
     lineHeight: 1,
@@ -203,7 +211,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
     downloadIndicatorState === 'completed'
       ? '100%'
       : downloadIndicatorState === 'error'
-      ? 'ERR'
+      ? `${Math.max(0, Math.min(100, downloadIndicatorProgress.percent ?? 0))}%`
       : downloadIndicatorProgress.percent != null
       ? `${downloadIndicatorProgress.percent}%`
       : `...`;

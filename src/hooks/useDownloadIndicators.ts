@@ -41,6 +41,7 @@ export const useDownloadIndicators = () => {
   const downloadStatesRef = useRef<Map<string, 'queued' | 'downloading' | 'completed' | 'failed'>>(new Map());
   const downloadProgressMapRef = useRef<Map<string, { received: number; total: number }>>(new Map());
   const batchHasFailureRef = useRef<boolean>(false);
+  const lastMeasuredPercentRef = useRef<number | null>(null);
   const downloadIndicatorTimerRef = useRef<number | null>(null);
   const completionSettleTimerRef = useRef<number | null>(null);
 
@@ -113,6 +114,9 @@ export const useDownloadIndicators = () => {
       const fraction =
         !hasUnknownTotal && totalExpected > 0 ? Math.max(0, Math.min(1, totalReceived / totalExpected)) : null;
       const percent = fraction != null ? Math.max(0, Math.min(100, Math.round(fraction * 100))) : null;
+      if (percent != null) {
+        lastMeasuredPercentRef.current = percent;
+      }
       setDownloadIndicatorProgress({
         percent,
         fraction,
@@ -149,6 +153,7 @@ export const useDownloadIndicators = () => {
       if (state === 'queued' || state === 'downloading') {
         if (previousActiveCount === 0) {
           batchHasFailureRef.current = false;
+          lastMeasuredPercentRef.current = null;
         }
         clearCompletionSettleTimer();
         clearDownloadIndicatorTimer();
@@ -184,6 +189,15 @@ export const useDownloadIndicators = () => {
           }, 350);
         } else {
           clearDownloadIndicatorTimer();
+          setDownloadIndicatorProgress((prev) => {
+            const failedPercent = Math.max(0, Math.min(100, lastMeasuredPercentRef.current ?? prev.percent ?? 0));
+            return {
+              percent: failedPercent,
+              fraction: failedPercent / 100,
+              indeterminate: false,
+              activeCount: 0
+            };
+          });
           setDownloadIndicatorState('error');
         }
       }
@@ -223,6 +237,7 @@ export const useDownloadIndicators = () => {
       stateMap.clear();
       progressMap.clear();
       batchHasFailureRef.current = false;
+      lastMeasuredPercentRef.current = null;
       setDownloadIndicatorProgress({ percent: null, fraction: null, indeterminate: false, activeCount: 0 });
       setDownloadIndicatorState('hidden');
     };
