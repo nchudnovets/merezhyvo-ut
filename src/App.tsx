@@ -145,7 +145,13 @@ const formatDisplayUrl = (value: string): string => {
 
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
 
-const buildWebviewBaseCss = (vars: Record<string, string>) => `
+const buildWebviewBaseCss = (vars: Record<string, string>, mode: 'mobile' | 'desktop') => {
+  // Mobile: darker and more visible caret
+  const caretColor = mode === 'mobile'
+    ? (vars['color-scheme'] === 'light' ? '#000000' : '#ffffff')
+    : (vars['accent-strong'] ?? 'var(--mzr-accent-strong)');
+
+  return `
   :root, html { color-scheme: ${vars['color-scheme'] ?? 'dark'}; color:#0f111a; background:#e5e7eb; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: ${vars['scrollbar-track'] ?? 'var(--mzr-scrollbar-track)'}; }
@@ -156,11 +162,11 @@ const buildWebviewBaseCss = (vars: Record<string, string>) => `
   }
   ::-webkit-scrollbar-thumb:hover { background: ${vars['scrollbar-thumb-hover'] ?? vars['scrollbar-thumb'] ?? 'var(--mzr-accent-strong)'}; }
   input, textarea, [contenteditable='true'] {
-    caret-color: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'}; !important;
+    caret-color: ${caretColor}; !important;
     caret-shape: block !important;
   }
   :root {
-    --mzr-caret-accent: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'};
+    --mzr-caret-accent: ${caretColor};
     --mzr-focus-ring:   ${vars['focus-ring'] ?? '#60a5fa'};
     --mzr-sel-bg:       ${vars['selection-bg'] ?? 'rgba(34,211,238,.28)'};
     --mzr-sel-fg:       ${vars['selection-fg'] ?? 'var(--mzr-surface-muted)'};
@@ -193,6 +199,7 @@ const buildWebviewBaseCss = (vars: Record<string, string>) => `
     color: var(--mzr-sel-fg) !important;
   }
 `;
+};
 
 
 const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
@@ -332,7 +339,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
   const { theme, setTheme } = useTheme('dark');
   const themeVars = useMemo(() => getThemeVars(theme), [theme]);
-  const webviewBaseCss = useMemo(() => buildWebviewBaseCss(themeVars), [themeVars]);
+  const webviewBaseCss = useMemo(() => buildWebviewBaseCss(themeVars, mode), [themeVars, mode]);
   const webviewBaseCssRef = useRef<string>(webviewBaseCss);
   useEffect(() => { webviewBaseCssRef.current = webviewBaseCss; }, [webviewBaseCss]);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
