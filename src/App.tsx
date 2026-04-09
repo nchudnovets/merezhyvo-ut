@@ -2519,7 +2519,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
         const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
         if (start === end) {
-          node.scrollLeft = node.scrollWidth;
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.font = window.getComputedStyle(node).font;
+            const cursorPx = ctx.measureText(node.value.substring(0, end)).width;
+            const visibleWidth = node.clientWidth;
+            if (cursorPx < node.scrollLeft) {
+              node.scrollLeft = cursorPx;
+            } else if (cursorPx > node.scrollLeft + visibleWidth) {
+              node.scrollLeft = cursorPx - visibleWidth;
+            }
+          }
         }
       } catch {}
     });
