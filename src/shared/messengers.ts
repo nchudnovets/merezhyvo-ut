@@ -1,11 +1,11 @@
 import type { MessengerDefinition, MessengerId, MessengerSettings } from '../types/models';
 
 export const DEFAULT_MESSENGERS: MessengerDefinition[] = [
-  {
-    id: 'whatsapp',
-    title: 'WhatsApp',
-    url: 'https://web.whatsapp.com'
-  },
+  //{
+  //  id: 'whatsapp',
+  //  title: 'WhatsApp',
+  //  url: 'https://web.whatsapp.com'
+  //},
   {
     id: 'telegram',
     title: 'Telegram',
