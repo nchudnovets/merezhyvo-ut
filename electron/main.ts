@@ -1067,6 +1067,15 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
 const normalizeAddress = (value: string | null | undefined): string => {
   if (!value || !value.trim()) return DEFAULT_URL;
   const trimmed = value.trim();
+  const lowered = trimmed.replace(/\\/g, '/').toLowerCase();
+
+  if (
+    lowered.includes('dist-electron/main.js') ||
+    lowered.endsWith('/main.js') ||
+    lowered === 'main.js'
+  ) {
+    return DEFAULT_URL;
+  }
 
   if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed;
 
@@ -1247,7 +1256,7 @@ const openCtxWindowFor = async (
 
   try {
     const currentUrl = targetWc.getURL?.() ?? '';
-    if (currentUrl && isCtxtExcludedSite(currentUrl)) {
+    if (currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
       return;
     }
   } catch {
@@ -1291,6 +1300,17 @@ const parseMode = (raw: string | null | undefined): ContextMenuMode | null => {
   return value === 'desktop' || value === 'mobile' ? (value as ContextMenuMode) : null;
 };
 
+const isInternalLaunchArg = (raw: string | null | undefined): boolean => {
+  if (!raw) return false;
+  const normalized = raw.replace(/\\/g, '/').trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes('dist-electron/main.js') ||
+    normalized.endsWith('/main.js') ||
+    normalized === 'main.js'
+  );
+};
+
 const parseLaunchConfig = (): LaunchConfig => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
@@ -1305,6 +1325,7 @@ const parseLaunchConfig = (): LaunchConfig => {
 
   for (const rawArg of args) {
     if (!rawArg) continue;
+    if (isInternalLaunchArg(rawArg)) continue;
     if (rawArg === '--force-dark') {
       forceDark = true;
       continue;
@@ -1480,7 +1501,7 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   
   contents.on('context-menu', (event, params) => {
     const url = contents.getURL();
-    if (isCtxtExcludedSite(url)) {
+    if (isCtxtExcludedSite(url, { isEditable: Boolean(params?.isEditable) })) {
       event.preventDefault(); // Don't show our menu for Telegram Web
       return;
     }

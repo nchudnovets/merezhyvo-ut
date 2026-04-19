@@ -1291,6 +1291,30 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     }
   });
 
+  const ensureWindowVisible = () => {
+    if (typedWin.isDestroyed() || typedWin.isVisible()) return;
+    try {
+      if (initialMode === 'mobile') {
+        applyMobileBounds(typedWin);
+      } else if (fullscreen) {
+        typedWin.setFullScreen(true);
+      }
+    } catch {
+      // noop
+    }
+    try { typedWin.show(); } catch {}
+    try { typedWin.focus(); } catch {}
+  };
+
+  typedWin.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      ensureWindowVisible();
+    }, 50);
+  });
+  setTimeout(() => {
+    ensureWindowVisible();
+  }, 1500);
+
   const rebalanceBounds = () => {
     if (initialMode === 'mobile') applyMobileBounds(typedWin);
   };

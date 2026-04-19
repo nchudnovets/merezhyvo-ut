@@ -41,6 +41,15 @@ export const parseStartUrl = (): StartParams => {
 export const normalizeAddress = (value: string): string => {
   if (!value || !value.trim()) return DEFAULT_URL;
   const trimmed = value.trim();
+  const lowered = trimmed.replace(/\\/g, '/').toLowerCase();
+
+  if (
+    lowered.includes('dist-electron/main.js') ||
+    lowered.endsWith('/main.js') ||
+    lowered === 'main.js'
+  ) {
+    return DEFAULT_URL;
+  }
 
   if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed; // already includes a scheme
   if (trimmed.includes(' ')) return `https://duckduckgo.com/?q=${encodeURIComponent(trimmed)}`;
