@@ -447,6 +447,59 @@ const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> =>
     const result = await frame.executeJavaScript(
       `(function(){
         try {
+          function ensureCaretVisible(el) {
+            try {
+              var tag = (el.tagName || '').toLowerCase();
+              if (tag !== 'textarea' && tag !== 'input') return;
+              var value = String(el.value || '');
+              var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+              var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+              var pos = Math.max(start, end);
+              var style = getComputedStyle(el);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (!ctx) return;
+              var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+              if (font) ctx.font = font;
+              var before = value.slice(0, pos);
+              var measureText = tag === 'textarea' ? (before.split('\n').pop() || '') : before;
+              var caretX = ctx.measureText(measureText).width;
+              var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+              var viewLeft = el.scrollLeft;
+              var viewRight = viewLeft + visibleWidth;
+              if (caretX <= 1) {
+                el.scrollLeft = 0;
+              } else if (caretX < viewLeft + 2) {
+                el.scrollLeft = Math.max(0, caretX - 4);
+              } else if (caretX > viewRight - 2) {
+                el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+              }
+              if (tag === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var lineIndex = before.split('\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = el.clientHeight - padB - borderB;
+                var viewTop = el.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  el.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            } catch (_) {}
+          }
+
           var el = document.activeElement;
           if (!el) return false;
           var tag = (el.tagName || '').toLowerCase();
@@ -455,6 +508,7 @@ const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> =>
             if (typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
               el.setSelectionRange(el.selectionStart, el.selectionEnd);
             }
+            ensureCaretVisible(el);
             try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
             return true;
           }
@@ -481,17 +535,87 @@ const restoreCaretInTopDocument = async (wc: WebContents): Promise<boolean> => {
     const result = await wc.executeJavaScript(
       `(function(){
         try {
-          var el = document.activeElement;
-          if (!el) return false;
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function isEditable(el) {
+            if (!el) return false;
+            var tag = (el.tagName || '').toLowerCase();
+            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
+          }
+          function ensureCaretVisible(el) {
+            try {
+              var tag = (el.tagName || '').toLowerCase();
+              if (tag !== 'textarea' && tag !== 'input') return;
+              var value = String(el.value || '');
+              var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+              var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+              var pos = Math.max(start, end);
+              var style = getComputedStyle(el);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (!ctx) return;
+              var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+              if (font) ctx.font = font;
+              var before = value.slice(0, pos);
+              var measureText = tag === 'textarea' ? (before.split('\n').pop() || '') : before;
+              var caretX = ctx.measureText(measureText).width;
+              var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+              var viewLeft = el.scrollLeft;
+              var viewRight = viewLeft + visibleWidth;
+              if (caretX <= 1) {
+                el.scrollLeft = 0;
+              } else if (caretX < viewLeft + 2) {
+                el.scrollLeft = Math.max(0, caretX - 4);
+              } else if (caretX > viewRight - 2) {
+                el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+              }
+              if (tag === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var lineIndex = before.split('\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = el.clientHeight - padB - borderB;
+                var viewTop = el.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  el.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            } catch (_) {}
+          }
+
+          var el = deepActive(document.activeElement);
+          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+            el = window.__mzrLastEditable;
+          }
+          if (!isEditable(el)) return false;
           var tag = (el.tagName || '').toLowerCase();
-          var isEditable =
-            !!el.isContentEditable ||
-            tag === 'textarea' ||
-            tag === 'input';
-          if (!isEditable) return false;
           try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
           if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
             el.setSelectionRange(el.selectionStart, el.selectionEnd);
+            ensureCaretVisible(el);
           }
           try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
           return true;
@@ -525,9 +649,75 @@ const scheduleCaretRestoreInTopDocument = async (wc: WebContents): Promise<void>
             var tag = (el.tagName || '').toLowerCase();
             return tag === 'textarea' || tag === 'input';
           }
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
           function restore() {
             try {
-              var el = document.activeElement;
+              function ensureCaretVisible(el) {
+                try {
+                  var tag = (el.tagName || '').toLowerCase();
+                  if (tag !== 'textarea' && tag !== 'input') return;
+                  var value = String(el.value || '');
+                  var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+                  var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+                  var pos = Math.max(start, end);
+                  var style = getComputedStyle(el);
+                  var padL = parseFloat(style.paddingLeft || '0') || 0;
+                  var padR = parseFloat(style.paddingRight || '0') || 0;
+                  var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+                  var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+                  if (!ctx) return;
+                  var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+                  if (font) ctx.font = font;
+                  var before = value.slice(0, pos);
+                  var measureText = tag === 'textarea' ? (before.split('\\n').pop() || '') : before;
+                  var caretX = ctx.measureText(measureText).width;
+                  var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+                  var viewLeft = el.scrollLeft;
+                  var viewRight = viewLeft + visibleWidth;
+                  if (caretX <= 1) {
+                    el.scrollLeft = 0;
+                  } else if (caretX < viewLeft + 2) {
+                    el.scrollLeft = Math.max(0, caretX - 4);
+                  } else if (caretX > viewRight - 2) {
+                    el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+                  }
+                  if (tag === 'textarea') {
+                    var padT = parseFloat(style.paddingTop || '0') || 0;
+                    var padB = parseFloat(style.paddingBottom || '0') || 0;
+                    var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                    var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                    var lineHeight = parseFloat(style.lineHeight || '');
+                    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                      var fontSize = parseFloat(style.fontSize || '16') || 16;
+                      lineHeight = Math.round(fontSize * 1.3);
+                    }
+                    var lineIndex = before.split('\\n').length - 1;
+                    var caretTop = lineIndex * lineHeight + padT + borderT;
+                    var visibleHeight = el.clientHeight - padB - borderB;
+                    var viewTop = el.scrollTop;
+                    var viewBottom = viewTop + visibleHeight;
+                    if (caretTop < viewTop) {
+                      el.scrollTop = Math.max(0, caretTop - 4);
+                    } else if (caretTop + lineHeight > viewBottom) {
+                      el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                    }
+                  }
+                } catch (_) {}
+              }
+
+              var el = deepActive(document.activeElement);
               if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
                 el = window.__mzrLastEditable;
               }
@@ -536,6 +726,7 @@ const scheduleCaretRestoreInTopDocument = async (wc: WebContents): Promise<void>
               var tag = (el.tagName || '').toLowerCase();
               if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
                 el.setSelectionRange(el.selectionStart, el.selectionEnd);
+                ensureCaretVisible(el);
               }
               try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
             } catch (_) {}
@@ -2553,14 +2744,12 @@ ipcMain.handle(
     // Sending them as per-char input events can split sequences into stray symbols.
     if (graphemes.length > 1) {
       wc.insertText(payload);
-      await scheduleCaretRestoreInTopDocument(wc);
       return { ok: true };
     }
     // Single printable character: use trusted 'char' input event.
     for (const ch of graphemes) {
       wc.sendInputEvent({ type: 'char', keyCode: ch });
     }
-    await scheduleCaretRestoreInTopDocument(wc);
     return { ok: true };
   }
 );
@@ -2611,7 +2800,6 @@ ipcMain.handle(
     const down: KeyboardInputEvent = { type: 'keyDown', keyCode, modifiers };
     wc.sendInputEvent(down);
     wc.sendInputEvent({ type: 'keyUp', keyCode, modifiers });
-    await scheduleCaretRestoreInTopDocument(wc);
 
     return { ok: true };
   }

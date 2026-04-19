@@ -162,8 +162,7 @@ const buildWebviewBaseCss = (vars: Record<string, string>, mode: 'mobile' | 'des
   }
   ::-webkit-scrollbar-thumb:hover { background: ${vars['scrollbar-thumb-hover'] ?? vars['scrollbar-thumb'] ?? 'var(--mzr-accent-strong)'}; }
   input, textarea, [contenteditable='true'] {
-    caret-color: ${caretColor}; !important;
-    caret-shape: block !important;
+    caret-color: ${caretColor} !important;
   }
   :root {
     --mzr-caret-accent: ${caretColor};
