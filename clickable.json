@@ -3,10 +3,7 @@
   "builder": "precompiled",
   "framework": "ubuntu-touch-24.04-1.x",
   "kill": "merezhyvo",
-  "build": [
-    "bash -lc 'true'"
-  ],
-  "ignore": [
+    "ignore": [
     "tools",
     "app-bin",
     "node_modules",
