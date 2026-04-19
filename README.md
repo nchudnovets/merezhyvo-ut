@@ -259,6 +259,7 @@ You need a Linux dev machine with:
 *   **Node.js 18+** and **npm** (using `nvm` is recommended);
     
 *   **Clickable** installed and working (`clickable --version`);
+    *   Practical note as of April 2026: if `clickable-ut 8.8.0` fails for `ubuntu-touch-24.04-1.x` with `requires ... image version 13 or higher (found 12)`, temporarily use `clickable-ut==8.7.0`.
     
 *   **Docker** running (Clickable uses it to build the final `.click`).
     
@@ -272,6 +273,10 @@ npm \-v
 clickable \--version
 
 docker ps
+
+If needed, reinstall a known working Clickable version:
+
+python3 -m pip install --user --force-reinstall 'clickable-ut==8.7.0'
 
 - - -
 
