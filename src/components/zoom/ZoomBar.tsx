@@ -2,6 +2,7 @@ import React, {
   forwardRef,
   type PointerEvent,
   type ChangeEvent,
+  type FormEvent,
   type ForwardedRef
 } from 'react';
 import type { Mode } from '../../types/models';
@@ -30,27 +31,33 @@ const ZoomBar = forwardRef<HTMLDivElement, ZoomBarProps>((
     onChange
   },
   ref: ForwardedRef<HTMLDivElement>
-) => (
-  <div ref={ref} className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
-    <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
-    <div style={zoomBarStyles.zoomSliderContainer}>
-      <input
-        type="range"
-        min={min}
-        max={max}
-        step={step}
-        value={zoomLevel}
-        onPointerDown={onPointerDown}
-        onInput={onChange}
-        onChange={onChange}
-        aria-label="Zoom level"
-        className="zoom-slider"
-        style={{ ...zoomBarStyles.zoomSlider, ...(zoomBarModeStyles[mode].zoomSlider || {}) }}
-      />
+) => {
+  const handleInput = (event: FormEvent<HTMLInputElement>) => {
+    onChange(event as unknown as ChangeEvent<HTMLInputElement>);
+  };
+
+  return (
+    <div ref={ref} className="zoom-toolbar" style={zoomBarStyles.bottomToolbar}>
+      <span style={{ ...zoomBarStyles.zoomLabel, ...(zoomBarModeStyles[mode].zoomLabel || {}) }}>Zoom</span>
+      <div style={zoomBarStyles.zoomSliderContainer}>
+        <input
+          type="range"
+          min={min}
+          max={max}
+          step={step}
+          value={zoomLevel}
+          onPointerDown={onPointerDown}
+          onInput={handleInput}
+          onChange={onChange}
+          aria-label="Zoom level"
+          className="zoom-slider"
+          style={{ ...zoomBarStyles.zoomSlider, ...(zoomBarModeStyles[mode].zoomSlider || {}) }}
+        />
+      </div>
+      <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
     </div>
-    <span style={{ ...zoomBarStyles.zoomValue, ...(zoomBarModeStyles[mode].zoomValue || {}) }}>{zoomDisplay}</span>
-  </div>
-));
+  );
+});
 
 ZoomBar.displayName = 'ZoomBar';
 
