@@ -3,6 +3,7 @@ import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import NavButtons from './NavButtons';
 import AddressBar from './AddressBar';
+import type { DownloadIndicatorProgress } from '../../hooks/useDownloadIndicators';
 import type { Mode, TrackerStatus } from '../../types/models';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { TelegramIcon } from '../messenger/MessengerIcon';
@@ -35,6 +36,7 @@ interface ToolbarProps {
   onEnterMessengerMode: () => void;
   showMessengerButton?: boolean;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  downloadIndicatorProgress: DownloadIndicatorProgress;
   onDownloadIndicatorClick: () => void;
   toolbarRef?: RefObject<HTMLDivElement>;
   suggestions?: { url: string; title?: string | null; source: 'history' | 'bookmark' }[];
@@ -98,6 +100,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
   onEnterMessengerMode,
   showMessengerButton = true,
   downloadIndicatorState,
+  downloadIndicatorProgress,
   onDownloadIndicatorClick,
   toolbarRef,
   suggestions,
@@ -167,6 +170,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       onOpenTabsPanel={onOpenTabsPanel}
       onNewTab={onNewTab}
       downloadIndicatorState={downloadIndicatorState}
+      downloadIndicatorProgress={downloadIndicatorProgress}
       onDownloadIndicatorClick={onDownloadIndicatorClick}
       showTabsButton={!compact}
       inputFocused={inputFocused}

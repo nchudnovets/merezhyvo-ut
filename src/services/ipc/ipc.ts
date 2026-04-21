@@ -326,7 +326,6 @@ export const ipc = {
       return { ok: false, error: 'Unknown error' };
     }
   },
-
   tor: {
     async toggle(): Promise<TorState | null> {
       try {

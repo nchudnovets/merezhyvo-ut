@@ -113,6 +113,637 @@ if (!process.env.ELECTRON_DISABLE_SANDBOX) {
 
 const fsp = fs.promises;
 
+const probeWebContentsActiveElement = async (wc: WebContents): Promise<Record<string, unknown>> => {
+  try {
+    const result = await wc.executeJavaScript(
+      `(function(){
+        try {
+          function describe(el) {
+            if (!el) return null;
+            var tag = (el.tagName || '').toLowerCase();
+            return {
+              tag: tag,
+              type: typeof el.getAttribute === 'function' ? (el.getAttribute('type') || '') : '',
+              id: el.id || '',
+              name: typeof el.getAttribute === 'function' ? (el.getAttribute('name') || '') : '',
+              className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
+              editable: !!(el.isContentEditable || tag === 'textarea' || tag === 'input'),
+              valueLen: typeof el.value === 'string' ? el.value.length : null,
+              selectionStart: typeof el.selectionStart === 'number' ? el.selectionStart : null,
+              selectionEnd: typeof el.selectionEnd === 'number' ? el.selectionEnd : null,
+            };
+          }
+          return {
+            href: location.href,
+            hasFocus: !!document.hasFocus(),
+            active: describe(document.activeElement),
+          };
+        } catch (error) {
+          return {
+            error: error instanceof Error ? error.message : String(error),
+          };
+        }
+      })();`,
+      false
+    );
+    return result && typeof result === 'object'
+      ? (result as Record<string, unknown>)
+      : { value: result };
+  } catch (error) {
+    return {
+      error: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const findEditableFrame = async (
+  wc: WebContents
+): Promise<{ frame: Electron.WebFrameMain | null; probeDetail?: Record<string, unknown>; reason?: string }> => {
+  try {
+    const nonTextTypes = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'hidden']);
+    const probeFrame = async (frame: Electron.WebFrameMain): Promise<{ editable: boolean; detail?: Record<string, unknown> }> => {
+      try {
+        if (frame.isDestroyed() || frame.detached) return { editable: false };
+        const result = await frame.executeJavaScript(
+          `(function(){
+            try {
+              var el = document.activeElement;
+              if (!el) return { editable: false };
+              var tag = (el.tagName || '').toLowerCase();
+              var type = typeof el.getAttribute === 'function' ? (el.getAttribute('type') || '').toLowerCase() : '';
+              var editable =
+                !!el.isContentEditable ||
+                tag === 'textarea' ||
+                (tag === 'input' && !${JSON.stringify(Array.from(nonTextTypes))}.includes(type) && !el.disabled && !el.readOnly);
+              return {
+                editable: editable,
+                tag: tag,
+                type: type,
+                id: el.id || '',
+                className: typeof el.className === 'string' ? el.className.slice(0, 120) : '',
+                href: location.href
+              };
+            } catch (error) {
+              return { editable: false };
+            }
+          })();`,
+          true
+        );
+        return result && typeof result === 'object'
+          ? {
+              editable: (result as { editable?: unknown }).editable === true,
+              detail: result as Record<string, unknown>,
+            }
+          : { editable: false };
+      } catch {
+        return { editable: false };
+      }
+    };
+
+    const candidates: Electron.WebFrameMain[] = [];
+    if (wc.focusedFrame && !wc.focusedFrame.isDestroyed() && !wc.focusedFrame.detached) {
+      candidates.push(wc.focusedFrame);
+    }
+    for (const frame of wc.mainFrame.framesInSubtree) {
+      if (frame.isDestroyed() || frame.detached) continue;
+      if (candidates.some((candidate) => candidate.frameTreeNodeId === frame.frameTreeNodeId)) continue;
+      candidates.push(frame);
+    }
+
+    let frame: Electron.WebFrameMain | null = null;
+    let probeDetail: Record<string, unknown> | undefined;
+    for (const candidate of candidates) {
+      const probed = await probeFrame(candidate);
+      if (!probed.editable) continue;
+      frame = candidate;
+      probeDetail = probed.detail;
+      break;
+    }
+    if (!frame) {
+      return { frame: null, reason: 'no-editable-frame' };
+    }
+    return { frame, probeDetail };
+  } catch (error) {
+    return {
+      frame: null,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
+  try {
+    const found = await findEditableFrame(wc);
+    const frame = found.frame;
+    if (!frame) {
+      return { ok: false, reason: found.reason ?? 'no-editable-frame' };
+    }
+    const payload = JSON.stringify(text);
+    const result = await frame.executeJavaScript(
+      `(function(t){
+        try {
+          var el = document.activeElement;
+          if (!el) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea' || tag === 'input') {
+            if (el.disabled || el.readOnly) return false;
+            var val = String(el.value || '');
+            var start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+            if (typeof el.setRangeText === 'function') {
+              el.setRangeText(t, start, end, 'end');
+            } else {
+              el.value = val.slice(0, start) + t + val.slice(end);
+              var pos = start + t.length;
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
+            }
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            try {
+              var caret = typeof el.selectionStart === 'number' ? el.selectionStart : start + t.length;
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(caret, caret);
+            } catch (_) {}
+            try {
+              el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: t, bubbles: true, cancelable: true }));
+            } catch (_) {}
+            el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: t, bubbles: true }));
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            if ((el.type || '').toLowerCase() === 'email') {
+              el.dispatchEvent(new Event('change', { bubbles: true }));
+            }
+            return true;
+          }
+          if (el.isContentEditable) {
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return false;
+            try {
+              el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: t, bubbles: true, cancelable: true }));
+            } catch (_) {}
+            var range = sel.getRangeAt(0);
+            range.deleteContents();
+            range.insertNode(document.createTextNode(t));
+            range.collapse(false);
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            el.dispatchEvent(new InputEvent('input', { inputType: 'insertText', data: t, bubbles: true }));
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            return true;
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      })(${payload});`,
+      true
+    );
+    return {
+      ok: result === true,
+      reason: result === true ? 'focused-frame-dom' : 'focused-frame-dom-false',
+      ...(found.probeDetail ? { probeDetail: found.probeDetail } : {}),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const handleKeyInEditableFrame = async (
+  wc: WebContents,
+  key: string
+): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
+  try {
+    const found = await findEditableFrame(wc);
+    const frame = found.frame;
+    if (!frame) {
+      return { ok: false, reason: found.reason ?? 'no-editable-frame' };
+    }
+    const payload = JSON.stringify(key);
+    const result = await frame.executeJavaScript(
+      `(function(key){
+        try {
+          var el = document.activeElement;
+          if (!el) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          var isTextControl = tag === 'textarea' || tag === 'input';
+          if (isTextControl) {
+            if (el.disabled || el.readOnly) return false;
+            var val = String(el.value || '');
+            var start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
+            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+            var nextStart = start;
+            var nextEnd = end;
+            if (key === 'Backspace') {
+              if (start !== end) {
+                el.value = val.slice(0, start) + val.slice(end);
+                nextStart = nextEnd = start;
+              } else if (start > 0) {
+                el.value = val.slice(0, start - 1) + val.slice(end);
+                nextStart = nextEnd = start - 1;
+              }
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+              try {
+                el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true, cancelable: true }));
+              } catch (_) {}
+              el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+              return true;
+            }
+            if (key === 'ArrowLeft' || key === 'ArrowRight') {
+              if (start !== end) {
+                nextStart = nextEnd = key === 'ArrowLeft' ? Math.min(start, end) : Math.max(start, end);
+              } else {
+                nextStart = nextEnd = key === 'ArrowLeft' ? Math.max(0, start - 1) : Math.min(val.length, start + 1);
+              }
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+              return true;
+            }
+            if (key === 'Enter') {
+              if (tag === 'textarea') {
+                var insert = '\\n';
+                el.value = val.slice(0, start) + insert + val.slice(end);
+                nextStart = nextEnd = start + 1;
+                try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+                if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+                try {
+                  el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true }));
+                } catch (_) {}
+                el.dispatchEvent(new InputEvent('input', { inputType: 'insertLineBreak', bubbles: true }));
+                try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+                return true;
+              }
+              var form = typeof el.closest === 'function' ? el.closest('form') : null;
+              if (form) {
+                if (typeof form.requestSubmit === 'function') form.requestSubmit();
+                else if (typeof form.submit === 'function') form.submit();
+                return true;
+              }
+            }
+            return false;
+          }
+          if (el.isContentEditable) {
+            var sel = window.getSelection();
+            if (!sel || !sel.rangeCount) return false;
+            var range = sel.getRangeAt(0);
+            if (key === 'Backspace') {
+              if (!range.collapsed) {
+                range.deleteContents();
+              } else if (range.startOffset > 0) {
+                range.setStart(range.startContainer, range.startOffset - 1);
+                range.deleteContents();
+              } else {
+                return false;
+              }
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              el.dispatchEvent(new InputEvent('input', { inputType: 'deleteContentBackward', bubbles: true }));
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+              return true;
+            }
+            if (key === 'ArrowLeft' || key === 'ArrowRight') {
+              if (!sel.isCollapsed) {
+                if (key === 'ArrowLeft') sel.collapseToStart();
+                else sel.collapseToEnd();
+              }
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+              return true;
+            }
+            if (key === 'Enter') {
+              try {
+                if (document.execCommand('insertLineBreak')) {
+                  try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+                  return true;
+                }
+              } catch (_) {}
+            }
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      })(${payload});`,
+      true
+    );
+    return {
+      ok: result === true,
+      reason: result === true ? 'focused-frame-key-dom' : 'focused-frame-key-dom-false',
+      ...(found.probeDetail ? { probeDetail: found.probeDetail } : {}),
+    };
+  } catch (error) {
+    return {
+      ok: false,
+      reason: error instanceof Error ? error.message : String(error),
+    };
+  }
+};
+
+const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> => {
+  try {
+    const found = await findEditableFrame(wc);
+    const frame = found.frame;
+    if (!frame) return false;
+    const result = await frame.executeJavaScript(
+      `(function(){
+        try {
+          function ensureCaretVisible(el) {
+            try {
+              var tag = (el.tagName || '').toLowerCase();
+              if (tag !== 'textarea' && tag !== 'input') return;
+              var value = String(el.value || '');
+              var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+              var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+              var pos = Math.max(start, end);
+              var style = getComputedStyle(el);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (!ctx) return;
+              var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+              if (font) ctx.font = font;
+              var before = value.slice(0, pos);
+              var measureText = tag === 'textarea' ? (before.split('\n').pop() || '') : before;
+              var caretX = ctx.measureText(measureText).width;
+              var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+              var viewLeft = el.scrollLeft;
+              var viewRight = viewLeft + visibleWidth;
+              if (caretX <= 1) {
+                el.scrollLeft = 0;
+              } else if (caretX < viewLeft + 2) {
+                el.scrollLeft = Math.max(0, caretX - 4);
+              } else if (caretX > viewRight - 2) {
+                el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+              }
+              if (tag === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var lineIndex = before.split('\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = el.clientHeight - padB - borderB;
+                var viewTop = el.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  el.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            } catch (_) {}
+          }
+
+          var el = document.activeElement;
+          if (!el) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea' || tag === 'input') {
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            if (typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+              el.setSelectionRange(el.selectionStart, el.selectionEnd);
+            }
+            ensureCaretVisible(el);
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            return true;
+          }
+          if (el.isContentEditable) {
+            try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+            try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            return true;
+          }
+          return false;
+        } catch (error) {
+          return false;
+        }
+      })();`,
+      true
+    );
+    return result === true;
+  } catch {
+    return false;
+  }
+};
+
+const restoreCaretInTopDocument = async (wc: WebContents): Promise<boolean> => {
+  try {
+    const result = await wc.executeJavaScript(
+      `(function(){
+        try {
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function isEditable(el) {
+            if (!el) return false;
+            var tag = (el.tagName || '').toLowerCase();
+            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
+          }
+          function ensureCaretVisible(el) {
+            try {
+              var tag = (el.tagName || '').toLowerCase();
+              if (tag !== 'textarea' && tag !== 'input') return;
+              var value = String(el.value || '');
+              var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+              var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+              var pos = Math.max(start, end);
+              var style = getComputedStyle(el);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (!ctx) return;
+              var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+              if (font) ctx.font = font;
+              var before = value.slice(0, pos);
+              var measureText = tag === 'textarea' ? (before.split('\n').pop() || '') : before;
+              var caretX = ctx.measureText(measureText).width;
+              var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+              var viewLeft = el.scrollLeft;
+              var viewRight = viewLeft + visibleWidth;
+              if (caretX <= 1) {
+                el.scrollLeft = 0;
+              } else if (caretX < viewLeft + 2) {
+                el.scrollLeft = Math.max(0, caretX - 4);
+              } else if (caretX > viewRight - 2) {
+                el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+              }
+              if (tag === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var lineIndex = before.split('\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = el.clientHeight - padB - borderB;
+                var viewTop = el.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  el.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            } catch (_) {}
+          }
+
+          var el = deepActive(document.activeElement);
+          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+            el = window.__mzrLastEditable;
+          }
+          if (!isEditable(el)) return false;
+          var tag = (el.tagName || '').toLowerCase();
+          try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+          if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+            el.setSelectionRange(el.selectionStart, el.selectionEnd);
+            ensureCaretVisible(el);
+          }
+          try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+          return true;
+        } catch (error) {
+          return false;
+        }
+      })();`,
+      false
+    );
+    return result === true;
+  } catch {
+    return false;
+  }
+};
+
+const scheduleCaretRestoreInTopDocument = async (wc: WebContents): Promise<void> => {
+  try {
+    await wc.executeJavaScript(
+      `(function(){
+        try {
+          if (window.__mzrCaretRestoreTimerIds && Array.isArray(window.__mzrCaretRestoreTimerIds)) {
+            for (var i = 0; i < window.__mzrCaretRestoreTimerIds.length; i++) {
+              try { window.clearTimeout(window.__mzrCaretRestoreTimerIds[i]); } catch (_) {}
+            }
+          }
+          window.__mzrCaretRestoreTimerIds = [];
+          var delays = [0, 24, 80, 180];
+          function isEditable(el) {
+            if (!el) return false;
+            if (el.isContentEditable) return true;
+            var tag = (el.tagName || '').toLowerCase();
+            return tag === 'textarea' || tag === 'input';
+          }
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function restore() {
+            try {
+              function ensureCaretVisible(el) {
+                try {
+                  var tag = (el.tagName || '').toLowerCase();
+                  if (tag !== 'textarea' && tag !== 'input') return;
+                  var value = String(el.value || '');
+                  var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
+                  var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+                  var pos = Math.max(start, end);
+                  var style = getComputedStyle(el);
+                  var padL = parseFloat(style.paddingLeft || '0') || 0;
+                  var padR = parseFloat(style.paddingRight || '0') || 0;
+                  var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+                  var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+                  if (!ctx) return;
+                  var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+                  if (font) ctx.font = font;
+                  var before = value.slice(0, pos);
+                  var measureText = tag === 'textarea' ? (before.split('\\n').pop() || '') : before;
+                  var caretX = ctx.measureText(measureText).width;
+                  var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
+                  var viewLeft = el.scrollLeft;
+                  var viewRight = viewLeft + visibleWidth;
+                  if (caretX <= 1) {
+                    el.scrollLeft = 0;
+                  } else if (caretX < viewLeft + 2) {
+                    el.scrollLeft = Math.max(0, caretX - 4);
+                  } else if (caretX > viewRight - 2) {
+                    el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+                  }
+                  if (tag === 'textarea') {
+                    var padT = parseFloat(style.paddingTop || '0') || 0;
+                    var padB = parseFloat(style.paddingBottom || '0') || 0;
+                    var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                    var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                    var lineHeight = parseFloat(style.lineHeight || '');
+                    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                      var fontSize = parseFloat(style.fontSize || '16') || 16;
+                      lineHeight = Math.round(fontSize * 1.3);
+                    }
+                    var lineIndex = before.split('\\n').length - 1;
+                    var caretTop = lineIndex * lineHeight + padT + borderT;
+                    var visibleHeight = el.clientHeight - padB - borderB;
+                    var viewTop = el.scrollTop;
+                    var viewBottom = viewTop + visibleHeight;
+                    if (caretTop < viewTop) {
+                      el.scrollTop = Math.max(0, caretTop - 4);
+                    } else if (caretTop + lineHeight > viewBottom) {
+                      el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                    }
+                  }
+                } catch (_) {}
+              }
+
+              var el = deepActive(document.activeElement);
+              if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+                el = window.__mzrLastEditable;
+              }
+              if (!isEditable(el)) return;
+              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
+              var tag = (el.tagName || '').toLowerCase();
+              if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
+                el.setSelectionRange(el.selectionStart, el.selectionEnd);
+                ensureCaretVisible(el);
+              }
+              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
+            } catch (_) {}
+          }
+          for (var d = 0; d < delays.length; d++) {
+            var id = window.setTimeout(restore, delays[d]);
+            window.__mzrCaretRestoreTimerIds.push(id);
+          }
+        } catch (_) {}
+      })();`,
+      false
+    );
+  } catch {
+    // noop
+  }
+};
+
 const getTorVersionCandidates = (): string[] => {
   const cwd = process.cwd();
   const candidates = [
@@ -436,6 +1067,15 @@ const sanitizeSessionPayload = (payload: unknown): SessionState => {
 const normalizeAddress = (value: string | null | undefined): string => {
   if (!value || !value.trim()) return DEFAULT_URL;
   const trimmed = value.trim();
+  const lowered = trimmed.replace(/\\/g, '/').toLowerCase();
+
+  if (
+    lowered.includes('dist-electron/main.js') ||
+    lowered.endsWith('/main.js') ||
+    lowered === 'main.js'
+  ) {
+    return DEFAULT_URL;
+  }
 
   if (/^[a-zA-Z][a-zA-Z\d+\-.]*:/.test(trimmed)) return trimmed;
 
@@ -616,7 +1256,7 @@ const openCtxWindowFor = async (
 
   try {
     const currentUrl = targetWc.getURL?.() ?? '';
-    if (currentUrl && isCtxtExcludedSite(currentUrl)) {
+    if (currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
       return;
     }
   } catch {
@@ -660,6 +1300,17 @@ const parseMode = (raw: string | null | undefined): ContextMenuMode | null => {
   return value === 'desktop' || value === 'mobile' ? (value as ContextMenuMode) : null;
 };
 
+const isInternalLaunchArg = (raw: string | null | undefined): boolean => {
+  if (!raw) return false;
+  const normalized = raw.replace(/\\/g, '/').trim().toLowerCase();
+  if (!normalized) return false;
+  return (
+    normalized.includes('dist-electron/main.js') ||
+    normalized.endsWith('/main.js') ||
+    normalized === 'main.js'
+  );
+};
+
 const parseLaunchConfig = (): LaunchConfig => {
   const offset = process.defaultApp ? 2 : 1;
   const args = process.argv.slice(offset);
@@ -674,6 +1325,7 @@ const parseLaunchConfig = (): LaunchConfig => {
 
   for (const rawArg of args) {
     if (!rawArg) continue;
+    if (isInternalLaunchArg(rawArg)) continue;
     if (rawArg === '--force-dark') {
       forceDark = true;
       continue;
@@ -830,7 +1482,8 @@ app.on('before-quit', () => {
 
 app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   try {
-    if (typeof contents.getType === 'function' && contents.getType() !== 'devtools') {
+    const contentsType = typeof contents.getType === 'function' ? (contents.getType() as string) : '';
+    if (contentsType !== 'devtools') {
       windows.applyUserAgentToWebContents(contents, contents.getURL?.());
     }
   } catch {
@@ -848,7 +1501,7 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   
   contents.on('context-menu', (event, params) => {
     const url = contents.getURL();
-    if (isCtxtExcludedSite(url)) {
+    if (isCtxtExcludedSite(url, { isEditable: Boolean(params?.isEditable) })) {
       event.preventDefault(); // Don't show our menu for Telegram Web
       return;
     }
@@ -1000,11 +1653,8 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
       let copied = false;
       if (Number.isFinite(x) && Number.isFinite(y) && typeof wc.copyImageAt === 'function') {
         try {
-          const image = wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
-          if (image && !image.isEmpty()) {
-            clipboard.writeImage(image);
-            copied = true;
-          }
+          wc.copyImageAt(Math.round(x ?? 0), Math.round(y ?? 0));
+          copied = true;
         } catch {
           // noop
         }
@@ -2087,12 +2737,30 @@ ipcMain.on('tabs:ready', (event: IpcMainEvent) => {
 
 ipcMain.handle(
   'mzr:osk:char',
-  (_e, { wcId, text }: { wcId: number; text: string }) => {
+  async (_e, { wcId, text }: { wcId: number; text: string }) => {
     const wc = webContents.fromId(Number(wcId));
     if (!wc) return { ok: false, error: 'webContents not found' };
     const payload = String(text ?? '');
     if (!payload) return { ok: true };
+    const before = await probeWebContentsActiveElement(wc);
     const graphemes = Array.from(payload);
+    const active =
+      before && typeof before === 'object' && before.active && typeof before.active === 'object'
+        ? (before.active as Record<string, unknown>)
+        : null;
+    const activeTag = typeof active?.tag === 'string' ? active.tag : '';
+    const hasFocus = before?.hasFocus === true;
+    const preferInsertText = !hasFocus || activeTag === 'iframe';
+    // Prefer direct DOM insertion into the actual focused frame when top-level focus
+    // is parked on an iframe host. sendInputEvent('char') does not reach that field,
+    // and wc.insertText() was unstable in this scenario on UT.
+    if (preferInsertText) {
+      const frameInsert = await insertTextIntoFocusedFrame(wc, payload);
+      if (frameInsert.ok) {
+        await restoreCaretInEditableFrame(wc);
+        return { ok: true };
+      }
+    }
     // Keep complex Unicode sequences (emoji with ZWJ/VS/modifiers, flags, etc.) atomic.
     // Sending them as per-char input events can split sequences into stray symbols.
     if (graphemes.length > 1) {
@@ -2109,7 +2777,7 @@ ipcMain.handle(
 
 ipcMain.handle(
   'mzr:osk:key',
-  (
+  async (
     _e,
     {
       wcId,
@@ -2123,6 +2791,22 @@ ipcMain.handle(
   ) => {
     const wc = webContents.fromId(Number(wcId));
     if (!wc) return { ok: false, error: 'webContents not found' };
+    const before = await probeWebContentsActiveElement(wc);
+    const active =
+      before && typeof before === 'object' && before.active && typeof before.active === 'object'
+        ? (before.active as Record<string, unknown>)
+        : null;
+    const activeTag = typeof active?.tag === 'string' ? active.tag : '';
+    const hasFocus = before?.hasFocus === true;
+    const preferFrameDom = !hasFocus || activeTag === 'iframe';
+
+    if (preferFrameDom && (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter')) {
+      const frameKey = await handleKeyInEditableFrame(wc, key);
+      if (frameKey.ok) {
+        await restoreCaretInEditableFrame(wc);
+        return { ok: true };
+      }
+    }
 
     // Map DOM-style keys to Chromium's keyCode strings for sendInputEvent
     const keyCodeMap: Record<string, string> = {

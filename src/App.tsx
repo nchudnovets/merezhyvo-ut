@@ -64,7 +64,11 @@ import { JsDialogHost } from './components/modals/jsDialog/JsDialogHost';
 import { useI18n } from './i18n/I18nProvider';
 import { ipc } from './services/ipc/ipc';
 import { torService } from './services/tor/tor';
-import { windowHelpers } from './services/window/window';
+import {
+  windowHelpers,
+  DEFAULT_ACTIVE_INPUT_CONTEXT,
+  type ActiveInputContext
+} from './services/window/window';
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
@@ -72,7 +76,7 @@ import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
 import type { GetWebview } from './components/keyboard/inject';
-import { makeMainInjects, makeWebInjects, probeWebEditable } from './components/keyboard/inject';
+import { makeMainInjects, makeWebInjects, probeWebActiveInputContext } from './components/keyboard/inject';
 import type {
   Mode,
   Tab,
@@ -141,7 +145,13 @@ const formatDisplayUrl = (value: string): string => {
 
 type SubmitEvent = FormEvent<HTMLFormElement> | { preventDefault: () => void } | undefined;
 
-const buildWebviewBaseCss = (vars: Record<string, string>) => `
+const buildWebviewBaseCss = (vars: Record<string, string>, mode: 'mobile' | 'desktop') => {
+  // Mobile: darker and more visible caret
+  const caretColor = mode === 'mobile'
+    ? (vars['color-scheme'] === 'light' ? '#000000' : '#ffffff')
+    : (vars['accent-strong'] ?? 'var(--mzr-accent-strong)');
+
+  return `
   :root, html { color-scheme: ${vars['color-scheme'] ?? 'dark'}; color:#0f111a; background:#e5e7eb; }
   ::-webkit-scrollbar { width: 8px; height: 8px; }
   ::-webkit-scrollbar-track { background: ${vars['scrollbar-track'] ?? 'var(--mzr-scrollbar-track)'}; }
@@ -152,11 +162,10 @@ const buildWebviewBaseCss = (vars: Record<string, string>) => `
   }
   ::-webkit-scrollbar-thumb:hover { background: ${vars['scrollbar-thumb-hover'] ?? vars['scrollbar-thumb'] ?? 'var(--mzr-accent-strong)'}; }
   input, textarea, [contenteditable='true'] {
-    caret-color: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'}; !important;
-    caret-shape: block !important;
+    caret-color: ${caretColor} !important;
   }
   :root {
-    --mzr-caret-accent: ${vars['accent-strong'] ?? 'var(--mzr-accent-strong)'};
+    --mzr-caret-accent: ${caretColor};
     --mzr-focus-ring:   ${vars['focus-ring'] ?? '#60a5fa'};
     --mzr-sel-bg:       ${vars['selection-bg'] ?? 'rgba(34,211,238,.28)'};
     --mzr-sel-fg:       ${vars['selection-fg'] ?? 'var(--mzr-surface-muted)'};
@@ -189,6 +198,7 @@ const buildWebviewBaseCss = (vars: Record<string, string>) => `
     color: var(--mzr-sel-fg) !important;
   }
 `;
+};
 
 
 const SERVICE_OVERLAY_STYLE: React.CSSProperties = {
@@ -256,6 +266,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [showTorKeepWarning, setShowTorKeepWarning] = useState<boolean>(false);
   const [torDisableBusy, setTorDisableBusy] = useState<boolean>(false);
   const [kbVisible, setKbVisible] = useState<boolean>(false);
+  const [activeInputContext, setActiveInputContext] = useState<ActiveInputContext>(
+    DEFAULT_ACTIVE_INPUT_CONTEXT
+  );
   const [keyboardHeight, setKeyboardHeight] = useState<number>(0);
   const [zoomBarHeight, setZoomBarHeight] = useState<number>(0);
   const [ctxMenuVisible, setCtxMenuVisible] = useState<boolean>(false);
@@ -266,7 +279,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const [downloadsSaving, setDownloadsSaving] = useState<boolean>(false);
   
   const { cookiePrivacy, setCookiePrivacy, handleCookieBlockChange } = useCookiePrivacy();
-  const { downloadIndicatorState, downloadToast, handleDownloadIndicatorClick } = useDownloadIndicators();
+  const {
+    downloadIndicatorState,
+    downloadIndicatorProgress,
+    downloadToast,
+    handleDownloadIndicatorClick
+  } = useDownloadIndicators();
   const [pageError, setPageError] = useState<{ url: string | null } | null>(null);
   const [certStatus, setCertStatus] = useState<CertificateInfo | null>(null);
   const [displayCert, setDisplayCert] = useState<CertificateInfo | null>(null);
@@ -320,7 +338,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   const { uiScale, setUiScale, applyUiScale, handleUiScaleReset } = useUiScale(1);
   const { theme, setTheme } = useTheme('dark');
   const themeVars = useMemo(() => getThemeVars(theme), [theme]);
-  const webviewBaseCss = useMemo(() => buildWebviewBaseCss(themeVars), [themeVars]);
+  const webviewBaseCss = useMemo(() => buildWebviewBaseCss(themeVars, mode), [themeVars, mode]);
   const webviewBaseCssRef = useRef<string>(webviewBaseCss);
   useEffect(() => { webviewBaseCssRef.current = webviewBaseCss; }, [webviewBaseCss]);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(inputValue);
@@ -1002,11 +1020,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   getActiveWebview,
 ]);
 
-  const isEditableElement = useCallback((element: Element | null) => {
-    if (!element) return false;
-    if (element === inputRef.current) return true;
-    return windowHelpers.isEditableElement(element);
+  const getMainInputContext = useCallback((element: Element | null): ActiveInputContext => {
+    if (!element) return DEFAULT_ACTIVE_INPUT_CONTEXT;
+    if (element === inputRef.current) {
+      return { editable: true, kind: 'text', multiline: false };
+    }
+    return windowHelpers.getActiveInputContext(element);
   }, [inputRef]);
+
+  const isEditableElement = useCallback((element: Element | null) => {
+    return getMainInputContext(element).editable;
+  }, [getMainInputContext]);
 
   const isEditableMainNow = useCallback(() => {
     const el = document.activeElement as HTMLElement | null;
@@ -1016,9 +1040,13 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     if (webviewFocusedRef.current) {
       return false;
     }
-    if (isEditableElement(el)) return true;
+    if (getMainInputContext(el).editable) return true;
     return false;
-  }, [isEditableElement]);
+  }, [getMainInputContext]);
+
+  const probeActiveWebInputContext = useCallback(async (): Promise<ActiveInputContext> => {
+    return probeWebActiveInputContext(getActiveWebview);
+  }, [getActiveWebview]);
 
   const focusLastMainEditable = useCallback(() => {
     const last = lastEditableMainRef.current;
@@ -1054,6 +1082,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const closeKeyboard = useCallback(() => {
     setKbVisible(false);
+    setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
     oskPressGuardRef.current = true;
     window.setTimeout(() => { oskPressGuardRef.current = false; }, 300);
     const active = document.activeElement as HTMLElement | null;
@@ -1069,12 +1098,10 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       injectTextToMain(text);
       return;
     }
-    const ok = await probeWebEditable(getActiveWebview);
+    const context = await probeActiveWebInputContext();
+    setActiveInputContext(context);
     await injectTextToWeb(text);
-    if (!ok) {
-      // best-effort: even if probe failed, we tried to inject via web
-    }
-  }, [focusLastMainEditable, getActiveWebview, injectTextToMain, injectTextToWeb, isEditableMainNow]);
+  }, [focusLastMainEditable, injectTextToMain, injectTextToWeb, isEditableMainNow, probeActiveWebInputContext]);
 
   const injectBackspace = React.useCallback(async () => {
     if (isEditableMainNow()) {
@@ -2491,7 +2518,18 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         const end = typeof node.selectionEnd === 'number' ? node.selectionEnd : node.value.length;
         const start = typeof node.selectionStart === 'number' ? node.selectionStart : end;
         if (start === end) {
-          node.scrollLeft = node.scrollWidth;
+          const canvas = document.createElement('canvas');
+          const ctx = canvas.getContext('2d');
+          if (ctx) {
+            ctx.font = window.getComputedStyle(node).font;
+            const cursorPx = ctx.measureText(node.value.substring(0, end)).width;
+            const visibleWidth = node.clientWidth;
+            if (cursorPx < node.scrollLeft) {
+              node.scrollLeft = cursorPx;
+            } else if (cursorPx > node.scrollLeft + visibleWidth) {
+              node.scrollLeft = cursorPx - visibleWidth;
+            }
+          }
         }
       } catch {}
     });
@@ -2499,10 +2537,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   useMobileSoftKeyboard({
     mode,
-    isEditableElement,
+    getMainInputContext,
+    probeWebInputContext: probeActiveWebInputContext,
     getActiveWebview,
     activeId,
     activeViewRevision,
+    setActiveInputContext,
     setKbVisible,
     oskPressGuardRef,
     ctxMenuGuardRef
@@ -3587,6 +3627,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
               onEnterMessengerMode={handleEnterMessengerMode}
               showMessengerButton={!messengerSettingsState?.hideToolbar}
               downloadIndicatorState={downloadIndicatorState}
+              downloadIndicatorProgress={downloadIndicatorProgress}
               onDownloadIndicatorClick={handleDownloadIndicatorClick}
               toolbarRef={toolbarRef}
               suggestions={urlSuggestions}
@@ -3849,7 +3890,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             visible={kbVisible}
             layoutId={kbLayout}
             enabledLayouts={enabledKbLayouts}
-            context="text"
+            context={activeInputContext.kind}
             theme={theme}
             themeVars={themeVars}
             injectText={injectText}
@@ -3863,15 +3904,9 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
             onHeightChange={handleKeyboardHeightChange}
             onInteractionStart={() => {
               oskPressGuardRef.current = true;
-              if (!isEditableMainNow()) {
-                try { getActiveWebview()?.focus?.(); } catch {}
-              }
             }}
             onInteractionEnd={() => {
               window.setTimeout(() => { oskPressGuardRef.current = false; }, 150);
-              if (!isEditableMainNow()) {
-                try { getActiveWebview()?.focus?.(); } catch {}
-              }
             }}
           />
       <FileDialogHost mode={mode} onCopyCommand={handleCopyDocumentsCommand} />

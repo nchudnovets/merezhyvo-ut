@@ -26,8 +26,7 @@ type Props = {
   visible: boolean;
   layoutId: LayoutId;
   enabledLayouts: LayoutId[];
-  // Placeholder for future context-specific tweaks
-  context?: 'text' | 'email';
+  context?: 'text' | 'email' | 'numeric' | 'decimal' | 'tel' | 'search';
   injectText: (text: string) => void;
   injectBackspace: () => void;
   injectEnter: () => void;
@@ -249,6 +248,7 @@ const KeyboardPane: React.FC<Props> = (p) => {
     visible,
     layoutId,
     enabledLayouts,
+    context = 'text',
     injectText,
     injectBackspace,
     injectEnter,
@@ -314,6 +314,12 @@ const KeyboardPane: React.FC<Props> = (p) => {
   });
   const lastEmojiInsertTsRef = useRef(0);
   const emojiPanelActive = emojiOpen && visible && !isSymbols(layoutId);
+  const prevAlphaLayoutRef = useRef<LayoutId>(
+    isSymbols(layoutId)
+      ? (enabledLayouts.find((id) => !isSymbols(id)) || 'en')
+      : layoutId
+  );
+  const numericContextActiveRef = useRef(false);
 
    // Keep the webview focused while interacting with the OSK.
   const interactionEndTimer = useRef<number | null>(null);
@@ -339,6 +345,42 @@ const KeyboardPane: React.FC<Props> = (p) => {
   useEffect(() => {
     ensureOskCssInjected(themeVars, theme);
   }, [theme, themeVars]);
+
+  useEffect(() => {
+    if (!isSymbols(layoutId)) {
+      prevAlphaLayoutRef.current = layoutId;
+    }
+  }, [layoutId]);
+
+  useEffect(() => {
+    const isNumericContext =
+      context === 'numeric' || context === 'decimal' || context === 'tel';
+    if (!visible) {
+      numericContextActiveRef.current = false;
+      return;
+    }
+
+    if (isNumericContext) {
+      if (!numericContextActiveRef.current) {
+        numericContextActiveRef.current = true;
+        if (!isSymbols(layoutId)) {
+          prevAlphaLayoutRef.current = layoutId;
+        }
+        if (layoutId !== 'symbols1') onSetLayout?.('symbols1');
+      }
+      return;
+    }
+
+    if (!numericContextActiveRef.current) return;
+    numericContextActiveRef.current = false;
+
+    if (!isSymbols(layoutId)) return;
+    const fallback = enabledLayouts.find((id) => !isSymbols(id)) || 'en';
+    const restore = enabledLayouts.includes(prevAlphaLayoutRef.current)
+      ? prevAlphaLayoutRef.current
+      : fallback;
+    onSetLayout?.(restore);
+  }, [context, visible, layoutId, enabledLayouts, onSetLayout]);
 
   useEffect(() => {
     if (!visible) return;

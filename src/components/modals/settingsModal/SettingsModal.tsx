@@ -402,6 +402,7 @@ export const SettingsModal: React.FC<SettingsModalProps> = ({
             body={
               <PasswordSettings
                 mode={mode}
+                theme={theme}
                 onManagePasswords={onOpenPasswords}
                 onRequestUnlock={onRequestPasswordUnlock}
               />

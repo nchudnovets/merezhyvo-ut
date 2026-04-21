@@ -43,6 +43,7 @@ tmp/
 **/.gitkeep
 about.md
 yTask.md
+ONBOARDING.md
 color_scheme.md
 electron-nodev.log
 electron-run.log

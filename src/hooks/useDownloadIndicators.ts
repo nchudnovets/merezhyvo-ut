@@ -2,6 +2,13 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 
 export type DownloadIndicatorState = 'hidden' | 'active' | 'completed' | 'error';
 
+export type DownloadIndicatorProgress = {
+  percent: number | null;
+  fraction: number | null;
+  indeterminate: boolean;
+  activeCount: number;
+};
+
 type DownloadStatusDetail = {
   id?: string;
   status: 'started' | 'completed' | 'failed';
@@ -22,11 +29,19 @@ type DownloadProgressDetail = {
 export const useDownloadIndicators = () => {
   const [downloadIndicatorState, setDownloadIndicatorState] =
     useState<DownloadIndicatorState>('hidden');
+  const [downloadIndicatorProgress, setDownloadIndicatorProgress] = useState<DownloadIndicatorProgress>({
+    percent: null,
+    fraction: null,
+    indeterminate: false,
+    activeCount: 0
+  });
   const [downloadToast, setDownloadToast] = useState<string | null>(null);
   const downloadToastTimerRef = useRef<number | null>(null);
   const downloadFileMapRef = useRef<Map<string, string>>(new Map());
-  const completedDownloadsRef = useRef<Set<string>>(new Set());
-  const activeDownloadsRef = useRef<Set<string>>(new Set());
+  const downloadStatesRef = useRef<Map<string, 'queued' | 'downloading' | 'completed' | 'failed'>>(new Map());
+  const downloadProgressMapRef = useRef<Map<string, { received: number; total: number }>>(new Map());
+  const batchHasFailureRef = useRef<boolean>(false);
+  const lastMeasuredPercentRef = useRef<number | null>(null);
   const downloadIndicatorTimerRef = useRef<number | null>(null);
   const completionSettleTimerRef = useRef<number | null>(null);
 
@@ -70,13 +85,53 @@ export const useDownloadIndicators = () => {
   }, []);
 
   useEffect(() => {
-    const activeSet = activeDownloadsRef.current;
+    const stateMap = downloadStatesRef.current;
+    const progressMap = downloadProgressMapRef.current;
+    const getActiveIds = (): string[] =>
+      Array.from(stateMap.entries())
+        .filter(([, state]) => state === 'queued' || state === 'downloading')
+        .map(([id]) => id);
+    const updateAggregatedProgress = (): number => {
+      const activeIds = getActiveIds();
+      if (activeIds.length === 0) {
+        setDownloadIndicatorProgress({ percent: null, fraction: null, indeterminate: false, activeCount: 0 });
+        return 0;
+      }
+      let totalReceived = 0;
+      let totalExpected = 0;
+      let hasUnknownTotal = false;
+      for (const id of activeIds) {
+        const progress = progressMap.get(id);
+        const received = progress?.received ?? 0;
+        const total = progress?.total ?? 0;
+        totalReceived += Math.max(0, received);
+        if (total > 0) {
+          totalExpected += total;
+        } else {
+          hasUnknownTotal = true;
+        }
+      }
+      const fraction =
+        !hasUnknownTotal && totalExpected > 0 ? Math.max(0, Math.min(1, totalReceived / totalExpected)) : null;
+      const percent = fraction != null ? Math.max(0, Math.min(100, Math.round(fraction * 100))) : null;
+      if (percent != null) {
+        lastMeasuredPercentRef.current = percent;
+      }
+      setDownloadIndicatorProgress({
+        percent,
+        fraction,
+        indeterminate: percent === null,
+        activeCount: activeIds.length
+      });
+      return activeIds.length;
+    };
+
     const handler = (event: CustomEvent<DownloadStateDetail>) => {
       const detail = event.detail ?? {};
       const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
       const state = detail.state;
       if (!targetId || !state) return;
-      const completedSet = completedDownloadsRef.current;
+
       const showFailureToast = () => {
         const stored = downloadFileMapRef.current.get(targetId) ?? '';
         const rawName = stored.split(/[\\/]/).pop() ?? stored;
@@ -92,29 +147,39 @@ export const useDownloadIndicators = () => {
         }, 3200);
         downloadFileMapRef.current.delete(targetId);
       };
-      if (state === 'downloading') {
-        completedSet.delete(targetId);
-      } else if (state === 'completed') {
-        completedSet.add(targetId);
-        downloadFileMapRef.current.delete(targetId);
-      } else if (state === 'failed') {
-        completedSet.delete(targetId);
-      }
+
+      const previousActiveCount = getActiveIds().length;
+      stateMap.set(targetId, state);
       if (state === 'queued' || state === 'downloading') {
+        if (previousActiveCount === 0) {
+          batchHasFailureRef.current = false;
+          lastMeasuredPercentRef.current = null;
+        }
         clearCompletionSettleTimer();
-        activeSet.add(targetId);
         clearDownloadIndicatorTimer();
         setDownloadIndicatorState('active');
+        updateAggregatedProgress();
         return;
       }
+
       if (state === 'completed' || state === 'failed') {
-        activeSet.delete(targetId);
-        if (activeSet.size > 0) return;
-        clearCompletionSettleTimer();
+        progressMap.delete(targetId);
         if (state === 'completed') {
+          downloadFileMapRef.current.delete(targetId);
+        }
+        if (state === 'failed') {
+          batchHasFailureRef.current = true;
+          showFailureToast();
+        }
+
+        const remainingActive = updateAggregatedProgress();
+        if (remainingActive > 0) return;
+
+        clearCompletionSettleTimer();
+        if (!batchHasFailureRef.current) {
           completionSettleTimerRef.current = window.setTimeout(() => {
             completionSettleTimerRef.current = null;
-            if (activeSet.size > 0) return;
+            if (updateAggregatedProgress() > 0) return;
             clearDownloadIndicatorTimer();
             setDownloadIndicatorState('completed');
             downloadIndicatorTimerRef.current = window.setTimeout(() => {
@@ -124,7 +189,15 @@ export const useDownloadIndicators = () => {
           }, 350);
         } else {
           clearDownloadIndicatorTimer();
-          showFailureToast();
+          setDownloadIndicatorProgress((prev) => {
+            const failedPercent = Math.max(0, Math.min(100, lastMeasuredPercentRef.current ?? prev.percent ?? 0));
+            return {
+              percent: failedPercent,
+              fraction: failedPercent / 100,
+              indeterminate: false,
+              activeCount: 0
+            };
+          });
           setDownloadIndicatorState('error');
         }
       }
@@ -133,10 +206,22 @@ export const useDownloadIndicators = () => {
     const handleProgress = (event: CustomEvent<DownloadProgressDetail>) => {
       const detail = event.detail ?? {};
       const targetId = typeof detail.id === 'string' && detail.id ? detail.id : '';
-      if (targetId) {
-        activeSet.add(targetId);
+      if (!targetId) return;
+      const received =
+        typeof detail.received === 'number' && Number.isFinite(detail.received) && detail.received >= 0
+          ? detail.received
+          : 0;
+      const total =
+        typeof detail.total === 'number' && Number.isFinite(detail.total) && detail.total > 0
+          ? detail.total
+          : 0;
+      progressMap.set(targetId, { received, total });
+      const current = stateMap.get(targetId);
+      if (!current || current === 'queued') {
+        stateMap.set(targetId, 'downloading');
       }
-      if (activeSet.size <= 0) return;
+      const activeCount = updateAggregatedProgress();
+      if (activeCount <= 0) return;
       clearCompletionSettleTimer();
       clearDownloadIndicatorTimer();
       setDownloadIndicatorState('active');
@@ -149,13 +234,18 @@ export const useDownloadIndicators = () => {
       window.removeEventListener('merezhyvo:downloads:progress', handleProgress as EventListener);
       clearCompletionSettleTimer();
       clearDownloadIndicatorTimer();
-      activeSet.clear();
+      stateMap.clear();
+      progressMap.clear();
+      batchHasFailureRef.current = false;
+      lastMeasuredPercentRef.current = null;
+      setDownloadIndicatorProgress({ percent: null, fraction: null, indeterminate: false, activeCount: 0 });
       setDownloadIndicatorState('hidden');
     };
   }, [clearCompletionSettleTimer, clearDownloadIndicatorTimer]);
 
   return {
     downloadIndicatorState,
+    downloadIndicatorProgress,
     downloadToast,
     handleDownloadIndicatorClick
   };

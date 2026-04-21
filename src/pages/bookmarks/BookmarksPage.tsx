@@ -706,6 +706,18 @@ const refreshTree = useCallback(async () => {
           tags: payload.tags
         });
         if (result.ok) {
+          const currentParentId = dialogState.node.parentId ?? rootId;
+          const destinationParentId = payload.parentId;
+          if (destinationParentId !== currentParentId) {
+            const moveResult = await api.move({
+              id: dialogState.node.id,
+              newParentId: destinationParentId
+            });
+            if (!moveResult.ok) {
+              setErrorBanner(t('bookmarks.error.save'));
+              return;
+            }
+          }
           showToast(t('bookmarks.toast.added'));
           notifyBookmarksChanged();
           setDialogState(null);
@@ -1479,12 +1491,40 @@ const handleDeleteSelection = () => {
       {confirmState && (
         <div style={styles.overlay}>
           <div style={{ ...styles.dialog, ...(modeStyles.dialog ?? {}) }}>
-            <p style={{...styles.dialogMessage, ...modeStyles.dialogMessage}}>{confirmState.message}</p>
+            <p
+              style={{
+                ...styles.dialogMessage,
+                ...modeStyles.dialogMessage,
+                color: 'var(--mzr-text-primary)'
+              }}
+            >
+              {confirmState.message}
+            </p>
             <div style={styles.dialogActions}>
-              <button style={{...styles.smallButton, ...modeStyles.smallButton}} type="button" onClick={() => setConfirmState(null)}>
+              <button
+                style={{
+                  ...styles.smallButton,
+                  ...modeStyles.smallButton,
+                  background: 'var(--mzr-surface-muted)',
+                  border: '1px solid var(--mzr-border-strong)',
+                  color: 'var(--mzr-text-primary)'
+                }}
+                type="button"
+                onClick={() => setConfirmState(null)}
+              >
                 {confirmState.cancelLabel ?? t('bookmarks.button.cancel')}
               </button>
-              <button style={{...styles.button, ...modeStyles.button}} type="button" onClick={confirmState.onConfirm}>
+              <button
+                style={{
+                  ...styles.button,
+                  ...modeStyles.button,
+                  background: 'var(--mzr-accent)',
+                  border: '1px solid var(--mzr-accent-strong)',
+                  color: '#fff'
+                }}
+                type="button"
+                onClick={confirmState.onConfirm}
+              >
                 {confirmState.confirmLabel}
               </button>
             </div>

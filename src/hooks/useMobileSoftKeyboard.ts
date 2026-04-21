@@ -2,13 +2,16 @@ import { useEffect } from 'react';
 import type { MutableRefObject } from 'react';
 import type { WebviewTag } from 'electron';
 import type { Mode } from '../types/models';
+import { DEFAULT_ACTIVE_INPUT_CONTEXT, type ActiveInputContext } from '../services/window/window';
 
 type UseMobileSoftKeyboardParams = {
   mode: Mode;
-  isEditableElement: (el: Element | null) => boolean;
+  getMainInputContext: (el: Element | null) => ActiveInputContext;
+  probeWebInputContext: () => Promise<ActiveInputContext>;
   getActiveWebview: () => WebviewTag | null;
   activeId: string | null;
   activeViewRevision: number;
+  setActiveInputContext: (ctx: ActiveInputContext) => void;
   setKbVisible: (flag: boolean) => void;
   oskPressGuardRef: MutableRefObject<boolean>;
   ctxMenuGuardRef?: MutableRefObject<boolean>;
@@ -19,10 +22,12 @@ const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
 
 export const useMobileSoftKeyboard = ({
   mode,
-  isEditableElement,
+  getMainInputContext,
+  probeWebInputContext,
   getActiveWebview,
   activeId,
   activeViewRevision,
+  setActiveInputContext,
   setKbVisible,
   oskPressGuardRef,
   ctxMenuGuardRef
@@ -47,7 +52,9 @@ export const useMobileSoftKeyboard = ({
       ) {
         return;
       }
-      if (!isEditableElement(t)) setKbVisible(false);
+      const ctx = getMainInputContext(t);
+      setActiveInputContext(ctx);
+      if (!ctx.editable) setKbVisible(false);
     };
 
     const onFocusIn = (e: FocusEvent) => {
@@ -55,7 +62,9 @@ export const useMobileSoftKeyboard = ({
       if (ctxMenuGuardRef?.current) return;
       const t = e.target as HTMLElement | null;
       if (!t) return;
-      if (isEditableElement(t)) setKbVisible(true);
+      const ctx = getMainInputContext(t);
+      setActiveInputContext(ctx);
+      if (ctx.editable) setKbVisible(true);
     };
 
     const onFocusOut = (event: FocusEvent) => {
@@ -73,7 +82,9 @@ export const useMobileSoftKeyboard = ({
       if (related && related.closest('[data-soft-keyboard="true"]')) return;
       const active = document.activeElement as HTMLElement | null;
       if (active && active.closest('[data-soft-keyboard="true"]')) return;
-      if (!isEditableElement(active)) {
+      const ctx = getMainInputContext(active);
+      setActiveInputContext(ctx);
+      if (!ctx.editable) {
         setKbVisible(false);
       }
     };
@@ -87,7 +98,14 @@ export const useMobileSoftKeyboard = ({
       document.removeEventListener('focusin', onFocusIn, true);
       document.removeEventListener('focusout', onFocusOut, true);
     };
-  }, [mode, isEditableElement, oskPressGuardRef, setKbVisible, ctxMenuGuardRef]);
+  }, [
+    mode,
+    getMainInputContext,
+    oskPressGuardRef,
+    setActiveInputContext,
+    setKbVisible,
+    ctxMenuGuardRef
+  ]);
 
   // Bridge focus/selection events inside the active webview back to the host.
   useEffect(() => {
@@ -101,44 +119,166 @@ export const useMobileSoftKeyboard = ({
           window.__mzrFocusBridgeInstalled = true;
 
           var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
-          function isEditable(el){
-            if(!el) return false;
-            if(el.isContentEditable) return true;
-            var tag = (el.tagName||'').toLowerCase();
-            if(tag==='textarea') return !el.disabled && !el.readOnly;
-            if(tag==='input'){
-              var type = (el.getAttribute('type')||'').toLowerCase();
-              if(nonText.has(type)) return false;
-              return !el.disabled && !el.readOnly;
-            }
-            return false;
-          }
+	          function isEditable(el){
+	            if(!el) return false;
+	            if(el.isContentEditable) return true;
+	            var tag = (el.tagName||'').toLowerCase();
+	            if(tag==='textarea') return !el.disabled && !el.readOnly;
+	            if(tag==='input'){
+	              var type = (el.getAttribute('type')||'').toLowerCase();
+	              if(nonText.has(type)) return false;
+	              return !el.disabled && !el.readOnly;
+	            }
+	            return false;
+	          }
 
-          function markLast(el){
-            try { window.__mzrLastEditable = el; } catch(e) {}
-          }
+	          function deepActive(startEl){
+	            var current = startEl || document.activeElement;
+	            var depth = 0;
+	            while (current && depth < 5) {
+	              if (current.shadowRoot && current.shadowRoot.activeElement) {
+	                current = current.shadowRoot.activeElement;
+	                depth++;
+	                continue;
+	              }
+	              if ((current.tagName || '').toUpperCase() === 'IFRAME') {
+	                try {
+	                  var frameDoc = current.contentWindow && current.contentWindow.document;
+	                  if (!frameDoc) {
+	                    return { iframeBoundary: true, el: current };
+	                  }
+	                  var next = frameDoc.activeElement;
+	                  if (!next || next === current) {
+	                    return { iframeBoundary: true, el: current };
+	                  }
+	                  current = next;
+	                  depth++;
+	                  continue;
+	                } catch(_) {
+	                  return { iframeBoundary: true, el: current };
+	                }
+	              }
+	              break;
+	            }
+	            return { iframeBoundary: false, el: current };
+	          }
 
-          function notify(flag){
-            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
-          }
+	          function resolveEditableState(startEl){
+	            var resolved = deepActive(startEl);
+	            if (resolved.iframeBoundary) return { editable: true, el: resolved.el };
+	            if (isEditable(resolved.el)) return { editable: true, el: resolved.el };
+	            if (startEl !== document.activeElement) {
+	              var activeResolved = deepActive(document.activeElement);
+	              if (activeResolved.iframeBoundary) return { editable: true, el: activeResolved.el };
+	              if (isEditable(activeResolved.el)) return { editable: true, el: activeResolved.el };
+	            }
+	            return { editable: false, el: resolved.el };
+	          }
 
-          document.addEventListener('focusin', function(ev){
-            if (isEditable(ev.target)) { markLast(ev.target); notify(true); }
-          }, true);
+	          function markLast(el){
+	            try { window.__mzrLastEditable = el; } catch(e) {}
+	          }
 
-          document.addEventListener('focusout', function(ev){
-            if (!isEditable(ev.target)) return;
-            setTimeout(function(){
-              var still = isEditable(document.activeElement);
-              if (still) markLast(document.activeElement);
-              notify(still);
-            }, 0);
-          }, true);
+	          function notify(flag){
+	            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
+	          }
 
-          document.addEventListener('pointerdown', function(ev){
-            var t = ev.target;
-            if (isEditable(t)) { markLast(t); notify(true); }
-          }, true);
+	          function attachDocBridge(doc){
+	            try {
+	              if (!doc || doc.__mzrFocusBridgeDocInstalled) return;
+	              doc.__mzrFocusBridgeDocInstalled = true;
+
+	              doc.addEventListener('focusin', function(ev){
+	                var state = resolveEditableState(ev.target);
+	                if (state.editable) {
+	                  markLast(state.el || ev.target);
+	                  notify(true);
+	                }
+	              }, true);
+
+	              doc.addEventListener('focusout', function(){
+	                setTimeout(function(){
+	                  var state = resolveEditableState(document.activeElement);
+	                  var still = state.editable;
+	                  if (still) markLast(state.el || document.activeElement);
+	                  notify(still);
+	                }, 0);
+	              }, true);
+
+	              doc.addEventListener('pointerdown', function(ev){
+	                var state = resolveEditableState(ev.target);
+	                if (state.editable) {
+	                  markLast(state.el || ev.target);
+	                  notify(true);
+	                }
+	              }, true);
+	            } catch(e) {}
+	          }
+
+	          function wireFrame(frame){
+	            try {
+	              if (!frame) return;
+	              var installFrameDoc = function(){
+	                try {
+	                  var frameDoc = frame.contentWindow && frame.contentWindow.document;
+	                  if (!frameDoc) return;
+	                  if (frame.__mzrFocusBridgeDocRef === frameDoc) return;
+	                  frame.__mzrFocusBridgeDocRef = frameDoc;
+	                  installDocTree(frameDoc);
+	                } catch(_) {}
+	              };
+	              if (!frame.__mzrFocusBridgeFrameInstalled) {
+	                frame.__mzrFocusBridgeFrameInstalled = true;
+	                frame.addEventListener('load', installFrameDoc, true);
+	              }
+	              installFrameDoc();
+	            } catch(e) {}
+	          }
+
+	          function wireFramesInNode(node){
+	            try {
+	              if (!node || node.nodeType !== 1) return;
+	              var tag = (node.tagName || '').toUpperCase();
+	              if (tag === 'IFRAME') {
+	                wireFrame(node);
+	              }
+	              var nested = node.querySelectorAll ? node.querySelectorAll('iframe') : [];
+	              for (var i = 0; i < nested.length; i++) {
+	                wireFrame(nested[i]);
+	              }
+	            } catch(e) {}
+	          }
+
+	          function installDocTree(doc){
+	            try {
+	              if (!doc) return;
+	              attachDocBridge(doc);
+	              wireFramesInNode(doc);
+	              if (doc.__mzrFocusBridgeObserverInstalled) return;
+	              doc.__mzrFocusBridgeObserverInstalled = true;
+	              var root = doc.documentElement || doc.body || doc;
+	              if (!root) return;
+	              var observer = new MutationObserver(function(mutations){
+	                for (var i = 0; i < mutations.length; i++) {
+	                  var mutation = mutations[i];
+	                  var added = mutation && mutation.addedNodes ? mutation.addedNodes : [];
+	                  for (var j = 0; j < added.length; j++) {
+	                    wireFramesInNode(added[j]);
+	                  }
+	                }
+	                wireFramesInNode(doc);
+	              });
+	              observer.observe(root, { childList: true, subtree: true });
+	            } catch(e) {}
+	          }
+
+	          installDocTree(document);
+	          if (!window.__mzrFocusBridgeFrameSweepInstalled) {
+	            window.__mzrFocusBridgeFrameSweepInstalled = true;
+	            window.setInterval(function(){
+	              try { wireFramesInNode(document); } catch(_) {}
+	            }, 350);
+	          }
 
            // === Merezhyvo: custom <select> overlay for mobile ===
           (function(){
@@ -308,12 +448,128 @@ export const useMobileSoftKeyboard = ({
         if (r && typeof r.then === 'function') r.catch(()=>{});
       } catch {}
     };
+    const syncTimers = new Set<number>();
+    let syncInFlight = false;
+    let transientPollTimer: number | null = null;
+    let transientPollStopTimer: number | null = null;
+    const inactiveTimers = new Set<number>();
+
+    const syncWebInputContext = () => {
+      void (async () => {
+        if (syncInFlight) return;
+        if (ctxMenuGuardRef?.current) return;
+        syncInFlight = true;
+        try {
+          const ctx = await probeWebInputContext();
+          setActiveInputContext(ctx);
+          setKbVisible(ctx.editable);
+          if (ctx.editable) {
+            if (transientPollTimer != null) {
+              window.clearInterval(transientPollTimer);
+              transientPollTimer = null;
+            }
+            if (transientPollStopTimer != null) {
+              window.clearTimeout(transientPollStopTimer);
+              transientPollStopTimer = null;
+            }
+          }
+        } finally {
+          syncInFlight = false;
+        }
+      })();
+    };
+
+    const syncWebInputContextPositive = () => {
+      void (async () => {
+        if (syncInFlight) return;
+        if (ctxMenuGuardRef?.current) return;
+        syncInFlight = true;
+        try {
+          const ctx = await probeWebInputContext();
+          if (!ctx.editable) return;
+          setActiveInputContext(ctx);
+          setKbVisible(true);
+          if (transientPollTimer != null) {
+            window.clearInterval(transientPollTimer);
+            transientPollTimer = null;
+          }
+          if (transientPollStopTimer != null) {
+            window.clearTimeout(transientPollStopTimer);
+            transientPollStopTimer = null;
+          }
+        } finally {
+          syncInFlight = false;
+        }
+      })();
+    };
+
+    const scheduleSyncWebInputContext = () => {
+      const delays = [0, 80, 180, 320, 500, 800, 1200];
+      delays.forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          syncTimers.delete(timer);
+          syncWebInputContextPositive();
+        }, delay);
+        syncTimers.add(timer);
+      });
+    };
+
+    const stopTransientPolling = () => {
+      if (transientPollTimer != null) {
+        window.clearInterval(transientPollTimer);
+        transientPollTimer = null;
+      }
+      if (transientPollStopTimer != null) {
+        window.clearTimeout(transientPollStopTimer);
+        transientPollStopTimer = null;
+      }
+    };
+
+    const startTransientPolling = () => {
+      if (ctxMenuGuardRef?.current) return;
+      if (transientPollTimer != null) return;
+      transientPollTimer = window.setInterval(() => {
+        syncWebInputContextPositive();
+      }, 220);
+      transientPollStopTimer = window.setTimeout(() => {
+        stopTransientPolling();
+      }, 4000);
+    };
+
+    const scheduleInactiveProbe = () => {
+      const delays = [90, 220, 420];
+      delays.forEach((delay) => {
+        const timer = window.setTimeout(() => {
+          inactiveTimers.delete(timer);
+          if (
+            document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+            document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+          ) {
+            return;
+          }
+          if (oskPressGuardRef.current) return;
+          if (ctxMenuGuardRef?.current) return;
+          void (async () => {
+            const ctx = await probeWebInputContext();
+            if (ctx.editable) {
+              setActiveInputContext(ctx);
+              setKbVisible(true);
+              return;
+            }
+            if (delay !== delays[delays.length - 1]) return;
+            setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
+            setKbVisible(false);
+          })();
+        }, delay);
+        inactiveTimers.add(timer);
+      });
+    };
 
     const onConsole = (event: any) => {
       const msg: string = (event && event.message) || '';
       if (msg === FOCUS_CONSOLE_ACTIVE) {
         if (oskPressGuardRef.current) return;
-        setKbVisible(true);
+        syncWebInputContext();
       } else if (msg === FOCUS_CONSOLE_INACTIVE) {
         if (
           document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
@@ -322,21 +578,71 @@ export const useMobileSoftKeyboard = ({
           return;
         }
         if (oskPressGuardRef.current) return;
-        setKbVisible(false);
+        scheduleInactiveProbe();
       }
     };
+
+    const onFocusFallback = () => {
+      if (oskPressGuardRef.current) return;
+      if (ctxMenuGuardRef?.current) return;
+      scheduleSyncWebInputContext();
+      startTransientPolling();
+    };
+
+    const positivePollingTimer = window.setInterval(() => {
+      if (oskPressGuardRef.current) return;
+      if (ctxMenuGuardRef?.current) return;
+      if (
+        document.body?.getAttribute('data-mzr-emoji-panel') === '1' ||
+        document.body?.getAttribute('data-mzr-emoji-panel-closing') === '1'
+      ) {
+        return;
+      }
+      if (document.activeElement !== wv) return;
+      syncWebInputContextPositive();
+    }, 320);
 
     install();
     wv.addEventListener('dom-ready', install);
     wv.addEventListener('did-navigate', install);
     wv.addEventListener('did-navigate-in-page', install);
     wv.addEventListener('console-message', onConsole);
+    wv.addEventListener('focus', onFocusFallback);
+    wv.addEventListener('mousedown', onFocusFallback as EventListener);
+    wv.addEventListener('pointerdown', onFocusFallback as EventListener);
+    wv.addEventListener('touchstart', onFocusFallback as EventListener);
+    wv.addEventListener('mouseup', onFocusFallback as EventListener);
+    wv.addEventListener('click', onFocusFallback as EventListener);
+    wv.addEventListener('touchend', onFocusFallback as EventListener);
 
     return () => {
+      syncTimers.forEach((timer) => window.clearTimeout(timer));
+      syncTimers.clear();
+      inactiveTimers.forEach((timer) => window.clearTimeout(timer));
+      inactiveTimers.clear();
+      stopTransientPolling();
+      window.clearInterval(positivePollingTimer);
       wv.removeEventListener('dom-ready', install);
       wv.removeEventListener('did-navigate', install);
       wv.removeEventListener('did-navigate-in-page', install);
       wv.removeEventListener('console-message', onConsole);
+      wv.removeEventListener('focus', onFocusFallback);
+      wv.removeEventListener('mousedown', onFocusFallback as EventListener);
+      wv.removeEventListener('pointerdown', onFocusFallback as EventListener);
+      wv.removeEventListener('touchstart', onFocusFallback as EventListener);
+      wv.removeEventListener('mouseup', onFocusFallback as EventListener);
+      wv.removeEventListener('click', onFocusFallback as EventListener);
+      wv.removeEventListener('touchend', onFocusFallback as EventListener);
     };
-  }, [mode, getActiveWebview, activeId, activeViewRevision, setKbVisible, oskPressGuardRef]);
+  }, [
+    mode,
+    getActiveWebview,
+    activeId,
+    activeViewRevision,
+    setActiveInputContext,
+    setKbVisible,
+    oskPressGuardRef,
+    ctxMenuGuardRef,
+    probeWebInputContext
+  ]);
 };

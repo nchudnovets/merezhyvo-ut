@@ -9,6 +9,7 @@ import type {
   FormEvent
 } from 'react';
 import type { Mode, TrackerStatus } from '../../types/models';
+import type { DownloadIndicatorProgress } from '../../hooks/useDownloadIndicators';
 import { useI18n } from '../../i18n/I18nProvider';
 import { toolbarStyles, toolbarModeStyles } from './toolbarStyles';
 import { SecurityShield } from './SecurityShield';
@@ -27,6 +28,7 @@ interface AddressBarProps {
   onOpenTabsPanel: () => void;
   onNewTab: () => void;
   downloadIndicatorState: 'hidden' | 'active' | 'completed' | 'error';
+  downloadIndicatorProgress: DownloadIndicatorProgress;
   onDownloadIndicatorClick: () => void;
   showTabsButton?: boolean;
   inputFocused?: boolean;
@@ -79,6 +81,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
   onOpenTabsPanel,
   onNewTab,
   downloadIndicatorState,
+  downloadIndicatorProgress,
   onDownloadIndicatorClick,
   showTabsButton = true,
   inputFocused = false,
@@ -104,13 +107,13 @@ const AddressBar: React.FC<AddressBarProps> = ({
   const { t } = useI18n();
   const pointerDownTsRef = React.useRef<number>(0);
   const showIndicator = downloadIndicatorState !== 'hidden';
-  const indicatorSize = mode === 'mobile' ? 55 : 16;
+  const indicatorButtonWidth = mode === 'mobile' ? 132 : 64;
   const copyButtonVisible = inputFocused;
   const copyButtonSize = mode === 'mobile' ? 64 : 22;
   const actionGap = mode === 'mobile' ? 16 : 8;
   const paddingRight =
     (copyButtonVisible ? copyButtonSize + actionGap : 0) +
-    (showIndicator ? indicatorSize + actionGap : 0);
+    (showIndicator ? indicatorButtonWidth + actionGap : 0);
   const inputStyle: CSSProperties = {
     ...toolbarStyles.input,
     ...(toolbarModeStyles[mode].searchInput ?? {}),
@@ -122,7 +125,7 @@ const AddressBar: React.FC<AddressBarProps> = ({
     (toolbarModeStyles[mode].searchInput?.fontSize as string | number | undefined) ??
     (mode === 'mobile' ? '36px' : '15px');
   const baseFontSize = typeof baseInputFont === 'number' ? `${baseInputFont}px` : baseInputFont;
-  const secondaryFontSize = mode === 'mobile' ? '28px' : '14px';
+  const secondaryFontSize = mode === 'mobile' ? '36px' : '14px';
 
   const suggestionsStyle: CSSProperties = {
     position: 'absolute',
@@ -155,32 +158,78 @@ const AddressBar: React.FC<AddressBarProps> = ({
       : downloadIndicatorState === 'error'
       ? t('address.downloads.error')
       : t('address.downloads.inProgress');
-  const arrowColor =
+  const barColor =
     downloadIndicatorState === 'completed'
       ? '#22c55e'
       : downloadIndicatorState === 'error'
-      ? '#f97316'
+      ? 'var(--mzr-danger)'
       : 'var(--mzr-accent-strong)';
-  const arrowStyle: CSSProperties = {
-    width: 0,
-    height: 0,
-    borderLeft: `${indicatorSize/2}px solid transparent`,
-    borderRight: `${indicatorSize/2}px solid transparent`,
-    borderTop: `${indicatorSize/2+(mode === 'mobile' ? 10 : 1)}px solid ${arrowColor}`,
-    display: 'block',
-    ...(downloadIndicatorState === 'active'
-      ? { animation: 'download-arrow 0.9s ease-in-out infinite' }
-      : {})
+  const progressWidth =
+    downloadIndicatorState === 'completed'
+      ? 100
+      : downloadIndicatorState === 'error'
+      ? Math.max(0, Math.min(100, downloadIndicatorProgress.percent ?? 0))
+      : downloadIndicatorProgress.fraction != null
+      ? downloadIndicatorProgress.fraction * 100
+      : 40;
+  const progressLineTrackStyle: CSSProperties = {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    bottom: 0,
+    height: mode === 'mobile' ? 5 : 3,
+    borderRadius: 999,
+    background: 'rgba(148, 163, 184, 0.34)',
+    overflow: 'hidden',
+    pointerEvents: 'none'
   };
+  const progressLineFillStyle: CSSProperties = {
+    display: 'block',
+    height: '100%',
+    width: `${progressWidth}%`,
+    borderRadius: 999,
+    background: barColor,
+    boxShadow: `0 0 8px ${barColor}`,
+    transition: 'width 0.2s ease',
+    ...(downloadIndicatorState === 'active' && downloadIndicatorProgress.indeterminate ? { width: '55%' } : {})
+  };
+  const progressTextStyle: CSSProperties = {
+    minWidth: mode === 'mobile' ? 84 : 36,
+    textAlign: 'right',
+    color:
+      downloadIndicatorState === 'completed'
+        ? '#22c55e'
+        : downloadIndicatorState === 'error'
+        ? 'var(--mzr-danger)'
+        : 'var(--mzr-text-primary)',
+    fontWeight: 700,
+    fontSize: mode === 'mobile' ? baseFontSize : 11,
+    lineHeight: 1,
+    fontVariantNumeric: 'tabular-nums'
+  };
+  const progressText =
+    downloadIndicatorState === 'completed'
+      ? '100%'
+      : downloadIndicatorState === 'error'
+      ? `${Math.max(0, Math.min(100, downloadIndicatorProgress.percent ?? 0))}%`
+      : downloadIndicatorProgress.percent != null
+      ? `${downloadIndicatorProgress.percent}%`
+      : `...`;
   const buttonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
-    width: indicatorSize,
-    height: indicatorSize,
+    width: indicatorButtonWidth,
+    height: mode === 'mobile' ? 66 : 26,
     right: copyButtonVisible
       ? `${(mode === 'mobile' ? 16 : 8) + copyButtonSize + actionGap}px`
       : mode === 'mobile'
         ? '20px'
-        : '10px'
+        : '10px',
+    border: '1px solid var(--mzr-border-strong)',
+    borderRadius: 999,
+    background: 'var(--mzr-surface)',
+    boxShadow: '0 2px 6px rgba(0,0,0,0.08)',
+    padding: mode === 'mobile' ? '0 16px' : '0 8px',
+    gap: mode === 'mobile' ? 0 : 6
   };
   const copyButtonStyle: CSSProperties = {
     ...toolbarStyles.downloadIndicator,
@@ -277,16 +326,21 @@ const AddressBar: React.FC<AddressBarProps> = ({
             </svg>
           </button>
         )}
-      {showIndicator && (
+        {showIndicator && (
+          <span style={progressLineTrackStyle} aria-hidden="true">
+            <span style={progressLineFillStyle} />
+          </span>
+        )}
+        {showIndicator && (
           <button
             type="button"
-            aria-label={indicatorLabel}
+            aria-label={`${indicatorLabel}${downloadIndicatorProgress.percent != null ? ` ${downloadIndicatorProgress.percent}%` : ''}`}
             onClick={onDownloadIndicatorClick}
             style={buttonStyle}
           >
-          <span style={arrowStyle} />
-        </button>
-      )}
+            <span style={progressTextStyle}>{progressText}</span>
+          </button>
+        )}
         {inputFocused && suggestions.length > 0 && value.trim().length > 0 && (
           <ul style={suggestionsStyle}>
             {suggestions.map((item, idx) => (

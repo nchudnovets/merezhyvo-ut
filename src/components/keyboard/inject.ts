@@ -1,4 +1,5 @@
 import { ipc } from '../../services/ipc/ipc';
+import type { ActiveInputContext } from '../../services/window/window';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -393,6 +394,147 @@ export function makeWebInjects(
     const wv = getActiveWebview();
     return wv ? wv.getWebContentsId() : null;
   };
+  const focusWebviewElement = (): void => {
+    const wv = getActiveWebview();
+    if (!wv) return;
+    try {
+      wv.focus();
+    } catch {
+      // noop
+    }
+  };
+  const restoreTopEditableVisualState = async (refocus = true): Promise<boolean> => {
+    const wv = getActiveWebview();
+    if (!wv) return false;
+    const refocusLiteral = refocus ? 'true' : 'false';
+    const code = `
+      (function(){
+        try {
+          var SHOULD_REFOCUS = ${refocusLiteral};
+          var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
+          function isEditable(el){
+            if(!el) return false;
+            if(el.isContentEditable) return true;
+            var tag = (el.tagName||'').toLowerCase();
+            if(tag==='textarea') return !el.disabled && !el.readOnly;
+            if(tag==='input'){
+              var type = (el.getAttribute('type')||'').toLowerCase();
+              if(nonText[type]) return false;
+              return !el.disabled && !el.readOnly;
+            }
+            return false;
+          }
+          function deepActive(startEl){
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while(current && depth < 8){
+              if(current.shadowRoot && current.shadowRoot.activeElement){
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              try{
+                if((current.tagName||'').toUpperCase() === 'IFRAME' && current.contentWindow && current.contentWindow.document){
+                  current = current.contentWindow.document.activeElement || current;
+                  depth++;
+                  continue;
+                }
+              }catch(_){}
+              break;
+            }
+            return current;
+          }
+          function ensureCaretVisible(ip, pos){
+            try{
+              var style = getComputedStyle(ip);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (ctx) {
+                var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+                if (font) ctx.font = font;
+                var before = String(ip.value || '').slice(0, pos);
+                var lineText = (ip.tagName || '').toLowerCase() === 'textarea'
+                  ? (before.split('\\n').pop() || '')
+                  : before;
+                var caretX = ctx.measureText(lineText).width;
+                var visibleWidth = Math.max(0, ip.clientWidth - padL - padR);
+                var viewLeft = ip.scrollLeft;
+                var viewRight = viewLeft + visibleWidth;
+                if (caretX <= 1) {
+                  ip.scrollLeft = 0;
+                } else if (caretX < viewLeft + 2) {
+                  ip.scrollLeft = Math.max(0, caretX - 4);
+                } else if (caretX > viewRight - 2) {
+                  ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+                }
+              }
+              if ((ip.tagName || '').toLowerCase() === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var beforeText = String(ip.value || '').slice(0, pos);
+                var lineIndex = beforeText.split('\\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = ip.clientHeight - padB - borderB;
+                var viewTop = ip.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  ip.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  ip.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            }catch(_){}
+          }
+
+          var el = deepActive(document.activeElement);
+          if(!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)){
+            el = window.__mzrLastEditable;
+          }
+          if(!isEditable(el)) return false;
+
+          if(el.isContentEditable){
+            if (SHOULD_REFOCUS) {
+              try{ el.focus({preventScroll:true}); }catch(_){ try{ el.focus(); }catch(__){} }
+            }
+            try{ document.dispatchEvent(new Event('selectionchange',{bubbles:true})); }catch(_){}
+            return true;
+          }
+
+          var tag = (el.tagName||'').toLowerCase();
+          if((tag==='textarea' || tag==='input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number'){
+            var start = el.selectionStart;
+            var end = el.selectionEnd;
+            try{ if(typeof el.setSelectionRange === 'function') el.setSelectionRange(start, end); }catch(_){}
+            ensureCaretVisible(el, Math.max(start, end));
+            if (SHOULD_REFOCUS) {
+              try{ el.focus({preventScroll:true}); }catch(_){ try{ el.focus(); }catch(__){} }
+            }
+            try{ el.dispatchEvent(new Event('select',{bubbles:true})); }catch(_){}
+            try{ document.dispatchEvent(new Event('selectionchange',{bubbles:true})); }catch(_){}
+            return true;
+          }
+          return false;
+        } catch(e) {
+          return false;
+        }
+      })();
+    `;
+    try {
+      const res = await wv.executeJavaScript(code, false);
+      return Boolean(res);
+    } catch {
+      return false;
+    }
+  };
   const shouldUseDomInjection = (): boolean => {
     try {
       const wv = getActiveWebview();
@@ -414,6 +556,56 @@ export function makeWebInjects(
       (function(t){
         try{
           var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
+          function ensureCaretVisible(ip, pos){
+            try{
+              var style = getComputedStyle(ip);
+              var padL = parseFloat(style.paddingLeft || '0') || 0;
+              var padR = parseFloat(style.paddingRight || '0') || 0;
+              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
+              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
+              if (ctx) {
+                var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
+                if (font) ctx.font = font;
+                var before = String(ip.value || '').slice(0, pos);
+                var lineText = (ip.tagName || '').toLowerCase() === 'textarea'
+                  ? (before.split('\\n').pop() || '')
+                  : before;
+                var caretX = ctx.measureText(lineText).width;
+                var visibleWidth = Math.max(0, ip.clientWidth - padL - padR);
+                var viewLeft = ip.scrollLeft;
+                var viewRight = viewLeft + visibleWidth;
+                if (caretX <= 1) {
+                  ip.scrollLeft = 0;
+                } else if (caretX < viewLeft + 2) {
+                  ip.scrollLeft = Math.max(0, caretX - 4);
+                } else if (caretX > viewRight - 2) {
+                  ip.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
+                }
+              }
+              if ((ip.tagName || '').toLowerCase() === 'textarea') {
+                var padT = parseFloat(style.paddingTop || '0') || 0;
+                var padB = parseFloat(style.paddingBottom || '0') || 0;
+                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
+                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
+                var lineHeight = parseFloat(style.lineHeight || '');
+                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
+                  var fontSize = parseFloat(style.fontSize || '16') || 16;
+                  lineHeight = Math.round(fontSize * 1.3);
+                }
+                var beforeText = String(ip.value || '').slice(0, pos);
+                var lineIndex = beforeText.split('\\n').length - 1;
+                var caretTop = lineIndex * lineHeight + padT + borderT;
+                var visibleHeight = ip.clientHeight - padB - borderB;
+                var viewTop = ip.scrollTop;
+                var viewBottom = viewTop + visibleHeight;
+                if (caretTop < viewTop) {
+                  ip.scrollTop = Math.max(0, caretTop - 4);
+                } else if (caretTop + lineHeight > viewBottom) {
+                  ip.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
+                }
+              }
+            }catch(_){}
+          }
           var el = document.activeElement;
           if(!el) { console.info('[osk-inject] no active el'); return false; }
           var tag = (el.tagName||'').toLowerCase();
@@ -432,9 +624,11 @@ export function makeWebInjects(
               var pos = s + t.length;
               if (ip.setSelectionRange) ip.setSelectionRange(pos,pos);
             }
+            var caretPos = typeof ip.selectionStart === 'number' ? ip.selectionStart : s + t.length;
+            ensureCaretVisible(ip, caretPos);
             ip.dispatchEvent(new InputEvent('input',{inputType:'insertText',data:t,bubbles:true}));
+            try{ ip.dispatchEvent(new Event('select',{bubbles:true})); }catch(_){}
             document.dispatchEvent(new Event('selectionchange',{bubbles:true}));
-            try{ ip.focus({preventScroll:true}); }catch(_){ try{ ip.focus(); }catch(__){} }
             console.info('[osk-inject] ok input', { tag, type, len: ip.value.length });
             return true;
           }
@@ -504,25 +698,41 @@ export function makeWebInjects(
   const sendCharsTrusted = async (text: string): Promise<boolean> => {
     const useDom = shouldUseDomInjection();
     if (useDom) {
+      focusWebviewElement();
       const ok = await injectViaDom(text);
-      if (ok) return true;
+      if (ok) {
+        await restoreTopEditableVisualState(false);
+        return true;
+      }
     }
     const wcId = getWcId();
     if (wcId == null) return false;
-    await ensureEditableFocus();
+    const hadEditableFocus = await ensureEditableFocus();
+    if (hadEditableFocus) {
+      focusWebviewElement();
+    }
     await ipc.osk.char(wcId, String(text));
-    // Ensure focus stays inside the active editable
-    await ensureEditableFocus();
+    if (hadEditableFocus) {
+      await restoreTopEditableVisualState(false);
+    } else {
+      await ensureEditableFocus();
+    }
     return true;
   };
 
   const sendKeyTrusted = async (key: string): Promise<boolean> => {
     const wcId = getWcId();
     if (wcId == null) return false;
-    await ensureEditableFocus();
+    const hadEditableFocus = await ensureEditableFocus();
+    if (hadEditableFocus) {
+      focusWebviewElement();
+    }
     await ipc.osk.key(wcId, key);
-    // Ensure focus stays inside the active editable
-    await ensureEditableFocus();
+    if (hadEditableFocus) {
+      await restoreTopEditableVisualState();
+    } else {
+      await ensureEditableFocus();
+    }
     return true;
   };
 
@@ -1120,27 +1330,147 @@ export function makeWebInjects(
    PROBE (webview): is there an editable element active?
    ========================= */
 
-export async function probeWebEditable(getWebview: GetWebview): Promise<boolean> {
+export async function probeWebActiveInputContext(getWebview: GetWebview): Promise<ActiveInputContext> {
   const wv = getWebview();
-  if (!wv) return false;
+  if (!wv) {
+    return { editable: false, kind: 'text', multiline: false };
+  }
   try {
     const code = `
       (function(){
         try{
-          var el = document.activeElement;
-          if(!el) return false;
-          var tag = (el.tagName||'').toLowerCase();
-          var type = (el.getAttribute ? (el.getAttribute('type')||'').toLowerCase() : '');
           var nonText = {'button':1,'submit':1,'reset':1,'checkbox':1,'radio':1,'range':1,'color':1,'file':1,'image':1,'hidden':1};
-          return !!(el.isContentEditable || tag==='textarea' || (tag==='input' && !nonText[type]));
-        }catch(e){ return false; }
+          var kindByInputMode = { text:'text', email:'email', numeric:'numeric', decimal:'decimal', tel:'tel', search:'search' };
+          var kindByType = { text:'text', email:'email', number:'numeric', tel:'tel', search:'search' };
+
+          function base() {
+            return { editable: false, kind: 'text', multiline: false };
+          }
+
+	          function isLikelyNumericPattern(pattern) {
+	            if (!pattern) return false;
+            var normalized = String(pattern).trim();
+            if (!normalized) return false;
+            if (/[a-z]/i.test(normalized)) return false;
+            return (
+              normalized.indexOf('\\\\d') !== -1 ||
+              normalized.indexOf('[0-9]') !== -1 ||
+              normalized.indexOf('[\\\\d]') !== -1
+	            );
+	          }
+
+	          function inferInputKind(input) {
+            var inputMode = (input.getAttribute('inputmode') || '').toLowerCase().trim();
+            if (inputMode && kindByInputMode[inputMode]) return kindByInputMode[inputMode];
+
+            var type = (input.getAttribute('type') || input.type || 'text').toLowerCase().trim();
+            if (type && kindByType[type]) return kindByType[type];
+
+            var autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase().trim();
+            if (autocomplete === 'one-time-code') return 'numeric';
+
+	            if (isLikelyNumericPattern(input.getAttribute('pattern') || '')) return 'numeric';
+
+	            return 'text';
+	          }
+
+          function fromElement(el) {
+            if (!el) return base();
+            var tag = (el.tagName || '').toLowerCase();
+
+            if (el.isContentEditable) {
+              var ariaMultiline = (el.getAttribute('aria-multiline') || '').toLowerCase();
+              var dataSingle = (el.getAttribute('data-singleline') || '').toLowerCase();
+              return {
+                editable: true,
+                kind: 'text',
+                multiline: !(ariaMultiline === 'false' || dataSingle === 'true')
+              };
+            }
+
+            if (tag === 'textarea') {
+              if (el.disabled || el.readOnly) return base();
+              return { editable: true, kind: 'text', multiline: true };
+            }
+
+            if (tag === 'input') {
+              var type = (el.getAttribute('type') || '').toLowerCase();
+              if (nonText[type]) return base();
+              if (el.disabled || el.readOnly) return base();
+              return {
+                editable: true,
+                kind: inferInputKind(el),
+                multiline: false
+              };
+            }
+
+            return base();
+          }
+
+          function deepActive() {
+            var current = document.activeElement;
+            var depth = 0;
+            while (current && depth < 5) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              if (current.tagName === 'IFRAME') {
+                try {
+                  var frameDoc = current.contentWindow && current.contentWindow.document;
+                  if (!frameDoc) break;
+                  var next = frameDoc.activeElement;
+                  if (!next || next === current) break;
+                  current = next;
+                  depth++;
+                  continue;
+                } catch (_) {
+                  return { iframeBoundary: true, el: current };
+                }
+              }
+              break;
+            }
+            return { iframeBoundary: false, el: current };
+          }
+
+	          var resolved = deepActive();
+	          if (resolved.iframeBoundary) {
+	            return { editable: true, kind: 'text', multiline: false };
+	          }
+	          return fromElement(resolved.el);
+        }catch(e){
+          return { editable: false, kind: 'text', multiline: false };
+        }
       })();
     `;
     const result = await wv.executeJavaScript(code, false);
-    return Boolean(result);
+    if (!result || typeof result !== 'object') {
+      return { editable: false, kind: 'text', multiline: false };
+    }
+    const candidate = result as Partial<ActiveInputContext>;
+    const kind = candidate.kind;
+    const normalizedKind =
+      kind === 'email' ||
+      kind === 'numeric' ||
+      kind === 'decimal' ||
+      kind === 'tel' ||
+      kind === 'search'
+        ? kind
+        : 'text';
+    return {
+      editable: Boolean(candidate.editable),
+      kind: normalizedKind,
+      multiline: Boolean(candidate.multiline)
+    };
   } catch {
-    return false;
+    return { editable: false, kind: 'text', multiline: false };
   }
+}
+
+export async function probeWebEditable(getWebview: GetWebview): Promise<boolean> {
+  const context = await probeWebActiveInputContext(getWebview);
+  return context.editable;
 }
 
 export type MainInjects = ReturnType<typeof makeMainInjects>;

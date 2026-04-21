@@ -556,9 +556,10 @@ export function installUserAgentOverride(targetSession: Session | null = session
           rememberTopLevelHost(details.webContentsId, details.url);
         }
         const topHost = getTopLevelHostForRequest(details);
+        const firstPartyURL = (details as { firstPartyURL?: string }).firstPartyURL;
         const targetUrl = details.resourceType === 'mainFrame'
           ? details.url
-          : (details.firstPartyURL || (topHost ? `https://${topHost}` : details.url));
+          : (firstPartyURL || (topHost ? `https://${topHost}` : details.url));
         const ua = getUserAgentForUrl(targetUrl);
         const headers = { ...details.requestHeaders };
         const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
@@ -662,7 +663,8 @@ const refreshUserAgentMode = (): void => {
   try {
     for (const wc of webContents.getAllWebContents()) {
       if (wc.isDestroyed?.()) continue;
-      if (typeof wc.getType === 'function' && wc.getType() === 'devtools') continue;
+      const webContentsType = typeof wc.getType === 'function' ? (wc.getType() as string) : '';
+      if (webContentsType === 'devtools') continue;
       applyUserAgentToWebContents(wc, typeof wc.getURL === 'function' ? wc.getURL() : '');
     }
   } catch {
@@ -1288,6 +1290,30 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
       }, 300);
     }
   });
+
+  const ensureWindowVisible = () => {
+    if (typedWin.isDestroyed() || typedWin.isVisible()) return;
+    try {
+      if (initialMode === 'mobile') {
+        applyMobileBounds(typedWin);
+      } else if (fullscreen) {
+        typedWin.setFullScreen(true);
+      }
+    } catch {
+      // noop
+    }
+    try { typedWin.show(); } catch {}
+    try { typedWin.focus(); } catch {}
+  };
+
+  typedWin.webContents.once('did-finish-load', () => {
+    setTimeout(() => {
+      ensureWindowVisible();
+    }, 50);
+  });
+  setTimeout(() => {
+    ensureWindowVisible();
+  }, 1500);
 
   const rebalanceBounds = () => {
     if (initialMode === 'mobile') applyMobileBounds(typedWin);
