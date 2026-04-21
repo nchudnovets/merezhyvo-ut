@@ -1,6 +1,28 @@
 # Changelog
 
 ----
+## v0.5.3 - 2026-04-21
+
+### Fixes:
+
+- a bug preventing Master Password creation
+
+- a few bugs of Boockmarks management
+
+- a bug preventing keyboard to appear for capchas and iframes
+
+- some other small keyboard fixes
+
+### New / Improved:
+
+- files downloads progress bar
+
+- Updated Electron/Chromium engine
+
+- updated Tor
+
+
+----
 ## v0.5.2 - 2026-03-03
 
 ### Fixes:
