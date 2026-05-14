@@ -36,7 +36,6 @@ type CouponActionState = Record<
   { applying?: boolean; inserting?: boolean; reporting?: boolean }
 >;
 
-const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
 const PENDING_COUPON_TTL_MS = 2 * 60 * 60 * 1000;
 
 const COUPON_FIELD_KEYWORDS = [
@@ -327,6 +326,7 @@ export const useCoupons = ({
   const detectedCountryTimerRef = useRef<number | null>(null);
   const [savingsLoaded, setSavingsLoaded] = useState<boolean>(false);
   const catalogFetchInFlightRef = useRef<boolean>(false);
+  const catalogStartupFetchAttemptRef = useRef<string | null>(null);
 
   const applySavingsSettings = useCallback((next: SavingsSettings | null | undefined) => {
     const payload = next ?? DEFAULT_SAVINGS_SETTINGS;
@@ -455,14 +455,7 @@ export const useCoupons = ({
         });
       }
     } catch {
-      const nowIso = new Date().toISOString();
-      void updateSavingsSettings({
-        catalog: {
-          ...baseCatalog,
-          country,
-          lastFetchAttemptAt: nowIso
-        }
-      });
+      // Keep the persisted catalog untouched on transient failures.
     } finally {
       catalogFetchInFlightRef.current = false;
     }
@@ -483,22 +476,18 @@ export const useCoupons = ({
     const nextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
     if (Number.isFinite(nextAllowedAt) && nextAllowedAt > now) return;
     if (hasKnownCountry && catalog.country && catalog.country !== effectiveSavingsCountry) {
-      if (isCouponsInfoService) return;
       void updateSavingsSettings({
         catalog: { ...DEFAULT_SAVINGS_CATALOG, country: effectiveSavingsCountry }
       });
       return;
     }
-    const updatedAt = catalog.updatedAt ? Date.parse(catalog.updatedAt) : 0;
-    const isFresh = catalog.country === effectiveCountry
-      && Number.isFinite(updatedAt)
-      && now - updatedAt < CATALOG_TTL_MS;
-    if (isFresh) return;
+    const startupFetchKey = effectiveCountry;
+    if (catalogStartupFetchAttemptRef.current === startupFetchKey) return;
+    catalogStartupFetchAttemptRef.current = startupFetchKey;
     void performCatalogFetch(effectiveCountry, catalog.etag);
   }, [
     detectedCountry,
     effectiveSavingsCountry,
-    isCouponsInfoService,
     performCatalogFetch,
     savingsLoaded,
     savingsSettings.catalog,

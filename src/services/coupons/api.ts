@@ -143,10 +143,13 @@ export const fetchMerchantsCatalog = async (
     headers['If-None-Match'] = etag;
   }
 
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), COUPONS_API_TIMEOUT_MS);
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers,
+      signal: controller.signal,
       cache: 'no-store'
     });
 
@@ -175,7 +178,12 @@ export const fetchMerchantsCatalog = async (
 
     return { status: 'error', error: `Unexpected status ${response.status}` };
   } catch (err) {
+    if (controller.signal.aborted) {
+      return { status: 'error', error: 'Request timed out' };
+    }
     return { status: 'error', error: String(err) };
+  } finally {
+    window.clearTimeout(timeout);
   }
 };
 
