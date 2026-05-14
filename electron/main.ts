@@ -77,6 +77,7 @@ import { registerSecureDnsIpc } from './lib/secure-dns-ipc';
 import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
 import { registerSiteDataIpc } from './lib/site-data-ipc';
+import { detectCountryFromIp, fetchDirectIp } from './lib/network-geo';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
@@ -2610,6 +2611,25 @@ ipcMain.handle('merezhyvo:settings:network:update-detected', async (_event, payl
   } catch (err) {
     console.error('[merezhyvo] settings network update failed', err);
     return sanitizeNetworkSettings(payload);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:network:detect-country', async (_event, payload: unknown) => {
+  const ip = payload && typeof payload === 'object' && typeof (payload as { ip?: unknown }).ip === 'string'
+    ? (payload as { ip: string }).ip
+    : null;
+  const persist = payload && typeof payload === 'object' && typeof (payload as { persist?: unknown }).persist === 'boolean'
+    ? (payload as { persist: boolean }).persist
+    : true;
+  return detectCountryFromIp({ ip, persist });
+});
+
+ipcMain.handle('merezhyvo:network:get-direct-ip', async () => {
+  try {
+    const ip = await fetchDirectIp();
+    return { ok: true, ip };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 });
 

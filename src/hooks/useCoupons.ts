@@ -788,45 +788,11 @@ export const useCoupons = ({
       } catch {
         // ignore cache read failures
       }
-      const fetchPrimary = async (): Promise<{ country: string | null; ip: string | null }> => {
-        const response = await fetch('https://ipwho.is/', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Primary geo failed');
-        const payload = (await response.json().catch(() => ({}))) as {
-          country_code?: unknown;
-          ip?: unknown;
-          success?: unknown;
-        };
-        if (payload.success === false) throw new Error('Primary geo failed');
-        return {
-          country: normalizeCountryCode(payload.country_code),
-          ip: typeof payload.ip === 'string' ? payload.ip : null
-        };
-      };
-      const fetchFallback = async (): Promise<{ country: string | null; ip: string | null }> => {
-        const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Fallback geo failed');
-        const payload = (await response.json().catch(() => ({}))) as { country_code?: unknown; ip?: unknown };
-        return {
-          country: normalizeCountryCode(payload.country_code),
-          ip: typeof payload.ip === 'string' ? payload.ip : null
-        };
-      };
       try {
-        let result = await fetchPrimary();
-        if (!result.country) {
-          result = await fetchFallback();
-        }
-        const code = result.country;
-        const ip = result.ip;
+        const result = await ipc.settings.network.detectCountry();
+        const code = normalizeCountryCode(result.countryCode);
         if (!cancelled) {
           setDetectedCountry(code ?? cachedCountry ?? 'US');
-        }
-        if (code && ip) {
-          void ipc.settings.network.updateDetected({
-            detectedIp: ip,
-            detectedCountry: code,
-            detectedAt: new Date().toISOString()
-          });
         }
       } catch {
         if (!cancelled) {

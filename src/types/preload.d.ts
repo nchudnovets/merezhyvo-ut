@@ -304,6 +304,8 @@ export interface MerezhyvoAPI {
     };
     network: {
       updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
+      detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null }>;
+      getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }>;
     };
     savings: {
       get(): Promise<SavingsSettings>;

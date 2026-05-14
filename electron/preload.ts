@@ -468,6 +468,25 @@ const exposeApi: MerezhyvoAPI = {
           console.error('[merezhyvo] settings.network.updateDetected failed', err);
           throw err;
         }
+      },
+      detectCountry: async (payload?: { ip?: string | null; persist?: boolean }) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:network:detect-country', payload ?? {})) as {
+            countryCode: string | null;
+            ip: string | null;
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.network.detectCountry failed', err);
+          return { countryCode: null, ip: null };
+        }
+      },
+      getDirectIp: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:network:get-direct-ip')) as { ok: boolean; ip?: string; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.network.getDirectIp failed', err);
+          return { ok: false, error: String(err) };
+        }
       }
     },
     savings: {

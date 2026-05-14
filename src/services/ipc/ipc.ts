@@ -107,6 +107,26 @@ export const ipc = {
           console.error('settings.network.updateDetected failed', err);
           return null;
         }
+      },
+      async detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null }> {
+        try {
+          const res = await getApi()?.settings?.network?.detectCountry?.(payload ?? {});
+          return (res ?? { countryCode: null, ip: null }) as { countryCode: string | null; ip: string | null };
+        } catch (err) {
+          console.error('settings.network.detectCountry failed', err);
+          return { countryCode: null, ip: null };
+        }
+      },
+      async getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }> {
+        try {
+          const res = await getApi()?.settings?.network?.getDirectIp?.();
+          if (res && typeof res === 'object') {
+            return res as { ok: boolean; ip?: string; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.network.getDirectIp failed', err);
+        }
+        return { ok: false, error: 'Direct IP lookup failed' };
       }
     },
     savings: {
