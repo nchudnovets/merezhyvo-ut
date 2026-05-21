@@ -243,6 +243,8 @@ const es = {
   'settings.messenger.moveDown': 'Mover {title} abajo',
   'settings.messenger.hideToolbar': 'Ocultar barra de mensajería',
   'toolbar.openMessenger': 'Abrir modo mensajero',
+  'toolbar.mobileActions.open': 'Abrir acciones de la barra',
+  'toolbar.mobileActions.close': 'Cerrar acciones de la barra',
   'toolbar.openSettings': 'Abrir configuración',
   'toolbar.tor.enable': 'Activar Tor',
   'toolbar.tor.disable': 'Desactivar Tor',

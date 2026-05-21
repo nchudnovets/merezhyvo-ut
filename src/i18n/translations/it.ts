@@ -235,6 +235,8 @@ const it = {
   'settings.messenger.moveDown': 'Sposta {title} giù',
   'settings.messenger.hideToolbar': 'Nascondi la barra messenger',
   'toolbar.openMessenger': 'Apri modalità messenger',
+  'toolbar.mobileActions.open': 'Apri azioni barra',
+  'toolbar.mobileActions.close': 'Chiudi azioni barra',
   'toolbar.openSettings': 'Apri impostazioni',
   'toolbar.tor.enable': 'Attiva Tor',
   'toolbar.tor.disable': 'Disattiva Tor',

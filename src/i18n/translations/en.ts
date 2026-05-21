@@ -246,6 +246,8 @@ const en = {
   'settings.messenger.moveDown': 'Move {title} down',
   'settings.messenger.hideToolbar': 'Hide messenger toolbar',
   'toolbar.openMessenger': 'Open messenger mode',
+  'toolbar.mobileActions.open': 'Open toolbar actions',
+  'toolbar.mobileActions.close': 'Close toolbar actions',
   'toolbar.openSettings': 'Open settings',
   'toolbar.tor.enable': 'Enable Tor',
   'toolbar.tor.disable': 'Disable Tor',

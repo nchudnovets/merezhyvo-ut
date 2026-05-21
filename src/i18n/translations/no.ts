@@ -267,6 +267,8 @@ const no = {
   'settings.messenger.hideToolbar': 'Skjul meldingslinjen',
 
   'toolbar.openMessenger': 'Åpne meldingsmodus',
+  'toolbar.mobileActions.open': 'Åpne verktøylinjehandlinger',
+  'toolbar.mobileActions.close': 'Lukk verktøylinjehandlinger',
   'toolbar.openSettings': 'Åpne innstillinger',
   'toolbar.tor.enable': 'Aktiver Tor',
   'toolbar.tor.disable': 'Deaktiver Tor',

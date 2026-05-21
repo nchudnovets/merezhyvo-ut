@@ -243,6 +243,8 @@ const pl = {
   'settings.messenger.moveDown': 'Przesuń {title} w dół',
   'settings.messenger.hideToolbar': 'Ukryj pasek komunikatorów',
   'toolbar.openMessenger': 'Otwórz tryb komunikatora',
+  'toolbar.mobileActions.open': 'Otwórz akcje paska',
+  'toolbar.mobileActions.close': 'Zamknij akcje paska',
   'toolbar.openSettings': 'Otwórz ustawienia',
   'toolbar.tor.enable': 'Włącz Tor',
   'toolbar.tor.disable': 'Wyłącz Tor',
