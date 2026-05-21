@@ -11,6 +11,18 @@
 
 - Fresh coupon shortcuts now lazy-load in 12-entry batches, so large merchant catalogs do not render all shortcut tiles up front.
 
+- Mobile toolbar now includes an expandable actions tray with Messenger, Back, Forward, and Reload controls.
+
+- Telegram deep links (`t.me`, `telegram.me`, `telegram.dog`) now open in the built-in Telegram messenger tab instead of trying to launch an external app.
+
+### Fixes:
+
+- Password unlock duration controls now apply correctly from both the unlock dialog and Passwords settings section.
+
+- Mobile text selection handles now work inside editable web content such as Telegram and Gmail compose fields.
+
+- Telegram Web internal redirects no longer show the browser error overlay during normal app navigation.
+
 ----
 ## v0.5.3 - 2026-04-21
 
