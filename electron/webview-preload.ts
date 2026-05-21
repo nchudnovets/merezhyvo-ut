@@ -5,11 +5,10 @@ import { ipcRenderer, webFrame } from 'electron';
 const SELECTION_CODE = `
       (function(){
         try {
-          // Skip injection on excluded hosts (e.g., Telegram Web)
+          // Telegram Web has fragile rich editors. Keep the bridge available for
+          // plain text controls, but do not enable DOM-range selection there yet.
           var host = (location && location.hostname) || '';
-          if (/(^|\\.)web\\.telegram\\.org$/i.test(host)) {
-            return true; // do nothing on Telegram
-          }
+          var selectionLimitedToTextControls = /(^|\\.)web\\.telegram\\.org$/i.test(host);
 
           if (!window.__mzrSel) {
             window.__mzrSel = {
@@ -417,6 +416,7 @@ const SELECTION_CODE = `
             }
             var sel = window.getSelection && window.getSelection();
             if (!sel || sel.rangeCount === 0) return false;
+            if (selectionLimitedToTextControls) return false;
             var r = sel.getRangeAt(0);
             if (r.collapsed) return false;
             var node = r.startContainer && r.startContainer.nodeType === 3
@@ -759,7 +759,7 @@ const SELECTION_CODE = `
                 S.dragAnchorIndex = textAnchor;
                 selLog('drag-start', { editable: true, start: textSel.start, end: textSel.end });
               }
-            } else if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            } else if (!selectionLimitedToTextControls && sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
               var range = sel.getRangeAt(0);
               var rects = getSelectionHandleRects(range);
               var distStart = rects.startRect ? Math.hypot(S.lpX - rects.startRect.left, S.lpY - rects.startRect.top) : 9999;
@@ -791,6 +791,9 @@ const SELECTION_CODE = `
                       scheduleHandleUpdate();
                       return;
                     }
+                  }
+                  if (selectionLimitedToTextControls) {
+                    return;
                   }
                   var sel = window.getSelection && window.getSelection();
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
@@ -905,7 +908,7 @@ const SELECTION_CODE = `
                 return;
               }
             }
-            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            if (!selectionLimitedToTextControls && sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
               S.dragActive = true;
               S.dragRange = sel.getRangeAt(0).cloneRange();
               S.dragTextControl = null;
@@ -931,6 +934,9 @@ const SELECTION_CODE = `
                       scheduleHandleUpdate();
                       return;
                     }
+                  }
+                  if (selectionLimitedToTextControls) {
+                    return;
                   }
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
                   var selection = window.getSelection && window.getSelection();
