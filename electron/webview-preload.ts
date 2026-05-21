@@ -1260,6 +1260,17 @@ installLastEditableTracker();
  *  Open links in host tab
  *  ------------------------------- */
 const installOpenUrlBridge = (): void => {
+  const isTelegramDeepLink = (rawUrl: string): boolean => {
+    try {
+      const parsed = new URL(String(rawUrl || '').trim());
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+      return host === 't.me' || host === 'telegram.me' || host === 'telegram.dog';
+    } catch {
+      return false;
+    }
+  };
+
   const resolveUrl = (raw: string): string => {
     const trimmed = String(raw || '').trim();
     if (!trimmed) return '';
@@ -1309,11 +1320,16 @@ const installOpenUrlBridge = (): void => {
         if (!anchor) return;
         const href = anchor.getAttribute('href') ?? '';
         if (!href) return;
+        const resolved = resolveUrl(href);
+        if (!resolved) return;
+        if (isTelegramDeepLink(resolved)) {
+          event.preventDefault();
+          sendOpenUrl(resolved);
+          return;
+        }
         const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
         if (targetAttr !== '_blank' && targetAttr !== '_new') return;
         if (anchor.hasAttribute('download')) return;
-        const resolved = resolveUrl(href);
-        if (!resolved) return;
         event.preventDefault();
         sendOpenUrl(resolved);
       },

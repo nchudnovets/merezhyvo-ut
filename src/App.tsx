@@ -72,6 +72,7 @@ import {
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
+import { isTelegramDeepLink } from './shared/telegramLinks';
 import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
@@ -944,14 +945,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setMessengerSettingsState,
     messengerSettingsRef,
     messengerTabIdsRef,
+    prevBrowserTabIdRef,
     pendingMessengerTabIdRef,
     lastMessengerIdRef,
     activeMessengerId,
     setActiveMessengerId,
     orderedMessengers,
+    setMainViewMode,
     exitMessengerMode,
     handleEnterMessengerMode,
     handleMessengerSelect,
+    ensureMessengerTab,
     exitIfNoMessengers
   } = useMessengerMode({
     activeId,
@@ -1163,20 +1167,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [webviewHandleRef, webviewRef]);
 
-  const attachWebviewListeners = useWebviewListeners({
-    baseCssRef: webviewBaseCssRef,
-    updateMetaAction,
-    playingTabsRef,
-    updatePowerBlocker,
-    isYouTubeTab,
-    backgroundTabRef,
-    destroyTabView,
-    fullscreenTabRef,
-    setIsHtmlFullscreen,
-    webviewFocusedRef,
-    openNewTab: openUrlInNewTab
-  });
-
   useEffect(() => {
     tabViewsRef.current.forEach((entry) => {
       const view = (entry.handle && typeof entry.handle.getWebView === 'function')
@@ -1217,6 +1207,104 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setWebviewReady(false);
     }
   }, [tabViewsRef, updateMetaAction]);
+
+  const openTelegramLinkInMessenger = useCallback((rawUrl: string, sourceTabId: string | null = null): boolean => {
+    const url = rawUrl.trim();
+    if (!isTelegramDeepLink(url)) return false;
+
+    const telegramDefinition = orderedMessengers.find((messenger) => messenger.id === 'telegram');
+    if (!telegramDefinition) {
+      openUrlInNewTab(url);
+      return true;
+    }
+
+    const telegramTabId = messengerTabIdsRef.current.get('telegram') ?? null;
+    if (sourceTabId && telegramTabId === sourceTabId) {
+      updateMetaAction(sourceTabId, { url, isLoading: true });
+      forceNavigateTab(sourceTabId, url);
+      setInputValue(url);
+      return true;
+    }
+
+    if (mainViewMode !== 'messenger') {
+      prevBrowserTabIdRef.current = activeIdRef.current;
+    }
+
+    resetEditingState();
+    blurActiveInWebview();
+    const tabId = ensureMessengerTab(telegramDefinition);
+    if (!tabId) return true;
+
+    pendingMessengerTabIdRef.current = tabId;
+    if (activeIdRef.current !== tabId) {
+      activateTabAction(tabId);
+    }
+    setMainViewMode('messenger');
+    setActiveMessengerId('telegram');
+    lastMessengerIdRef.current = 'telegram';
+    void window.merezhyvo?.ua?.setMode?.('desktop');
+    updateMetaAction(tabId, { title: telegramDefinition.title, url, isLoading: true });
+    forceNavigateTab(tabId, url);
+    setInputValue(url);
+    return true;
+  }, [
+    activateTabAction,
+    blurActiveInWebview,
+    ensureMessengerTab,
+    forceNavigateTab,
+    lastMessengerIdRef,
+    mainViewMode,
+    messengerTabIdsRef,
+    openUrlInNewTab,
+    orderedMessengers,
+    pendingMessengerTabIdRef,
+    prevBrowserTabIdRef,
+    resetEditingState,
+    setActiveMessengerId,
+    setInputValue,
+    setMainViewMode,
+    updateMetaAction
+  ]);
+
+  const openUrlFromWebview = useCallback((url: string, sourceTabId: string) => {
+    if (openTelegramLinkInMessenger(url, sourceTabId)) return;
+    if (sourceTabId && messengerTabIdsRef.current.get('telegram') === sourceTabId) {
+      const trimmed = url.trim();
+      if (!trimmed) return;
+      const entry = tabViewsRef.current.get(sourceTabId);
+      updateMetaAction(sourceTabId, { url: trimmed, isLoading: true });
+      setInputValue(trimmed);
+      if (entry?.view) {
+        try {
+          const script = `window.location.assign(${JSON.stringify(trimmed)});`;
+          const result = entry.view.executeJavaScript(script, false);
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {});
+          }
+        } catch {
+          forceNavigateTab(sourceTabId, trimmed);
+        }
+      } else {
+        forceNavigateTab(sourceTabId, trimmed);
+      }
+      return;
+    }
+    openUrlInNewTab(url);
+  }, [forceNavigateTab, messengerTabIdsRef, openTelegramLinkInMessenger, openUrlInNewTab, tabViewsRef, updateMetaAction]);
+
+  const attachWebviewListeners = useWebviewListeners({
+    baseCssRef: webviewBaseCssRef,
+    updateMetaAction,
+    playingTabsRef,
+    updatePowerBlocker,
+    isYouTubeTab,
+    backgroundTabRef,
+    destroyTabView,
+    fullscreenTabRef,
+    setIsHtmlFullscreen,
+    webviewFocusedRef,
+    openUrlFromWebview
+  });
 
   const handleNavigationStart = useCallback((tabId: string, payload: { url: string; isInPage: boolean }) => {
     if (!tabId || !payload || payload.isInPage) return;
@@ -1966,6 +2054,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const { url } =
         typeof arg === 'string' ? { url: arg } : (arg || {});
       if (!url) return;
+      if (openTelegramLinkInMessenger(String(url))) return;
       openUrlInNewTab(String(url));
     });
     return () => {
@@ -1975,7 +2064,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         } catch {}
       }
     };
-  }, [openUrlInNewTab]);
+  }, [openTelegramLinkInMessenger, openUrlInNewTab]);
 
   useEffect(() => {
     if (!tabsReady) return;
