@@ -1,6 +1,17 @@
 # Changelog
 
 ----
+## Unreleased
+
+### New / Improved:
+
+- Updated Electron/Chromium engine and related packages.
+
+- Start Page shortcut layout improvements: smaller mobile shortcut tiles, reduced spacing below search, and 6-item paging for Favorite Sites and fresh coupon sites.
+
+- Fresh coupon shortcuts now lazy-load in 12-entry batches, so large merchant catalogs do not render all shortcut tiles up front.
+
+----
 ## v0.5.3 - 2026-04-21
 
 ### Fixes:

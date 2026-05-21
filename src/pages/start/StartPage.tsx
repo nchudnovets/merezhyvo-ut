@@ -8,6 +8,8 @@ import { normalizeCountryCode } from '../../utils/savings';
 
 const SEARCH_ENDPOINT = 'https://duckduckgo.com/?q=';
 const TOP_SITES_LIMIT = 6;
+const SHORTCUT_PAGE_SIZE = 6;
+const COUPON_LAZY_BATCH_SIZE = 12;
 const TOP_SITES_DAYS = 30;
 const DEFAULT_START_PAGE_SETTINGS: StartPageSettings = {
   showTopSites: true,
@@ -154,12 +156,17 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const [favoriteOpen, setFavoriteOpen] = useState(false);
   const [favoriteSuggestionsOpen, setFavoriteSuggestionsOpen] = useState(false);
   const [topSiteMenuOpen, setTopSiteMenuOpen] = useState<string | null>(null);
+  const [favoritePage, setFavoritePage] = useState(0);
+  const [couponPage, setCouponPage] = useState(0);
+  const [couponLoadedCount, setCouponLoadedCount] = useState(COUPON_LAZY_BATCH_SIZE);
   const debounceRef = useRef<number | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
   const savingsRefreshAttemptsRef = useRef(0);
   const favoriteInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteBlurTimeoutRef = useRef<number | null>(null);
+  const favoriteTouchStartXRef = useRef<number | null>(null);
+  const couponTouchStartXRef = useRef<number | null>(null);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(favoriteInput);
 
   useEffect(() => {
@@ -303,14 +310,18 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     couponMerchants.length > 0;
 
   const fontSize = mode === 'mobile' ? 45 : 16;
-  const iconSize = mode === 'mobile' ? 100 : 35;
-  const gap = mode === 'mobile' ? 30 : 16;
-  const labelFontSize = mode === 'mobile' ? 32 : 14;
+  const iconSize = mode === 'mobile' ? 80 : 35;
+  const gap = mode === 'mobile' ? 24 : 16;
+  const labelFontSize = mode === 'mobile' ? 26 : 14;
   const suggestionFontSize = fontSize;
   const searchRadius = mode === 'mobile' ? 18 : 10;
   const cardRadius = mode === 'mobile' ? 18 : 10;
-  const cardMinSize = mode === 'mobile' ? 190 : 80;
-  const cardMaxSize = mode === 'mobile' ? 230 : 100;
+  const cardMinSize = mode === 'mobile' ? 152 : 80;
+  const cardMaxSize = mode === 'mobile' ? 184 : 100;
+  const shortcutPadding = mode === 'mobile' ? 14 : 10;
+  const shortcutGap = mode === 'mobile' ? 11 : 8;
+  const shortcutActionSize = mode === 'mobile' ? 36 : 22;
+  const shortcutActionIconSize = mode === 'mobile' ? 30 : 12;
   const settingsFontSize = mode === 'mobile' ? 36 : 16;
   const sectionTitleFontSize = mode === 'mobile' ? 36 : 18;
   const settingsIconSize = mode === 'mobile' ? 46 : 24;
@@ -323,7 +334,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       alignItems: 'center',
       justifyContent: 'flex-start',
       padding: mode === 'mobile' ? '140px 32px 60px' : '80px 24px 40px',
-      gap: mode === 'mobile' ? 48 : 28,
+      gap: mode === 'mobile' ? 24 : 14,
       background: 'var(--mzr-surface)',
       color: 'var(--mzr-text-primary)',
       boxSizing: 'border-box',
@@ -494,8 +505,90 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     localsOther.sort(byFreshness);
     globalsMatch.sort(byFreshness);
     globalsOther.sort(byFreshness);
-    return [...localsMatch, ...localsOther, ...globalsMatch, ...globalsOther].slice(0, 12);
+    return [...localsMatch, ...localsOther, ...globalsMatch, ...globalsOther];
   }, [couponMerchants, savingsCountry, detectedCountry, catalogCountry]);
+
+  const loadedCouponMerchants = sortedCouponMerchants.slice(0, couponLoadedCount);
+  const favoritePageCount = Math.max(1, Math.ceil(favorites.length / SHORTCUT_PAGE_SIZE));
+  const couponPageCount = Math.max(1, Math.ceil(loadedCouponMerchants.length / SHORTCUT_PAGE_SIZE));
+  const hasMoreCouponMerchants = couponLoadedCount < sortedCouponMerchants.length;
+  const clampedFavoritePage = Math.min(favoritePage, favoritePageCount - 1);
+  const clampedCouponPage = Math.min(couponPage, couponPageCount - 1);
+  const visibleFavorites = favorites.slice(
+    clampedFavoritePage * SHORTCUT_PAGE_SIZE,
+    clampedFavoritePage * SHORTCUT_PAGE_SIZE + SHORTCUT_PAGE_SIZE
+  );
+  const visibleCouponMerchants = loadedCouponMerchants.slice(
+    clampedCouponPage * SHORTCUT_PAGE_SIZE,
+    clampedCouponPage * SHORTCUT_PAGE_SIZE + SHORTCUT_PAGE_SIZE
+  );
+  const hasFavoriteCarousel = favorites.length > SHORTCUT_PAGE_SIZE;
+  const hasCouponCarousel = sortedCouponMerchants.length > SHORTCUT_PAGE_SIZE;
+
+  const moveFavoritePage = useCallback(
+    (delta: number) => {
+      setFavoritePage((current) => Math.min(Math.max(current + delta, 0), favoritePageCount - 1));
+    },
+    [favoritePageCount]
+  );
+
+  const moveCouponPage = useCallback(
+    (delta: number) => {
+      setCouponPage((current) => {
+        const next = current + delta;
+        if (next < 0) return 0;
+        if (next < couponPageCount) return next;
+        if (!hasMoreCouponMerchants) return couponPageCount - 1;
+        setCouponLoadedCount((count) =>
+          Math.min(count + COUPON_LAZY_BATCH_SIZE, sortedCouponMerchants.length)
+        );
+        return next;
+      });
+    },
+    [couponPageCount, hasMoreCouponMerchants, sortedCouponMerchants.length]
+  );
+
+  const handleFavoriteTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasFavoriteCarousel) return;
+      favoriteTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+    },
+    [hasFavoriteCarousel]
+  );
+
+  const handleFavoriteTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasFavoriteCarousel || favoriteTouchStartXRef.current === null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      if (typeof endX !== 'number') return;
+      const delta = favoriteTouchStartXRef.current - endX;
+      favoriteTouchStartXRef.current = null;
+      if (Math.abs(delta) < 45) return;
+      moveFavoritePage(delta > 0 ? 1 : -1);
+    },
+    [hasFavoriteCarousel, moveFavoritePage]
+  );
+
+  const handleCouponTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasCouponCarousel) return;
+      couponTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+    },
+    [hasCouponCarousel]
+  );
+
+  const handleCouponTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasCouponCarousel || couponTouchStartXRef.current === null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      if (typeof endX !== 'number') return;
+      const delta = couponTouchStartXRef.current - endX;
+      couponTouchStartXRef.current = null;
+      if (Math.abs(delta) < 45) return;
+      moveCouponPage(delta > 0 ? 1 : -1);
+    },
+    [hasCouponCarousel, moveCouponPage]
+  );
 
   const handleRemoveTopSite = useCallback((origin: string) => {
     setTopSiteMenuOpen(null);
@@ -562,7 +655,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             display: 'flex',
             alignItems: 'stretch',
             boxSizing: 'border-box',
-            marginBottom: mode === 'mobile' ? 40 : 20
+            marginBottom: mode === 'mobile' ? 20 : 10
           }}
         >
           <input
@@ -816,11 +909,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -837,7 +930,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           cursor: 'pointer',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: mode === 'mobile' ? 14 : 8,
+                          gap: shortcutGap,
                           overflow: 'hidden',
                           maxWidth: '100%'
                         }}
@@ -865,8 +958,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           position: 'absolute',
                           top: mode === 'mobile' ? 10 : 6,
                           right: mode === 'mobile' ? 10 : 6,
-                          width: mode === 'mobile' ? 36 : 22,
-                          height: mode === 'mobile' ? 36 : 22,
+                          width: shortcutActionSize,
+                          height: shortcutActionSize,
                           borderRadius: '50%',
                           border: '1px solid var(--mzr-border-strong)',
                           background: 'var(--mzr-surface)',
@@ -878,8 +971,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.topSites.menu')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 38 : 12}
-                          height={mode === 'mobile' ? 38 : 12}
+                          width={shortcutActionIconSize}
+                          height={shortcutActionIconSize}
                           viewBox="0 0 24 24"
                           fill="currentColor"
                           aria-hidden="true"
@@ -946,15 +1039,48 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 10 : 8,
+                  width: '100%'
+                }}
+                onTouchStart={handleFavoriteTouchStart}
+                onTouchEnd={handleFavoriteTouchEnd}
+              >
+                {hasFavoriteCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveFavoritePage(-1)}
+                    disabled={clampedFavoritePage === 0}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedFavoritePage === 0 ? 'default' : 'pointer',
+                      opacity: clampedFavoritePage === 0 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Previous favorites"
+                  >
+                    {'<'}
+                  </button>
+                )}
+              <div
+                style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(auto-fit, minmax(${cardMinSize}px, ${cardMaxSize}px))`,
                   gap,
+                  flex: 1,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: favorites?.length < 5 ? 'start' : 'space-between'
+                  justifyContent: visibleFavorites.length < 5 ? 'start' : 'space-between'
                 }}
               >
-                {favorites.map((favorite) => {
+                {visibleFavorites.map((favorite) => {
                   const origin = typeof favorite.origin === 'string' ? favorite.origin : '';
                   const label = getHostLabel(origin);
                   return (
@@ -966,11 +1092,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -987,7 +1113,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: mode === 'mobile' ? 14 : 8,
+                          gap: shortcutGap,
                           cursor: 'pointer',
                           overflow: 'hidden',
                           maxWidth: '100%'
@@ -1014,8 +1140,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           position: 'absolute',
                           top: mode === 'mobile' ? 10 : 6,
                           right: mode === 'mobile' ? 10 : 6,
-                          width: mode === 'mobile' ? 45 : 22,
-                          height: mode === 'mobile' ? 45 : 22,
+                          width: shortcutActionSize,
+                          height: shortcutActionSize,
                           borderRadius: '50%',
                           border: '1px solid var(--mzr-border-strong)',
                           background: 'var(--mzr-surface)',
@@ -1028,8 +1154,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.favorites.remove')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 38 : 12}
-                          height={mode === 'mobile' ? 38 : 12}
+                          width={shortcutActionIconSize}
+                          height={shortcutActionIconSize}
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1055,12 +1181,12 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: mode === 'mobile' ? 18 : 10,
+                      padding: shortcutPadding,
                       borderRadius: cardRadius,
                       border: '1px dashed var(--mzr-border-strong)',
                       background: 'transparent',
                       cursor: 'pointer',
-                      gap: mode === 'mobile' ? 14 : 8,
+                      gap: shortcutGap,
                       width: '100%',
                       maxWidth: cardMaxSize,
                       maxHeight: cardMaxSize,
@@ -1071,8 +1197,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.favorites.add')}
                     >
                     <svg
-                      width={mode === 'mobile' ? 60 : 28}
-                      height={mode === 'mobile' ? 60 : 28}
+                      width={mode === 'mobile' ? 48 : 28}
+                      height={mode === 'mobile' ? 48 : 28}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -1084,6 +1210,29 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
+                  </button>
+                )}
+              </div>
+                {hasFavoriteCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveFavoritePage(1)}
+                    disabled={clampedFavoritePage >= favoritePageCount - 1}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedFavoritePage >= favoritePageCount - 1 ? 'default' : 'pointer',
+                      opacity: clampedFavoritePage >= favoritePageCount - 1 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Next favorites"
+                  >
+                    {'>'}
                   </button>
                 )}
               </div>
@@ -1258,15 +1407,48 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
               </div>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 10 : 8,
+                  width: '100%'
+                }}
+                onTouchStart={handleCouponTouchStart}
+                onTouchEnd={handleCouponTouchEnd}
+              >
+                {hasCouponCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveCouponPage(-1)}
+                    disabled={clampedCouponPage === 0}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedCouponPage === 0 ? 'default' : 'pointer',
+                      opacity: clampedCouponPage === 0 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Previous coupon sites"
+                  >
+                    {'<'}
+                  </button>
+                )}
+              <div
+                style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(auto-fit, minmax(${cardMinSize}px, ${cardMaxSize}px))`,
                   gap,
+                  flex: 1,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: sortedCouponMerchants?.length < 5 ? 'start' : 'space-between'
+                  justifyContent: visibleCouponMerchants.length < 5 ? 'start' : 'space-between'
                 }}
               >
-                {sortedCouponMerchants.map((merchant) => {
+                {visibleCouponMerchants.map((merchant) => {
                   const label = merchant.name?.trim() || merchant.domain;
                   return (
                     <button
@@ -1278,11 +1460,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -1320,6 +1502,32 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                     </button>
                   );
                 })}
+              </div>
+                {hasCouponCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveCouponPage(1)}
+                    disabled={clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor:
+                        clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants
+                          ? 'default'
+                          : 'pointer',
+                      opacity: clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Next coupon sites"
+                  >
+                    {'>'}
+                  </button>
+                )}
               </div>
             </div>
           )}

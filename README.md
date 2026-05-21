@@ -138,6 +138,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Search across open tabs and smart address bar suggestions from history and bookmarks.
 
+  - Customisable Start Page with search, top sites, favorite sites, and fresh coupon site shortcuts. Favorite and coupon shortcuts page through 6 visible items at a time; coupon shortcuts are loaded progressively for large merchant catalogs.
+
 
 - **Predictable downloads & safe uploads**
 
