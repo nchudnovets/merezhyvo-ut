@@ -8,7 +8,7 @@ const SELECTION_CODE = `
           // Telegram Web has fragile rich editors. Keep the bridge available for
           // plain text controls, but do not enable DOM-range selection there yet.
           var host = (location && location.hostname) || '';
-          var selectionLimitedToTextControls = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          var selectionLimitedToEditableText = /(^|\\.)web\\.telegram\\.org$/i.test(host);
 
           if (!window.__mzrSel) {
             window.__mzrSel = {
@@ -92,6 +92,41 @@ const SELECTION_CODE = `
               if (tag === 'textarea' || tag === 'input') return true;
             } catch(_) {}
             return false;
+          }
+
+          function asElement(node){
+            return node && node.nodeType === 1 ? node : (node && node.parentElement);
+          }
+
+          function getContentEditableRoot(node){
+            try {
+              var el = asElement(node);
+              return el && el.closest ? el.closest('[contenteditable]') : null;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getRangeContentEditableRoot(range){
+            if (!range) return null;
+            try {
+              var startRoot = getContentEditableRoot(range.startContainer);
+              if (!startRoot) return null;
+              var endRoot = getContentEditableRoot(range.endContainer);
+              return startRoot === endRoot ? startRoot : null;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function canUseDomRangeAt(node){
+            if (!selectionLimitedToEditableText) return true;
+            return !!getContentEditableRoot(node);
+          }
+
+          function canUseDomRangeSelection(range, node){
+            if (!selectionLimitedToEditableText) return true;
+            return !!(getRangeContentEditableRoot(range) || getContentEditableRoot(node));
           }
 
           function isTextControl(node){
@@ -416,13 +451,14 @@ const SELECTION_CODE = `
             }
             var sel = window.getSelection && window.getSelection();
             if (!sel || sel.rangeCount === 0) return false;
-            if (selectionLimitedToTextControls) return false;
             var r = sel.getRangeAt(0);
+            var editableRoot = getRangeContentEditableRoot(r);
+            if (selectionLimitedToEditableText && !editableRoot) return false;
             if (r.collapsed) return false;
             var node = r.startContainer && r.startContainer.nodeType === 3
               ? r.startContainer.parentElement
               : r.startContainer;
-            if (isEditable(node)) return false;
+            if (isEditable(node)) return !!editableRoot;
             return true;
           }
 
@@ -759,7 +795,7 @@ const SELECTION_CODE = `
                 S.dragAnchorIndex = textAnchor;
                 selLog('drag-start', { editable: true, start: textSel.start, end: textSel.end });
               }
-            } else if (!selectionLimitedToTextControls && sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            } else if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && (!isEditable(active) || getRangeContentEditableRoot(sel.getRangeAt(0))) && canUseDomRangeSelection(sel.getRangeAt(0), active)) {
               var range = sel.getRangeAt(0);
               var rects = getSelectionHandleRects(range);
               var distStart = rects.startRect ? Math.hypot(S.lpX - rects.startRect.left, S.lpY - rects.startRect.top) : 9999;
@@ -792,7 +828,7 @@ const SELECTION_CODE = `
                       return;
                     }
                   }
-                  if (selectionLimitedToTextControls) {
+                  if (!canUseDomRangeAt(el)) {
                     return;
                   }
                   var sel = window.getSelection && window.getSelection();
@@ -908,7 +944,7 @@ const SELECTION_CODE = `
                 return;
               }
             }
-            if (!selectionLimitedToTextControls && sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && (!isEditable(active) || getRangeContentEditableRoot(sel.getRangeAt(0))) && canUseDomRangeSelection(sel.getRangeAt(0), active)) {
               S.dragActive = true;
               S.dragRange = sel.getRangeAt(0).cloneRange();
               S.dragTextControl = null;
@@ -935,7 +971,7 @@ const SELECTION_CODE = `
                       return;
                     }
                   }
-                  if (selectionLimitedToTextControls) {
+                  if (!canUseDomRangeAt(el)) {
                     return;
                   }
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
