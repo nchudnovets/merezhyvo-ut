@@ -91,6 +91,16 @@ const PasswordSettings: React.FC<Props> = ({ mode, theme, onManagePasswords, onR
     void refreshStatus();
   }, [refreshStatus]);
 
+  useEffect(() => {
+    const handleLocked = () => {
+      setSettings(null);
+      setStatusInfo((prev) => (prev ? { ...prev, locked: true } : prev));
+      setStatus(t('passwordSettings.status.locked'));
+    };
+    window.addEventListener('merezhyvo:pw:locked', handleLocked);
+    return () => window.removeEventListener('merezhyvo:pw:locked', handleLocked);
+  }, [t]);
+
   const applyPatch = async (patch: Partial<PasswordSettings>) => {
     const api = window.merezhyvo?.passwords;
     if (!api) return;

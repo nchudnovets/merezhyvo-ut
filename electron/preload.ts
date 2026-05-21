@@ -1333,6 +1333,14 @@ ipcRenderer.on('merezhyvo:pw:unlock-required', (_event, payload: unknown) => {
   }
 });
 
+ipcRenderer.on('merezhyvo:pw:locked', (_event, payload: unknown) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:pw:locked', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
+
 ipcRenderer.on('merezhyvo:downloads:state', (_event, payload: { id: string; state: 'queued' | 'downloading' | 'completed' | 'failed' }) => {
   try {
     window.dispatchEvent(new CustomEvent('merezhyvo:downloads:state', { detail: payload }));
