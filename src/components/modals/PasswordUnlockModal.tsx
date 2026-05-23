@@ -3,6 +3,7 @@
 import React, { type CSSProperties, useEffect } from 'react';
 import type { Mode } from '../../types/models';
 import { useI18n } from '../../i18n/I18nProvider';
+import OptionSelect from '../common/OptionSelect';
 
 const overlayStyle: CSSProperties = {
   position: 'fixed',
@@ -99,6 +100,10 @@ const PasswordUnlockModal: React.FC<Props> = ({
   const [showPassword, setShowPassword] = React.useState(false);
   const [duration, setDuration] = React.useState<number>(defaultDuration);
   const isMobile = mode === 'mobile';
+  const durationOptions = React.useMemo(
+    () => keepOptions.map((option) => ({ value: option.value, label: t(option.key) })),
+    [t]
+  );
 
   useEffect(() => {
     if (!open) return undefined;
@@ -203,17 +208,14 @@ const PasswordUnlockModal: React.FC<Props> = ({
         </div>
         <div style={{ position: 'relative' }}>
           <label style={computedLabelStyle}>{t('passwordUnlock.label.duration')}</label>
-          <select
+          <OptionSelect
             value={duration}
-            onChange={(event) => setDuration(Number(event.target.value))}
-            style={{...computedInputStyle, ...{width: '100%'}}}
-          >
-            {keepOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {t(option.key)}
-              </option>
-            ))}
-          </select>
+            options={durationOptions}
+            onChange={(value) => setDuration(Number(value))}
+            style={{ ...computedInputStyle, width: '100%' }}
+            chevronSize={isMobile ? 36 : 16}
+            ariaLabel={t('passwordUnlock.label.duration')}
+          />
         </div>
         {error && <div style={errorStyle}>{error}</div>}
         <div style={footerComputedStyle}>

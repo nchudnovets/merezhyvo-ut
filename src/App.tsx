@@ -1208,66 +1208,15 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [tabViewsRef, updateMetaAction]);
 
-  const openTelegramLinkInMessenger = useCallback((rawUrl: string, sourceTabId: string | null = null): boolean => {
+  const openTelegramLinkInRegularTab = useCallback((rawUrl: string): boolean => {
     const url = rawUrl.trim();
     if (!isTelegramDeepLink(url)) return false;
-
-    const telegramDefinition = orderedMessengers.find((messenger) => messenger.id === 'telegram');
-    if (!telegramDefinition) {
-      openUrlInNewTab(url);
-      return true;
-    }
-
-    const telegramTabId = messengerTabIdsRef.current.get('telegram') ?? null;
-    if (sourceTabId && telegramTabId === sourceTabId) {
-      updateMetaAction(sourceTabId, { url, isLoading: true });
-      forceNavigateTab(sourceTabId, url);
-      setInputValue(url);
-      return true;
-    }
-
-    if (mainViewMode !== 'messenger') {
-      prevBrowserTabIdRef.current = activeIdRef.current;
-    }
-
-    resetEditingState();
-    blurActiveInWebview();
-    const tabId = ensureMessengerTab(telegramDefinition);
-    if (!tabId) return true;
-
-    pendingMessengerTabIdRef.current = tabId;
-    if (activeIdRef.current !== tabId) {
-      activateTabAction(tabId);
-    }
-    setMainViewMode('messenger');
-    setActiveMessengerId('telegram');
-    lastMessengerIdRef.current = 'telegram';
-    void window.merezhyvo?.ua?.setMode?.('desktop');
-    updateMetaAction(tabId, { title: telegramDefinition.title, url, isLoading: true });
-    forceNavigateTab(tabId, url);
-    setInputValue(url);
+    openUrlInNewTab(url);
     return true;
-  }, [
-    activateTabAction,
-    blurActiveInWebview,
-    ensureMessengerTab,
-    forceNavigateTab,
-    lastMessengerIdRef,
-    mainViewMode,
-    messengerTabIdsRef,
-    openUrlInNewTab,
-    orderedMessengers,
-    pendingMessengerTabIdRef,
-    prevBrowserTabIdRef,
-    resetEditingState,
-    setActiveMessengerId,
-    setInputValue,
-    setMainViewMode,
-    updateMetaAction
-  ]);
+  }, [openUrlInNewTab]);
 
   const openUrlFromWebview = useCallback((url: string, sourceTabId: string) => {
-    if (openTelegramLinkInMessenger(url, sourceTabId)) return;
+    if (openTelegramLinkInRegularTab(url)) return;
     if (sourceTabId && messengerTabIdsRef.current.get('telegram') === sourceTabId) {
       const trimmed = url.trim();
       if (!trimmed) return;
@@ -1290,7 +1239,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       return;
     }
     openUrlInNewTab(url);
-  }, [forceNavigateTab, messengerTabIdsRef, openTelegramLinkInMessenger, openUrlInNewTab, tabViewsRef, updateMetaAction]);
+  }, [forceNavigateTab, messengerTabIdsRef, openTelegramLinkInRegularTab, openUrlInNewTab, tabViewsRef, updateMetaAction]);
 
   const attachWebviewListeners = useWebviewListeners({
     baseCssRef: webviewBaseCssRef,
@@ -2054,7 +2003,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const { url } =
         typeof arg === 'string' ? { url: arg } : (arg || {});
       if (!url) return;
-      if (openTelegramLinkInMessenger(String(url))) return;
+      if (openTelegramLinkInRegularTab(String(url))) return;
       openUrlInNewTab(String(url));
     });
     return () => {
@@ -2064,7 +2013,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         } catch {}
       }
     };
-  }, [openTelegramLinkInMessenger, openUrlInNewTab]);
+  }, [openTelegramLinkInRegularTab, openUrlInNewTab]);
 
   useEffect(() => {
     if (!tabsReady) return;

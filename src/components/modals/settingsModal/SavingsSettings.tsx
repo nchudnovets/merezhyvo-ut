@@ -5,6 +5,7 @@ import type { Mode } from '../../../types/models';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import CountrySelect from '../../coupons/CountrySelect';
+import SavingsSupportDisableDialog from '../SavingsSupportDisableDialog';
 
 type SavingsSettingsProps = {
   mode: Mode;
@@ -23,6 +24,7 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
   onCountryChange,
   onOpenCouponsInfo
 }) => {
+  const [confirmDisableOpen, setConfirmDisableOpen] = React.useState(false);
   const styles = settingsModalStyles;
   const modeStyles = settingsModalModeStyles[mode] || {};
   const { t } = useI18n();
@@ -73,10 +75,18 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
     </span>
   );
 
+  const handleEnabledToggle = (value: boolean) => {
+    if (!value && enabled) {
+      setConfirmDisableOpen(true);
+      return;
+    }
+    onEnabledChange(value);
+  };
+
   return (
     <div style={{ display: 'flex', flexDirection: 'column', gap: isMobile ? 18 : 10 }}>
       <label style={{ display: 'flex', alignItems: 'center', gap: isMobile ? 22 : 12 }}>
-        {renderToggle(enabled, onEnabledChange)}
+        {renderToggle(enabled, handleEnabledToggle)}
         <div style={{ fontWeight: 700, fontSize: isMobile ? '38px' : '15px' }}>
           {t('settings.savings.toggle')}
         </div>
@@ -132,6 +142,16 @@ const SavingsSettings: React.FC<SavingsSettingsProps> = ({
       >
         {t('coupons.info.link')}
       </button>
+      <SavingsSupportDisableDialog
+        open={confirmDisableOpen}
+        mode={mode}
+        kind="coupons"
+        onKeep={() => setConfirmDisableOpen(false)}
+        onDisable={() => {
+          setConfirmDisableOpen(false);
+          onEnabledChange(false);
+        }}
+      />
     </div>
   );
 };

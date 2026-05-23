@@ -259,6 +259,7 @@ export type MerchantEntry = {
   domain: string;
   name: string | null;
   imageUrl?: string | null;
+  gotolink?: string | null;
   hasLocal?: boolean;
   freshestCoupon?: string | null;
 };
@@ -266,10 +267,15 @@ export type MerchantEntry = {
 export type MerchantsCatalogCache = {
   country: string | null;
   merchants: MerchantEntry[];
+  affiliates: MerchantEntry[];
   updatedAt: string | null;
   etag: string | null;
+  affiliatesUpdatedAt: string | null;
+  affiliatesEtag: string | null;
   nextAllowedFetchAt: string | null;
   lastFetchAttemptAt: string | null;
+  affiliatesNextAllowedFetchAt: string | null;
+  affiliatesLastFetchAttemptAt: string | null;
 };
 
 export type CouponEntry = {
@@ -343,6 +349,7 @@ export type StartPageSettings = {
   showTopSites: boolean;
   showFavorites: boolean;
   hidePanels: boolean;
+  showAffiliates: boolean;
   showCouponStores: boolean;
   favorites: StartPageFavorite[];
 };

@@ -11,7 +11,7 @@ import type {
 } from '../types/models';
 import type { TabViewEntry } from '../types/tabView';
 import type { CouponsPopupStatus } from '../components/coupons/CouponsPopup';
-import { fetchCouponsForPage, fetchMerchantsCatalog, reportInvalidCoupon } from '../services/coupons/api';
+import { fetchAffiliatesCatalog, fetchCouponsForPage, fetchMerchantsCatalog, reportInvalidCoupon } from '../services/coupons/api';
 import { getCachedCouponsForPage, setCachedCouponsForPage } from '../services/coupons/cache';
 import { ipc } from '../services/ipc/ipc';
 import { normalizeHost } from '../utils/security';
@@ -294,7 +294,15 @@ type UseCouponsResult = {
   handleInsertCoupon: (coupon: CouponEntry) => void;
   handleReportInvalidCoupon: (coupon: CouponEntry) => void;
   handleCouponsPositionChange: (pos: SavingsFloatingButtonPosState) => void;
-  performCatalogFetch: (country: string, etag: string | null) => void;
+  performCatalogFetch: (
+    country: string,
+    options: {
+      merchantEtag: string | null;
+      affiliateEtag: string | null;
+      fetchMerchants: boolean;
+      fetchAffiliates: boolean;
+    }
+  ) => void;
   handleCouponsDomReady: (tabId: string) => void;
 };
 
@@ -413,46 +421,89 @@ export const useCoupons = ({
     [updateSavingsSettings]
   );
 
-  const performCatalogFetch = useCallback(async (country: string, etag: string | null) => {
+  const performCatalogFetch = useCallback(async (
+    country: string,
+    options: {
+      merchantEtag: string | null;
+      affiliateEtag: string | null;
+      fetchMerchants: boolean;
+      fetchAffiliates: boolean;
+    }
+  ) => {
     if (catalogFetchInFlightRef.current) return;
     catalogFetchInFlightRef.current = true;
-    const baseCatalog = savingsSettingsRef.current.catalog;
     try {
-      const result = await fetchMerchantsCatalog(country, etag ?? undefined, appVersion);
+      const baseCatalog = savingsSettingsRef.current.catalog;
       const nowIso = new Date().toISOString();
-      if (result.status === 'ok') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            merchants: result.merchants,
-            etag: result.etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'not_modified') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            etag: result.etag ?? etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'syncing') {
-        const nextAllowedFetchAt = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            nextAllowedFetchAt,
-            lastFetchAttemptAt: nowIso
-          }
-        });
+      const [merchantResult, affiliateResult] = await Promise.all([
+        options.fetchMerchants
+          ? fetchMerchantsCatalog(country, options.merchantEtag ?? undefined, appVersion)
+          : Promise.resolve(null),
+        options.fetchAffiliates
+          ? fetchAffiliatesCatalog(country, options.affiliateEtag ?? undefined, appVersion)
+          : Promise.resolve(null)
+      ]);
+      let nextCatalog = { ...baseCatalog, country };
+      let catalogChanged = false;
+
+      if (merchantResult?.status === 'ok') {
+        nextCatalog = {
+          ...nextCatalog,
+          merchants: merchantResult.merchants,
+          etag: merchantResult.etag ?? nextCatalog.etag ?? null,
+          updatedAt: nowIso,
+          nextAllowedFetchAt: null,
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (merchantResult?.status === 'not_modified') {
+        nextCatalog = {
+          ...nextCatalog,
+          etag: merchantResult.etag ?? options.merchantEtag ?? nextCatalog.etag ?? null,
+          updatedAt: nowIso,
+          nextAllowedFetchAt: null,
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (merchantResult?.status === 'syncing') {
+        nextCatalog = {
+          ...nextCatalog,
+          nextAllowedFetchAt: new Date(Date.now() + merchantResult.retryAfterSeconds * 1000).toISOString(),
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      }
+
+      if (affiliateResult?.status === 'ok') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliates: affiliateResult.affiliates,
+          affiliatesEtag: affiliateResult.etag ?? nextCatalog.affiliatesEtag ?? null,
+          affiliatesUpdatedAt: nowIso,
+          affiliatesNextAllowedFetchAt: null,
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (affiliateResult?.status === 'not_modified') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliatesEtag: affiliateResult.etag ?? options.affiliateEtag ?? nextCatalog.affiliatesEtag ?? null,
+          affiliatesUpdatedAt: nowIso,
+          affiliatesNextAllowedFetchAt: null,
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (affiliateResult?.status === 'syncing') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliatesNextAllowedFetchAt: new Date(Date.now() + affiliateResult.retryAfterSeconds * 1000).toISOString(),
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      }
+
+      if (catalogChanged) {
+        void updateSavingsSettings({ catalog: nextCatalog });
       }
     } catch {
       // Keep the persisted catalog untouched on transient failures.
@@ -473,18 +524,26 @@ export const useCoupons = ({
     const hasKnownCountry = hasExplicitCountry || Boolean(detectedCountry);
     if (!hasKnownCountry) return;
     const effectiveCountry = effectiveSavingsCountry;
-    const nextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
-    if (Number.isFinite(nextAllowedAt) && nextAllowedAt > now) return;
     if (hasKnownCountry && catalog.country && catalog.country !== effectiveSavingsCountry) {
       void updateSavingsSettings({
         catalog: { ...DEFAULT_SAVINGS_CATALOG, country: effectiveSavingsCountry }
       });
       return;
     }
-    const startupFetchKey = effectiveCountry;
+    const merchantNextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
+    const affiliateNextAllowedAt = catalog.affiliatesNextAllowedFetchAt ? Date.parse(catalog.affiliatesNextAllowedFetchAt) : 0;
+    const fetchMerchants = !Number.isFinite(merchantNextAllowedAt) || merchantNextAllowedAt <= now;
+    const fetchAffiliates = !Number.isFinite(affiliateNextAllowedAt) || affiliateNextAllowedAt <= now;
+    if (!fetchMerchants && !fetchAffiliates) return;
+    const startupFetchKey = `${effectiveCountry}:${fetchMerchants ? 'm' : ''}${fetchAffiliates ? 'a' : ''}`;
     if (catalogStartupFetchAttemptRef.current === startupFetchKey) return;
     catalogStartupFetchAttemptRef.current = startupFetchKey;
-    void performCatalogFetch(effectiveCountry, catalog.etag);
+    void performCatalogFetch(effectiveCountry, {
+      merchantEtag: catalog.etag,
+      affiliateEtag: catalog.affiliatesEtag,
+      fetchMerchants,
+      fetchAffiliates
+    });
   }, [
     detectedCountry,
     effectiveSavingsCountry,

@@ -5,10 +5,11 @@ import { ipcRenderer, webFrame } from 'electron';
 const SELECTION_CODE = `
       (function(){
         try {
-          // Telegram Web has fragile rich editors. Keep the bridge available for
-          // plain text controls, but do not enable DOM-range selection there yet.
+          // Telegram Web keeps its own context menu fragile, but DOM-range
+          // selection handles are needed across chat content as well as inputs.
           var host = (location && location.hostname) || '';
-          var selectionLimitedToEditableText = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          var isTelegramHost = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          var selectionLimitedToEditableText = false;
 
           if (!window.__mzrSel) {
             window.__mzrSel = {
@@ -28,6 +29,7 @@ const SELECTION_CODE = `
               handleDrag: false,
               handleSide: null,
               handleAnchor: null,
+              handleScope: null,
               handleTextControl: null,
               handleAnchorIndex: null,
               handleGrabDx: 0,
@@ -415,6 +417,55 @@ const SELECTION_CODE = `
             }
           }
 
+          function asScopeElement(node){
+            try {
+              return node && node.nodeType === Node.ELEMENT_NODE
+                ? node
+                : (node && node.parentElement);
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getRangeScope(range){
+            if (!range) return null;
+            try {
+              var node = range.commonAncestorContainer || range.startContainer;
+              var el = asScopeElement(node);
+              while (el && el !== document.documentElement && el !== document.body) {
+                var style = window.getComputedStyle(el);
+                var display = style && style.display ? style.display : '';
+                if (
+                  display === 'block' ||
+                  display === 'flex' ||
+                  display === 'grid' ||
+                  display === 'list-item' ||
+                  display === 'table-cell'
+                ) {
+                  return el;
+                }
+                el = el.parentElement;
+              }
+              return asScopeElement(range.commonAncestorContainer || range.startContainer);
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function rangeIsInsideScope(range, scope){
+            if (!range || !scope) return true;
+            try {
+              var start = asScopeElement(range.startContainer);
+              var end = asScopeElement(range.endContainer);
+              return !!(
+                (!start || scope.contains(start) || start === scope) &&
+                (!end || scope.contains(end) || end === scope)
+              );
+            } catch(_) {
+              return true;
+            }
+          }
+
           function getRangeRect(range){
             if (!range) return null;
             try {
@@ -526,6 +577,7 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleScope = null;
               S.handleTextControl = null;
               S.handleAnchorIndex = null;
               S.handleGrabDx = 0;
@@ -661,6 +713,7 @@ const SELECTION_CODE = `
                   }
                   S.handleSide = side;
                   S.handleAnchor = null;
+                  S.handleScope = null;
                   S.handleTextControl = textControl;
                   S.handleAnchorIndex = anchorIndex;
                   setHandleGrabOffset(side, startX, startY);
@@ -684,6 +737,7 @@ const SELECTION_CODE = `
               }
               S.handleSide = side;
               S.handleAnchor = anchor;
+              S.handleScope = isTelegramHost ? getRangeScope(r) : null;
               setHandleGrabOffset(side, startX, startY);
               S.dragActive = true;
               S.dragRange = anchor;
@@ -727,6 +781,9 @@ const SELECTION_CODE = `
               }
               if (!S.handleAnchor) return;
               var endRange = ensureRangeFromPoint(probeX, probeY);
+              if (isTelegramHost && S.handleScope && !rangeIsInsideScope(endRange, S.handleScope)) {
+                return;
+              }
               setSelectionFromAnchor(S.handleAnchor, endRange);
               selLog('handle-drag-move', { x: x, y: y, sel: selInfo() });
               updateHandles();
@@ -741,6 +798,7 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleScope = null;
               S.handleTextControl = null;
               S.handleAnchorIndex = null;
               S.handleGrabDx = 0;

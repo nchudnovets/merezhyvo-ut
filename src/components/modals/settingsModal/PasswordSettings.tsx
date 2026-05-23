@@ -6,6 +6,7 @@ import { useI18n } from '../../../i18n/I18nProvider';
 import { settingsModalStyles } from './settingsModalStyles';
 import { settingsModalModeStyles } from './settingsModalModeStyles';
 import ChangeMasterPasswordModal from '../ChangeMasterPasswordModal';
+import OptionSelect from '../../common/OptionSelect';
 
 const LOCK_OPTIONS: Array<{ value: number; key: string }> = [
   { value: 1, key: 'passwordUnlock.keep.1' },
@@ -125,8 +126,8 @@ const PasswordSettings: React.FC<Props> = ({ mode, theme, onManagePasswords, onR
     void applyPatch({ [field]: !settings[field] } as Partial<PasswordSettings>);
   };
 
-  const handleAutoLockChange = (event: React.ChangeEvent<HTMLSelectElement>) => {
-    const value = Number(event.target.value);
+  const handleAutoLockChange = (rawValue: string | number) => {
+    const value = Number(rawValue);
     if (Number.isNaN(value)) return;
     void applyPatch({ autoLockMinutes: value });
   };
@@ -217,6 +218,10 @@ const PasswordSettings: React.FC<Props> = ({ mode, theme, onManagePasswords, onR
   const showUnlockAction = hasMaster && isPasswordsLocked;
   const isLightTheme = theme === 'light';
   const emphasizeTextStyle = isLightTheme ? { color: '#fff' } : {};
+  const lockOptions = LOCK_OPTIONS.map((option) => ({
+    value: option.value,
+    label: t(option.key)
+  }));
 
   return (
     <div style={styles.passwordSettings}>
@@ -290,18 +295,15 @@ const PasswordSettings: React.FC<Props> = ({ mode, theme, onManagePasswords, onR
           })}
           <div style={rowStyle}>
             <span style={toggleLabelStyle}>{t('passwordSettings.label.autoLock')}</span>
-            <select
+            <OptionSelect
               value={settings?.autoLockMinutes ?? 15}
               disabled={!settings || saving}
               onChange={handleAutoLockChange}
+              options={lockOptions}
               style={selectStyle}
-            >
-              {LOCK_OPTIONS.map((option) => (
-                <option key={option.value} value={option.value}>
-                  {t(option.key)}
-                </option>
-              ))}
-            </select>
+              chevronSize={isMobile ? 36 : 16}
+              ariaLabel={t('passwordSettings.label.autoLock')}
+            />
           </div>
           <div style={rowStyle}>
             <button

@@ -3,10 +3,15 @@ import type { MerchantsCatalogCache, SavingsSettings } from '../types/models';
 export const DEFAULT_SAVINGS_CATALOG: MerchantsCatalogCache = {
   country: null,
   merchants: [],
+  affiliates: [],
   updatedAt: null,
   etag: null,
+  affiliatesUpdatedAt: null,
+  affiliatesEtag: null,
   nextAllowedFetchAt: null,
-  lastFetchAttemptAt: null
+  lastFetchAttemptAt: null,
+  affiliatesNextAllowedFetchAt: null,
+  affiliatesLastFetchAttemptAt: null
 };
 
 export const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {

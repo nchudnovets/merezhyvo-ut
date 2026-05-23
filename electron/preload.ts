@@ -360,6 +360,7 @@ const exposeApi: MerezhyvoAPI = {
             showTopSites: true,
             showFavorites: true,
             hidePanels: false,
+            showAffiliates: true,
             showCouponStores: true,
             favorites: []
           },

@@ -138,7 +138,7 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Search across open tabs and smart address bar suggestions from history and bookmarks.
 
-  - Customisable Start Page with search, top sites, favorite sites, and fresh coupon site shortcuts. Favorite and coupon shortcuts page through 6 visible items at a time; coupon shortcuts are loaded progressively for large merchant catalogs.
+  - Customisable Start Page with search, top sites, favorite sites, partner stores, and fresh coupon site shortcuts. Favorite, partner, and coupon shortcuts page through 6 visible items at a time; coupon shortcuts are loaded progressively for large merchant catalogs.
 
 
 - **Predictable downloads & safe uploads**
@@ -262,8 +262,10 @@ You need a Linux dev machine with:
     
 *   **Clickable** installed and working (`clickable --version`);
     *   Practical note as of April 2026: if `clickable-ut 8.8.0` fails for `ubuntu-touch-24.04-1.x` with `requires ... image version 13 or higher (found 12)`, temporarily use `clickable-ut==8.7.0`.
+    *   On macOS, `./tools/build-click.sh` automatically adds the Python user bin directory to `PATH`, so a `pip --user` install is enough.
     
-*   **Docker** running (Clickable uses it to build the final `.click`).
+*   **Colima/Docker** available (Clickable uses Docker to build the final `.click`).
+    *   On Apple Silicon, `./tools/build-click.sh` starts the ARM Colima profile `ut-arm64` before Clickable packaging and stops it when the script exits. Set `MEREZHYVO_STOP_COLIMA_AFTER_BUILD=0` if you want to keep it running.
     
 
 Quick sanity check:
@@ -274,7 +276,7 @@ npm \-v
 
 clickable \--version
 
-docker ps
+colima list
 
 If needed, reinstall a known working Clickable version:
 

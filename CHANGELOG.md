@@ -11,6 +11,10 @@
 
 - Fresh coupon shortcuts now lazy-load in 12-entry batches, so large merchant catalogs do not render all shortcut tiles up front.
 
+- Start Page can now show a separate Partner stores row from the affiliates catalog, with its own Start Page visibility toggle.
+
+- Disabling coupon or partner-link support now asks for confirmation and explains how these optional features help support the project.
+
 - Mobile toolbar now includes an expandable actions tray with Messenger, Back, Forward, and Reload controls.
 
 - Telegram deep links (`t.me`, `telegram.me`, `telegram.dog`) now open in the built-in Telegram messenger tab instead of trying to launch an external app.
