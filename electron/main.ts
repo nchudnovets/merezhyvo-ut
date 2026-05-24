@@ -834,8 +834,20 @@ type ExtendedContextMenuParams = ContextMenuParams & {
   sourceType?: string;
 };
 
+type ContextMenuParamsLike = Partial<ContextMenuParams> & {
+  menuSourceType?: string;
+  sourceType?: string;
+};
+
 type ContextMenuPayload = {
   id?: string;
+};
+
+type SyntheticContextMenuPayload = {
+  x?: unknown;
+  y?: unknown;
+  dpr?: unknown;
+  webContentsId?: unknown;
 };
 
 type ContextMenuSizePayload = {
@@ -892,7 +904,7 @@ type SessionTabLike = {
 
 type ContextState = {
   wcId: number | null;
-  params: ContextMenuParams | null;
+  params: ContextMenuParamsLike | null;
   x: number;
   y: number;
   linkUrl: string;
@@ -1094,7 +1106,7 @@ const normalizeAddress = (value: string | null | undefined): string => {
   }
 };
 
-const isTouchSource = (params: ContextMenuParams | null | undefined): boolean => {
+const isTouchSource = (params: ContextMenuParamsLike | null | undefined): boolean => {
   const typed = params as ExtendedContextMenuParams | null | undefined;
   const src = String(typed?.menuSourceType ?? typed?.sourceType ?? '').toLowerCase();
   return [
@@ -1107,6 +1119,51 @@ const isTouchSource = (params: ContextMenuParams | null | undefined): boolean =>
     'adjustselection',
     'adjustselectionreset'
   ].includes(src);
+};
+
+const readLiveContextFromPage = async (
+  wc: WebContents | null | undefined
+): Promise<{ selectionText: string; isEditable: boolean; pageUrl: string }> => {
+  if (!wc || wc.isDestroyed()) {
+    return { selectionText: '', isEditable: false, pageUrl: '' };
+  }
+  try {
+    const result = await wc.executeJavaScript(`
+      (function () {
+        try {
+          var text = '';
+          var sel = window.getSelection ? window.getSelection() : null;
+          if (sel && sel.rangeCount && !sel.isCollapsed) {
+            text = String(sel.toString() || '');
+          }
+          var el = document.activeElement;
+          var tag = el && el.tagName ? String(el.tagName).toLowerCase() : '';
+          var isTextControl = tag === 'textarea' || tag === 'input';
+          var editable = !!(el && (el.isContentEditable || isTextControl));
+          if (!text && isTextControl) {
+            var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;
+            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : 0;
+            if (end > start) text = String((el.value || '').slice(start, end));
+          }
+          return {
+            selectionText: text,
+            isEditable: editable,
+            pageUrl: String(location && location.href || '')
+          };
+        } catch (err) {
+          return { selectionText: '', isEditable: false, pageUrl: '' };
+        }
+      })();
+    `, true);
+    const raw = result as { selectionText?: unknown; isEditable?: unknown; pageUrl?: unknown } | null;
+    return {
+      selectionText: typeof raw?.selectionText === 'string' ? raw.selectionText : '',
+      isEditable: Boolean(raw?.isEditable),
+      pageUrl: typeof raw?.pageUrl === 'string' ? raw.pageUrl : ''
+    };
+  } catch {
+    return { selectionText: '', isEditable: false, pageUrl: '' };
+  }
 };
 
 const resolveOwnerWindow = (wc: WebContents): BrowserWindow | null => {
@@ -1164,9 +1221,10 @@ const buildCtxMenuState = async (): Promise<{
     const canForward = wc?.navigationHistory.canGoForward?.() ?? false;
 
     const params = ctx?.params ?? null;
-    const selection = params?.selectionText ?? '';
+    const liveContext = await readLiveContextFromPage(wc);
+    const selection = params?.selectionText || liveContext.selectionText || '';
     const hasSelection = Boolean(selection && selection.trim().length);
-    const isEditable = Boolean(params?.isEditable);
+    const isEditable = Boolean(params?.isEditable || liveContext.isEditable);
 
     let canPaste = false;
     try {
@@ -1179,7 +1237,10 @@ const buildCtxMenuState = async (): Promise<{
     const linkUrl = ctx?.linkUrl ?? '';
     const mediaType = typeof params?.mediaType === 'string' ? params.mediaType : '';
     const mediaSrc = typeof params?.srcURL === 'string' ? params.srcURL : '';
-    const pageUrl = typeof params?.pageURL === 'string' ? params.pageURL : '';
+    const pageUrl =
+      typeof params?.pageURL === 'string' && params.pageURL
+        ? params.pageURL
+        : liveContext.pageUrl || wc?.getURL?.() || '';
     const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
     return {
       canBack,
@@ -1224,7 +1285,8 @@ const notifyCtxHide = (): void => {
 
 const openCtxWindowFor = async (
   contents: WebContents | null,
-  params: ContextMenuParams | null | undefined
+  params: ContextMenuParamsLike | null | undefined,
+  options: { bypassSiteExclusion?: boolean; point?: { x: number; y: number } } = {}
 ): Promise<void> => {
   const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
   const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
@@ -1246,18 +1308,22 @@ const openCtxWindowFor = async (
 
   ctxMenuMode = normalizedMode;
 
-  if (ctxOpening) return;
+  if (ctxOpening) {
+    return;
+  }
   ctxOpening = true;
   setTimeout(() => {
     ctxOpening = false;
   }, 280);
 
   const targetWc = getTargetWebContents(contents);
-  if (!targetWc || targetWc.isDestroyed()) return;
+  if (!targetWc || targetWc.isDestroyed()) {
+    return;
+  }
 
   try {
     const currentUrl = targetWc.getURL?.() ?? '';
-    if (currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
+    if (!options.bypassSiteExclusion && currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
       return;
     }
   } catch {
@@ -1265,11 +1331,15 @@ const openCtxWindowFor = async (
   }
 
   const ownerWin = resolveOwnerWindow(targetWc);
-  if (!ownerWin || ownerWin.isDestroyed()) return;
+  if (!ownerWin || ownerWin.isDestroyed()) {
+    return;
+  }
 
-  const cursor = screen.getCursorScreenPoint();
+  const cursor = options.point ?? screen.getCursorScreenPoint();
   const ownerId = ownerWin.webContents.id;
-  if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
+  if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) {
+    return;
+  }
 
   global.lastCtx = {
     wcId: targetWc.id,
@@ -1513,6 +1583,43 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
     }
     void openCtxWindowFor(contents, params);
   });
+});
+
+ipcMain.on('mzr:ctxmenu:open', (_event, payload: SyntheticContextMenuPayload) => {
+  const webContentsId = Number(payload?.webContentsId);
+  const x = Number(payload?.x);
+  const y = Number(payload?.y);
+  const target = Number.isFinite(webContentsId) ? webContents.fromId(webContentsId) : null;
+  if (!target || target.isDestroyed()) return;
+  void (async () => {
+    const liveContext = await readLiveContextFromPage(target);
+    const params: ContextMenuParamsLike = {
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
+      selectionText: liveContext.selectionText,
+      isEditable: liveContext.isEditable,
+      pageURL: liveContext.pageUrl || target.getURL?.() || '',
+      linkURL: '',
+      menuSourceType: 'touch'
+    };
+    const host = (() => {
+      try {
+        return new URL(params.pageURL || target.getURL?.() || '').hostname;
+      } catch {
+        return '';
+      }
+    })();
+    const bypassSiteExclusion =
+      /(^|\.)web\.telegram\.org$/i.test(host) &&
+      Boolean(liveContext.selectionText.trim().length);
+    await openCtxWindowFor(target, params, {
+      bypassSiteExclusion,
+      point: {
+        x: Number.isFinite(x) ? x : 0,
+        y: Number.isFinite(y) ? y : 0
+      }
+    });
+  })();
 });
 
 ipcMain.handle('mzr:ctxmenu:get-state', async () => {

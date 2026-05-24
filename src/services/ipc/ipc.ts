@@ -420,9 +420,9 @@ export const ipc = {
     }
   },
 
-  openContextMenuAt(x: number, y: number, dpr?: number): void {
+  openContextMenuAt(x: number, y: number, dpr?: number, webContentsId?: number): void {
     try {
-      getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1);
+      getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1, webContentsId);
     } catch {}
   },
 

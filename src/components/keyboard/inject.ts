@@ -1201,7 +1201,37 @@ export function makeWebInjects(
       (function(){
         try{
           var S = window.__mzrSel;
-          if (!S || !S.menuReq) return null;
+          var host = (location && location.hostname) || '';
+          var isTelegramHost = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          function getSelectionMenuPoint(){
+            try {
+              var sel = window.getSelection && window.getSelection();
+              if (!sel || !sel.rangeCount || !sel.toString || sel.toString().trim().length === 0) {
+                return null;
+              }
+              var range = sel.getRangeAt(0);
+              if (!range || range.collapsed) return null;
+              var rects = range.getClientRects();
+              var rect = rects && rects.length ? rects[0] : range.getBoundingClientRect();
+              if (!rect) return null;
+              return {
+                x: Math.round(rect.left + rect.width / 2),
+                y: Math.round(rect.top + Math.max(rect.height, 1))
+              };
+            } catch(_) {
+              return null;
+            }
+          }
+          if (!S || !S.menuReq) {
+            if (isTelegramHost && S && S.selectionCreated && !S.syntheticMenuShown && !S.touching && !S.dragActive && !S.handleDrag) {
+              var point = getSelectionMenuPoint();
+              if (point) {
+                S.syntheticMenuShown = true;
+                return point;
+              }
+            }
+            return null;
+          }
           var m = S.menuReq; S.menuReq = null;
 
           // Only trigger menu if the selection was created

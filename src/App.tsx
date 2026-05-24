@@ -364,8 +364,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     el: null
   });
   const ctxMenuGuardRef = useRef<boolean>(false);
+  const ctxMenuVisibleRef = useRef<boolean>(ctxMenuVisible);
   const ctxMenuGuardTimerRef = useRef<number | null>(null);
   const lastUrlFocusTsRef = useRef<number>(0);
+  useEffect(() => {
+    ctxMenuVisibleRef.current = ctxMenuVisible;
+  }, [ctxMenuVisible]);
   const clearCtxMenuGuardTimer = useCallback(() => {
     if (ctxMenuGuardTimerRef.current !== null) {
       window.clearTimeout(ctxMenuGuardTimerRef.current);
@@ -972,8 +976,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const tick = async () => {
     if (cancelled) return;
+    if (ctxMenuVisibleRef.current) return;
 
     try {
+      const wvForDebug = getActiveWebview();
+      if (!wvForDebug?.isConnected) {
+        prevShown = false;
+        return;
+      }
       const [has, touchState] = await Promise.all([
         hasSelection(),
         getSelectionTouchState(),
@@ -982,11 +992,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (!has) { prevShown = false; return; }
 
       // Don't show menu while user is still touching/dragging selection handles
-      if (touchState.touching) { prevShown = false; return; }
+      if (touchState.touching) {
+        prevShown = false;
+        return;
+      }
 
       const now = Date.now();
       // Wait a short grace period after touchend so handles settle visually
-      if (now - touchState.lastTouchTs < 250) { return; }
+      if (now - touchState.lastTouchTs < 250) {
+        return;
+      }
 
       // First long-press to create selection (skip showing menu)
       if (!prevShown) {
@@ -995,12 +1010,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
 
       const req = await pollMenuRequest();
-      if (!req) return;
+      if (!req) {
+        return;
+      }
 
       const wv = getActiveWebview();
       if (!wv) return;
       const url = await wv.getURL();
-      if (isCtxtExcludedSite(url)) {
+      const isTelegramSelection = (() => {
+        try { return /(^|\.)web\.telegram\.org$/i.test(new URL(url).hostname); } catch { return false; }
+      })();
+      if (isCtxtExcludedSite(url) && !isTelegramSelection) {
         return;
       }
 
@@ -1008,7 +1028,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const cx = Math.round(hostRect.left + req.x);
       const cy = Math.round(hostRect.top + req.y);
 
-      window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1);
+      const webContentsId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : undefined;
+      window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1, webContentsId);
     } catch {
       // ignore transient errors
     }

@@ -20,6 +20,7 @@ const SELECTION_CODE = `
               lpY: 0,
               moved: false,
               menuReq: null,
+              syntheticMenuShown: false,
               selectionCreated: false,
               pointerTouching: false,
               pointerId: null,
@@ -64,7 +65,7 @@ const SELECTION_CODE = `
           }
 
           function selLog(){
-            // debug logging disabled
+            // Intentionally quiet in production; keep call sites lightweight.
           }
 
           // Hide default touch-callout bubble inside the page
@@ -427,10 +428,33 @@ const SELECTION_CODE = `
             }
           }
 
+          function getTelegramMessageScope(node){
+            if (!isTelegramHost) return null;
+            try {
+              var el = asScopeElement(node);
+              while (el && el !== document.documentElement && el !== document.body) {
+                var cls = String(el.className || '').toLowerCase();
+                var role = el.getAttribute ? String(el.getAttribute('role') || '').toLowerCase() : '';
+                if (
+                  cls.indexOf('message') !== -1 ||
+                  cls.indexOf('bubble') !== -1 ||
+                  cls.indexOf('text-content') !== -1 ||
+                  role === 'listitem'
+                ) {
+                  return el;
+                }
+                el = el.parentElement;
+              }
+            } catch(_) {}
+            return null;
+          }
+
           function getRangeScope(range){
             if (!range) return null;
             try {
               var node = range.commonAncestorContainer || range.startContainer;
+              var telegramScope = getTelegramMessageScope(node);
+              if (telegramScope) return telegramScope;
               var el = asScopeElement(node);
               while (el && el !== document.documentElement && el !== document.body) {
                 var style = window.getComputedStyle(el);
@@ -586,6 +610,7 @@ const SELECTION_CODE = `
               S.dragRange = null;
               S.dragTextControl = null;
               S.dragAnchorIndex = null;
+              S.syntheticMenuShown = false;
               S.selectionCreated = false;
               return;
             }
@@ -829,6 +854,7 @@ const SELECTION_CODE = `
               if (!t) return;
               S.touching = true;
               S.moved = false;
+              S.syntheticMenuShown = false;
               S.lpX = t.clientX;
               S.lpY = t.clientY;
               selLog('touchstart', { x: S.lpX, y: S.lpY });
