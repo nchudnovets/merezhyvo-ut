@@ -1482,6 +1482,12 @@ const startApp = async (): Promise<void> => {
   if (featureFlags.size > 0) {
     app.commandLine.appendSwitch('enable-features', Array.from(featureFlags).join(','));
   }
+  //for dev only -->
+  const proxy = process.env.MZR_PROXY
+  if (proxy) {
+    app.commandLine.appendSwitch('proxy-server', proxy)
+  }
+  //<--
 
   applySecureDnsCommandLine(secureDnsResolved);
 
@@ -1686,8 +1692,16 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
               try {
                 var sel = window.getSelection ? window.getSelection() : null;
                 if (sel && sel.rangeCount && !sel.isCollapsed) {
-                  return String(sel.toString() || '');
+                  var liveText = String(sel.toString() || '');
+                  var rememberedText = window.__mzrSel && typeof window.__mzrSel.lastSelectionText === 'string'
+                    ? window.__mzrSel.lastSelectionText
+                    : '';
+                  return rememberedText.trim().length > liveText.trim().length ? rememberedText : liveText;
                 }
+                var remembered = window.__mzrSel && typeof window.__mzrSel.lastSelectionText === 'string'
+                  ? window.__mzrSel.lastSelectionText
+                  : '';
+                if (remembered.trim()) return remembered;
                 var el = document.activeElement;
                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
                   var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;

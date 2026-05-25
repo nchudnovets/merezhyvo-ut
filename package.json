@@ -1,6 +1,6 @@
 {
   "name": "merezhyvo",
-  "version": "0.5.4-RC-7",
+  "version": "0.5.4-RC-8",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "author": "Naz.R",
   "license": "Proprietary",
@@ -23,6 +23,7 @@
     "start:mobile": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 env -u ELECTRON_RUN_AS_NODE electron --disable-gpu --no-sandbox dist-electron/main.js",
     "start:desktop": "npm run build && MZV_MODE=desktop env -u ELECTRON_RUN_AS_NODE electron --disable-gpu --no-sandbox dist-electron/main.js",
     "start:devtools": "npm run build && MZV_MODE=desktop env -u ELECTRON_RUN_AS_NODE electron --disable-gpu --no-sandbox dist-electron/main.js --devtools",
+    "start:torred": "npm run build && MZV_MODE=desktop env -u ELECTRON_RUN_AS_NODE MZR_PROXY=socks5://127.0.0.1:9050 electron --disable-gpu --no-sandbox dist-electron/main.js --devtools",
     "start:mob-devtools": "npm run build && MZV_MODE=mobile OZONE_PLATFORM=wayland XCURSOR_SIZE=24 env -u ELECTRON_RUN_AS_NODE electron --disable-gpu --no-sandbox dist-electron/main.js --devtools",
     "package:electron": "npm run build && npx electron-packager . merezhyvo --platform=linux --arch=arm64 --out=app-bin --overwrite --asar --icon=merezhyvo_256.png",
     "stage": "mkdirp app && cp -r app-bin/merezhyvo-linux-arm64/* app/",

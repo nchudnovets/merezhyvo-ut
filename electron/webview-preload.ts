@@ -21,6 +21,7 @@ const SELECTION_CODE = `
               moved: false,
               menuReq: null,
               syntheticMenuShown: false,
+              lastSelectionText: '',
               selectionCreated: false,
               pointerTouching: false,
               pointerId: null,
@@ -182,6 +183,18 @@ const SELECTION_CODE = `
             }
           }
 
+          function rememberSelectionText(text){
+            try {
+              S.lastSelectionText = String(text || '');
+            } catch(_) {}
+          }
+
+          function rememberRangeSelectionText(range){
+            try {
+              rememberSelectionText(range ? range.toString() : '');
+            } catch(_) {}
+          }
+
           function getTextControlLineHeight(el){
             try {
               var cs = window.getComputedStyle(el);
@@ -340,6 +353,7 @@ const SELECTION_CODE = `
               if (typeof el.setSelectionRange === 'function') {
                 el.setSelectionRange(start, end, target >= anchor ? 'forward' : 'backward');
               }
+              rememberSelectionText(value.slice(start, end));
               S.selectionCreated = end > start;
               try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch(_) {}
             } catch(_) {}
@@ -405,6 +419,7 @@ const SELECTION_CODE = `
               }
               S.selectionCreated = true;
               S.dragRange = next.cloneRange();
+              rememberRangeSelectionText(next);
             } catch(_) {}
           }
 
@@ -611,6 +626,7 @@ const SELECTION_CODE = `
               S.dragTextControl = null;
               S.dragAnchorIndex = null;
               S.syntheticMenuShown = false;
+              rememberSelectionText('');
               S.selectionCreated = false;
               return;
             }
@@ -936,6 +952,7 @@ const SELECTION_CODE = `
                     S.dragActive = !!S.dragRange;
                     S.dragTextControl = null;
                     S.dragAnchorIndex = null;
+                    rememberRangeSelectionText(S.dragRange);
                     if (S.dragActive) {
                       selLog('drag-start', selInfo());
                     }
@@ -1078,6 +1095,7 @@ const SELECTION_CODE = `
                   S.dragActive = !!S.dragRange;
                   S.dragTextControl = null;
                   S.dragAnchorIndex = null;
+                  rememberRangeSelectionText(S.dragRange);
                   if (S.dragActive) {
                     selLog('drag-start', selInfo());
                   }
