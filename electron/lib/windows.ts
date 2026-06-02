@@ -2,7 +2,6 @@
 
 import path from 'path';
 import fs from 'fs';
-import pkgJson from '../../package.json';
 import {
   app,
   BrowserWindow,
@@ -27,6 +26,7 @@ import {
   promptForPaths,
   unlinkGuestWebContents
 } from './file-dialog-ipc';
+import { getKnownNetworkTimezone } from './network-geo';
 import '../js-dialog-handler';
 import { DOCUMENTS_FOLDER } from './internal-paths';
 import * as downloads from './downloads';
@@ -49,40 +49,36 @@ const resolveArchToken = (): string => {
   return arch || 'x86_64';
 };
 
-type PackageMeta = {
-  productName?: string;
-  name?: string;
-  version?: string;
-};
-
-const pkg = pkgJson as PackageMeta;
-
-const resolveAppVersion = (): string => {
-  const pkgVersion = typeof pkg.version === 'string' ? pkg.version.trim() : '';
-  if (pkgVersion) return pkgVersion;
-  try {
-    const version = app.getVersion?.();
-    if (typeof version === 'string' && version.trim()) {
-      return version.trim();
-    }
-  } catch {
-    // noop
-  }
-  return '0.0.0';
-};
-
 const chromeVersion = resolveChromeVersion();
-const electronVersion = typeof process.versions?.electron === 'string' ? process.versions.electron.trim() : '';
-const appVersion = resolveAppVersion();
 const uaArchToken = resolveArchToken();
 const uaPlatformToken = `X11; Linux ${uaArchToken}`;
 
 export const MOBILE_USER_AGENT =
-  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
+  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Mobile Safari/537.36`;
 export const DESKTOP_USER_AGENT =
-  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Safari/537.36`;
+  `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Safari/537.36`;
 export const GOOGLE_MOBILE_USER_AGENT =
-  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Merezhyvo/${appVersion} Chrome/${chromeVersion.full} Electron/${electronVersion} Mobile Safari/537.36`;
+  `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Mobile Safari/537.36`;
+
+const UA_DEBUG_ENABLED = process.env.MZR_UA_DEBUG === '1';
+const UA_DEBUG_FILE_NAME = 'ua-debug.log';
+const ANTI_BOT_DEBUG_TOKENS = [
+  'datadome',
+  'captcha',
+  'challenge',
+  'cloudflare',
+  'turnstile',
+  'akamai',
+  'perimeterx',
+  'px-captcha',
+  'captcha-delivery'
+];
+const antiBotFrameDebugKeys = new Set<string>();
+let uaDebugLogInitialized = false;
+
+const uaDebuggerAttachedContents = new WeakSet<WebContents>();
+const uaDebuggerHookedContents = new WeakSet<WebContents>();
+const uaDebuggerSessionIdsByContents = new WeakMap<WebContents, Set<string>>();
 
 const DESKTOP_ONLY_HOSTS = new Set<string>([
   'youtube.com',
@@ -537,6 +533,412 @@ function shouldUseAndroidMobileUa(url: string): boolean {
   return isGoogleServiceUrl(url) || isMailServiceUrl(url);
 }
 
+type MutableRequestHeaders = Record<string, string | string[] | undefined>;
+type RequestHeaders = Record<string, string | string[]>;
+
+const findHeaderKey = (headers: MutableRequestHeaders, name: string): string | null =>
+  Object.keys(headers).find((key) => key.toLowerCase() === name.toLowerCase()) ?? null;
+
+const setHeaderIfPresent = (headers: MutableRequestHeaders, name: string, value: string): void => {
+  const key = findHeaderKey(headers, name);
+  if (key) {
+    headers[key] = value;
+  }
+};
+
+const setHeader = (headers: MutableRequestHeaders, name: string, value: string): void => {
+  headers[findHeaderKey(headers, name) ?? name] = value;
+};
+
+const normalizeRequestHeaders = (headers: MutableRequestHeaders): RequestHeaders => {
+  const normalized: RequestHeaders = {};
+  for (const [key, value] of Object.entries(headers)) {
+    if (typeof value !== 'undefined') {
+      normalized[key] = value;
+    }
+  }
+  return normalized;
+};
+
+const clientHintsForProfile = (
+  profile: 'desktop' | 'google-mobile' | 'mobile'
+): {
+  platform: string;
+  mobile: string;
+  arch: string;
+  bitness: string;
+} => {
+  if (profile === 'google-mobile') {
+    return {
+      platform: '"Android"',
+      mobile: '?1',
+      arch: '"arm"',
+      bitness: '"64"'
+    };
+  }
+  const arch = uaArchToken === 'x86_64' ? '"x86"' : uaArchToken === 'aarch64' ? '"arm"' : `"${uaArchToken}"`;
+  return {
+    platform: '"Linux"',
+    mobile: profile === 'mobile' ? '?1' : '?0',
+    arch,
+    bitness: uaArchToken === 'x86_64' || uaArchToken === 'aarch64' ? '"64"' : '""'
+  };
+};
+
+const unwrapClientHintToken = (value: string): string => value.replace(/^"|"$/g, '');
+
+const navigatorPlatformForProfile = (profile: 'desktop' | 'google-mobile' | 'mobile'): string => {
+  if (profile === 'google-mobile') return 'Linux armv8l';
+  return `Linux ${uaArchToken}`;
+};
+
+const resolveUserAgentTimezone = async (): Promise<string | null> => {
+  const explicitTimezone = process.env.MZR_TIMEZONE || process.env.TZ;
+  if (explicitTimezone) return explicitTimezone;
+  const networkTimezone = await getKnownNetworkTimezone();
+  if (networkTimezone) return networkTimezone;
+  try {
+    return Intl.DateTimeFormat().resolvedOptions().timeZone || null;
+  } catch {
+    return null;
+  }
+};
+
+const TOUCH_FEATURE_OVERRIDE_SCRIPT = `
+(() => {
+  try {
+    const nav = navigator;
+    const target = Object.getPrototypeOf(nav) || nav;
+    const current = Number(nav.maxTouchPoints || 0);
+    const desc = Object.getOwnPropertyDescriptor(target, 'maxTouchPoints');
+    if (current < 5 && (!desc || desc.configurable)) {
+      Object.defineProperty(target, 'maxTouchPoints', {
+        configurable: true,
+        enumerable: true,
+        get: () => 5
+      });
+    }
+  } catch {}
+  try {
+    const defineTouchSlot = (target) => {
+      if (!target) return;
+      const desc = Object.getOwnPropertyDescriptor(target, 'ontouchstart');
+      if (!desc) {
+        Object.defineProperty(target, 'ontouchstart', {
+          configurable: true,
+          enumerable: false,
+          get: () => null,
+          set: () => {}
+        });
+      }
+    };
+    defineTouchSlot(window);
+    defineTouchSlot(window.Window && Window.prototype);
+    defineTouchSlot(window.Document && Document.prototype);
+    defineTouchSlot(window.HTMLElement && HTMLElement.prototype);
+    defineTouchSlot(window.SVGElement && SVGElement.prototype);
+    if (document && document.documentElement) defineTouchSlot(document.documentElement);
+  } catch {}
+})();
+`;
+
+const userAgentMetadataForProfile = (profile: 'desktop' | 'google-mobile' | 'mobile') => {
+  const hints = clientHintsForProfile(profile);
+  const chromiumMajor = String(chromeVersion.major || 0);
+  const chromiumFull = chromeVersion.full || `${chromiumMajor}.0.0.0`;
+  return {
+    brands: [
+      { brand: 'Not/A)Brand', version: '99' },
+      { brand: 'Chromium', version: chromiumMajor }
+    ],
+    fullVersionList: [
+      { brand: 'Not/A)Brand', version: '99.0.0.0' },
+      { brand: 'Chromium', version: chromiumFull }
+    ],
+    fullVersion: chromiumFull,
+    platform: unwrapClientHintToken(hints.platform),
+    platformVersion: profile === 'google-mobile' ? '13' : '',
+    architecture: unwrapClientHintToken(hints.arch),
+    model: profile === 'google-mobile' ? 'Pixel 7' : '',
+    mobile: hints.mobile === '?1',
+    bitness: unwrapClientHintToken(hints.bitness),
+    wow64: false
+  };
+};
+
+const getDebuggerSessionIds = (contents: WebContents): Set<string> => {
+  let sessionIds = uaDebuggerSessionIdsByContents.get(contents);
+  if (!sessionIds) {
+    sessionIds = new Set<string>();
+    uaDebuggerSessionIdsByContents.set(contents, sessionIds);
+  }
+  return sessionIds;
+};
+
+const getUserAgentDebugLogPath = (): string => path.join(app.getPath('userData'), UA_DEBUG_FILE_NAME);
+
+const compactDebugValue = (value: unknown): unknown => {
+  if (typeof value === 'string') {
+    return value.length > 4096 ? `${value.slice(0, 4096)}...<truncated ${value.length - 4096} chars>` : value;
+  }
+  if (Array.isArray(value)) {
+    return value.map(compactDebugValue);
+  }
+  if (value && typeof value === 'object') {
+    const next: Record<string, unknown> = {};
+    for (const [key, nested] of Object.entries(value as Record<string, unknown>)) {
+      next[key] = compactDebugValue(nested);
+    }
+    return next;
+  }
+  return value;
+};
+
+const shouldLogUserAgentDebug = (details: {
+  resourceType?: string;
+  url?: string;
+  targetUrl?: string;
+  firstPartyURL?: string;
+  topHost?: string | null;
+}): boolean => {
+  if (!UA_DEBUG_ENABLED) return false;
+  if (details.resourceType === 'mainFrame') return true;
+  const haystack = [
+    details.url,
+    details.targetUrl,
+    details.firstPartyURL,
+    details.topHost
+  ].filter(Boolean).join(' ').toLowerCase();
+  return ANTI_BOT_DEBUG_TOKENS.some((token) => haystack.includes(token));
+};
+
+const appendUserAgentDebugBlock = (source: string, payload: Record<string, unknown>): void => {
+  if (!UA_DEBUG_ENABLED) return;
+  try {
+    const file = getUserAgentDebugLogPath();
+    ensureDir(path.dirname(file));
+    if (!uaDebugLogInitialized) {
+      uaDebugLogInitialized = true;
+      fs.writeFileSync(file, JSON.stringify({
+        ts: new Date().toISOString(),
+        source: 'mzr-ua-debug.start',
+        logFile: file,
+        pid: process.pid
+      }, null, 2) + '\n', 'utf8');
+    }
+    fs.appendFileSync(file, JSON.stringify(compactDebugValue({
+      ts: new Date().toISOString(),
+      source,
+      ...payload
+    }), null, 2) + '\n', 'utf8');
+  } catch {
+    // noop
+  }
+};
+
+const userAgentProfileForUrl = (url: string | null | undefined): 'desktop' | 'google-mobile' | 'mobile' => {
+  if (url && isDesktopOnlyUrl(url)) return 'desktop';
+  if (url && currentUserAgentMode === 'mobile' && shouldUseAndroidMobileUa(url)) return 'google-mobile';
+  return currentUserAgentMode === 'mobile' ? 'mobile' : 'desktop';
+};
+
+const getUserAgentProfileInfo = (url: string | null | undefined) => {
+  const profile = userAgentProfileForUrl(url);
+  const ua = getUserAgentForUrl(url);
+  return {
+    mode: currentUserAgentMode,
+    profile,
+    url: url ?? '',
+    ua
+  };
+};
+
+export const applyUserAgentRequestHeaders = (
+  inputHeaders: MutableRequestHeaders,
+  url: string | null | undefined
+): RequestHeaders => {
+  const headers = { ...inputHeaders };
+  const profileInfo = getUserAgentProfileInfo(url);
+  const hints = clientHintsForProfile(profileInfo.profile);
+  setHeader(headers, 'User-Agent', profileInfo.ua);
+  setHeaderIfPresent(headers, 'sec-ch-ua-platform', hints.platform);
+  setHeaderIfPresent(headers, 'sec-ch-ua-mobile', hints.mobile);
+  setHeaderIfPresent(headers, 'sec-ch-ua-arch', hints.arch);
+  setHeaderIfPresent(headers, 'sec-ch-ua-bitness', hints.bitness);
+  return normalizeRequestHeaders(headers);
+};
+
+export const logUserAgentDebug = (
+  source: string,
+  details: {
+    url?: string;
+    targetUrl?: string;
+    firstPartyURL?: string;
+    topHost?: string | null;
+    resourceType?: string;
+    webContentsId?: number;
+    requestHeaders?: Record<string, string | string[] | undefined>;
+    cookiePolicy?: string;
+    thirdParty?: boolean;
+    cookieHeaderCount?: number;
+    setCookieHeaderCount?: number;
+    strippedCookieHeaderCount?: number;
+    strippedSetCookieHeaderCount?: number;
+    statusCode?: number;
+    statusLine?: string;
+    fromCache?: boolean;
+    method?: string;
+    error?: string;
+    sessionId?: string;
+    targetType?: string;
+    payload?: unknown;
+  }
+): void => {
+  if (!shouldLogUserAgentDebug(details) && !source.includes('cdp')) return;
+  const profileInfo = getUserAgentProfileInfo(details.targetUrl ?? details.url ?? null);
+  const headers = details.requestHeaders ?? {};
+  const findHeader = (name: string): string | string[] | undefined => {
+    const key = Object.keys(headers).find((candidate) => candidate.toLowerCase() === name.toLowerCase());
+    return key ? headers[key] : undefined;
+  };
+  appendUserAgentDebugBlock(source, {
+    mode: profileInfo.mode,
+    profile: profileInfo.profile,
+    resourceType: details.resourceType,
+    webContentsId: details.webContentsId,
+    url: details.url,
+    targetUrl: details.targetUrl,
+    firstPartyURL: details.firstPartyURL,
+    topHost: details.topHost,
+    secChUa: findHeader('sec-ch-ua'),
+    secChUaMobile: findHeader('sec-ch-ua-mobile'),
+    secChUaPlatform: findHeader('sec-ch-ua-platform'),
+    secChUaArch: findHeader('sec-ch-ua-arch'),
+    secChUaBitness: findHeader('sec-ch-ua-bitness'),
+    cookiePolicy: details.cookiePolicy,
+    thirdParty: details.thirdParty,
+    cookieHeaderCount: details.cookieHeaderCount,
+    setCookieHeaderCount: details.setCookieHeaderCount,
+    strippedCookieHeaderCount: details.strippedCookieHeaderCount,
+    strippedSetCookieHeaderCount: details.strippedSetCookieHeaderCount,
+    statusCode: details.statusCode,
+    statusLine: details.statusLine,
+    fromCache: details.fromCache,
+    method: details.method,
+    sessionId: details.sessionId,
+    targetType: details.targetType,
+    error: details.error,
+    payload: details.payload,
+    ua: profileInfo.ua
+  });
+};
+
+const isAntiBotFrameUrl = (url: string | null | undefined): boolean => {
+  const value = String(url || '').toLowerCase();
+  return ANTI_BOT_DEBUG_TOKENS.some((token) => value.includes(token));
+};
+
+const logAntiBotFrameFingerprint = async (contents: WebContents | null | undefined): Promise<void> => {
+  if (!UA_DEBUG_ENABLED || !contents || contents.isDestroyed()) return;
+  try {
+    const frames = contents.mainFrame?.framesInSubtree ?? [];
+    for (const frame of frames) {
+      try {
+        if (!frame || frame.isDestroyed() || frame.detached) continue;
+        const frameUrl = String(frame.url || '');
+        if (!isAntiBotFrameUrl(frameUrl)) continue;
+        const key = `${contents.id}:${frame.frameTreeNodeId}:${frameUrl}`;
+        if (antiBotFrameDebugKeys.has(key)) continue;
+        antiBotFrameDebugKeys.add(key);
+        const result = await frame.executeJavaScript(
+          `(async function(){
+            try {
+              var nav = navigator || {};
+              var payload = {
+                href: String(location && location.href || ''),
+                userAgent: nav.userAgent,
+                platform: nav.platform,
+                vendor: nav.vendor,
+                language: nav.language,
+                languages: nav.languages ? Array.prototype.slice.call(nav.languages) : undefined,
+                cookieEnabled: nav.cookieEnabled,
+                webdriver: nav.webdriver,
+                maxTouchPoints: nav.maxTouchPoints,
+                hasTouchEvent: typeof window.TouchEvent === 'function',
+                hasOntouchstartWindow: ('ontouchstart' in window),
+                hasOntouchstartDocument: !!document.documentElement && ('ontouchstart' in document.documentElement),
+                media: {
+                  pointerCoarse: typeof matchMedia === 'function' ? matchMedia('(pointer: coarse)').matches : undefined,
+                  pointerFine: typeof matchMedia === 'function' ? matchMedia('(pointer: fine)').matches : undefined,
+                  hoverNone: typeof matchMedia === 'function' ? matchMedia('(hover: none)').matches : undefined,
+                  anyPointerCoarse: typeof matchMedia === 'function' ? matchMedia('(any-pointer: coarse)').matches : undefined,
+                  anyHoverNone: typeof matchMedia === 'function' ? matchMedia('(any-hover: none)').matches : undefined
+                },
+                hardwareConcurrency: nav.hardwareConcurrency,
+                deviceMemory: nav.deviceMemory,
+                pluginsLength: nav.plugins ? nav.plugins.length : undefined,
+                mimeTypesLength: nav.mimeTypes ? nav.mimeTypes.length : undefined,
+                userAgentData: nav.userAgentData ? {
+                  brands: nav.userAgentData.brands,
+                  mobile: nav.userAgentData.mobile,
+                  platform: nav.userAgentData.platform
+                } : null,
+                highEntropy: null,
+                screen: window.screen ? {
+                  width: window.screen.width,
+                  height: window.screen.height,
+                  availWidth: window.screen.availWidth,
+                  availHeight: window.screen.availHeight,
+                  colorDepth: window.screen.colorDepth,
+                  pixelDepth: window.screen.pixelDepth
+                } : null,
+                devicePixelRatio: window.devicePixelRatio,
+                timezone: (function () {
+                  try { return Intl.DateTimeFormat().resolvedOptions().timeZone; } catch (_) { return undefined; }
+                })()
+              };
+              if (nav.userAgentData && typeof nav.userAgentData.getHighEntropyValues === 'function') {
+                try {
+                  payload.highEntropy = await nav.userAgentData.getHighEntropyValues([
+                    'architecture',
+                    'bitness',
+                    'model',
+                    'platform',
+                    'platformVersion',
+                    'uaFullVersion',
+                    'fullVersionList',
+                    'wow64',
+                    'mobile'
+                  ]);
+                } catch (err) {
+                  payload.highEntropy = { error: String(err && err.message || err) };
+                }
+              }
+              return payload;
+            } catch (err) {
+              return { error: String(err && err.message || err) };
+            }
+          })();`,
+          true
+        );
+        appendUserAgentDebugBlock('mzr-antibot-fp', {
+          webContentsId: contents.id,
+          frameTreeNodeId: frame.frameTreeNodeId,
+          frameUrl,
+          payload: result
+        });
+      } catch (error) {
+        appendUserAgentDebugBlock('mzr-antibot-fp.frame.failed', {
+          webContentsId: contents.id,
+          error: error instanceof Error ? error.message : String(error)
+        });
+      }
+    }
+  } catch {
+    // noop
+  }
+};
+
 export function installUserAgentOverride(targetSession: Session | null = session.defaultSession): void {
   if (!targetSession) return;
   const sessionWithFlag = targetSession as SessionWithOverride;
@@ -560,13 +962,78 @@ export function installUserAgentOverride(targetSession: Session | null = session
         const targetUrl = details.resourceType === 'mainFrame'
           ? details.url
           : (firstPartyURL || (topHost ? `https://${topHost}` : details.url));
-        const ua = getUserAgentForUrl(targetUrl);
-        const headers = { ...details.requestHeaders };
-        const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
-        headers[uaKey] = ua;
+        const headers = applyUserAgentRequestHeaders(details.requestHeaders, targetUrl);
+        logUserAgentDebug('windows.onBeforeSendHeaders', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          requestHeaders: headers
+        });
         callback({ cancel: false, requestHeaders: headers });
       } catch {
         callback({ cancel: false, requestHeaders: details.requestHeaders });
+      }
+    });
+  } catch {
+    // noop
+  }
+  try {
+    targetSession.webRequest.onCompleted((details) => {
+      try {
+        if (details.resourceType === 'mainFrame') {
+          rememberTopLevelHost(details.webContentsId, details.url);
+        }
+        const firstPartyURL = (details as { firstPartyURL?: string }).firstPartyURL;
+        const topHost = getTopLevelHostForRequest(details);
+        const targetUrl = details.resourceType === 'mainFrame'
+          ? details.url
+          : (firstPartyURL || (topHost ? `https://${topHost}` : details.url));
+        logUserAgentDebug('windows.onCompleted', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          method: details.method,
+          statusCode: details.statusCode,
+          statusLine: details.statusLine,
+          fromCache: details.fromCache
+        });
+      } catch {
+        // noop
+      }
+    });
+  } catch {
+    // noop
+  }
+  try {
+    targetSession.webRequest.onErrorOccurred((details) => {
+      try {
+        if (details.resourceType === 'mainFrame') {
+          rememberTopLevelHost(details.webContentsId, details.url);
+        }
+        const firstPartyURL = (details as { firstPartyURL?: string }).firstPartyURL;
+        const topHost = getTopLevelHostForRequest(details);
+        const targetUrl = details.resourceType === 'mainFrame'
+          ? details.url
+          : (firstPartyURL || (topHost ? `https://${topHost}` : details.url));
+        logUserAgentDebug('windows.onErrorOccurred', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          method: details.method,
+          fromCache: details.fromCache,
+          error: details.error
+        });
+      } catch {
+        // noop
       }
     });
   } catch {
@@ -603,6 +1070,189 @@ export function applyUserAgentToWebContents(contents: WebContents | null | undef
 export function applyUserAgentForUrl(contents: WebContents | null | undefined, url: string): void {
   applyUserAgentToWebContents(contents, url);
 }
+
+const sendRendererUserAgentOverride = async (
+  contents: WebContents | null | undefined,
+  url: string | null | undefined,
+  sessionId?: string
+): Promise<void> => {
+  if (!contents || contents.isDestroyed?.()) return;
+  const resolvedUrl = url ?? (typeof contents.getURL === 'function' ? contents.getURL() : '');
+  if (resolvedUrl.startsWith('devtools://')) return;
+  const profileInfo = getUserAgentProfileInfo(resolvedUrl);
+  await contents.debugger.sendCommand('Emulation.setUserAgentOverride', {
+    userAgent: profileInfo.ua,
+    platform: navigatorPlatformForProfile(profileInfo.profile),
+    userAgentMetadata: userAgentMetadataForProfile(profileInfo.profile)
+  }, sessionId);
+  if (profileInfo.profile !== 'desktop') {
+    try {
+      await contents.debugger.sendCommand('Emulation.setTouchEmulationEnabled', {
+        enabled: true,
+        maxTouchPoints: 5
+      }, sessionId);
+    } catch {
+      // Workers do not expose page touch state; UA override still applies there.
+    }
+    try {
+      const timezoneId = await resolveUserAgentTimezone();
+      if (timezoneId) {
+        await contents.debugger.sendCommand('Emulation.setTimezoneOverride', {
+          timezoneId
+        }, sessionId);
+        logUserAgentDebug('windows.cdp.setTimezoneOverride', {
+          webContentsId: contents.id,
+          sessionId,
+          url: resolvedUrl,
+          targetUrl: resolvedUrl,
+          resourceType: sessionId ? 'target' : 'webContents',
+          payload: { timezoneId }
+        });
+      } else {
+        logUserAgentDebug('windows.cdp.setTimezoneOverride.skipped', {
+          webContentsId: contents.id,
+          sessionId,
+          url: resolvedUrl,
+          targetUrl: resolvedUrl,
+          resourceType: sessionId ? 'target' : 'webContents',
+          payload: { reason: 'no-timezone' }
+        });
+      }
+    } catch (error) {
+      logUserAgentDebug('windows.cdp.setTimezoneOverride.failed', {
+        webContentsId: contents.id,
+        sessionId,
+        url: resolvedUrl,
+        targetUrl: resolvedUrl,
+        resourceType: sessionId ? 'target' : 'webContents',
+        error: error instanceof Error ? error.message : String(error)
+      });
+      // Some targets, such as workers, can reject timezone emulation.
+    }
+    try {
+      await contents.debugger.sendCommand('Page.addScriptToEvaluateOnNewDocument', {
+        source: TOUCH_FEATURE_OVERRIDE_SCRIPT
+      }, sessionId);
+    } catch {
+      // Not all target types expose Page.
+    }
+    try {
+      await contents.debugger.sendCommand('Runtime.evaluate', {
+        expression: TOUCH_FEATURE_OVERRIDE_SCRIPT,
+        includeCommandLineAPI: false,
+        returnByValue: false
+      }, sessionId);
+    } catch {
+      // Not all target types expose Runtime.
+    }
+  }
+};
+
+const applyRendererUserAgentOverride = async (
+  contents: WebContents | null | undefined,
+  url: string | null | undefined
+): Promise<void> => {
+  if (!contents || contents.isDestroyed?.()) return;
+  const resolvedUrl = url ?? (typeof contents.getURL === 'function' ? contents.getURL() : '');
+  if (resolvedUrl.startsWith('devtools://')) return;
+  const debuggerApi = contents.debugger;
+  try {
+    if (!debuggerApi.isAttached()) {
+      debuggerApi.attach('1.3');
+      uaDebuggerAttachedContents.add(contents);
+    }
+    if (!uaDebuggerHookedContents.has(contents)) {
+      uaDebuggerHookedContents.add(contents);
+      debuggerApi.on('message', (_event, method: string, params: unknown) => {
+        if (method === 'Target.detachedFromTarget') {
+          const detached = params as { sessionId?: string };
+          if (detached.sessionId) {
+            getDebuggerSessionIds(contents).delete(detached.sessionId);
+          }
+          return;
+        }
+        if (method !== 'Target.attachedToTarget') return;
+        const details = params as { sessionId?: string; targetInfo?: { url?: string; type?: string } };
+        const childSessionId = details.sessionId;
+        if (!childSessionId) return;
+        const currentUrl = typeof contents.getURL === 'function' ? contents.getURL() : '';
+        const targetUrl = details.targetInfo?.url || currentUrl || resolvedUrl;
+        getDebuggerSessionIds(contents).add(childSessionId);
+        void debuggerApi.sendCommand('Target.setAutoAttach', {
+          autoAttach: true,
+          waitForDebuggerOnStart: false,
+          flatten: true
+        }, childSessionId).catch(() => undefined);
+        void sendRendererUserAgentOverride(contents, targetUrl, childSessionId)
+          .then(() => {
+            logUserAgentDebug('windows.cdp.target.setUserAgentOverride', {
+              webContentsId: contents.id,
+              sessionId: childSessionId,
+              targetType: details.targetInfo?.type,
+              url: targetUrl,
+              targetUrl,
+              resourceType: 'target'
+            });
+          })
+          .catch((error) => {
+            logUserAgentDebug('windows.cdp.target.setUserAgentOverride.failed', {
+              webContentsId: contents.id,
+              sessionId: childSessionId,
+              targetType: details.targetInfo?.type,
+              url: targetUrl,
+              targetUrl,
+              resourceType: 'target',
+              error: error instanceof Error ? error.message : String(error)
+            });
+          });
+      });
+    }
+    await debuggerApi.sendCommand('Target.setAutoAttach', {
+      autoAttach: true,
+      waitForDebuggerOnStart: false,
+      flatten: true
+    });
+    await sendRendererUserAgentOverride(contents, resolvedUrl);
+    for (const sessionId of getDebuggerSessionIds(contents)) {
+      try {
+        await sendRendererUserAgentOverride(contents, resolvedUrl, sessionId);
+      } catch (error) {
+        const message = error instanceof Error ? error.message : String(error);
+        if (message.includes('Session with given id not found')) {
+          getDebuggerSessionIds(contents).delete(sessionId);
+        } else {
+          throw error;
+        }
+      }
+    }
+    logUserAgentDebug('windows.cdp.setUserAgentOverride', {
+      url: resolvedUrl,
+      targetUrl: resolvedUrl,
+      resourceType: 'webContents',
+      webContentsId: contents.id
+    });
+  } catch (error) {
+    logUserAgentDebug('windows.cdp.setUserAgentOverride.failed', {
+      url: resolvedUrl,
+      targetUrl: resolvedUrl,
+      resourceType: 'webContents',
+      webContentsId: contents.id,
+      error: error instanceof Error ? error.message : String(error)
+    });
+  }
+};
+
+const detachRendererUserAgentOverride = (contents: WebContents | null | undefined): void => {
+  if (!contents || contents.isDestroyed?.()) return;
+  if (!uaDebuggerAttachedContents.has(contents)) return;
+  try {
+    if (contents.debugger.isAttached()) {
+      contents.debugger.detach();
+    }
+  } catch {
+    // noop
+  }
+};
 
 const pickHost = (raw: string | undefined): string | null => {
   if (!raw) return null;
@@ -1068,12 +1718,13 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
 
   typedWin.webContents.on(
     'will-attach-webview',
-    (_event, webPreferences: WebPreferences & { preload?: string }, params: { src?: string }) => {
+    (_event, webPreferences: WebPreferences & { preload?: string }, params: { src?: string; useragent?: string }) => {
       const before = String(webPreferences?.preload || '');
       const preloadPath = ensureWebviewPreloadOnDisk();
 
       // Force our preload if empty or different (always OK to override)
       webPreferences.preload = preloadPath;
+      params.useragent = getUserAgentForUrl(params?.src || startUrl);
 
       geoIpcLog(
         `will-attach-webview set preload=${preloadPath} (was='${before}') src=${String(params?.src || '')}`
@@ -1086,6 +1737,7 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     try {
       const current = typeof contents.getURL === 'function' ? contents.getURL() : '';
       applyUserAgentForUrl(contents, current);
+      void applyRendererUserAgentOverride(contents, current);
     } catch {
       // noop
     }
@@ -1110,6 +1762,7 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
       } catch {
         // ignore
       }
+      detachRendererUserAgentOverride(contents);
       for (const { event, handler } of listeners) {
         try {
           contents.removeListener(event as never, handler as never);
@@ -1128,13 +1781,22 @@ export function createMainWindow(opts: CreateMainWindowOptions = {}): MerezhyvoW
     register('did-start-navigation', (_evt, navUrl: string, _isInPlace: boolean, isMainFrame: boolean) => {
       if (isMainFrame) {
         applyUserAgentForUrl(contents, navUrl);
+        void applyRendererUserAgentOverride(contents, navUrl);
         rememberTopLevelHost(contents.id, navUrl);
       }
+    });
+    register('did-frame-finish-load', () => {
+      void logAntiBotFrameFingerprint(contents);
+    });
+    register('did-navigate-in-page', () => {
+      void logAntiBotFrameFingerprint(contents);
     });
     register('did-navigate', (_evt, navUrl: string, _httpResponseCode: number, _httpStatusText: string) => {
       if (navUrl) {
         rememberTopLevelHost(contents.id, navUrl);
+        void applyRendererUserAgentOverride(contents, navUrl);
       }
+      void logAntiBotFrameFingerprint(contents);
     });
 
     const deriveOrigin = (value: string): string | null => {

@@ -342,6 +342,7 @@ export type NetworkSettings = {
   secureDns: SecureDnsSettings;
   detectedIp?: string | null;
   detectedCountry?: string | null;
+  detectedTimezone?: string | null;
   detectedAt?: string | null;
 };
 

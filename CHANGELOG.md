@@ -23,6 +23,8 @@
 
 - Password unlock duration controls now apply correctly from both the unlock dialog and Passwords settings section.
 
+- Anti-bot and captcha checks are more reliable on Ubuntu Touch and Linux ARM devices: User-Agent, Client Hints, worker/frame overrides, touch capability, and timezone fingerprint now stay consistent with the active browser profile.
+
 - Mobile text selection handles now work inside editable web content such as Telegram and Gmail compose fields.
 
 - Telegram Web internal redirects no longer show the browser error overlay during normal app navigation.

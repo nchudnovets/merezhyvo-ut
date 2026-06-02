@@ -303,8 +303,8 @@ export interface MerezhyvoAPI {
       update(payload: Partial<SecureDnsSettings>): Promise<{ ok: boolean; settings?: SecureDnsSettings; error?: string }>;
     };
     network: {
-      updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
-      detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null }>;
+      updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedTimezone?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
+      detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null; timezone?: string | null }>;
       getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }>;
     };
     savings: {

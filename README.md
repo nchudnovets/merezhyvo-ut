@@ -362,6 +362,8 @@ Internal settings are stored in a JSON file under the user's `~/.config` directo
 
 This includes UI preferences (theme (dark/light), scaling, keyboard layouts), privacy, security and network options (HTTPS mode, WebRTC policy, third-party cookies, tracker/ad blocking, Tor and Secure DNS), and per-site exception lists..
 
+Merezhyvo may also cache the currently detected network country, IP address, and timezone. These values are used for local features such as country-aware coupons and for browser compatibility on platforms where the system timezone can be wrong (for example Ubuntu Touch reporting UTC). The browser prefers the network-detected timezone for anti-bot/captcha consistency, instead of hard-coding a country-specific timezone.
+
 
 - - -
 
@@ -379,6 +381,8 @@ Merezhyvo includes several tools that can help improve privacy:
 *   **Tracker and ad blocking (domain-based)** with separate global toggles and per-site exceptions.
 *   **WebRTC privacy modes** (always allowed / always blocked / blocked when Tor is enabled).
 *   **Site data management** page to inspect and clear stored cookies and site data per site, or wipe everything at once.
+
+For country/timezone detection, Merezhyvo can query public IP geolocation services at startup or when the network country is refreshed. This is not analytics and is not tied to browsing history, but the service used for that lookup will see the IP address making the request.
 
 Tor support can further improve privacy by routing traffic through the Tor network, but:
 

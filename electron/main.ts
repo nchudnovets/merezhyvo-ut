@@ -1520,6 +1520,7 @@ const startApp = async (): Promise<void> => {
     windows.installUserAgentOverride(session.defaultSession);
     installCookiePolicy(session.defaultSession);
     void applySecureDnsFromSettings(getTorState().enabled);
+    void detectCountryFromIp({ persist: true });
     windows.createMainWindow();
 
     screen.on('display-added', () => windows.rebalanceMainWindow());

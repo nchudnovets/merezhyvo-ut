@@ -99,7 +99,7 @@ export const ipc = {
       }
     },
     network: {
-      async updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings | null> {
+      async updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedTimezone?: string | null; detectedAt?: string | null }): Promise<NetworkSettings | null> {
         try {
           const res = await getApi()?.settings?.network?.updateDetected?.(payload ?? {});
           return (res ?? null) as NetworkSettings | null;
@@ -108,13 +108,13 @@ export const ipc = {
           return null;
         }
       },
-      async detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null }> {
+      async detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null; timezone?: string | null }> {
         try {
           const res = await getApi()?.settings?.network?.detectCountry?.(payload ?? {});
-          return (res ?? { countryCode: null, ip: null }) as { countryCode: string | null; ip: string | null };
+          return (res ?? { countryCode: null, ip: null, timezone: null }) as { countryCode: string | null; ip: string | null; timezone?: string | null };
         } catch (err) {
           console.error('settings.network.detectCountry failed', err);
-          return { countryCode: null, ip: null };
+          return { countryCode: null, ip: null, timezone: null };
         }
       },
       async getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }> {

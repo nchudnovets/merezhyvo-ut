@@ -136,6 +136,7 @@ export type NetworkSettings = {
   secureDns: SecureDnsSettings;
   detectedIp?: string | null;
   detectedCountry?: string | null;
+  detectedTimezone?: string | null;
   detectedAt?: string | null;
 };
 
@@ -471,8 +472,9 @@ export const sanitizeNetworkSettings = (raw: unknown): NetworkSettings => {
   const secureDns = sanitizeSecureDnsSettings((source as { secureDns?: unknown }).secureDns);
   const detectedIp = isNonEmptyString(source.detectedIp) ? source.detectedIp.trim() : null;
   const detectedCountry = normalizeCountryCode(source.detectedCountry) ?? null;
+  const detectedTimezone = isNonEmptyString(source.detectedTimezone) ? source.detectedTimezone.trim() : null;
   const detectedAt = normalizeIsoDate(source.detectedAt) ?? null;
-  return { secureDns, detectedIp, detectedCountry, detectedAt };
+  return { secureDns, detectedIp, detectedCountry, detectedTimezone, detectedAt };
 };
 
 const normalizeDomain = (value: unknown): string | null => {

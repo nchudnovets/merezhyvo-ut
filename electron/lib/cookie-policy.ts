@@ -1,7 +1,7 @@
 import { session as electronSession, type Session, type OnBeforeSendHeadersListenerDetails, type OnHeadersReceivedListenerDetails, webContents } from 'electron';
 import { getDomain } from 'tldts';
 import { getCookiePrivacyState, onCookiePrivacyChange } from './cookie-settings';
-import { getTopLevelHostForRequest, getUserAgentForUrl, rememberTopLevelHost } from './windows';
+import { applyUserAgentRequestHeaders, getTopLevelHostForRequest, logUserAgentDebug, rememberTopLevelHost } from './windows';
 
 type Policy = {
   blockThirdParty: boolean;
@@ -201,9 +201,8 @@ const applyUserAgentHeader = (
 ): Record<string, string | string[]> => {
   try {
     const targetUrl = topHost ? `https://${topHost}` : details.url;
-    const ua = getUserAgentForUrl(targetUrl);
-    const uaKey = Object.keys(headers).find((key) => key.toLowerCase() === 'user-agent') ?? 'User-Agent';
-    headers[uaKey] = ua;
+    const nextHeaders = applyUserAgentRequestHeaders(headers, targetUrl);
+    return normalizeHeaders(nextHeaders);
   } catch {
     // noop
   }
@@ -237,20 +236,63 @@ export const installCookiePolicy = (targetSession: Session | null | undefined = 
       updateStatsForHost(wcId, topHost);
       const effective = getEffectivePolicy(topHost);
       const baseHeaders = { ...details.requestHeaders };
+      const firstPartyURL = (details as { firstPartyURL?: string }).firstPartyURL;
+      const targetUrl = topHost ? `https://${topHost}` : details.url;
       if (effective === 'allow') {
-        callback({ cancel: false, requestHeaders: applyUserAgentHeader(details, baseHeaders, topHost) });
+        const headers = applyUserAgentHeader(details, baseHeaders, topHost);
+        logUserAgentDebug('cookie-policy.cookies', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          requestHeaders: headers,
+          cookiePolicy: effective,
+          thirdParty: false,
+          cookieHeaderCount: countCookieHeader(details),
+          strippedCookieHeaderCount: 0
+        });
+        callback({ cancel: false, requestHeaders: headers });
         return;
       }
       const thirdParty = isThirdParty(requestHost, topHost);
       if (thirdParty) {
         const blockedCount = countCookieHeader(details);
         const headers = applyUserAgentHeader(details, stripCookieHeader(details), topHost);
+        logUserAgentDebug('cookie-policy.cookies', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          requestHeaders: headers,
+          cookiePolicy: effective,
+          thirdParty,
+          cookieHeaderCount: countCookieHeader(details),
+          strippedCookieHeaderCount: blockedCount
+        });
         if (blockedCount > 0) {
           bumpBlockedCount(wcId, blockedCount);
         }
         callback({ cancel: false, requestHeaders: headers });
       } else {
-        callback({ cancel: false, requestHeaders: applyUserAgentHeader(details, baseHeaders, topHost) });
+        const headers = applyUserAgentHeader(details, baseHeaders, topHost);
+        logUserAgentDebug('cookie-policy.cookies', {
+          url: details.url,
+          targetUrl,
+          firstPartyURL,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          requestHeaders: headers,
+          cookiePolicy: effective,
+          thirdParty,
+          cookieHeaderCount: countCookieHeader(details),
+          strippedCookieHeaderCount: 0
+        });
+        callback({ cancel: false, requestHeaders: headers });
       }
     } catch {
       callback({ cancel: false, requestHeaders: details.requestHeaders });
@@ -268,6 +310,17 @@ export const installCookiePolicy = (targetSession: Session | null | undefined = 
       updateStatsForHost(wcId, topHost);
       const effective = getEffectivePolicy(topHost);
       if (effective === 'allow') {
+        logUserAgentDebug('cookie-policy.set-cookie', {
+          url: details.url,
+          targetUrl: topHost ? `https://${topHost}` : details.url,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          cookiePolicy: effective,
+          thirdParty: false,
+          setCookieHeaderCount: countSetCookieHeader(details),
+          strippedSetCookieHeaderCount: 0
+        });
         callback({ cancel: false, responseHeaders: details.responseHeaders });
         return;
       }
@@ -275,11 +328,33 @@ export const installCookiePolicy = (targetSession: Session | null | undefined = 
       if (thirdParty) {
         const blockedCount = countSetCookieHeader(details);
         const headers = stripSetCookieHeader(details);
+        logUserAgentDebug('cookie-policy.set-cookie', {
+          url: details.url,
+          targetUrl: topHost ? `https://${topHost}` : details.url,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          cookiePolicy: effective,
+          thirdParty,
+          setCookieHeaderCount: countSetCookieHeader(details),
+          strippedSetCookieHeaderCount: blockedCount
+        });
         if (blockedCount > 0) {
           bumpBlockedCount(wcId, blockedCount);
         }
         callback({ cancel: false, responseHeaders: headers });
       } else {
+        logUserAgentDebug('cookie-policy.set-cookie', {
+          url: details.url,
+          targetUrl: topHost ? `https://${topHost}` : details.url,
+          topHost,
+          resourceType: details.resourceType,
+          webContentsId: details.webContentsId,
+          cookiePolicy: effective,
+          thirdParty,
+          setCookieHeaderCount: countSetCookieHeader(details),
+          strippedSetCookieHeaderCount: 0
+        });
         callback({ cancel: false, responseHeaders: details.responseHeaders });
       }
     } catch {
