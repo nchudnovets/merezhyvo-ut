@@ -364,6 +364,8 @@ This includes UI preferences (theme (dark/light), scaling, keyboard layouts), pr
 
 Merezhyvo may also cache the currently detected network country, IP address, and timezone. These values are used for local features such as country-aware coupons and for browser compatibility on platforms where the system timezone can be wrong (for example Ubuntu Touch reporting UTC). The browser prefers the network-detected timezone for anti-bot/captcha consistency, instead of hard-coding a country-specific timezone.
 
+Anti-bot and captcha fingerprint diagnostics are available for device debugging by starting the app with `MZR_UA_DEBUG=1`. This writes a local `ua-debug.log` under the app data directory; production builds do not enable this logging unless the environment variable is explicitly set.
+
 
 - - -
 
