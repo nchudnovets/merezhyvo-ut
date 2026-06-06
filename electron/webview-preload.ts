@@ -1358,6 +1358,161 @@ const installLastEditableTracker = (): void => {
 
 installLastEditableTracker();
 
+const installSoftKeyboardFocusBridge = (): void => {
+  const code = `
+    (() => {
+      try {
+        if (window.__mzrPreloadOskFocusBridgeInstalled) return;
+        window.__mzrPreloadOskFocusBridgeInstalled = true;
+
+        const ACTIVE_MARKER = '__MZR_OSK_FOCUS_ON__';
+        const INACTIVE_MARKER = '__MZR_OSK_FOCUS_OFF__';
+        const NON_TEXT_TYPES = new Set([
+          'button', 'submit', 'reset', 'checkbox', 'radio',
+          'range', 'color', 'file', 'image', 'hidden'
+        ]);
+
+        const asElement = (target) => {
+          if (!target) return null;
+          if (target.nodeType === Node.ELEMENT_NODE) return target;
+          return target.parentElement || null;
+        };
+
+        const isEditable = (target) => {
+          const el = asElement(target);
+          if (!el) return false;
+          if (el.isContentEditable) return true;
+          const editableHost = el.closest
+            ? el.closest('[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]')
+            : null;
+          if (editableHost) return true;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea') return !el.disabled && !el.readOnly;
+          if (tag !== 'input') return false;
+          const type = String(el.getAttribute('type') || el.type || '').toLowerCase();
+          if (NON_TEXT_TYPES.has(type)) return false;
+          return !el.disabled && !el.readOnly;
+        };
+
+        const editableElement = (target) => {
+          const el = asElement(target);
+          if (!el) return null;
+          if (isEditable(el)) return el;
+          return el.closest
+            ? el.closest('input,textarea,[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]')
+            : null;
+        };
+
+        const likelyTextIframe = (target) => {
+          const el = asElement(target);
+          if (!el || String(el.tagName || '').toUpperCase() !== 'IFRAME') return null;
+          try {
+            const haystack = [
+              el.getAttribute('src'),
+              el.getAttribute('title'),
+              el.getAttribute('name'),
+              el.getAttribute('aria-label'),
+              el.getAttribute('id'),
+              el.getAttribute('class')
+            ].map((value) => String(value || '').toLowerCase()).join(' ');
+            if (!haystack) return null;
+            return /login|log-in|signin|sign-in|auth|connexion|connect|identifiant|identifier|password|account|client|espace/.test(haystack)
+              ? el
+              : null;
+          } catch {
+            return null;
+          }
+        };
+
+        const deepActive = () => {
+          let current = document.activeElement;
+          let depth = 0;
+          while (current && depth < 5) {
+            const shadow = current.shadowRoot;
+            if (shadow && shadow.activeElement) {
+              current = shadow.activeElement;
+              depth += 1;
+              continue;
+            }
+            break;
+          }
+          return current;
+        };
+
+        const markLast = (el) => {
+          try {
+            if (el && isEditable(el)) window.__mzrLastEditable = el;
+          } catch {}
+        };
+
+        const debug = () => {};
+
+        const notify = (flag, reason, el) => {
+          try {
+            console.info(flag ? ACTIVE_MARKER : INACTIVE_MARKER);
+          } catch {}
+          debug(flag ? 'preload.focus.active' : 'preload.focus.inactive', reason, el || null);
+        };
+
+        const handleCandidate = (reason, target) => {
+          const direct = editableElement(target);
+          const active = editableElement(deepActive());
+          const textFrame = likelyTextIframe(target) || likelyTextIframe(deepActive());
+          const el = direct && isEditable(direct) ? direct : active && isEditable(active) ? active : textFrame;
+          if (!el) return;
+          markLast(el);
+          notify(true, reason, el);
+        };
+
+        const handlePointerCandidate = (target) => {
+          const direct = editableElement(target);
+          const textFrame = likelyTextIframe(target);
+          if (direct && isEditable(direct)) {
+            markLast(direct);
+            notify(true, 'pointerdown', direct);
+            return;
+          }
+          if (textFrame) {
+            notify(true, 'pointerdown-iframe-candidate', textFrame);
+            return;
+          }
+          notify(false, 'pointerdown-noneditable', asElement(target));
+        };
+
+        document.addEventListener('pointerdown', (event) => {
+          handlePointerCandidate(event.target);
+        }, true);
+
+        document.addEventListener('focusin', (event) => {
+          handleCandidate('focusin', event.target);
+        }, true);
+
+        document.addEventListener('focusout', () => {
+          setTimeout(() => {
+            const active = editableElement(deepActive());
+            const textFrame = likelyTextIframe(deepActive());
+            if (active && isEditable(active)) {
+              markLast(active);
+              notify(true, 'focusout-still-editable', active);
+            } else if (textFrame) {
+              notify(true, 'focusout-still-editable-frame', textFrame);
+            } else {
+              notify(false, 'focusout', active || null);
+            }
+          }, 0);
+        }, true);
+      } catch {}
+    })();
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+installSoftKeyboardFocusBridge();
+
 /** -------------------------------
  *  Open links in host tab
  *  ------------------------------- */
@@ -1868,7 +2023,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
 })();
 
 (() => {
-  if (window.top !== window) return;
   const lastCapture = new Map<string, number>();
 
   const findUsernameInput = (form: HTMLFormElement): HTMLInputElement | null => {
@@ -1927,8 +2081,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
 })();
 
 (() => {
-  if (window.top !== window) return;
-
   let lastUsernameInput: HTMLInputElement | null = null;
   let lastPasswordInput: HTMLInputElement | null = null;
 

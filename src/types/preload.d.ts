@@ -394,6 +394,11 @@ export interface MerezhyvoAPI {
       key: string,
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ): Promise<{ ok: boolean; error?: string }>;
+
+    debug(payload: Record<string, unknown>): void;
+    onFocusEvent(
+      handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void
+    ): MerezhyvoUnsubscribe;
   };
   history: MerezhyvoHistoryApi;
   bookmarks: MerezhyvoBookmarksApi;

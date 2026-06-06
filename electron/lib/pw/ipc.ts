@@ -337,6 +337,11 @@ const registerFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'times
   cancelFocusClear(wcId);
   focusFieldMap.set(wcId, { ...payload, timestamp: Date.now() });
 };
+
+export const registerPasswordFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'timestamp'>): void => {
+  registerFieldFocus(wcId, payload);
+};
+
 const toString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 

@@ -3,6 +3,7 @@ import type { MutableRefObject } from 'react';
 import type { WebviewTag } from 'electron';
 import type { Mode } from '../types/models';
 import { DEFAULT_ACTIVE_INPUT_CONTEXT, type ActiveInputContext } from '../services/window/window';
+import { ipc } from '../services/ipc/ipc';
 
 type UseMobileSoftKeyboardParams = {
   mode: Mode;
@@ -19,6 +20,11 @@ type UseMobileSoftKeyboardParams = {
 
 const FOCUS_CONSOLE_ACTIVE = '__MZR_OSK_FOCUS_ON__';
 const FOCUS_CONSOLE_INACTIVE = '__MZR_OSK_FOCUS_OFF__';
+const BRIDGE_FOCUS_INPUT_CONTEXT: ActiveInputContext = {
+  editable: true,
+  kind: 'text',
+  multiline: false
+};
 
 export const useMobileSoftKeyboard = ({
   mode,
@@ -119,6 +125,7 @@ export const useMobileSoftKeyboard = ({
           window.__mzrFocusBridgeInstalled = true;
 
           var nonText = new Set(['button','submit','reset','checkbox','radio','range','color','file','image','hidden']);
+          var iframePolls = new WeakMap();
 	          function isEditable(el){
 	            if(!el) return false;
 	            if(el.isContentEditable) return true;
@@ -132,7 +139,55 @@ export const useMobileSoftKeyboard = ({
 	            return false;
 	          }
 
-	          function deepActive(startEl){
+	          function isVisible(el){
+	            try {
+	              if (!el || !el.ownerDocument) return false;
+	              var style = el.ownerDocument.defaultView && el.ownerDocument.defaultView.getComputedStyle
+	                ? el.ownerDocument.defaultView.getComputedStyle(el)
+	                : null;
+	              if (style && (style.visibility === 'hidden' || style.display === 'none')) return false;
+	              var rects = el.getClientRects ? el.getClientRects() : null;
+	              return !!rects && rects.length > 0;
+	            } catch(e) {
+	              return false;
+	            }
+	          }
+
+	          function findVisibleEditable(doc){
+	            try {
+	              if (!doc) return null;
+	              var nodes = doc.querySelectorAll
+	                ? doc.querySelectorAll('input,textarea,[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]')
+	                : [];
+	              for (var i = 0; i < nodes.length; i++) {
+	                var el = nodes[i];
+	                if (isEditable(el) && isVisible(el)) return el;
+	              }
+	            } catch(e) {}
+	            return null;
+	          }
+
+	          function inspectFrame(frame, allowVisibleFallback){
+	            try {
+	              var frameDoc = frame && frame.contentWindow && frame.contentWindow.document;
+	              if (!frameDoc) return { iframeBoundary: true, el: frame };
+	              var next = frameDoc.activeElement;
+	              if (next && next !== frame) {
+	                if (isEditable(next)) return { iframeBoundary: false, el: next };
+	                var tag = (next.tagName || '').toUpperCase();
+	                if (tag !== 'HTML' && tag !== 'BODY') {
+	                  return { iframeBoundary: false, el: next };
+	                }
+	              }
+	              var visible = allowVisibleFallback ? findVisibleEditable(frameDoc) : null;
+	              if (visible) return { iframeBoundary: false, el: visible };
+	              return { iframeBoundary: true, el: frame };
+	            } catch(_) {
+	              return { iframeBoundary: true, el: frame };
+	            }
+	          }
+
+	          function deepActive(startEl, allowVisibleFallback){
 	            var current = startEl || document.activeElement;
 	            var depth = 0;
 	            while (current && depth < 5) {
@@ -142,33 +197,23 @@ export const useMobileSoftKeyboard = ({
 	                continue;
 	              }
 	              if ((current.tagName || '').toUpperCase() === 'IFRAME') {
-	                try {
-	                  var frameDoc = current.contentWindow && current.contentWindow.document;
-	                  if (!frameDoc) {
-	                    return { iframeBoundary: true, el: current };
-	                  }
-	                  var next = frameDoc.activeElement;
-	                  if (!next || next === current) {
-	                    return { iframeBoundary: true, el: current };
-	                  }
-	                  current = next;
-	                  depth++;
-	                  continue;
-	                } catch(_) {
-	                  return { iframeBoundary: true, el: current };
-	                }
+	                var frameState = inspectFrame(current, allowVisibleFallback);
+	                if (frameState.iframeBoundary) return frameState;
+	                current = frameState.el;
+	                depth++;
+	                continue;
 	              }
 	              break;
 	            }
 	            return { iframeBoundary: false, el: current };
 	          }
 
-	          function resolveEditableState(startEl){
-	            var resolved = deepActive(startEl);
+	          function resolveEditableState(startEl, allowVisibleFallback){
+	            var resolved = deepActive(startEl, allowVisibleFallback);
 	            if (resolved.iframeBoundary) return { editable: true, el: resolved.el };
 	            if (isEditable(resolved.el)) return { editable: true, el: resolved.el };
 	            if (startEl !== document.activeElement) {
-	              var activeResolved = deepActive(document.activeElement);
+	              var activeResolved = deepActive(document.activeElement, allowVisibleFallback);
 	              if (activeResolved.iframeBoundary) return { editable: true, el: activeResolved.el };
 	              if (isEditable(activeResolved.el)) return { editable: true, el: activeResolved.el };
 	            }
@@ -177,10 +222,38 @@ export const useMobileSoftKeyboard = ({
 
 	          function markLast(el){
 	            try { window.__mzrLastEditable = el; } catch(e) {}
+	            try {
+	              var ownerWin = el && el.ownerDocument && el.ownerDocument.defaultView;
+	              if (ownerWin) ownerWin.__mzrLastEditable = el;
+	            } catch(e) {}
 	          }
 
-	          function notify(flag){
+	          function notify(flag, reason){
 	            try { console.info(flag ? '${FOCUS_CONSOLE_ACTIVE}' : '${FOCUS_CONSOLE_INACTIVE}'); } catch(e){}
+	          }
+
+	          function scheduleIframeCandidatePoll(frame, reason){
+	            try {
+	              if (!frame || (frame.tagName || '').toUpperCase() !== 'IFRAME') return;
+	              if (iframePolls.get(frame)) return;
+	              var attempts = 0;
+	              var timer = window.setInterval(function(){
+	                attempts++;
+	                var state = inspectFrame(frame, true);
+	                if (!state.iframeBoundary && isEditable(state.el)) {
+	                  iframePolls.delete(frame);
+	                  window.clearInterval(timer);
+	                  markLast(state.el);
+	                  notify(true, reason || 'iframe-candidate');
+	                  return;
+	                }
+	                if (attempts >= 30) {
+	                  iframePolls.delete(frame);
+	                  window.clearInterval(timer);
+	                }
+	              }, 80);
+	              iframePolls.set(frame, timer);
+	            } catch(e) {}
 	          }
 
 	          function attachDocBridge(doc){
@@ -189,27 +262,33 @@ export const useMobileSoftKeyboard = ({
 	              doc.__mzrFocusBridgeDocInstalled = true;
 
 	              doc.addEventListener('focusin', function(ev){
-	                var state = resolveEditableState(ev.target);
+	                var state = resolveEditableState(ev.target, true);
 	                if (state.editable) {
 	                  markLast(state.el || ev.target);
-	                  notify(true);
+	                  notify(true, 'focusin');
+	                } else if (ev.target && (ev.target.tagName || '').toUpperCase() === 'IFRAME') {
+	                  scheduleIframeCandidatePoll(ev.target, 'focusin-iframe-candidate');
 	                }
 	              }, true);
 
 	              doc.addEventListener('focusout', function(){
 	                setTimeout(function(){
-	                  var state = resolveEditableState(document.activeElement);
+	                  var state = resolveEditableState(document.activeElement, false);
 	                  var still = state.editable;
 	                  if (still) markLast(state.el || document.activeElement);
-	                  notify(still);
+	                  notify(still, 'focusout');
 	                }, 0);
 	              }, true);
 
 	              doc.addEventListener('pointerdown', function(ev){
-	                var state = resolveEditableState(ev.target);
-	                if (state.editable) {
-	                  markLast(state.el || ev.target);
-	                  notify(true);
+	                var target = ev.target;
+	                if (isEditable(target)) {
+	                  markLast(target);
+	                  notify(true, 'pointerdown');
+	                } else if (target && (target.tagName || '').toUpperCase() === 'IFRAME') {
+	                  scheduleIframeCandidatePoll(target, 'pointerdown-iframe-candidate');
+	                } else {
+	                  notify(false, 'pointerdown-noneditable');
 	                }
 	              }, true);
 	            } catch(e) {}
@@ -237,12 +316,17 @@ export const useMobileSoftKeyboard = ({
 
 	          function wireFramesInNode(node){
 	            try {
-	              if (!node || node.nodeType !== 1) return;
-	              var tag = (node.tagName || '').toUpperCase();
-	              if (tag === 'IFRAME') {
-	                wireFrame(node);
+	              if (!node) return;
+	              var root = node;
+	              if (node.nodeType === 9) {
+	                root = node.documentElement || node.body || null;
 	              }
-	              var nested = node.querySelectorAll ? node.querySelectorAll('iframe') : [];
+	              if (!root || root.nodeType !== 1) return;
+	              var tag = (root.tagName || '').toUpperCase();
+	              if (tag === 'IFRAME') {
+	                wireFrame(root);
+	              }
+	              var nested = root.querySelectorAll ? root.querySelectorAll('iframe') : [];
 	              for (var i = 0; i < nested.length; i++) {
 	                wireFrame(nested[i]);
 	              }
@@ -445,7 +529,9 @@ export const useMobileSoftKeyboard = ({
     const install = () => {
       try {
         const r = wv.executeJavaScript(bridgeScript, false);
-        if (r && typeof r.then === 'function') r.catch(()=>{});
+        if (r && typeof r.then === 'function') {
+          r.catch(() => {});
+        }
       } catch {}
     };
     const syncTimers = new Set<number>();
@@ -453,17 +539,39 @@ export const useMobileSoftKeyboard = ({
     let transientPollTimer: number | null = null;
     let transientPollStopTimer: number | null = null;
     const inactiveTimers = new Set<number>();
+    let bridgeFocusHoldUntil = 0;
+    const BRIDGE_FOCUS_HOLD_MS = 5000;
+
+    const bridgeFocusHoldRemainingMs = () =>
+      Math.max(0, Math.round(bridgeFocusHoldUntil - performance.now()));
+
+    const bridgeFocusHoldActive = () => bridgeFocusHoldRemainingMs() > 0;
+
+    const clearInactiveTimers = () => {
+      inactiveTimers.forEach((timer) => window.clearTimeout(timer));
+      inactiveTimers.clear();
+    };
 
     const syncWebInputContext = () => {
       void (async () => {
-        if (syncInFlight) return;
-        if (ctxMenuGuardRef?.current) return;
+        if (syncInFlight) {
+          return;
+        }
+        if (ctxMenuGuardRef?.current) {
+          return;
+        }
         syncInFlight = true;
         try {
           const ctx = await probeWebInputContext();
+          if (!ctx.editable && bridgeFocusHoldActive()) {
+            setActiveInputContext(BRIDGE_FOCUS_INPUT_CONTEXT);
+            setKbVisible(true);
+            return;
+          }
           setActiveInputContext(ctx);
           setKbVisible(ctx.editable);
           if (ctx.editable) {
+            bridgeFocusHoldUntil = 0;
             if (transientPollTimer != null) {
               window.clearInterval(transientPollTimer);
               transientPollTimer = null;
@@ -479,14 +587,33 @@ export const useMobileSoftKeyboard = ({
       })();
     };
 
+    const showBridgeConfirmedKeyboard = () => {
+      bridgeFocusHoldUntil = Math.max(bridgeFocusHoldUntil, performance.now() + BRIDGE_FOCUS_HOLD_MS);
+      clearInactiveTimers();
+      setActiveInputContext(BRIDGE_FOCUS_INPUT_CONTEXT);
+      setKbVisible(true);
+    };
+
     const syncWebInputContextPositive = () => {
       void (async () => {
-        if (syncInFlight) return;
-        if (ctxMenuGuardRef?.current) return;
+        if (syncInFlight) {
+          return;
+        }
+        if (ctxMenuGuardRef?.current) {
+          return;
+        }
         syncInFlight = true;
         try {
           const ctx = await probeWebInputContext();
-          if (!ctx.editable) return;
+          if (!ctx.editable) {
+            if (bridgeFocusHoldActive()) {
+              setActiveInputContext(BRIDGE_FOCUS_INPUT_CONTEXT);
+              setKbVisible(true);
+              return;
+            }
+            return;
+          }
+          bridgeFocusHoldUntil = 0;
           setActiveInputContext(ctx);
           setKbVisible(true);
           if (transientPollTimer != null) {
@@ -526,8 +653,12 @@ export const useMobileSoftKeyboard = ({
     };
 
     const startTransientPolling = () => {
-      if (ctxMenuGuardRef?.current) return;
-      if (transientPollTimer != null) return;
+      if (ctxMenuGuardRef?.current) {
+        return;
+      }
+      if (transientPollTimer != null) {
+        return;
+      }
       transientPollTimer = window.setInterval(() => {
         syncWebInputContextPositive();
       }, 220);
@@ -552,11 +683,17 @@ export const useMobileSoftKeyboard = ({
           void (async () => {
             const ctx = await probeWebInputContext();
             if (ctx.editable) {
+              bridgeFocusHoldUntil = 0;
               setActiveInputContext(ctx);
               setKbVisible(true);
               return;
             }
             if (delay !== delays[delays.length - 1]) return;
+            if (bridgeFocusHoldActive()) {
+              setActiveInputContext(BRIDGE_FOCUS_INPUT_CONTEXT);
+              setKbVisible(true);
+              return;
+            }
             setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
             setKbVisible(false);
           })();
@@ -568,7 +705,14 @@ export const useMobileSoftKeyboard = ({
     const onConsole = (event: any) => {
       const msg: string = (event && event.message) || '';
       if (msg === FOCUS_CONSOLE_ACTIVE) {
-        if (oskPressGuardRef.current) return;
+        if (document.body?.getAttribute('data-mzr-osk-user-closing') === '1') {
+          return;
+        }
+        if (oskPressGuardRef.current) {
+          showBridgeConfirmedKeyboard();
+          return;
+        }
+        showBridgeConfirmedKeyboard();
         syncWebInputContext();
       } else if (msg === FOCUS_CONSOLE_INACTIVE) {
         if (
@@ -582,9 +726,31 @@ export const useMobileSoftKeyboard = ({
       }
     };
 
+    const unsubscribeOskFocusEvent = ipc.osk.onFocusEvent((payload) => {
+      try {
+        const currentWebContentsId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : undefined;
+        if (
+          typeof payload.webContentsId === 'number' &&
+          typeof currentWebContentsId === 'number' &&
+          payload.webContentsId !== currentWebContentsId
+        ) {
+          return;
+        }
+        const message = typeof payload.message === 'string' ? payload.message : '';
+        if (!message) return;
+        onConsole({ message });
+      } catch {
+        // noop
+      }
+    });
+
     const onFocusFallback = () => {
-      if (oskPressGuardRef.current) return;
-      if (ctxMenuGuardRef?.current) return;
+      if (oskPressGuardRef.current) {
+        return;
+      }
+      if (ctxMenuGuardRef?.current) {
+        return;
+      }
       scheduleSyncWebInputContext();
       startTransientPolling();
     };
@@ -633,6 +799,7 @@ export const useMobileSoftKeyboard = ({
       wv.removeEventListener('mouseup', onFocusFallback as EventListener);
       wv.removeEventListener('click', onFocusFallback as EventListener);
       wv.removeEventListener('touchend', onFocusFallback as EventListener);
+      unsubscribeOskFocusEvent();
     };
   }, [
     mode,

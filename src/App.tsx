@@ -1106,10 +1106,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [isActiveMultiline]);
 
   const closeKeyboard = useCallback(() => {
+    document.body?.setAttribute('data-mzr-osk-user-closing', '1');
     setKbVisible(false);
     setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
     oskPressGuardRef.current = true;
     window.setTimeout(() => { oskPressGuardRef.current = false; }, 300);
+    window.setTimeout(() => {
+      document.body?.removeAttribute('data-mzr-osk-user-closing');
+    }, 900);
     const active = document.activeElement as HTMLElement | null;
     if (active && isEditableElement(active)) {
       try { active.blur(); } catch {}

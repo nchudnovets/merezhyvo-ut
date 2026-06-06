@@ -833,6 +833,27 @@ const exposeApi: MerezhyvoAPI = {
       key: string,
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ) => ipcRenderer.invoke('mzr:osk:key', { wcId, key, modifiers }),
+
+    debug: () => {},
+    onFocusEvent: (handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'mzr:osk:focus-event';
+      const listener = (
+        _event: IpcRendererEvent,
+        payload: { webContentsId?: number; message?: string; sessionId?: string } | null | undefined
+      ) => {
+        if (!payload || typeof payload !== 'object') return;
+        handler(payload);
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    },
   },
   jsDialog: {
     attach: (webContentsId: number) => {

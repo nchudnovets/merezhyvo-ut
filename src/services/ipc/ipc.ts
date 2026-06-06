@@ -447,6 +447,14 @@ export const ipc = {
     ) {
       return window.merezhyvo?.osk.key(wcId, key, modifiers);
     },
+    debug(_payload: Record<string, unknown>) {},
+    onFocusEvent(handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void): Unsubscribe {
+      try {
+        return window.merezhyvo?.osk.onFocusEvent?.(handler) ?? (() => {});
+      } catch {
+        return () => {};
+      }
+    },
   },
   permissions: {
     onPrompt(handler: (req: { id: string; origin: string; types: PermissionType[] }) => void): () => void {
