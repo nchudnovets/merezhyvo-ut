@@ -315,7 +315,6 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const showAffiliatesPanel =
     showPanels &&
     effectiveSettings.showAffiliates &&
-    savingsEnabled &&
     affiliateMerchants.some((entry) => typeof entry.gotolink === 'string' && entry.gotolink.trim().length > 0);
   const showCouponsPanel =
     showPanels &&
@@ -903,8 +902,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             {
               key: 'showAffiliates',
               label: t('start.settings.showAffiliates'),
-              checked: savingsEnabled ? effectiveSettings.showAffiliates : false,
-              disabled: !savingsEnabled
+              checked: effectiveSettings.showAffiliates,
+              disabled: false
             },
             {
               key: 'showCouponStores',
