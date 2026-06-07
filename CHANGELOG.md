@@ -1,19 +1,15 @@
 # Changelog
 
 ----
-## Unreleased
+## 0.5.4 - 2029-06-07
 
 ### New / Improved:
 
 - Updated Electron/Chromium engine and related packages.
 
-- Start Page shortcut layout improvements: smaller mobile shortcut tiles, reduced spacing below search, and 6-item paging for Favorite Sites and fresh coupon sites.
+- Start Page shortcut layout improvements.
 
 - Fresh coupon shortcuts now lazy-load in 12-entry batches, so large merchant catalogs do not render all shortcut tiles up front.
-
-- Start Page can now show a separate Partner stores row from the affiliates catalog, with its own Start Page visibility toggle.
-
-- Disabling coupon or partner-link support now asks for confirmation and explains how these optional features help support the project.
 
 - Mobile toolbar now includes an expandable actions tray with Messenger, Back, Forward, and Reload controls.
 
@@ -23,7 +19,7 @@
 
 - Password unlock duration controls now apply correctly from both the unlock dialog and Passwords settings section.
 
-- Anti-bot and captcha checks are more reliable on Ubuntu Touch and Linux ARM devices: User-Agent, Client Hints, worker/frame overrides, touch capability, and timezone fingerprint now stay consistent with the active browser profile.
+- Anti-bot and captcha checks are more reliable on Ubuntu Touch and Linux ARM devices.
 
 - Mobile text selection handles now work inside editable web content such as Telegram and Gmail compose fields.
 
