@@ -9,6 +9,23 @@ cd "${REPO_ROOT}"
 APP_NAME="merezhyvo.naz.r"
 ARCH="arm64"
 OUT_DIR="build"
+COLIMA_PROFILE="${MEREZHYVO_COLIMA_PROFILE:-ut-arm64}"
+COLIMA_STOP_AFTER_BUILD="${MEREZHYVO_STOP_COLIMA_AFTER_BUILD:-1}"
+COLIMA_STARTED=0
+
+PYTHON_USER_BASE="$(python3 -m site --user-base 2>/dev/null || true)"
+if [ -n "${PYTHON_USER_BASE}" ] && [ -d "${PYTHON_USER_BASE}/bin" ]; then
+  export PATH="${PYTHON_USER_BASE}/bin:${PATH}"
+fi
+
+cleanup_colima() {
+  if [ "${COLIMA_STARTED}" = "1" ] && [ "${COLIMA_STOP_AFTER_BUILD}" != "0" ]; then
+    echo "==> Stopping Colima profile '${COLIMA_PROFILE}'"
+    colima stop "${COLIMA_PROFILE}" || true
+  fi
+}
+
+trap cleanup_colima EXIT
 
 # .deb package we extract Tor from (arm64)
 TOR_DEB_URL_DEFAULT="https://ftp.debian.org/debian/pool/main/t/tor/tor_0.4.8.16-1_arm64.deb"
@@ -191,6 +208,38 @@ if [ ! -f "./app/merezhyvo" ]; then
 fi
 
 echo "==> Step 4/4: clickable build (.click packaging)"
+if ! command -v clickable >/dev/null 2>&1; then
+  echo "ERROR: clickable command not found."
+  echo "       Install it with:"
+  echo "         python3 -m pip install --user --force-reinstall 'clickable-ut==8.7.0'"
+  echo "       Then rerun this script. The script automatically adds Python user bin to PATH."
+  exit 1
+fi
+
+if ! command -v colima >/dev/null 2>&1; then
+  echo "ERROR: colima command not found."
+  echo "       Install Colima and rerun this script."
+  exit 1
+fi
+
+echo "==> Starting Colima profile '${COLIMA_PROFILE}' for arm64 Docker build"
+colima start "${COLIMA_PROFILE}" --arch aarch64 --cpu 6 --memory 12 --disk 100 --runtime docker
+COLIMA_STARTED=1
+
+if ! DOCKER_ARCH="$(docker info --format '{{.Architecture}}' 2>/dev/null)"; then
+  echo "ERROR: Docker daemon is not available."
+  echo "       Colima started, but Docker is not responding."
+  exit 1
+fi
+
+if [ "${DOCKER_ARCH}" != "aarch64" ] && [ "${DOCKER_ARCH}" != "arm64" ]; then
+  echo "ERROR: Docker daemon architecture is ${DOCKER_ARCH}, but the Ubuntu Touch package build needs arm64/aarch64."
+  echo "       On Apple Silicon, start an ARM Colima profile, for example:"
+  echo "         colima start ut-arm64 --arch aarch64 --cpu 6 --memory 12 --disk 100 --runtime docker"
+  echo "       Then rerun this script."
+  exit 1
+fi
+
 export CLICKABLE_FRAMEWORK='ubuntu-touch-24.04-1.x'
 clickable clean || true
 clickable build --arch "${ARCH}" --accept-review-errors

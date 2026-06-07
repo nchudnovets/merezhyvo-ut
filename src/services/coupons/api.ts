@@ -12,6 +12,12 @@ export type MerchantsCatalogResult =
   | { status: 'syncing'; retryAfterSeconds: number }
   | { status: 'error'; error?: string };
 
+export type AffiliatesCatalogResult =
+  | { status: 'ok'; affiliates: MerchantEntry[]; etag: string | null }
+  | { status: 'not_modified'; etag: string | null }
+  | { status: 'syncing'; retryAfterSeconds: number }
+  | { status: 'error'; error?: string };
+
 export type FetchCouponsForPageResult =
   | { status: 'ok'; data: CouponsForPageResponse }
   | { status: 'syncing'; retryAfterSeconds: number }
@@ -61,6 +67,12 @@ const normalizeImageUrl = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeUrlString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeMerchantRecord = (raw: unknown): MerchantEntry | null => {
   const candidate =
     typeof raw === 'string'
@@ -71,6 +83,7 @@ const normalizeMerchantRecord = (raw: unknown): MerchantEntry | null => {
   const record = typeof raw === 'object' && raw !== null ? (raw as Record<string, unknown>) : {};
   const name = normalizeMerchantName(record.name ?? record.title ?? record.label ?? null);
   const imageUrl = normalizeImageUrl(record.imageUrl ?? record.logo ?? null);
+  const gotolink = normalizeUrlString(record.gotolink ?? null);
   const hasLocal = typeof record.hasLocal === 'boolean' ? record.hasLocal : undefined;
   const freshestRaw = record.freshestCoupon;
   const freshestCoupon =
@@ -79,17 +92,22 @@ const normalizeMerchantRecord = (raw: unknown): MerchantEntry | null => {
     domain,
     name,
     imageUrl: imageUrl ?? undefined,
+    gotolink,
     hasLocal,
     freshestCoupon: freshestCoupon ?? null
   };
 };
 
-const parseMerchants = (payload: unknown): MerchantEntry[] => {
+const parseCatalogEntries = (payload: unknown, preferredKey: 'merchants' | 'affiliates'): MerchantEntry[] => {
   const candidateList = Array.isArray(payload)
     ? payload
     : payload && typeof payload === 'object'
-      ? Array.isArray((payload as { merchants?: unknown }).merchants)
+      ? Array.isArray((payload as Record<string, unknown>)[preferredKey])
+        ? (payload as Record<string, unknown>)[preferredKey] as unknown[]
+        : Array.isArray((payload as { merchants?: unknown }).merchants)
         ? (payload as { merchants: unknown[] }).merchants
+        : Array.isArray((payload as { affiliates?: unknown }).affiliates)
+          ? (payload as { affiliates: unknown[] }).affiliates
         : Array.isArray((payload as { domains?: unknown }).domains)
           ? (payload as { domains: unknown[] }).domains
           : []
@@ -104,6 +122,9 @@ const parseMerchants = (payload: unknown): MerchantEntry[] => {
   }
   return Array.from(merchantsMap.values());
 };
+
+const parseMerchants = (payload: unknown): MerchantEntry[] => parseCatalogEntries(payload, 'merchants');
+const parseAffiliates = (payload: unknown): MerchantEntry[] => parseCatalogEntries(payload, 'affiliates');
 
 const extractDomain = (value: unknown): string | null => {
   if (typeof value === 'string') return value;
@@ -143,10 +164,13 @@ export const fetchMerchantsCatalog = async (
     headers['If-None-Match'] = etag;
   }
 
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), COUPONS_API_TIMEOUT_MS);
   try {
     const response = await fetch(url.toString(), {
       method: 'GET',
       headers,
+      signal: controller.signal,
       cache: 'no-store'
     });
 
@@ -175,7 +199,71 @@ export const fetchMerchantsCatalog = async (
 
     return { status: 'error', error: `Unexpected status ${response.status}` };
   } catch (err) {
+    if (controller.signal.aborted) {
+      return { status: 'error', error: 'Request timed out' };
+    }
     return { status: 'error', error: String(err) };
+  } finally {
+    window.clearTimeout(timeout);
+  }
+};
+
+export const fetchAffiliatesCatalog = async (
+  country: string,
+  etag?: string | null,
+  clientVersion?: string
+): Promise<AffiliatesCatalogResult> => {
+  const normalizedCountry = normalizeCountryCode(country);
+  if (!normalizedCountry) {
+    return { status: 'error', error: 'Invalid country code.' };
+  }
+  const url = new URL('/v1/affiliates', COUPONS_API_BASE_URL);
+  url.searchParams.set('country', normalizedCountry);
+
+  const headers: Record<string, string> = {
+    'X-App-Key': COUPONS_X_APP_KEY,
+    'X-Client': COUPONS_X_CLIENT
+  };
+  if (clientVersion) {
+    headers['X-Client-Version'] = clientVersion;
+  }
+  if (etag) {
+    headers['If-None-Match'] = etag;
+  }
+
+  const controller = new AbortController();
+  const timeout = window.setTimeout(() => controller.abort(), COUPONS_API_TIMEOUT_MS);
+  try {
+    const response = await fetch(url.toString(), {
+      method: 'GET',
+      headers,
+      signal: controller.signal,
+      cache: 'no-store'
+    });
+
+    if (response.status === 200) {
+      const payload = await response.json().catch(() => null);
+      const affiliates = parseAffiliates(payload);
+      return { status: 'ok', affiliates, etag: getEtag(response) };
+    }
+
+    if (response.status === 304) {
+      return { status: 'not_modified', etag: getEtag(response) ?? etag ?? null };
+    }
+
+    if (response.status === 202) {
+      const payload = await response.json().catch(() => null);
+      return { status: 'syncing', retryAfterSeconds: parseRetryAfterSeconds(payload) };
+    }
+
+    return { status: 'error', error: `Unexpected status ${response.status}` };
+  } catch (err) {
+    if (controller.signal.aborted) {
+      return { status: 'error', error: 'Request timed out' };
+    }
+    return { status: 'error', error: String(err) };
+  } finally {
+    window.clearTimeout(timeout);
   }
 };
 

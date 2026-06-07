@@ -72,6 +72,7 @@ import {
 import { getTabsState, useTabsStore, tabsActions } from './store/tabs';
 import { DEFAULT_URL, normalizeAddress, normalizeNavigationTarget, parseStartUrl, toHttpUrl } from './utils/navigation';
 import { deriveErrorType, HTTP_ERROR_TYPE, isLikelyCertError, isSubdomainOrSame, normalizeHost } from './utils/security';
+import { isTelegramDeepLink } from './shared/telegramLinks';
 import { useTorSettings } from './hooks/useTorSettings';
 import KeyboardPane from './components/keyboard/KeyboardPane';
 import { nextLayoutId } from './components/keyboard/layouts';
@@ -363,8 +364,12 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     el: null
   });
   const ctxMenuGuardRef = useRef<boolean>(false);
+  const ctxMenuVisibleRef = useRef<boolean>(ctxMenuVisible);
   const ctxMenuGuardTimerRef = useRef<number | null>(null);
   const lastUrlFocusTsRef = useRef<number>(0);
+  useEffect(() => {
+    ctxMenuVisibleRef.current = ctxMenuVisible;
+  }, [ctxMenuVisible]);
   const clearCtxMenuGuardTimer = useCallback(() => {
     if (ctxMenuGuardTimerRef.current !== null) {
       window.clearTimeout(ctxMenuGuardTimerRef.current);
@@ -944,14 +949,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     setMessengerSettingsState,
     messengerSettingsRef,
     messengerTabIdsRef,
+    prevBrowserTabIdRef,
     pendingMessengerTabIdRef,
     lastMessengerIdRef,
     activeMessengerId,
     setActiveMessengerId,
     orderedMessengers,
+    setMainViewMode,
     exitMessengerMode,
     handleEnterMessengerMode,
     handleMessengerSelect,
+    ensureMessengerTab,
     exitIfNoMessengers
   } = useMessengerMode({
     activeId,
@@ -968,8 +976,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
 
   const tick = async () => {
     if (cancelled) return;
+    if (ctxMenuVisibleRef.current) return;
 
     try {
+      const wvForDebug = getActiveWebview();
+      if (!wvForDebug?.isConnected) {
+        prevShown = false;
+        return;
+      }
       const [has, touchState] = await Promise.all([
         hasSelection(),
         getSelectionTouchState(),
@@ -978,11 +992,16 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       if (!has) { prevShown = false; return; }
 
       // Don't show menu while user is still touching/dragging selection handles
-      if (touchState.touching) { prevShown = false; return; }
+      if (touchState.touching) {
+        prevShown = false;
+        return;
+      }
 
       const now = Date.now();
       // Wait a short grace period after touchend so handles settle visually
-      if (now - touchState.lastTouchTs < 250) { return; }
+      if (now - touchState.lastTouchTs < 250) {
+        return;
+      }
 
       // First long-press to create selection (skip showing menu)
       if (!prevShown) {
@@ -991,12 +1010,17 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       }
 
       const req = await pollMenuRequest();
-      if (!req) return;
+      if (!req) {
+        return;
+      }
 
       const wv = getActiveWebview();
       if (!wv) return;
       const url = await wv.getURL();
-      if (isCtxtExcludedSite(url)) {
+      const isTelegramSelection = (() => {
+        try { return /(^|\.)web\.telegram\.org$/i.test(new URL(url).hostname); } catch { return false; }
+      })();
+      if (isCtxtExcludedSite(url) && !isTelegramSelection) {
         return;
       }
 
@@ -1004,7 +1028,8 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const cx = Math.round(hostRect.left + req.x);
       const cy = Math.round(hostRect.top + req.y);
 
-      window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1);
+      const webContentsId = typeof wv.getWebContentsId === 'function' ? wv.getWebContentsId() : undefined;
+      window.merezhyvo?.openContextMenuAt(cx, cy, window.devicePixelRatio || 1, webContentsId);
     } catch {
       // ignore transient errors
     }
@@ -1081,10 +1106,14 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
   }, [isActiveMultiline]);
 
   const closeKeyboard = useCallback(() => {
+    document.body?.setAttribute('data-mzr-osk-user-closing', '1');
     setKbVisible(false);
     setActiveInputContext(DEFAULT_ACTIVE_INPUT_CONTEXT);
     oskPressGuardRef.current = true;
     window.setTimeout(() => { oskPressGuardRef.current = false; }, 300);
+    window.setTimeout(() => {
+      document.body?.removeAttribute('data-mzr-osk-user-closing');
+    }, 900);
     const active = document.activeElement as HTMLElement | null;
     if (active && isEditableElement(active)) {
       try { active.blur(); } catch {}
@@ -1163,20 +1192,6 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
     }
   }, [webviewHandleRef, webviewRef]);
 
-  const attachWebviewListeners = useWebviewListeners({
-    baseCssRef: webviewBaseCssRef,
-    updateMetaAction,
-    playingTabsRef,
-    updatePowerBlocker,
-    isYouTubeTab,
-    backgroundTabRef,
-    destroyTabView,
-    fullscreenTabRef,
-    setIsHtmlFullscreen,
-    webviewFocusedRef,
-    openNewTab: openUrlInNewTab
-  });
-
   useEffect(() => {
     tabViewsRef.current.forEach((entry) => {
       const view = (entry.handle && typeof entry.handle.getWebView === 'function')
@@ -1217,6 +1232,53 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       setWebviewReady(false);
     }
   }, [tabViewsRef, updateMetaAction]);
+
+  const openTelegramLinkInRegularTab = useCallback((rawUrl: string): boolean => {
+    const url = rawUrl.trim();
+    if (!isTelegramDeepLink(url)) return false;
+    openUrlInNewTab(url);
+    return true;
+  }, [openUrlInNewTab]);
+
+  const openUrlFromWebview = useCallback((url: string, sourceTabId: string) => {
+    if (openTelegramLinkInRegularTab(url)) return;
+    if (sourceTabId && messengerTabIdsRef.current.get('telegram') === sourceTabId) {
+      const trimmed = url.trim();
+      if (!trimmed) return;
+      const entry = tabViewsRef.current.get(sourceTabId);
+      updateMetaAction(sourceTabId, { url: trimmed, isLoading: true });
+      setInputValue(trimmed);
+      if (entry?.view) {
+        try {
+          const script = `window.location.assign(${JSON.stringify(trimmed)});`;
+          const result = entry.view.executeJavaScript(script, false);
+          if (result && typeof result.catch === 'function') {
+            result.catch(() => {});
+          }
+        } catch {
+          forceNavigateTab(sourceTabId, trimmed);
+        }
+      } else {
+        forceNavigateTab(sourceTabId, trimmed);
+      }
+      return;
+    }
+    openUrlInNewTab(url);
+  }, [forceNavigateTab, messengerTabIdsRef, openTelegramLinkInRegularTab, openUrlInNewTab, tabViewsRef, updateMetaAction]);
+
+  const attachWebviewListeners = useWebviewListeners({
+    baseCssRef: webviewBaseCssRef,
+    updateMetaAction,
+    playingTabsRef,
+    updatePowerBlocker,
+    isYouTubeTab,
+    backgroundTabRef,
+    destroyTabView,
+    fullscreenTabRef,
+    setIsHtmlFullscreen,
+    webviewFocusedRef,
+    openUrlFromWebview
+  });
 
   const handleNavigationStart = useCallback((tabId: string, payload: { url: string; isInPage: boolean }) => {
     if (!tabId || !payload || payload.isInPage) return;
@@ -1966,6 +2028,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
       const { url } =
         typeof arg === 'string' ? { url: arg } : (arg || {});
       if (!url) return;
+      if (openTelegramLinkInRegularTab(String(url))) return;
       openUrlInNewTab(String(url));
     });
     return () => {
@@ -1975,7 +2038,7 @@ const MainBrowserApp: React.FC<MainBrowserAppProps> = ({ initialUrl, mode, hasSt
         } catch {}
       }
     };
-  }, [openUrlInNewTab]);
+  }, [openTelegramLinkInRegularTab, openUrlInNewTab]);
 
   useEffect(() => {
     if (!tabsReady) return;

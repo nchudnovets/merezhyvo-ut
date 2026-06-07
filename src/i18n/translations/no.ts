@@ -164,6 +164,14 @@ const no = {
   'coupons.info.section.privacy.body1': 'Kupongfunksjonen er laget for å **respektere personvernet ditt**.',
   'coupons.info.section.privacy.body2': '**Ingen informasjon om deg blir noen gang sendt noe sted.** Kuponger er bare en måte å finne rabatter for deg på.',
   'coupons.info.section.privacy.body3': 'Nettleseren søker etter kuponger for en bestemt butikk **først etter at du trykker på knappen**. Og selv da skjer det på en måte som **ikke deler noen personopplysninger om deg** med noen.',
+  'savings.disableConfirm.title': 'La dette alternativet være på?',
+  'savings.disableConfirm.lead': 'Vurder å la dette alternativet være slått på.',
+  'savings.disableConfirm.support': 'Merezhyvo er en gratis nettleser og viser ikke reklame. Bruk av {feature} koster deg ingenting, men kan bidra til å støtte utvikleren og videreutviklingen av prosjektet.',
+  'savings.disableConfirm.feature.coupons': 'kuponger',
+  'savings.disableConfirm.feature.affiliates': 'partnerlenker',
+  'savings.disableConfirm.couponsNote': 'Kuponger tilbys bare for butikker der de kan være tilgjengelige, og søket kjøres bare etter at du trykker på knappen.',
+  'savings.disableConfirm.keep': 'La være på',
+  'savings.disableConfirm.disable': 'Slå av',
   'coupons.info.section.toggle.heading': 'Slik slår du kuponger av eller på',
   'coupons.info.section.toggle.body': 'Kuponger er en **valgfri** funksjon. Hvis du ikke vil bruke den, kan du **slå den av i Innstillinger** i seksjonen **Sparing**.',
   'coupons.info.section.country.heading': 'Hvorfor land er viktig',
@@ -267,6 +275,8 @@ const no = {
   'settings.messenger.hideToolbar': 'Skjul meldingslinjen',
 
   'toolbar.openMessenger': 'Åpne meldingsmodus',
+  'toolbar.mobileActions.open': 'Åpne verktøylinjehandlinger',
+  'toolbar.mobileActions.close': 'Lukk verktøylinjehandlinger',
   'toolbar.openSettings': 'Åpne innstillinger',
   'toolbar.tor.enable': 'Aktiver Tor',
   'toolbar.tor.disable': 'Deaktiver Tor',
@@ -971,7 +981,9 @@ const no = {
   'start.settings.button': 'Sideinnstillinger',
   'start.settings.showTopSites': 'Vis mest besøkte nettsteder',
   'start.settings.showFavorites': 'Vis favorittnettsteder',
+  'start.settings.showAffiliates': 'Vis partnerbutikker',
   'start.settings.showCouponStores': 'Vis kupongbutikker',
+  'start.affiliates.title': 'Partnerbutikker',
   'start.coupons.title': 'Nye kuponger tilgjengelig for:',
 } as const;
 

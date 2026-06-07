@@ -24,7 +24,7 @@ type Params = {
   fullscreenTabRef: MutableRefObject<string | null>;
   setIsHtmlFullscreen: (value: boolean) => void;
   webviewFocusedRef: MutableRefObject<boolean>;
-  openNewTab: (url: string) => void;
+  openUrlFromWebview: (url: string, sourceTabId: string) => void;
 };
 
 export const useWebviewListeners = ({
@@ -38,7 +38,7 @@ export const useWebviewListeners = ({
   fullscreenTabRef,
   setIsHtmlFullscreen,
   webviewFocusedRef,
-  openNewTab
+  openUrlFromWebview
 }: Params) => {
   return useCallback((view: WebviewTag, tabId: string) => {
     const handleTitle = (event: WebviewTitleEvent | null | undefined) => {
@@ -91,7 +91,7 @@ export const useWebviewListeners = ({
     const openWindowUrl = (rawUrl: unknown) => {
       const nextUrl = typeof rawUrl === 'string' ? rawUrl : '';
       if (!nextUrl) return;
-      openNewTab(nextUrl);
+      openUrlFromWebview(nextUrl, tabId);
     };
 
     const handleIpcMessage = (event: Event) => {
@@ -158,7 +158,7 @@ export const useWebviewListeners = ({
     fullscreenTabRef,
     isYouTubeTab,
     playingTabsRef,
-    openNewTab,
+    openUrlFromWebview,
     setIsHtmlFullscreen,
     updateMetaAction,
     updatePowerBlocker,

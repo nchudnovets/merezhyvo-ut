@@ -93,6 +93,7 @@ export type MerchantEntry = {
   domain: string;
   name: string | null;
   imageUrl?: string | null;
+  gotolink?: string | null;
   hasLocal?: boolean;
   freshestCoupon?: string | null;
 };
@@ -100,10 +101,15 @@ export type MerchantEntry = {
 export type MerchantsCatalogCache = {
   country: string | null;
   merchants: MerchantEntry[];
+  affiliates: MerchantEntry[];
   updatedAt: string | null;
   etag: string | null;
+  affiliatesUpdatedAt: string | null;
+  affiliatesEtag: string | null;
   nextAllowedFetchAt: string | null;
   lastFetchAttemptAt: string | null;
+  affiliatesNextAllowedFetchAt: string | null;
+  affiliatesLastFetchAttemptAt: string | null;
 };
 
 export type PendingCoupon = {
@@ -130,6 +136,7 @@ export type NetworkSettings = {
   secureDns: SecureDnsSettings;
   detectedIp?: string | null;
   detectedCountry?: string | null;
+  detectedTimezone?: string | null;
   detectedAt?: string | null;
 };
 
@@ -137,6 +144,7 @@ export type StartPageSettings = {
   showTopSites: boolean;
   showFavorites: boolean;
   hidePanels: boolean;
+  showAffiliates: boolean;
   showCouponStores: boolean;
   favorites: StartPageFavorite[];
 };
@@ -326,10 +334,15 @@ const DEFAULT_SECURE_DNS: SecureDnsSettings = {
 const DEFAULT_SAVINGS_CATALOG: MerchantsCatalogCache = {
   country: null,
   merchants: [],
+  affiliates: [],
   updatedAt: null,
   etag: null,
+  affiliatesUpdatedAt: null,
+  affiliatesEtag: null,
   nextAllowedFetchAt: null,
-  lastFetchAttemptAt: null
+  lastFetchAttemptAt: null,
+  affiliatesNextAllowedFetchAt: null,
+  affiliatesLastFetchAttemptAt: null
 };
 const DEFAULT_SAVINGS_SETTINGS: SavingsSettings = {
   enabled: true,
@@ -344,6 +357,7 @@ const DEFAULT_START_PAGE_SETTINGS: StartPageSettings = {
   showTopSites: true,
   showFavorites: true,
   hidePanels: false,
+  showAffiliates: true,
   showCouponStores: true,
   favorites: []
 };
@@ -458,8 +472,9 @@ export const sanitizeNetworkSettings = (raw: unknown): NetworkSettings => {
   const secureDns = sanitizeSecureDnsSettings((source as { secureDns?: unknown }).secureDns);
   const detectedIp = isNonEmptyString(source.detectedIp) ? source.detectedIp.trim() : null;
   const detectedCountry = normalizeCountryCode(source.detectedCountry) ?? null;
+  const detectedTimezone = isNonEmptyString(source.detectedTimezone) ? source.detectedTimezone.trim() : null;
   const detectedAt = normalizeIsoDate(source.detectedAt) ?? null;
-  return { secureDns, detectedIp, detectedCountry, detectedAt };
+  return { secureDns, detectedIp, detectedCountry, detectedTimezone, detectedAt };
 };
 
 const normalizeDomain = (value: unknown): string | null => {
@@ -491,16 +506,23 @@ const normalizeImageUrl = (value: unknown): string | null => {
   return trimmed.length > 0 ? trimmed : null;
 };
 
+const normalizeUrlString = (value: unknown): string | null => {
+  if (typeof value !== 'string') return null;
+  const trimmed = value.trim();
+  return trimmed.length > 0 ? trimmed : null;
+};
+
 const normalizeMerchantEntry = (value: unknown): MerchantEntry | null => {
   if (typeof value !== 'object' || value === null) return null;
-  const candidate = value as { domain?: unknown; name?: unknown; imageUrl?: unknown; hasLocal?: unknown; freshestCoupon?: unknown };
+  const candidate = value as { domain?: unknown; name?: unknown; imageUrl?: unknown; gotolink?: unknown; hasLocal?: unknown; freshestCoupon?: unknown };
   const domain = normalizeDomain(candidate.domain);
   if (!domain) return null;
   const name = normalizeMerchantName(candidate.name);
   const imageUrl = normalizeImageUrl(candidate.imageUrl);
+  const gotolink = normalizeUrlString(candidate.gotolink);
   const hasLocal = typeof candidate.hasLocal === 'boolean' ? candidate.hasLocal : undefined;
   const freshestCoupon = normalizeIsoDate(candidate.freshestCoupon) ?? null;
-  return { domain, name, imageUrl: imageUrl ?? undefined, hasLocal, freshestCoupon };
+  return { domain, name, imageUrl: imageUrl ?? undefined, gotolink, hasLocal, freshestCoupon };
 };
 
 const normalizeIsoDate = (value: unknown): string | null => {
@@ -589,13 +611,29 @@ export const sanitizeSavingsSettings = (raw: unknown): SavingsSettings => {
       }
     }
   }
+  const affiliates: MerchantEntry[] = [];
+  const seenAffiliateDomains = new Set<string>();
+  if (Array.isArray(catalogRaw.affiliates)) {
+    for (const rawEntry of catalogRaw.affiliates) {
+      const normalized = normalizeMerchantEntry(rawEntry);
+      if (normalized && !seenAffiliateDomains.has(normalized.domain)) {
+        seenAffiliateDomains.add(normalized.domain);
+        affiliates.push(normalized);
+      }
+    }
+  }
   const catalog: MerchantsCatalogCache = {
     country: normalizeCountryCode(catalogRaw.country) ?? DEFAULT_SAVINGS_CATALOG.country,
     merchants,
+    affiliates,
     updatedAt: normalizeIsoDate(catalogRaw.updatedAt) ?? DEFAULT_SAVINGS_CATALOG.updatedAt,
     etag: typeof catalogRaw.etag === 'string' ? catalogRaw.etag : DEFAULT_SAVINGS_CATALOG.etag,
+    affiliatesUpdatedAt: normalizeIsoDate(catalogRaw.affiliatesUpdatedAt) ?? DEFAULT_SAVINGS_CATALOG.affiliatesUpdatedAt,
+    affiliatesEtag: typeof catalogRaw.affiliatesEtag === 'string' ? catalogRaw.affiliatesEtag : DEFAULT_SAVINGS_CATALOG.affiliatesEtag,
     nextAllowedFetchAt: normalizeIsoDate(catalogRaw.nextAllowedFetchAt) ?? DEFAULT_SAVINGS_CATALOG.nextAllowedFetchAt,
-    lastFetchAttemptAt: normalizeIsoDate(catalogRaw.lastFetchAttemptAt) ?? DEFAULT_SAVINGS_CATALOG.lastFetchAttemptAt
+    lastFetchAttemptAt: normalizeIsoDate(catalogRaw.lastFetchAttemptAt) ?? DEFAULT_SAVINGS_CATALOG.lastFetchAttemptAt,
+    affiliatesNextAllowedFetchAt: normalizeIsoDate(catalogRaw.affiliatesNextAllowedFetchAt) ?? DEFAULT_SAVINGS_CATALOG.affiliatesNextAllowedFetchAt,
+    affiliatesLastFetchAttemptAt: normalizeIsoDate(catalogRaw.affiliatesLastFetchAttemptAt) ?? DEFAULT_SAVINGS_CATALOG.affiliatesLastFetchAttemptAt
   };
   const pendingCoupon = sanitizePendingCoupon(source.pendingCoupon);
   const retries = typeof source.syncRetryByCountry === 'object' && source.syncRetryByCountry !== null
@@ -633,6 +671,9 @@ export const sanitizeStartPageSettings = (raw: unknown): StartPageSettings => {
   const showCouponStores = typeof source.showCouponStores === 'boolean'
     ? source.showCouponStores
     : DEFAULT_START_PAGE_SETTINGS.showCouponStores;
+  const showAffiliates = typeof source.showAffiliates === 'boolean'
+    ? source.showAffiliates
+    : DEFAULT_START_PAGE_SETTINGS.showAffiliates;
   const favoritesRaw = Array.isArray(source.favorites) ? source.favorites : DEFAULT_START_PAGE_SETTINGS.favorites;
   const dedup = new Map<string, StartPageFavorite>();
   for (const item of favoritesRaw) {
@@ -660,6 +701,7 @@ export const sanitizeStartPageSettings = (raw: unknown): StartPageSettings => {
     showTopSites,
     showFavorites,
     hidePanels,
+    showAffiliates,
     showCouponStores,
     favorites: Array.from(dedup.values())
   };

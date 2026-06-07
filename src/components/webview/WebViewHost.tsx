@@ -371,6 +371,7 @@ const WebViewHost = forwardRef(function WebViewHost(
         validatedURL?: string;
       };
       if (nav?.isMainFrame === false) return;
+      if (nav?.errorCode === -3) return;
       lastFailedRef.current = true;
       callbacksRef.current.onStatus('error');
       callbacksRef.current.onNavigationError?.({

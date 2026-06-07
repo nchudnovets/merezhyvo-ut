@@ -74,9 +74,10 @@ import { registerBookmarksIpc } from './lib/bookmarks-ipc';
 import { registerFaviconsIpc } from './lib/favicons-ipc';
 import { registerFileDialogIpc } from './lib/file-dialog-ipc';
 import { registerSecureDnsIpc } from './lib/secure-dns-ipc';
-import { getAutofillStateForWebContents, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
+import { getAutofillStateForWebContents, registerPasswordFieldFocus, registerPasswordsIpc, requestUnlockDialog } from './lib/pw/ipc';
 import { getEntrySecret } from './lib/pw/vault';
 import { registerSiteDataIpc } from './lib/site-data-ipc';
+import { detectCountryFromIp, fetchDirectIp } from './lib/network-geo';
 import { isCtxtExcludedSite } from '../src/helpers/websiteCtxtExclusions';
 import { getSiteKey } from './lib/site-key';
 import { getEffectiveWebrtcPolicy, getEffectiveWebrtcPolicySync, setWebrtcMode } from './lib/webrtc-policy';
@@ -156,6 +157,22 @@ const probeWebContentsActiveElement = async (wc: WebContents): Promise<Record<st
   }
 };
 
+const FRAME_SCRIPT_TIMEOUT_MS = 450;
+
+const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, fallback: T): Promise<T> => {
+  let timer: NodeJS.Timeout | null = null;
+  try {
+    return await Promise.race([
+      promise.catch(() => fallback),
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => resolve(fallback), timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
+
 const findEditableFrame = async (
   wc: WebContents
 ): Promise<{ frame: Electron.WebFrameMain | null; probeDetail?: Record<string, unknown>; reason?: string }> => {
@@ -164,17 +181,39 @@ const findEditableFrame = async (
     const probeFrame = async (frame: Electron.WebFrameMain): Promise<{ editable: boolean; detail?: Record<string, unknown> }> => {
       try {
         if (frame.isDestroyed() || frame.detached) return { editable: false };
-        const result = await frame.executeJavaScript(
+        const result = await withTimeout(frame.executeJavaScript(
           `(function(){
             try {
-              var el = document.activeElement;
+              var nonText = new Set(${JSON.stringify(Array.from(nonTextTypes))});
+              function deepActive(startEl) {
+                var current = startEl || document.activeElement;
+                var depth = 0;
+                while (current && depth < 8) {
+                  if (current.shadowRoot && current.shadowRoot.activeElement) {
+                    current = current.shadowRoot.activeElement;
+                    depth++;
+                    continue;
+                  }
+                  break;
+                }
+                return current;
+              }
+              function isEditable(el) {
+                if (!el) return false;
+                var tag = (el.tagName || '').toLowerCase();
+                var type = typeof el.getAttribute === 'function' ? (el.getAttribute('type') || '').toLowerCase() : '';
+                return !!el.isContentEditable ||
+                  tag === 'textarea' ||
+                  (tag === 'input' && !nonText.has(type) && !el.disabled && !el.readOnly);
+              }
+              var el = deepActive(document.activeElement);
+              if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+                el = window.__mzrLastEditable;
+              }
               if (!el) return { editable: false };
               var tag = (el.tagName || '').toLowerCase();
               var type = typeof el.getAttribute === 'function' ? (el.getAttribute('type') || '').toLowerCase() : '';
-              var editable =
-                !!el.isContentEditable ||
-                tag === 'textarea' ||
-                (tag === 'input' && !${JSON.stringify(Array.from(nonTextTypes))}.includes(type) && !el.disabled && !el.readOnly);
+              var editable = isEditable(el);
               return {
                 editable: editable,
                 tag: tag,
@@ -188,7 +227,7 @@ const findEditableFrame = async (
             }
           })();`,
           true
-        );
+        ), FRAME_SCRIPT_TIMEOUT_MS, null);
         return result && typeof result === 'object'
           ? {
               editable: (result as { editable?: unknown }).editable === true,
@@ -231,6 +270,195 @@ const findEditableFrame = async (
   }
 };
 
+const getCandidateFrames = (wc: WebContents): Electron.WebFrameMain[] => {
+  const candidates: Electron.WebFrameMain[] = [];
+  if (wc.focusedFrame && !wc.focusedFrame.isDestroyed() && !wc.focusedFrame.detached) {
+    candidates.push(wc.focusedFrame);
+  }
+  for (const frame of wc.mainFrame.framesInSubtree) {
+    if (frame.isDestroyed() || frame.detached) continue;
+    if (candidates.some((candidate) => candidate.frameTreeNodeId === frame.frameTreeNodeId)) continue;
+    candidates.push(frame);
+  }
+  return candidates;
+};
+
+const detectPasswordFieldFocusInFrames = async (
+  wc: WebContents
+): Promise<{ origin: string; signonRealm: string; field: 'username' | 'password' } | null> => {
+  for (const frame of getCandidateFrames(wc)) {
+    try {
+      const result = await withTimeout(frame.executeJavaScript(
+        `(function(){
+          try {
+            function deepActive(startEl) {
+              var current = startEl || document.activeElement;
+              var depth = 0;
+              while (current && depth < 8) {
+                if (current.shadowRoot && current.shadowRoot.activeElement) {
+                  current = current.shadowRoot.activeElement;
+                  depth++;
+                  continue;
+                }
+                break;
+              }
+              return current;
+            }
+            function isInput(el) {
+              return !!el && (el.tagName || '').toLowerCase() === 'input';
+            }
+            function inputKind(input) {
+              if (!isInput(input) || input.disabled || input.readOnly) return null;
+              var type = (input.getAttribute('type') || '').toLowerCase();
+              var autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase();
+              var name = ((input.getAttribute('name') || '') + ' ' + (input.getAttribute('id') || '')).toLowerCase();
+              if (type === 'password' || autocomplete.indexOf('current-password') >= 0 || autocomplete.indexOf('new-password') >= 0) return 'password';
+              if (type === '' || type === 'text' || type === 'email' || type === 'search' || type === 'tel') {
+                if (autocomplete.indexOf('username') >= 0 || autocomplete.indexOf('email') >= 0 || /user|login|email|mail|identifiant|client/.test(name)) {
+                  return 'username';
+                }
+              }
+              return null;
+            }
+            var el = deepActive(document.activeElement);
+            var kind = inputKind(el);
+            if (!kind && window.__mzrLastEditable) {
+              el = window.__mzrLastEditable;
+              kind = inputKind(el);
+            }
+            if (!kind) return null;
+            return {
+              origin: location.origin,
+              signonRealm: location.protocol + '//' + location.host,
+              field: kind
+            };
+          } catch (_) {
+            return null;
+          }
+        })();`,
+        true
+      ), FRAME_SCRIPT_TIMEOUT_MS, null);
+      if (
+        result &&
+        typeof result === 'object' &&
+        typeof (result as { origin?: unknown }).origin === 'string' &&
+        typeof (result as { signonRealm?: unknown }).signonRealm === 'string' &&
+        ((result as { field?: unknown }).field === 'username' || (result as { field?: unknown }).field === 'password')
+      ) {
+        return result as { origin: string; signonRealm: string; field: 'username' | 'password' };
+      }
+    } catch {
+      // try next frame
+    }
+  }
+  return null;
+};
+
+const fillCredentialsIntoFocusedFrame = async (
+  wc: WebContents,
+  credentials: { username?: string; password?: string }
+): Promise<boolean> => {
+  const username = credentials.username ?? '';
+  const password = credentials.password ?? '';
+  if (!username && !password) return false;
+
+  for (const frame of getCandidateFrames(wc)) {
+    try {
+      const result = await withTimeout(frame.executeJavaScript(
+        `(function(payload){
+          try {
+            function deepActive(startEl) {
+              var current = startEl || document.activeElement;
+              var depth = 0;
+              while (current && depth < 8) {
+                if (current.shadowRoot && current.shadowRoot.activeElement) {
+                  current = current.shadowRoot.activeElement;
+                  depth++;
+                  continue;
+                }
+                break;
+              }
+              return current;
+            }
+            function isInput(el) {
+              return !!el && (el.tagName || '').toLowerCase() === 'input';
+            }
+            function isUsable(input) {
+              return isInput(input) && !input.disabled && !input.readOnly;
+            }
+            function setNativeValue(input, value) {
+              if (!isUsable(input)) return false;
+              input.focus({ preventScroll: true });
+              var proto = Object.getPrototypeOf(input);
+              var descriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+              if (descriptor && typeof descriptor.set === 'function') {
+                descriptor.set.call(input, value);
+              } else {
+                input.value = value;
+              }
+              try {
+                input.dispatchEvent(new InputEvent('input', { bubbles: true, inputType: 'insertReplacementText', data: value }));
+              } catch (_) {
+                input.dispatchEvent(new Event('input', { bubbles: true }));
+              }
+              input.dispatchEvent(new Event('change', { bubbles: true }));
+              return true;
+            }
+            function usernameScore(input) {
+              if (!isUsable(input)) return -1;
+              var type = (input.getAttribute('type') || '').toLowerCase();
+              if (type && type !== 'text' && type !== 'email' && type !== 'search' && type !== 'tel') return -1;
+              var autocomplete = (input.getAttribute('autocomplete') || '').toLowerCase();
+              var name = ((input.getAttribute('name') || '') + ' ' + (input.getAttribute('id') || '') + ' ' + (input.getAttribute('aria-label') || '')).toLowerCase();
+              var score = 0;
+              if (autocomplete.indexOf('username') >= 0) score += 8;
+              if (autocomplete.indexOf('email') >= 0) score += 5;
+              if (/user|login|email|mail|identifiant|client/.test(name)) score += 4;
+              if (type === 'email') score += 3;
+              return score;
+            }
+            function findPassword(root) {
+              return Array.prototype.find.call(root.querySelectorAll('input[type="password"],input[autocomplete*="password" i]'), isUsable) || null;
+            }
+            function findUsername(root, active) {
+              if (usernameScore(active) >= 0) return active;
+              var candidates = Array.prototype.filter.call(
+                root.querySelectorAll('input[type="text"],input[type="email"],input[type="search"],input[type="tel"],input:not([type]),input[autocomplete*="username" i]'),
+                function(input) { return usernameScore(input) >= 0; }
+              );
+              candidates.sort(function(a, b) { return usernameScore(b) - usernameScore(a); });
+              return candidates[0] || null;
+            }
+            var active = deepActive(document.activeElement);
+            var last = window.__mzrLastEditable || null;
+            var anchor = isInput(active) ? active : isInput(last) ? last : null;
+            var root = (anchor && anchor.form) || document;
+            var passwordInput = isUsable(anchor) && ((anchor.getAttribute('type') || '').toLowerCase() === 'password') ? anchor : findPassword(root);
+            if (!passwordInput && root !== document) passwordInput = findPassword(document);
+            var usernameInput = findUsername(root, anchor);
+            if (!usernameInput && root !== document) usernameInput = findUsername(document, anchor);
+            if (!passwordInput && !usernameInput) return false;
+            var changed = false;
+            if (payload.username && usernameInput) changed = setNativeValue(usernameInput, payload.username) || changed;
+            if (payload.password && passwordInput) changed = setNativeValue(passwordInput, payload.password) || changed;
+            if (passwordInput) {
+              try { passwordInput.focus({ preventScroll: true }); } catch (_) { try { passwordInput.focus(); } catch (__) {} }
+            }
+            return changed;
+          } catch (_) {
+            return false;
+          }
+        })(${JSON.stringify({ username, password })});`,
+        true
+      ), FRAME_SCRIPT_TIMEOUT_MS, false);
+      if (result === true) return true;
+    } catch {
+      // try next frame
+    }
+  }
+  return false;
+};
+
 const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
   try {
     const found = await findEditableFrame(wc);
@@ -239,29 +467,87 @@ const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promis
       return { ok: false, reason: found.reason ?? 'no-editable-frame' };
     }
     const payload = JSON.stringify(text);
-    const result = await frame.executeJavaScript(
+    const result = await withTimeout(frame.executeJavaScript(
       `(function(t){
         try {
-          var el = document.activeElement;
-          if (!el) return false;
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function isEditable(el) {
+            if (!el) return false;
+            var tag = (el.tagName || '').toLowerCase();
+            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
+          }
+          function safeSelection(el, val) {
+            var len = val.length;
+            var start = len;
+            var end = len;
+            try {
+              if (typeof el.selectionStart === 'number') start = el.selectionStart;
+            } catch (_) {}
+            try {
+              if (typeof el.selectionEnd === 'number') end = el.selectionEnd;
+            } catch (_) {
+              end = start;
+            }
+            if (!Number.isFinite(start)) start = len;
+            if (!Number.isFinite(end)) end = start;
+            start = Math.max(0, Math.min(len, start));
+            end = Math.max(0, Math.min(len, end));
+            return { start: start, end: end };
+          }
+          function setNativeValue(el, value) {
+            try {
+              var proto = Object.getPrototypeOf(el);
+              var descriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+              if (descriptor && typeof descriptor.set === 'function') {
+                descriptor.set.call(el, value);
+                return;
+              }
+            } catch (_) {}
+            el.value = value;
+          }
+          function safeSetSelection(el, pos) {
+            try {
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
+            } catch (_) {}
+          }
+          var el = deepActive(document.activeElement);
+          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+            el = window.__mzrLastEditable;
+          }
+          if (!isEditable(el)) return false;
           var tag = (el.tagName || '').toLowerCase();
           if (tag === 'textarea' || tag === 'input') {
             if (el.disabled || el.readOnly) return false;
             var val = String(el.value || '');
-            var start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
-            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
-            if (typeof el.setRangeText === 'function') {
-              el.setRangeText(t, start, end, 'end');
-            } else {
-              el.value = val.slice(0, start) + t + val.slice(end);
-              var pos = start + t.length;
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(pos, pos);
+            var selection = safeSelection(el, val);
+            var start = selection.start;
+            var end = selection.end;
+            var pos = start + t.length;
+            var changedViaRange = false;
+            try {
+              if (typeof el.setRangeText === 'function') {
+                el.setRangeText(t, start, end, 'end');
+                changedViaRange = true;
+              }
+            } catch (_) {}
+            if (!changedViaRange) {
+              setNativeValue(el, val.slice(0, start) + t + val.slice(end));
+              safeSetSelection(el, pos);
             }
             try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-            try {
-              var caret = typeof el.selectionStart === 'number' ? el.selectionStart : start + t.length;
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(caret, caret);
-            } catch (_) {}
+            safeSetSelection(el, pos);
             try {
               el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertText', data: t, bubbles: true, cancelable: true }));
             } catch (_) {}
@@ -293,7 +579,7 @@ const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promis
         }
       })(${payload});`,
       true
-    );
+    ), FRAME_SCRIPT_TIMEOUT_MS, false);
     return {
       ok: result === true,
       reason: result === true ? 'focused-frame-dom' : 'focused-frame-dom-false',
@@ -318,30 +604,86 @@ const handleKeyInEditableFrame = async (
       return { ok: false, reason: found.reason ?? 'no-editable-frame' };
     }
     const payload = JSON.stringify(key);
-    const result = await frame.executeJavaScript(
+    const result = await withTimeout(frame.executeJavaScript(
       `(function(key){
         try {
-          var el = document.activeElement;
-          if (!el) return false;
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function isEditable(el) {
+            if (!el) return false;
+            var tag = (el.tagName || '').toLowerCase();
+            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
+          }
+          function safeSelection(el, val) {
+            var len = val.length;
+            var start = len;
+            var end = len;
+            try {
+              if (typeof el.selectionStart === 'number') start = el.selectionStart;
+            } catch (_) {}
+            try {
+              if (typeof el.selectionEnd === 'number') end = el.selectionEnd;
+            } catch (_) {
+              end = start;
+            }
+            if (!Number.isFinite(start)) start = len;
+            if (!Number.isFinite(end)) end = start;
+            start = Math.max(0, Math.min(len, start));
+            end = Math.max(0, Math.min(len, end));
+            return { start: start, end: end };
+          }
+          function setNativeValue(el, value) {
+            try {
+              var proto = Object.getPrototypeOf(el);
+              var descriptor = proto ? Object.getOwnPropertyDescriptor(proto, 'value') : null;
+              if (descriptor && typeof descriptor.set === 'function') {
+                descriptor.set.call(el, value);
+                return;
+              }
+            } catch (_) {}
+            el.value = value;
+          }
+          function safeSetSelection(el, start, end) {
+            try {
+              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(start, end);
+            } catch (_) {}
+          }
+          var el = deepActive(document.activeElement);
+          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+            el = window.__mzrLastEditable;
+          }
+          if (!isEditable(el)) return false;
           var tag = (el.tagName || '').toLowerCase();
           var isTextControl = tag === 'textarea' || tag === 'input';
           if (isTextControl) {
             if (el.disabled || el.readOnly) return false;
             var val = String(el.value || '');
-            var start = typeof el.selectionStart === 'number' ? el.selectionStart : val.length;
-            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
+            var selection = safeSelection(el, val);
+            var start = selection.start;
+            var end = selection.end;
             var nextStart = start;
             var nextEnd = end;
             if (key === 'Backspace') {
               if (start !== end) {
-                el.value = val.slice(0, start) + val.slice(end);
+                setNativeValue(el, val.slice(0, start) + val.slice(end));
                 nextStart = nextEnd = start;
               } else if (start > 0) {
-                el.value = val.slice(0, start - 1) + val.slice(end);
+                setNativeValue(el, val.slice(0, start - 1) + val.slice(end));
                 nextStart = nextEnd = start - 1;
               }
               try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+              safeSetSelection(el, nextStart, nextEnd);
               try {
                 el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'deleteContentBackward', bubbles: true, cancelable: true }));
               } catch (_) {}
@@ -356,17 +698,17 @@ const handleKeyInEditableFrame = async (
                 nextStart = nextEnd = key === 'ArrowLeft' ? Math.max(0, start - 1) : Math.min(val.length, start + 1);
               }
               try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-              if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+              safeSetSelection(el, nextStart, nextEnd);
               try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
               return true;
             }
             if (key === 'Enter') {
               if (tag === 'textarea') {
                 var insert = '\\n';
-                el.value = val.slice(0, start) + insert + val.slice(end);
+                setNativeValue(el, val.slice(0, start) + insert + val.slice(end));
                 nextStart = nextEnd = start + 1;
                 try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-                if (typeof el.setSelectionRange === 'function') el.setSelectionRange(nextStart, nextEnd);
+                safeSetSelection(el, nextStart, nextEnd);
                 try {
                   el.dispatchEvent(new InputEvent('beforeinput', { inputType: 'insertLineBreak', bubbles: true, cancelable: true }));
                 } catch (_) {}
@@ -425,7 +767,7 @@ const handleKeyInEditableFrame = async (
         }
       })(${payload});`,
       true
-    );
+    ), FRAME_SCRIPT_TIMEOUT_MS, false);
     return {
       ok: result === true,
       reason: result === true ? 'focused-frame-key-dom' : 'focused-frame-key-dom-false',
@@ -444,7 +786,7 @@ const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> =>
     const found = await findEditableFrame(wc);
     const frame = found.frame;
     if (!frame) return false;
-    const result = await frame.executeJavaScript(
+    const result = await withTimeout(frame.executeJavaScript(
       `(function(){
         try {
           function ensureCaretVisible(el) {
@@ -500,8 +842,29 @@ const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> =>
             } catch (_) {}
           }
 
-          var el = document.activeElement;
-          if (!el) return false;
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          function isEditable(el) {
+            if (!el) return false;
+            var tag = (el.tagName || '').toLowerCase();
+            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
+          }
+          var el = deepActive(document.activeElement);
+          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
+            el = window.__mzrLastEditable;
+          }
+          if (!isEditable(el)) return false;
           var tag = (el.tagName || '').toLowerCase();
           if (tag === 'textarea' || tag === 'input') {
             try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
@@ -523,224 +886,10 @@ const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> =>
         }
       })();`,
       true
-    );
+    ), FRAME_SCRIPT_TIMEOUT_MS, false);
     return result === true;
   } catch {
     return false;
-  }
-};
-
-const restoreCaretInTopDocument = async (wc: WebContents): Promise<boolean> => {
-  try {
-    const result = await wc.executeJavaScript(
-      `(function(){
-        try {
-          function deepActive(startEl) {
-            var current = startEl || document.activeElement;
-            var depth = 0;
-            while (current && depth < 8) {
-              if (current.shadowRoot && current.shadowRoot.activeElement) {
-                current = current.shadowRoot.activeElement;
-                depth++;
-                continue;
-              }
-              break;
-            }
-            return current;
-          }
-          function isEditable(el) {
-            if (!el) return false;
-            var tag = (el.tagName || '').toLowerCase();
-            return !!el.isContentEditable || tag === 'textarea' || tag === 'input';
-          }
-          function ensureCaretVisible(el) {
-            try {
-              var tag = (el.tagName || '').toLowerCase();
-              if (tag !== 'textarea' && tag !== 'input') return;
-              var value = String(el.value || '');
-              var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
-              var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
-              var pos = Math.max(start, end);
-              var style = getComputedStyle(el);
-              var padL = parseFloat(style.paddingLeft || '0') || 0;
-              var padR = parseFloat(style.paddingRight || '0') || 0;
-              var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
-              var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
-              if (!ctx) return;
-              var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
-              if (font) ctx.font = font;
-              var before = value.slice(0, pos);
-              var measureText = tag === 'textarea' ? (before.split('\n').pop() || '') : before;
-              var caretX = ctx.measureText(measureText).width;
-              var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
-              var viewLeft = el.scrollLeft;
-              var viewRight = viewLeft + visibleWidth;
-              if (caretX <= 1) {
-                el.scrollLeft = 0;
-              } else if (caretX < viewLeft + 2) {
-                el.scrollLeft = Math.max(0, caretX - 4);
-              } else if (caretX > viewRight - 2) {
-                el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
-              }
-              if (tag === 'textarea') {
-                var padT = parseFloat(style.paddingTop || '0') || 0;
-                var padB = parseFloat(style.paddingBottom || '0') || 0;
-                var borderT = parseFloat(style.borderTopWidth || '0') || 0;
-                var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
-                var lineHeight = parseFloat(style.lineHeight || '');
-                if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-                  var fontSize = parseFloat(style.fontSize || '16') || 16;
-                  lineHeight = Math.round(fontSize * 1.3);
-                }
-                var lineIndex = before.split('\n').length - 1;
-                var caretTop = lineIndex * lineHeight + padT + borderT;
-                var visibleHeight = el.clientHeight - padB - borderB;
-                var viewTop = el.scrollTop;
-                var viewBottom = viewTop + visibleHeight;
-                if (caretTop < viewTop) {
-                  el.scrollTop = Math.max(0, caretTop - 4);
-                } else if (caretTop + lineHeight > viewBottom) {
-                  el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
-                }
-              }
-            } catch (_) {}
-          }
-
-          var el = deepActive(document.activeElement);
-          if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
-            el = window.__mzrLastEditable;
-          }
-          if (!isEditable(el)) return false;
-          var tag = (el.tagName || '').toLowerCase();
-          try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-          if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
-            el.setSelectionRange(el.selectionStart, el.selectionEnd);
-            ensureCaretVisible(el);
-          }
-          try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
-          return true;
-        } catch (error) {
-          return false;
-        }
-      })();`,
-      false
-    );
-    return result === true;
-  } catch {
-    return false;
-  }
-};
-
-const scheduleCaretRestoreInTopDocument = async (wc: WebContents): Promise<void> => {
-  try {
-    await wc.executeJavaScript(
-      `(function(){
-        try {
-          if (window.__mzrCaretRestoreTimerIds && Array.isArray(window.__mzrCaretRestoreTimerIds)) {
-            for (var i = 0; i < window.__mzrCaretRestoreTimerIds.length; i++) {
-              try { window.clearTimeout(window.__mzrCaretRestoreTimerIds[i]); } catch (_) {}
-            }
-          }
-          window.__mzrCaretRestoreTimerIds = [];
-          var delays = [0, 24, 80, 180];
-          function isEditable(el) {
-            if (!el) return false;
-            if (el.isContentEditable) return true;
-            var tag = (el.tagName || '').toLowerCase();
-            return tag === 'textarea' || tag === 'input';
-          }
-          function deepActive(startEl) {
-            var current = startEl || document.activeElement;
-            var depth = 0;
-            while (current && depth < 8) {
-              if (current.shadowRoot && current.shadowRoot.activeElement) {
-                current = current.shadowRoot.activeElement;
-                depth++;
-                continue;
-              }
-              break;
-            }
-            return current;
-          }
-          function restore() {
-            try {
-              function ensureCaretVisible(el) {
-                try {
-                  var tag = (el.tagName || '').toLowerCase();
-                  if (tag !== 'textarea' && tag !== 'input') return;
-                  var value = String(el.value || '');
-                  var start = typeof el.selectionStart === 'number' ? el.selectionStart : value.length;
-                  var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : start;
-                  var pos = Math.max(start, end);
-                  var style = getComputedStyle(el);
-                  var padL = parseFloat(style.paddingLeft || '0') || 0;
-                  var padR = parseFloat(style.paddingRight || '0') || 0;
-                  var canvas = window.__mzrCaretCanvas || (window.__mzrCaretCanvas = document.createElement('canvas'));
-                  var ctx = canvas && canvas.getContext ? canvas.getContext('2d') : null;
-                  if (!ctx) return;
-                  var font = ((style.fontWeight || '') + ' ' + (style.fontSize || '') + ' ' + (style.fontFamily || '')).trim();
-                  if (font) ctx.font = font;
-                  var before = value.slice(0, pos);
-                  var measureText = tag === 'textarea' ? (before.split('\\n').pop() || '') : before;
-                  var caretX = ctx.measureText(measureText).width;
-                  var visibleWidth = Math.max(0, el.clientWidth - padL - padR);
-                  var viewLeft = el.scrollLeft;
-                  var viewRight = viewLeft + visibleWidth;
-                  if (caretX <= 1) {
-                    el.scrollLeft = 0;
-                  } else if (caretX < viewLeft + 2) {
-                    el.scrollLeft = Math.max(0, caretX - 4);
-                  } else if (caretX > viewRight - 2) {
-                    el.scrollLeft = Math.max(0, caretX - visibleWidth + 4);
-                  }
-                  if (tag === 'textarea') {
-                    var padT = parseFloat(style.paddingTop || '0') || 0;
-                    var padB = parseFloat(style.paddingBottom || '0') || 0;
-                    var borderT = parseFloat(style.borderTopWidth || '0') || 0;
-                    var borderB = parseFloat(style.borderBottomWidth || '0') || 0;
-                    var lineHeight = parseFloat(style.lineHeight || '');
-                    if (!Number.isFinite(lineHeight) || lineHeight <= 0) {
-                      var fontSize = parseFloat(style.fontSize || '16') || 16;
-                      lineHeight = Math.round(fontSize * 1.3);
-                    }
-                    var lineIndex = before.split('\\n').length - 1;
-                    var caretTop = lineIndex * lineHeight + padT + borderT;
-                    var visibleHeight = el.clientHeight - padB - borderB;
-                    var viewTop = el.scrollTop;
-                    var viewBottom = viewTop + visibleHeight;
-                    if (caretTop < viewTop) {
-                      el.scrollTop = Math.max(0, caretTop - 4);
-                    } else if (caretTop + lineHeight > viewBottom) {
-                      el.scrollTop = Math.max(0, caretTop - visibleHeight + lineHeight + 4);
-                    }
-                  }
-                } catch (_) {}
-              }
-
-              var el = deepActive(document.activeElement);
-              if (!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)) {
-                el = window.__mzrLastEditable;
-              }
-              if (!isEditable(el)) return;
-              try { el.focus({ preventScroll: true }); } catch (_) { try { el.focus(); } catch (__) {} }
-              var tag = (el.tagName || '').toLowerCase();
-              if ((tag === 'textarea' || tag === 'input') && typeof el.selectionStart === 'number' && typeof el.selectionEnd === 'number' && typeof el.setSelectionRange === 'function') {
-                el.setSelectionRange(el.selectionStart, el.selectionEnd);
-                ensureCaretVisible(el);
-              }
-              try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch (_) {}
-            } catch (_) {}
-          }
-          for (var d = 0; d < delays.length; d++) {
-            var id = window.setTimeout(restore, delays[d]);
-            window.__mzrCaretRestoreTimerIds.push(id);
-          }
-        } catch (_) {}
-      })();`,
-      false
-    );
-  } catch {
-    // noop
   }
 };
 
@@ -833,8 +982,20 @@ type ExtendedContextMenuParams = ContextMenuParams & {
   sourceType?: string;
 };
 
+type ContextMenuParamsLike = Partial<ContextMenuParams> & {
+  menuSourceType?: string;
+  sourceType?: string;
+};
+
 type ContextMenuPayload = {
   id?: string;
+};
+
+type SyntheticContextMenuPayload = {
+  x?: unknown;
+  y?: unknown;
+  dpr?: unknown;
+  webContentsId?: unknown;
 };
 
 type ContextMenuSizePayload = {
@@ -891,7 +1052,7 @@ type SessionTabLike = {
 
 type ContextState = {
   wcId: number | null;
-  params: ContextMenuParams | null;
+  params: ContextMenuParamsLike | null;
   x: number;
   y: number;
   linkUrl: string;
@@ -1093,7 +1254,7 @@ const normalizeAddress = (value: string | null | undefined): string => {
   }
 };
 
-const isTouchSource = (params: ContextMenuParams | null | undefined): boolean => {
+const isTouchSource = (params: ContextMenuParamsLike | null | undefined): boolean => {
   const typed = params as ExtendedContextMenuParams | null | undefined;
   const src = String(typed?.menuSourceType ?? typed?.sourceType ?? '').toLowerCase();
   return [
@@ -1106,6 +1267,51 @@ const isTouchSource = (params: ContextMenuParams | null | undefined): boolean =>
     'adjustselection',
     'adjustselectionreset'
   ].includes(src);
+};
+
+const readLiveContextFromPage = async (
+  wc: WebContents | null | undefined
+): Promise<{ selectionText: string; isEditable: boolean; pageUrl: string }> => {
+  if (!wc || wc.isDestroyed()) {
+    return { selectionText: '', isEditable: false, pageUrl: '' };
+  }
+  try {
+    const result = await withTimeout(wc.executeJavaScript(`
+      (function () {
+        try {
+          var text = '';
+          var sel = window.getSelection ? window.getSelection() : null;
+          if (sel && sel.rangeCount && !sel.isCollapsed) {
+            text = String(sel.toString() || '');
+          }
+          var el = document.activeElement;
+          var tag = el && el.tagName ? String(el.tagName).toLowerCase() : '';
+          var isTextControl = tag === 'textarea' || tag === 'input';
+          var editable = !!(el && (el.isContentEditable || isTextControl));
+          if (!text && isTextControl) {
+            var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;
+            var end = typeof el.selectionEnd === 'number' ? el.selectionEnd : 0;
+            if (end > start) text = String((el.value || '').slice(start, end));
+          }
+          return {
+            selectionText: text,
+            isEditable: editable,
+            pageUrl: String(location && location.href || '')
+          };
+        } catch (err) {
+          return { selectionText: '', isEditable: false, pageUrl: '' };
+        }
+      })();
+    `, true), FRAME_SCRIPT_TIMEOUT_MS, null);
+    const raw = result as { selectionText?: unknown; isEditable?: unknown; pageUrl?: unknown } | null;
+    return {
+      selectionText: typeof raw?.selectionText === 'string' ? raw.selectionText : '',
+      isEditable: Boolean(raw?.isEditable),
+      pageUrl: typeof raw?.pageUrl === 'string' ? raw.pageUrl : ''
+    };
+  } catch {
+    return { selectionText: '', isEditable: false, pageUrl: '' };
+  }
 };
 
 const resolveOwnerWindow = (wc: WebContents): BrowserWindow | null => {
@@ -1163,9 +1369,10 @@ const buildCtxMenuState = async (): Promise<{
     const canForward = wc?.navigationHistory.canGoForward?.() ?? false;
 
     const params = ctx?.params ?? null;
-    const selection = params?.selectionText ?? '';
+    const liveContext = await readLiveContextFromPage(wc);
+    const selection = params?.selectionText || liveContext.selectionText || '';
     const hasSelection = Boolean(selection && selection.trim().length);
-    const isEditable = Boolean(params?.isEditable);
+    const isEditable = Boolean(params?.isEditable || liveContext.isEditable);
 
     let canPaste = false;
     try {
@@ -1178,8 +1385,18 @@ const buildCtxMenuState = async (): Promise<{
     const linkUrl = ctx?.linkUrl ?? '';
     const mediaType = typeof params?.mediaType === 'string' ? params.mediaType : '';
     const mediaSrc = typeof params?.srcURL === 'string' ? params.srcURL : '';
-    const pageUrl = typeof params?.pageURL === 'string' ? params.pageURL : '';
-    const autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
+    const pageUrl =
+      typeof params?.pageURL === 'string' && params.pageURL
+        ? params.pageURL
+        : liveContext.pageUrl || wc?.getURL?.() || '';
+    let autofill = getAutofillStateForWebContents(ctx?.wcId ?? undefined);
+    if (wc && ctx?.wcId != null) {
+      const frameFocus = await detectPasswordFieldFocusInFrames(wc);
+      if (frameFocus) {
+        registerPasswordFieldFocus(ctx.wcId, frameFocus);
+        autofill = getAutofillStateForWebContents(ctx.wcId);
+      }
+    }
     return {
       canBack,
       canForward,
@@ -1223,7 +1440,8 @@ const notifyCtxHide = (): void => {
 
 const openCtxWindowFor = async (
   contents: WebContents | null,
-  params: ContextMenuParams | null | undefined
+  params: ContextMenuParamsLike | null | undefined,
+  options: { bypassSiteExclusion?: boolean; point?: { x: number; y: number } } = {}
 ): Promise<void> => {
   const rawMode = windows.getCurrentMode ? windows.getCurrentMode() : null;
   const normalizedMode: ContextMenuMode = rawMode === 'mobile' ? 'mobile' : 'desktop';
@@ -1245,18 +1463,22 @@ const openCtxWindowFor = async (
 
   ctxMenuMode = normalizedMode;
 
-  if (ctxOpening) return;
+  if (ctxOpening) {
+    return;
+  }
   ctxOpening = true;
   setTimeout(() => {
     ctxOpening = false;
   }, 280);
 
   const targetWc = getTargetWebContents(contents);
-  if (!targetWc || targetWc.isDestroyed()) return;
+  if (!targetWc || targetWc.isDestroyed()) {
+    return;
+  }
 
   try {
     const currentUrl = targetWc.getURL?.() ?? '';
-    if (currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
+    if (!options.bypassSiteExclusion && currentUrl && isCtxtExcludedSite(currentUrl, { isEditable: Boolean(params?.isEditable) })) {
       return;
     }
   } catch {
@@ -1264,11 +1486,15 @@ const openCtxWindowFor = async (
   }
 
   const ownerWin = resolveOwnerWindow(targetWc);
-  if (!ownerWin || ownerWin.isDestroyed()) return;
+  if (!ownerWin || ownerWin.isDestroyed()) {
+    return;
+  }
 
-  const cursor = screen.getCursorScreenPoint();
+  const cursor = options.point ?? screen.getCursorScreenPoint();
   const ownerId = ownerWin.webContents.id;
-  if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) return;
+  if (!shouldOpenCtxNow(cursor.x, cursor.y, ownerId)) {
+    return;
+  }
 
   global.lastCtx = {
     wcId: targetWc.id,
@@ -1411,6 +1637,12 @@ const startApp = async (): Promise<void> => {
   if (featureFlags.size > 0) {
     app.commandLine.appendSwitch('enable-features', Array.from(featureFlags).join(','));
   }
+  //for dev only -->
+  const proxy = process.env.MZR_PROXY
+  if (proxy) {
+    app.commandLine.appendSwitch('proxy-server', proxy)
+  }
+  //<--
 
   applySecureDnsCommandLine(secureDnsResolved);
 
@@ -1443,6 +1675,7 @@ const startApp = async (): Promise<void> => {
     windows.installUserAgentOverride(session.defaultSession);
     installCookiePolicy(session.defaultSession);
     void applySecureDnsFromSettings(getTorState().enabled);
+    void detectCountryFromIp({ persist: true });
     windows.createMainWindow();
 
     screen.on('display-added', () => windows.rebalanceMainWindow());
@@ -1514,11 +1747,48 @@ app.on('web-contents-created', (_event: Event, contents: WebContents) => {
   });
 });
 
+ipcMain.on('mzr:ctxmenu:open', (_event, payload: SyntheticContextMenuPayload) => {
+  const webContentsId = Number(payload?.webContentsId);
+  const x = Number(payload?.x);
+  const y = Number(payload?.y);
+  const target = Number.isFinite(webContentsId) ? webContents.fromId(webContentsId) : null;
+  if (!target || target.isDestroyed()) return;
+  void (async () => {
+    const liveContext = await readLiveContextFromPage(target);
+    const params: ContextMenuParamsLike = {
+      x: Number.isFinite(x) ? x : 0,
+      y: Number.isFinite(y) ? y : 0,
+      selectionText: liveContext.selectionText,
+      isEditable: liveContext.isEditable,
+      pageURL: liveContext.pageUrl || target.getURL?.() || '',
+      linkURL: '',
+      menuSourceType: 'touch'
+    };
+    const host = (() => {
+      try {
+        return new URL(params.pageURL || target.getURL?.() || '').hostname;
+      } catch {
+        return '';
+      }
+    })();
+    const bypassSiteExclusion =
+      /(^|\.)web\.telegram\.org$/i.test(host) &&
+      Boolean(liveContext.selectionText.trim().length);
+    await openCtxWindowFor(target, params, {
+      bypassSiteExclusion,
+      point: {
+        x: Number.isFinite(x) ? x : 0,
+        y: Number.isFinite(y) ? y : 0
+      }
+    });
+  })();
+});
+
 ipcMain.handle('mzr:ctxmenu:get-state', async () => {
   return buildCtxMenuState();
 });
 
-ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
+ipcMain.on('mzr:ctxmenu:click', async (_event, payload: ContextMenuPayload) => {
   const id = payload?.id;
   if (!id) return;
   try {
@@ -1541,6 +1811,11 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
         const entryId = id.slice('pw-fill:'.length);
         try {
           const secret = getEntrySecret(entryId);
+          const filledInFrame = await fillCredentialsIntoFocusedFrame(wc, {
+            username: secret.username,
+            password: secret.password
+          });
+          if (filledInFrame) return;
           wc.send('merezhyvo:pw:fill', {
             entryId,
             username: secret.username,
@@ -1578,8 +1853,16 @@ ipcMain.on('mzr:ctxmenu:click', (_event, payload: ContextMenuPayload) => {
               try {
                 var sel = window.getSelection ? window.getSelection() : null;
                 if (sel && sel.rangeCount && !sel.isCollapsed) {
-                  return String(sel.toString() || '');
+                  var liveText = String(sel.toString() || '');
+                  var rememberedText = window.__mzrSel && typeof window.__mzrSel.lastSelectionText === 'string'
+                    ? window.__mzrSel.lastSelectionText
+                    : '';
+                  return rememberedText.trim().length > liveText.trim().length ? rememberedText : liveText;
                 }
+                var remembered = window.__mzrSel && typeof window.__mzrSel.lastSelectionText === 'string'
+                  ? window.__mzrSel.lastSelectionText
+                  : '';
+                if (remembered.trim()) return remembered;
                 var el = document.activeElement;
                 if (el && (el.tagName === 'INPUT' || el.tagName === 'TEXTAREA')) {
                   var start = typeof el.selectionStart === 'number' ? el.selectionStart : 0;
@@ -2532,6 +2815,8 @@ ipcMain.handle('about:get-info', async () => {
   };
 });
 
+ipcMain.on('mzr:osk:debug', () => {});
+
 ipcMain.handle('merezhyvo:settings:tor:set-keep', async (_event, payload: unknown) => {
   const keepEnabled =
     typeof payload === 'boolean'
@@ -2610,6 +2895,25 @@ ipcMain.handle('merezhyvo:settings:network:update-detected', async (_event, payl
   } catch (err) {
     console.error('[merezhyvo] settings network update failed', err);
     return sanitizeNetworkSettings(payload);
+  }
+});
+
+ipcMain.handle('merezhyvo:settings:network:detect-country', async (_event, payload: unknown) => {
+  const ip = payload && typeof payload === 'object' && typeof (payload as { ip?: unknown }).ip === 'string'
+    ? (payload as { ip: string }).ip
+    : null;
+  const persist = payload && typeof payload === 'object' && typeof (payload as { persist?: unknown }).persist === 'boolean'
+    ? (payload as { persist: boolean }).persist
+    : true;
+  return detectCountryFromIp({ ip, persist });
+});
+
+ipcMain.handle('merezhyvo:network:get-direct-ip', async () => {
+  try {
+    const ip = await fetchDirectIp();
+    return { ok: true, ip };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : String(err) };
   }
 });
 
@@ -2751,15 +3055,27 @@ ipcMain.handle(
     const activeTag = typeof active?.tag === 'string' ? active.tag : '';
     const hasFocus = before?.hasFocus === true;
     const preferInsertText = !hasFocus || activeTag === 'iframe';
-    // Prefer direct DOM insertion into the actual focused frame when top-level focus
-    // is parked on an iframe host. sendInputEvent('char') does not reach that field,
-    // and wc.insertText() was unstable in this scenario on UT.
-    if (preferInsertText) {
-      const frameInsert = await insertTextIntoFocusedFrame(wc, payload);
-      if (frameInsert.ok) {
-        await restoreCaretInEditableFrame(wc);
-        return { ok: true };
+    // Prefer direct DOM insertion into the actual focused frame. On Ubuntu Touch,
+    // tapping the OSK can blur the top-level webview while the real target remains
+    // cached as window.__mzrLastEditable inside an iframe; trusted char events then
+    // miss the field.
+    const frameInsert = await insertTextIntoFocusedFrame(wc, payload);
+    windows.logUserAgentDebug('osk.char.route', {
+      webContentsId: wc.id,
+      url: typeof wc.getURL === 'function' ? wc.getURL() : '',
+      targetUrl: typeof wc.getURL === 'function' ? wc.getURL() : '',
+      payload: {
+        route: frameInsert.ok ? 'focused-frame-dom' : 'native-input-fallback',
+        reason: frameInsert.reason,
+        preferInsertText,
+        hasFocus,
+        activeTag,
+        probeDetail: frameInsert.probeDetail ?? null
       }
+    });
+    if (frameInsert.ok) {
+      await restoreCaretInEditableFrame(wc);
+      return { ok: true };
     }
     // Keep complex Unicode sequences (emoji with ZWJ/VS/modifiers, flags, etc.) atomic.
     // Sending them as per-char input events can split sequences into stray symbols.
@@ -2800,8 +3116,22 @@ ipcMain.handle(
     const hasFocus = before?.hasFocus === true;
     const preferFrameDom = !hasFocus || activeTag === 'iframe';
 
-    if (preferFrameDom && (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter')) {
+    if (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter') {
       const frameKey = await handleKeyInEditableFrame(wc, key);
+      windows.logUserAgentDebug('osk.key.route', {
+        webContentsId: wc.id,
+        url: typeof wc.getURL === 'function' ? wc.getURL() : '',
+        targetUrl: typeof wc.getURL === 'function' ? wc.getURL() : '',
+        payload: {
+          route: frameKey.ok ? 'focused-frame-dom' : 'native-input-fallback',
+          reason: frameKey.reason,
+          preferFrameDom,
+          hasFocus,
+          activeTag,
+          key,
+          probeDetail: frameKey.probeDetail ?? null
+        }
+      });
       if (frameKey.ok) {
         await restoreCaretInEditableFrame(wc);
         return { ok: true };

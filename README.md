@@ -138,6 +138,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 
   - Search across open tabs and smart address bar suggestions from history and bookmarks.
 
+  - Customisable Start Page with search, top sites, favorite sites, partner stores, and fresh coupon site shortcuts. Favorite, partner, and coupon shortcuts page through 6 visible items at a time; coupon shortcuts are loaded progressively for large merchant catalogs. Partner stores are controlled only by the Start Page setting and stay independent from the global Savings toggle.
+
 
 - **Predictable downloads & safe uploads**
 
@@ -260,8 +262,10 @@ You need a Linux dev machine with:
     
 *   **Clickable** installed and working (`clickable --version`);
     *   Practical note as of April 2026: if `clickable-ut 8.8.0` fails for `ubuntu-touch-24.04-1.x` with `requires ... image version 13 or higher (found 12)`, temporarily use `clickable-ut==8.7.0`.
+    *   On macOS, `./tools/build-click.sh` automatically adds the Python user bin directory to `PATH`, so a `pip --user` install is enough.
     
-*   **Docker** running (Clickable uses it to build the final `.click`).
+*   **Colima/Docker** available (Clickable uses Docker to build the final `.click`).
+    *   On Apple Silicon, `./tools/build-click.sh` starts the ARM Colima profile `ut-arm64` before Clickable packaging and stops it when the script exits. Set `MEREZHYVO_STOP_COLIMA_AFTER_BUILD=0` if you want to keep it running.
     
 
 Quick sanity check:
@@ -272,7 +276,7 @@ npm \-v
 
 clickable \--version
 
-docker ps
+colima list
 
 If needed, reinstall a known working Clickable version:
 
@@ -358,6 +362,10 @@ Internal settings are stored in a JSON file under the user's `~/.config` directo
 
 This includes UI preferences (theme (dark/light), scaling, keyboard layouts), privacy, security and network options (HTTPS mode, WebRTC policy, third-party cookies, tracker/ad blocking, Tor and Secure DNS), and per-site exception lists..
 
+Merezhyvo may also cache the currently detected network country, IP address, and timezone. These values are used for local features such as country-aware coupons and for browser compatibility on platforms where the system timezone can be wrong (for example Ubuntu Touch reporting UTC). The browser prefers the network-detected timezone for anti-bot/captcha consistency, instead of hard-coding a country-specific timezone.
+
+Anti-bot and captcha fingerprint diagnostics are available for device debugging by starting the app with `MZR_UA_DEBUG=1`. This writes a local `ua-debug.log` under the app data directory; production builds do not enable this logging unless the environment variable is explicitly set.
+
 
 - - -
 
@@ -375,6 +383,8 @@ Merezhyvo includes several tools that can help improve privacy:
 *   **Tracker and ad blocking (domain-based)** with separate global toggles and per-site exceptions.
 *   **WebRTC privacy modes** (always allowed / always blocked / blocked when Tor is enabled).
 *   **Site data management** page to inspect and clear stored cookies and site data per site, or wipe everything at once.
+
+For country/timezone detection, Merezhyvo can query public IP geolocation services at startup or when the network country is refreshed. This is not analytics and is not tied to browsing history, but the service used for that lookup will see the IP address making the request.
 
 Tor support can further improve privacy by routing traffic through the Tor network, but:
 

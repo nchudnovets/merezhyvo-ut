@@ -49,44 +49,14 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
           return;
         }
       }
-      const fetchPrimary = async (): Promise<{ country: string; ip: string | null }> => {
-        const endpoint = normalizedIp ? `https://ipwho.is/${normalizedIp}` : 'https://ipwho.is/';
-        const response = await fetch(endpoint, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Primary geo failed');
-        const data = (await response.json().catch(() => ({}))) as {
-          country_code?: string;
-          ip?: string;
-          success?: boolean;
-        };
-        if (data.success === false) throw new Error('Primary geo failed');
-        return { country: normalizeCountry(data.country_code), ip: typeof data.ip === 'string' ? data.ip : null };
-      };
-      const fetchFallback = async (): Promise<{ country: string; ip: string | null }> => {
-        const endpoint = normalizedIp ? `https://ipapi.co/${normalizedIp}/json/` : 'https://ipapi.co/json/';
-        const response = await fetch(endpoint, { cache: 'no-store' });
-        if (!response.ok) throw new Error('Fallback geo failed');
-        const data = (await response.json().catch(() => ({}))) as { country_code?: string; ip?: string };
-        return { country: normalizeCountry(data.country_code), ip: typeof data.ip === 'string' ? data.ip : null };
-      };
-      let data = await fetchPrimary();
-      if (!data.country) {
-        data = await fetchFallback();
-      }
-      const country = data.country;
+      const data = await ipc.settings.network.detectCountry(
+        normalizedIp ? { ip: normalizedIp, persist: !torEnabled } : { persist: !torEnabled }
+      );
+      const country = normalizeCountry(data.countryCode);
       if (country) {
         setAccessBlocked(bannedCountries.includes(country));
       } else {
         setAccessBlocked(false);
-      }
-      if (!torEnabled) {
-        const detectedIp = normalizedIp || data.ip;
-        if (detectedIp && country) {
-          void ipc.settings.network.updateDetected({
-            detectedIp,
-            detectedCountry: country,
-            detectedAt: new Date().toISOString()
-          });
-        }
       }
     } catch {
       setAccessBlocked(false);
@@ -98,10 +68,8 @@ export const useTorSettings = ({ showGlobalToast }: UseTorSettingsParams) => {
     torIpRequestRef.current = requestId;
     setTorIpLoading(true);
     const fetchIpDirect = async (): Promise<string> => {
-      const response = await fetch('https://api.ipify.org?format=json', { cache: 'no-store' });
-      if (!response.ok) throw new Error('Failed to fetch IP');
-      const data = (await response.json().catch(() => ({}))) as { ip?: string };
-      return typeof data.ip === 'string' ? data.ip : '';
+      const result = await ipc.settings.network.getDirectIp();
+      return result.ok && typeof result.ip === 'string' ? result.ip : '';
     };
     try {
       let ip = '';

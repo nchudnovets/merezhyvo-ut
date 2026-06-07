@@ -334,6 +334,15 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
     void refreshEntries();
   }, [refreshEntries]);
 
+  useEffect(() => {
+    const handleLocked = () => {
+      showToast(t('passwords.page.toast.locked'));
+      onClose?.();
+    };
+    window.addEventListener('merezhyvo:pw:locked', handleLocked);
+    return () => window.removeEventListener('merezhyvo:pw:locked', handleLocked);
+  }, [onClose, t]);
+
   useEffect(() => () => {
     if (toastTimer.current) {
       window.clearTimeout(toastTimer.current);
@@ -524,9 +533,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
     const api = window.merezhyvo?.passwords;
     if (!api) return;
     await api.lock();
-    showToast(t('passwords.page.toast.locked'));
     setOverflowOpen(false);
-    onClose?.();
   };
 
   const handleDeleteRequest = (entryId: string) => {

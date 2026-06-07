@@ -1,5 +1,5 @@
 import { ipc } from '../../services/ipc/ipc';
-import type { ActiveInputContext } from '../../services/window/window';
+import type { ActiveInputContext, ActiveInputKind } from '../../services/window/window';
 
 declare global {
   interface HTMLElementTagNameMap {
@@ -31,6 +31,36 @@ export interface WebInjects {
 }
 
 export type GetWebview = () => HTMLElementTagNameMap['webview'] | null;
+
+const WEB_INPUT_CONTEXT_TIMEOUT_MS = 450;
+
+const DEFAULT_WEB_INPUT_CONTEXT: ActiveInputContext = {
+  editable: false,
+  kind: 'text',
+  multiline: false
+};
+
+const withTimeoutEffect = async <T>(
+  promise: Promise<T>,
+  timeoutMs: number,
+  fallback: T,
+  onTimeout: () => void
+): Promise<T> => {
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise.catch(() => fallback),
+      new Promise<T>((resolve) => {
+        timer = setTimeout(() => {
+          onTimeout();
+          resolve(fallback);
+        }, timeoutMs);
+      })
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+};
 
 /**
  * Kept for potential future use; underscore to satisfy no-unused-vars.
@@ -1201,7 +1231,37 @@ export function makeWebInjects(
       (function(){
         try{
           var S = window.__mzrSel;
-          if (!S || !S.menuReq) return null;
+          var host = (location && location.hostname) || '';
+          var isTelegramHost = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          function getSelectionMenuPoint(){
+            try {
+              var sel = window.getSelection && window.getSelection();
+              if (!sel || !sel.rangeCount || !sel.toString || sel.toString().trim().length === 0) {
+                return null;
+              }
+              var range = sel.getRangeAt(0);
+              if (!range || range.collapsed) return null;
+              var rects = range.getClientRects();
+              var rect = rects && rects.length ? rects[0] : range.getBoundingClientRect();
+              if (!rect) return null;
+              return {
+                x: Math.round(rect.left + rect.width / 2),
+                y: Math.round(rect.top + Math.max(rect.height, 1))
+              };
+            } catch(_) {
+              return null;
+            }
+          }
+          if (!S || !S.menuReq) {
+            if (isTelegramHost && S && S.selectionCreated && !S.syntheticMenuShown && !S.touching && !S.dragActive && !S.handleDrag) {
+              var point = getSelectionMenuPoint();
+              if (point) {
+                S.syntheticMenuShown = true;
+                return point;
+              }
+            }
+            return null;
+          }
           var m = S.menuReq; S.menuReq = null;
 
           // Only trigger menu if the selection was created
@@ -1333,7 +1393,7 @@ export function makeWebInjects(
 export async function probeWebActiveInputContext(getWebview: GetWebview): Promise<ActiveInputContext> {
   const wv = getWebview();
   if (!wv) {
-    return { editable: false, kind: 'text', multiline: false };
+    return DEFAULT_WEB_INPUT_CONTEXT;
   }
   try {
     const code = `
@@ -1407,6 +1467,33 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
             return base();
           }
 
+          function isVisible(el) {
+            try {
+              if (!el || !el.ownerDocument) return false;
+              var win = el.ownerDocument.defaultView;
+              var style = win && win.getComputedStyle ? win.getComputedStyle(el) : null;
+              if (style && (style.visibility === 'hidden' || style.display === 'none')) return false;
+              var rects = el.getClientRects ? el.getClientRects() : null;
+              return !!rects && rects.length > 0;
+            } catch (_) {
+              return false;
+            }
+          }
+
+          function findVisibleEditable(doc) {
+            try {
+              if (!doc || !doc.querySelectorAll) return null;
+              var nodes = doc.querySelectorAll('input,textarea,[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]');
+              for (var i = 0; i < nodes.length; i++) {
+                var candidate = fromElement(nodes[i]);
+                if (candidate.editable && isVisible(nodes[i])) {
+                  return nodes[i];
+                }
+              }
+            } catch (_) {}
+            return null;
+          }
+
           function deepActive() {
             var current = document.activeElement;
             var depth = 0;
@@ -1422,6 +1509,15 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
                   if (!frameDoc) break;
                   var next = frameDoc.activeElement;
                   if (!next || next === current) break;
+                  var nextTag = (next.tagName || '').toUpperCase();
+                  if (nextTag === 'HTML' || nextTag === 'BODY') {
+                    var visibleEditable = findVisibleEditable(frameDoc);
+                    if (visibleEditable) {
+                      current = visibleEditable;
+                      depth++;
+                      continue;
+                    }
+                  }
                   current = next;
                   depth++;
                   continue;
@@ -1444,13 +1540,18 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
         }
       })();
     `;
-    const result = await wv.executeJavaScript(code, false);
+    const result = await withTimeoutEffect(
+      wv.executeJavaScript(code, false),
+      WEB_INPUT_CONTEXT_TIMEOUT_MS,
+      DEFAULT_WEB_INPUT_CONTEXT,
+      () => {}
+    );
     if (!result || typeof result !== 'object') {
-      return { editable: false, kind: 'text', multiline: false };
+      return DEFAULT_WEB_INPUT_CONTEXT;
     }
     const candidate = result as Partial<ActiveInputContext>;
     const kind = candidate.kind;
-    const normalizedKind =
+    const normalizedKind: ActiveInputKind =
       kind === 'email' ||
       kind === 'numeric' ||
       kind === 'decimal' ||
@@ -1464,7 +1565,7 @@ export async function probeWebActiveInputContext(getWebview: GetWebview): Promis
       multiline: Boolean(candidate.multiline)
     };
   } catch {
-    return { editable: false, kind: 'text', multiline: false };
+    return DEFAULT_WEB_INPUT_CONTEXT;
   }
 }
 

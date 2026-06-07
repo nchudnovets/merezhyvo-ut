@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import type { RefObject, PointerEvent, FocusEvent, FormEvent } from 'react';
 import { useI18n } from '../../i18n/I18nProvider';
 import NavButtons from './NavButtons';
@@ -125,10 +125,193 @@ const Toolbar: React.FC<ToolbarProps> = ({
   const modeStyles = toolbarModeStyles[mode];
   const { t } = useI18n();
   const compact = mode === 'mobile' && inputFocused;
+  const isMobile = mode === 'mobile';
+  const [mobileActionsOpen, setMobileActionsOpen] = useState(false);
+  const mobileActionsRef = useRef<HTMLDivElement | null>(null);
+  const effectiveMobileActionsOpen = mobileActionsOpen && isMobile && !compact;
+
+  useEffect(() => {
+    if (!effectiveMobileActionsOpen) return undefined;
+    const handlePointerDown = (event: globalThis.PointerEvent) => {
+      if (!mobileActionsRef.current?.contains(event.target as Node)) {
+        setMobileActionsOpen(false);
+      }
+    };
+    window.addEventListener('pointerdown', handlePointerDown);
+    return () => window.removeEventListener('pointerdown', handlePointerDown);
+  }, [effectiveMobileActionsOpen]);
+
+  const closeMobileActions = () => setMobileActionsOpen(false);
+
+  const runMobileAction = (action: () => void) => {
+    closeMobileActions();
+    action();
+  };
+
+  const mobileActionButtonStyle = {
+    ...toolbarStyles.navButton,
+    ...(modeStyles.toolbarBtnRegular ?? {})
+  };
+
+  const mobileActionIconStyle = {
+    ...toolbarStyles.navIcon,
+    ...(modeStyles.toolbarBtnIcn ?? {})
+  };
 
   return (
     <div ref={toolbarRef} style={toolbarStyles.toolbar} className="toolbar">
-    {!compact && showMessengerButton && (
+    {!compact && isMobile && (
+      <div
+        ref={mobileActionsRef}
+        style={{
+          position: 'relative',
+          display: 'inline-flex',
+          alignItems: 'center',
+          flexShrink: 0
+        }}
+      >
+        <button
+          type="button"
+          aria-label={effectiveMobileActionsOpen ? t('toolbar.mobileActions.close') : t('toolbar.mobileActions.open')}
+          title={effectiveMobileActionsOpen ? t('toolbar.mobileActions.close') : t('toolbar.mobileActions.open')}
+          aria-expanded={effectiveMobileActionsOpen}
+          onClick={() => setMobileActionsOpen((current) => !current)}
+          style={mobileActionButtonStyle}
+          className="btn-regular"
+        >
+          <svg
+            viewBox="0 0 24 24"
+            style={mobileActionIconStyle}
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2.4"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+            aria-hidden="true"
+          >
+            {effectiveMobileActionsOpen ? (
+              <path d="M18 15l-6-6-6 6" />
+            ) : (
+              <path d="M6 9l6 6 6-6" />
+            )}
+          </svg>
+        </button>
+        {effectiveMobileActionsOpen && (
+          <div
+            style={{
+              position: 'absolute',
+              left: 0,
+              top: 'calc(100% + 8px)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: 10,
+              padding: 10,
+              borderRadius: 28,
+              border: '1px solid var(--mzr-border-strong)',
+              background: 'var(--mzr-surface-elevated, var(--mzr-surface))',
+              boxShadow: '0 18px 38px rgba(0, 0, 0, 0.36)',
+              zIndex: 40
+            }}
+          >
+            {showMessengerButton && (
+              <button
+                type="button"
+                aria-label={t('toolbar.openMessenger')}
+                title={t('toolbar.openMessenger')}
+                onClick={() => runMobileAction(onEnterMessengerMode)}
+                style={mobileActionButtonStyle}
+                className="btn-regular"
+              >
+                <TelegramIcon size={'70%'} />
+              </button>
+            )}
+            <button
+              type="button"
+              aria-label={t('nav.back')}
+              title={t('nav.back')}
+              disabled={!canGoBack}
+              onClick={() => runMobileAction(onBack)}
+              style={{
+                ...mobileActionButtonStyle,
+                ...(canGoBack ? {} : toolbarStyles.navButtonDisabled)
+              }}
+              className="btn-regular"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                style={mobileActionIconStyle}
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M13 8H5M8.5 4.5L5 8l3.5 3.5"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label={t('nav.forward')}
+              title={t('nav.forward')}
+              disabled={!canGoForward}
+              onClick={() => runMobileAction(onForward)}
+              style={{
+                ...mobileActionButtonStyle,
+                ...(canGoForward ? {} : toolbarStyles.navButtonDisabled)
+              }}
+              className="btn-regular"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                style={mobileActionIconStyle}
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  fill="none"
+                  stroke="currentColor"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth="1.5"
+                  d="M3 8h8M7.5 4.5L11 8l-3.5 3.5"
+                />
+              </svg>
+            </button>
+            <button
+              type="button"
+              aria-label={t('nav.reload')}
+              title={t('nav.reload')}
+              disabled={!webviewReady}
+              onClick={() => runMobileAction(onReload)}
+              style={{
+                ...mobileActionButtonStyle,
+                ...(webviewReady ? {} : toolbarStyles.navButtonDisabled)
+              }}
+              className="btn-regular"
+            >
+              <svg
+                viewBox="0 0 16 16"
+                style={mobileActionIconStyle}
+                xmlns="http://www.w3.org/2000/svg"
+                aria-hidden="true"
+              >
+                <path
+                  d="M234.666667,149.333333 L234.666667,106.666667 L314.564847,106.664112 C287.579138,67.9778918 242.745446,42.6666667 192,42.6666667 C109.525477,42.6666667 42.6666667,109.525477 42.6666667,192 C42.6666667,274.474523 109.525477,341.333333 192,341.333333 C268.201293,341.333333 331.072074,284.258623 340.195444,210.526102 L382.537159,215.817985 C370.807686,310.617565 289.973536,384 192,384 C85.961328,384 0,298.038672 0,192 C0,85.961328 85.961328,0 192,0 C252.316171,0 306.136355,27.8126321 341.335366,71.3127128 L341.333333,0 L384,0 L384,149.333333 L234.666667,149.333333 Z"
+                  fill="currentColor"
+                  transform="scale(0.0416667)"
+                />
+              </svg>
+            </button>
+          </div>
+        )}
+      </div>
+    )}
+
+    {!compact && !isMobile && showMessengerButton && (
       <button
         type="button"
         aria-label={t('toolbar.openMessenger')}
@@ -144,7 +327,7 @@ const Toolbar: React.FC<ToolbarProps> = ({
       </button>
     )}
 
-    {!compact && (
+    {!compact && !isMobile && (
       <NavButtons
         mode={mode}
         canGoBack={canGoBack}

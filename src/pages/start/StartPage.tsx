@@ -5,14 +5,18 @@ import { useI18n } from '../../i18n/I18nProvider';
 import { useUrlSuggestions } from '../../hooks/useUrlSuggestions';
 import { ipc } from '../../services/ipc/ipc';
 import { normalizeCountryCode } from '../../utils/savings';
+import SavingsSupportDisableDialog from '../../components/modals/SavingsSupportDisableDialog';
 
 const SEARCH_ENDPOINT = 'https://duckduckgo.com/?q=';
 const TOP_SITES_LIMIT = 6;
+const SHORTCUT_PAGE_SIZE = 6;
+const COUPON_LAZY_BATCH_SIZE = 12;
 const TOP_SITES_DAYS = 30;
 const DEFAULT_START_PAGE_SETTINGS: StartPageSettings = {
   showTopSites: true,
   showFavorites: true,
   hidePanels: false,
+  showAffiliates: true,
   showCouponStores: true,
   favorites: []
 };
@@ -150,16 +154,26 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const [detectedCountry, setDetectedCountry] = useState<string | null>(null);
   const [catalogCountry, setCatalogCountry] = useState<string | null>(null);
   const [couponMerchants, setCouponMerchants] = useState<MerchantEntry[]>([]);
+  const [affiliateMerchants, setAffiliateMerchants] = useState<MerchantEntry[]>([]);
   const [favoriteInput, setFavoriteInput] = useState('');
   const [favoriteOpen, setFavoriteOpen] = useState(false);
   const [favoriteSuggestionsOpen, setFavoriteSuggestionsOpen] = useState(false);
   const [topSiteMenuOpen, setTopSiteMenuOpen] = useState<string | null>(null);
+  const [disableConfirmKind, setDisableConfirmKind] = useState<'coupons' | 'affiliates' | null>(null);
+  const [favoritePage, setFavoritePage] = useState(0);
+  const [affiliatePage, setAffiliatePage] = useState(0);
+  const [couponPage, setCouponPage] = useState(0);
+  const [affiliateLoadedCount, setAffiliateLoadedCount] = useState(COUPON_LAZY_BATCH_SIZE);
+  const [couponLoadedCount, setCouponLoadedCount] = useState(COUPON_LAZY_BATCH_SIZE);
   const debounceRef = useRef<number | null>(null);
   const blurTimeoutRef = useRef<number | null>(null);
   const requestIdRef = useRef(0);
   const savingsRefreshAttemptsRef = useRef(0);
   const favoriteInputRef = useRef<HTMLInputElement | null>(null);
   const favoriteBlurTimeoutRef = useRef<number | null>(null);
+  const favoriteTouchStartXRef = useRef<number | null>(null);
+  const affiliateTouchStartXRef = useRef<number | null>(null);
+  const couponTouchStartXRef = useRef<number | null>(null);
   const { urlSuggestions, clearUrlSuggestions } = useUrlSuggestions(favoriteInput);
 
   useEffect(() => {
@@ -222,6 +236,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
         const catalog = settings?.catalog;
         setCatalogCountry(catalog?.country ?? null);
         setCouponMerchants(Array.isArray(catalog?.merchants) ? catalog.merchants : []);
+        setAffiliateMerchants(Array.isArray(catalog?.affiliates) ? catalog.affiliates : []);
       } catch {
         if (!cancelled) {
           setSavingsEnabled(true);
@@ -229,6 +244,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
           setDetectedCountry(null);
           setCatalogCountry(null);
           setCouponMerchants([]);
+          setAffiliateMerchants([]);
         }
       }
     };
@@ -296,6 +312,10 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
   const showPanels = !settingsOpen;
   const showTopSitesPanel = showPanels && effectiveSettings.showTopSites;
   const showFavoritesPanel = showPanels && effectiveSettings.showFavorites;
+  const showAffiliatesPanel =
+    showPanels &&
+    effectiveSettings.showAffiliates &&
+    affiliateMerchants.some((entry) => typeof entry.gotolink === 'string' && entry.gotolink.trim().length > 0);
   const showCouponsPanel =
     showPanels &&
     effectiveSettings.showCouponStores &&
@@ -303,15 +323,20 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     couponMerchants.length > 0;
 
   const fontSize = mode === 'mobile' ? 45 : 16;
-  const iconSize = mode === 'mobile' ? 100 : 35;
-  const gap = mode === 'mobile' ? 30 : 16;
-  const labelFontSize = mode === 'mobile' ? 32 : 14;
+  const iconSize = mode === 'mobile' ? 80 : 35;
+  const affiliateIconSize = mode === 'mobile' ? 56 : 28;
+  const gap = mode === 'mobile' ? 24 : 16;
+  const labelFontSize = mode === 'mobile' ? 28 : 14;
   const suggestionFontSize = fontSize;
   const searchRadius = mode === 'mobile' ? 18 : 10;
   const cardRadius = mode === 'mobile' ? 18 : 10;
-  const cardMinSize = mode === 'mobile' ? 190 : 80;
-  const cardMaxSize = mode === 'mobile' ? 230 : 100;
-  const settingsFontSize = mode === 'mobile' ? 36 : 16;
+  const cardMinSize = mode === 'mobile' ? 152 : 80;
+  const cardMaxSize = mode === 'mobile' ? 184 : 100;
+  const shortcutPadding = mode === 'mobile' ? 14 : 10;
+  const shortcutGap = mode === 'mobile' ? 11 : 8;
+  const shortcutActionSize = mode === 'mobile' ? 36 : 22;
+  const shortcutActionIconSize = mode === 'mobile' ? 30 : 12;
+  const settingsFontSize = mode === 'mobile' ? 39 : 16;
   const sectionTitleFontSize = mode === 'mobile' ? 36 : 18;
   const settingsIconSize = mode === 'mobile' ? 46 : 24;
 
@@ -323,7 +348,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
       alignItems: 'center',
       justifyContent: 'flex-start',
       padding: mode === 'mobile' ? '140px 32px 60px' : '80px 24px 40px',
-      gap: mode === 'mobile' ? 48 : 28,
+      gap: mode === 'mobile' ? 24 : 14,
       background: 'var(--mzr-surface)',
       color: 'var(--mzr-text-primary)',
       boxSizing: 'border-box',
@@ -494,8 +519,188 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
     localsOther.sort(byFreshness);
     globalsMatch.sort(byFreshness);
     globalsOther.sort(byFreshness);
-    return [...localsMatch, ...localsOther, ...globalsMatch, ...globalsOther].slice(0, 12);
+    return [...localsMatch, ...localsOther, ...globalsMatch, ...globalsOther];
   }, [couponMerchants, savingsCountry, detectedCountry, catalogCountry]);
+
+  const sortedAffiliateMerchants = useMemo(() => {
+    const list = Array.isArray(affiliateMerchants) ? affiliateMerchants : [];
+    return list
+      .filter((entry) => typeof entry.gotolink === 'string' && entry.gotolink.trim().length > 0)
+      .slice()
+      .sort((a, b) => {
+        const aName = (a.name ?? a.domain ?? '').toLowerCase();
+        const bName = (b.name ?? b.domain ?? '').toLowerCase();
+        return aName.localeCompare(bName);
+      });
+  }, [affiliateMerchants]);
+
+  const affiliateLinkByDomain = useMemo(() => {
+    const map = new Map<string, string>();
+    for (const affiliate of sortedAffiliateMerchants) {
+      const domain = affiliate.domain?.trim();
+      const gotolink = affiliate.gotolink?.trim();
+      if (domain && gotolink && !map.has(domain)) {
+        map.set(domain, gotolink);
+      }
+    }
+    return map;
+  }, [sortedAffiliateMerchants]);
+
+  const loadedCouponMerchants = sortedCouponMerchants.slice(0, couponLoadedCount);
+  const loadedAffiliateMerchants = sortedAffiliateMerchants.slice(0, affiliateLoadedCount);
+  const favoritePageCount = Math.max(1, Math.ceil(favorites.length / SHORTCUT_PAGE_SIZE));
+  const affiliatePageCount = Math.max(1, Math.ceil(loadedAffiliateMerchants.length / SHORTCUT_PAGE_SIZE));
+  const couponPageCount = Math.max(1, Math.ceil(loadedCouponMerchants.length / SHORTCUT_PAGE_SIZE));
+  const hasMoreAffiliateMerchants = affiliateLoadedCount < sortedAffiliateMerchants.length;
+  const hasMoreCouponMerchants = couponLoadedCount < sortedCouponMerchants.length;
+  const clampedFavoritePage = Math.min(favoritePage, favoritePageCount - 1);
+  const clampedAffiliatePage = Math.min(affiliatePage, affiliatePageCount - 1);
+  const clampedCouponPage = Math.min(couponPage, couponPageCount - 1);
+  const visibleFavorites = favorites.slice(
+    clampedFavoritePage * SHORTCUT_PAGE_SIZE,
+    clampedFavoritePage * SHORTCUT_PAGE_SIZE + SHORTCUT_PAGE_SIZE
+  );
+  const visibleCouponMerchants = loadedCouponMerchants.slice(
+    clampedCouponPage * SHORTCUT_PAGE_SIZE,
+    clampedCouponPage * SHORTCUT_PAGE_SIZE + SHORTCUT_PAGE_SIZE
+  );
+  const visibleAffiliateMerchants = loadedAffiliateMerchants.slice(
+    clampedAffiliatePage * SHORTCUT_PAGE_SIZE,
+    clampedAffiliatePage * SHORTCUT_PAGE_SIZE + SHORTCUT_PAGE_SIZE
+  );
+  const hasFavoriteCarousel = favorites.length > SHORTCUT_PAGE_SIZE;
+  const hasAffiliateCarousel = sortedAffiliateMerchants.length > SHORTCUT_PAGE_SIZE;
+  const hasCouponCarousel = sortedCouponMerchants.length > SHORTCUT_PAGE_SIZE;
+
+  const moveFavoritePage = useCallback(
+    (delta: number) => {
+      setFavoritePage((current) => Math.min(Math.max(current + delta, 0), favoritePageCount - 1));
+    },
+    [favoritePageCount]
+  );
+
+  const moveCouponPage = useCallback(
+    (delta: number) => {
+      setCouponPage((current) => {
+        const next = current + delta;
+        if (next < 0) return 0;
+        if (next < couponPageCount) return next;
+        if (!hasMoreCouponMerchants) return couponPageCount - 1;
+        setCouponLoadedCount((count) =>
+          Math.min(count + COUPON_LAZY_BATCH_SIZE, sortedCouponMerchants.length)
+        );
+        return next;
+      });
+    },
+    [couponPageCount, hasMoreCouponMerchants, sortedCouponMerchants.length]
+  );
+
+  const moveAffiliatePage = useCallback(
+    (delta: number) => {
+      setAffiliatePage((current) => {
+        const next = current + delta;
+        if (next < 0) return 0;
+        if (next < affiliatePageCount) return next;
+        if (!hasMoreAffiliateMerchants) return affiliatePageCount - 1;
+        setAffiliateLoadedCount((count) =>
+          Math.min(count + COUPON_LAZY_BATCH_SIZE, sortedAffiliateMerchants.length)
+        );
+        return next;
+      });
+    },
+    [affiliatePageCount, hasMoreAffiliateMerchants, sortedAffiliateMerchants.length]
+  );
+
+  const handleFavoriteTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasFavoriteCarousel) return;
+      favoriteTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+    },
+    [hasFavoriteCarousel]
+  );
+
+  const handleFavoriteTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasFavoriteCarousel || favoriteTouchStartXRef.current === null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      if (typeof endX !== 'number') return;
+      const delta = favoriteTouchStartXRef.current - endX;
+      favoriteTouchStartXRef.current = null;
+      if (Math.abs(delta) < 45) return;
+      moveFavoritePage(delta > 0 ? 1 : -1);
+    },
+    [hasFavoriteCarousel, moveFavoritePage]
+  );
+
+  const handleCouponTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasCouponCarousel) return;
+      couponTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+    },
+    [hasCouponCarousel]
+  );
+
+  const handleAffiliateTouchStart = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasAffiliateCarousel) return;
+      affiliateTouchStartXRef.current = event.touches[0]?.clientX ?? null;
+    },
+    [hasAffiliateCarousel]
+  );
+
+  const handleAffiliateTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasAffiliateCarousel || affiliateTouchStartXRef.current === null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      if (typeof endX !== 'number') return;
+      const delta = affiliateTouchStartXRef.current - endX;
+      affiliateTouchStartXRef.current = null;
+      if (Math.abs(delta) < 45) return;
+      moveAffiliatePage(delta > 0 ? 1 : -1);
+    },
+    [hasAffiliateCarousel, moveAffiliatePage]
+  );
+
+  const handleCouponTouchEnd = useCallback(
+    (event: React.TouchEvent<HTMLDivElement>) => {
+      if (!hasCouponCarousel || couponTouchStartXRef.current === null) return;
+      const endX = event.changedTouches[0]?.clientX;
+      if (typeof endX !== 'number') return;
+      const delta = couponTouchStartXRef.current - endX;
+      couponTouchStartXRef.current = null;
+      if (Math.abs(delta) < 45) return;
+      moveCouponPage(delta > 0 ? 1 : -1);
+    },
+    [hasCouponCarousel, moveCouponPage]
+  );
+
+  const handleStartPageSavingsToggle = useCallback((
+    key: 'showAffiliates' | 'showCouponStores',
+    checked: boolean
+  ) => {
+    if (key === 'showAffiliates') {
+      if (!checked && effectiveSettings.showAffiliates) {
+        setDisableConfirmKind('affiliates');
+        return;
+      }
+      updateStartSettings({ showAffiliates: checked });
+      return;
+    }
+    if (!checked && effectiveSettings.showCouponStores) {
+      setDisableConfirmKind('coupons');
+      return;
+    }
+    updateStartSettings({ showCouponStores: checked });
+  }, [effectiveSettings.showAffiliates, effectiveSettings.showCouponStores, updateStartSettings]);
+
+  const handleConfirmDisable = useCallback(() => {
+    if (disableConfirmKind === 'affiliates') {
+      updateStartSettings({ showAffiliates: false });
+    } else if (disableConfirmKind === 'coupons') {
+      updateStartSettings({ showCouponStores: false });
+    }
+    setDisableConfirmKind(null);
+  }, [disableConfirmKind, updateStartSettings]);
 
   const handleRemoveTopSite = useCallback((origin: string) => {
     setTopSiteMenuOpen(null);
@@ -562,7 +767,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             display: 'flex',
             alignItems: 'stretch',
             boxSizing: 'border-box',
-            marginBottom: mode === 'mobile' ? 40 : 20
+            marginBottom: mode === 'mobile' ? 20 : 10
           }}
         >
           <input
@@ -695,6 +900,12 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
               disabled: false
             },
             {
+              key: 'showAffiliates',
+              label: t('start.settings.showAffiliates'),
+              checked: effectiveSettings.showAffiliates,
+              disabled: false
+            },
+            {
               key: 'showCouponStores',
               label: t('start.settings.showCouponStores'),
               checked: savingsEnabled ? effectiveSettings.showCouponStores : false,
@@ -742,8 +953,10 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         if (!checked) {
                           handleCloseFavoriteEditor();
                         }
+                      } else if (item.key === 'showAffiliates') {
+                        handleStartPageSavingsToggle('showAffiliates', checked);
                       } else if (item.key === 'showCouponStores') {
-                        updateStartSettings({ showCouponStores: checked });
+                        handleStartPageSavingsToggle('showCouponStores', checked);
                       }
                     }}
                     style={{
@@ -816,11 +1029,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -837,7 +1050,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           cursor: 'pointer',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: mode === 'mobile' ? 14 : 8,
+                          gap: shortcutGap,
                           overflow: 'hidden',
                           maxWidth: '100%'
                         }}
@@ -865,8 +1078,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           position: 'absolute',
                           top: mode === 'mobile' ? 10 : 6,
                           right: mode === 'mobile' ? 10 : 6,
-                          width: mode === 'mobile' ? 36 : 22,
-                          height: mode === 'mobile' ? 36 : 22,
+                          width: shortcutActionSize,
+                          height: shortcutActionSize,
                           borderRadius: '50%',
                           border: '1px solid var(--mzr-border-strong)',
                           background: 'var(--mzr-surface)',
@@ -878,8 +1091,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.topSites.menu')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 38 : 12}
-                          height={mode === 'mobile' ? 38 : 12}
+                          width={shortcutActionIconSize}
+                          height={shortcutActionIconSize}
                           viewBox="0 0 24 24"
                           fill="currentColor"
                           aria-hidden="true"
@@ -946,15 +1159,48 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             <div style={{ display: 'flex', flexDirection: 'column', gap: mode === 'mobile' ? 18 : 12 }}>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 10 : 8,
+                  width: '100%'
+                }}
+                onTouchStart={handleFavoriteTouchStart}
+                onTouchEnd={handleFavoriteTouchEnd}
+              >
+                {hasFavoriteCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveFavoritePage(-1)}
+                    disabled={clampedFavoritePage === 0}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedFavoritePage === 0 ? 'default' : 'pointer',
+                      opacity: clampedFavoritePage === 0 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Previous favorites"
+                  >
+                    {'<'}
+                  </button>
+                )}
+              <div
+                style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(auto-fit, minmax(${cardMinSize}px, ${cardMaxSize}px))`,
                   gap,
+                  flex: 1,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: favorites?.length < 5 ? 'start' : 'space-between'
+                  justifyContent: visibleFavorites.length < 5 ? 'start' : 'space-between'
                 }}
               >
-                {favorites.map((favorite) => {
+                {visibleFavorites.map((favorite) => {
                   const origin = typeof favorite.origin === 'string' ? favorite.origin : '';
                   const label = getHostLabel(origin);
                   return (
@@ -966,11 +1212,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -987,7 +1233,7 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           display: 'flex',
                           flexDirection: 'column',
                           alignItems: 'center',
-                          gap: mode === 'mobile' ? 14 : 8,
+                          gap: shortcutGap,
                           cursor: 'pointer',
                           overflow: 'hidden',
                           maxWidth: '100%'
@@ -1014,8 +1260,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           position: 'absolute',
                           top: mode === 'mobile' ? 10 : 6,
                           right: mode === 'mobile' ? 10 : 6,
-                          width: mode === 'mobile' ? 45 : 22,
-                          height: mode === 'mobile' ? 45 : 22,
+                          width: shortcutActionSize,
+                          height: shortcutActionSize,
                           borderRadius: '50%',
                           border: '1px solid var(--mzr-border-strong)',
                           background: 'var(--mzr-surface)',
@@ -1028,8 +1274,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.favorites.remove')}
                       >
                         <svg
-                          width={mode === 'mobile' ? 38 : 12}
-                          height={mode === 'mobile' ? 38 : 12}
+                          width={shortcutActionIconSize}
+                          height={shortcutActionIconSize}
                           viewBox="0 0 24 24"
                           fill="none"
                           stroke="currentColor"
@@ -1055,12 +1301,12 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       flexDirection: 'column',
                       alignItems: 'center',
                       justifyContent: 'center',
-                      padding: mode === 'mobile' ? 18 : 10,
+                      padding: shortcutPadding,
                       borderRadius: cardRadius,
                       border: '1px dashed var(--mzr-border-strong)',
                       background: 'transparent',
                       cursor: 'pointer',
-                      gap: mode === 'mobile' ? 14 : 8,
+                      gap: shortcutGap,
                       width: '100%',
                       maxWidth: cardMaxSize,
                       maxHeight: cardMaxSize,
@@ -1071,8 +1317,8 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                         title={t('start.favorites.add')}
                     >
                     <svg
-                      width={mode === 'mobile' ? 60 : 28}
-                      height={mode === 'mobile' ? 60 : 28}
+                      width={mode === 'mobile' ? 48 : 28}
+                      height={mode === 'mobile' ? 48 : 28}
                       viewBox="0 0 24 24"
                       fill="none"
                       stroke="currentColor"
@@ -1084,6 +1330,29 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                       <line x1="12" y1="5" x2="12" y2="19" />
                       <line x1="5" y1="12" x2="19" y2="12" />
                     </svg>
+                  </button>
+                )}
+              </div>
+                {hasFavoriteCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveFavoritePage(1)}
+                    disabled={clampedFavoritePage >= favoritePageCount - 1}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedFavoritePage >= favoritePageCount - 1 ? 'default' : 'pointer',
+                      opacity: clampedFavoritePage >= favoritePageCount - 1 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Next favorites"
+                  >
+                    {'>'}
                   </button>
                 )}
               </div>
@@ -1246,6 +1515,144 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
             </div>
           )}
 
+          {showAffiliatesPanel && (
+            <div style={{
+                display: 'flex',
+                flexDirection: 'column',
+                gap: mode === 'mobile' ? 10 : 8,
+                marginTop: mode === 'mobile' ? 40 : 20
+              }}>
+              <div
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 10 : 8,
+                  width: '100%'
+                }}
+                onTouchStart={handleAffiliateTouchStart}
+                onTouchEnd={handleAffiliateTouchEnd}
+              >
+                {hasAffiliateCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveAffiliatePage(-1)}
+                    disabled={clampedAffiliatePage === 0}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedAffiliatePage === 0 ? 'default' : 'pointer',
+                      opacity: clampedAffiliatePage === 0 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Previous affiliate sites"
+                  >
+                    {'<'}
+                  </button>
+                )}
+                <div
+                  style={{
+                    display: 'grid',
+                    gridTemplateColumns: `repeat(auto-fit, minmax(${cardMinSize}px, ${cardMaxSize}px))`,
+                    gap,
+                    flex: 1,
+                    width: '100%',
+                    maxWidth: '100%',
+                    justifyContent: visibleAffiliateMerchants.length < 5 ? 'start' : 'space-between'
+                  }}
+                >
+                  {visibleAffiliateMerchants.map((merchant) => {
+                    const label = merchant.name?.trim() || merchant.domain;
+                    const target = merchant.gotolink?.trim() || '';
+                    return (
+                      <button
+                        key={merchant.domain}
+                        type="button"
+                        onClick={() => { if (target) openInTab(target); }}
+                        style={{
+                          display: 'flex',
+                          flexDirection: 'column',
+                          alignItems: 'center',
+                          justifyContent: 'center',
+                          padding: shortcutPadding,
+                          borderRadius: cardRadius,
+                          border: '1px solid var(--mzr-border-strong)',
+                          background: 'var(--mzr-surface-weak)',
+                          gap: shortcutGap,
+                          width: '100%',
+                          maxWidth: cardMaxSize,
+                          maxHeight: cardMaxSize,
+                          aspectRatio: '1 / 1',
+                          boxSizing: 'border-box',
+                          cursor: target ? 'pointer' : 'default',
+                          overflow: 'hidden'
+                        }}
+                        aria-label={label}
+                        disabled={!target}
+                      >
+                        {merchant.imageUrl ? (
+                          <img
+                            src={merchant.imageUrl}
+                            alt=""
+                            style={{
+                              width: affiliateIconSize * 1.7,
+                              maxWidth: '100%',
+                              height: affiliateIconSize,
+                              objectFit: 'contain',
+                              borderRadius: Math.round(affiliateIconSize * 0.16),
+                              background: 'var(--mzr-surface)'
+                            }}
+                          />
+                        ) : (
+                          <FaviconTile faviconId={null} label={merchant.domain} size={affiliateIconSize} />
+                        )}
+                        <span
+                          style={{
+                            fontSize: labelFontSize,
+                            color: 'var(--mzr-text-primary)',
+                            lineHeight: 1.15,
+                            textAlign: 'center',
+                          }}
+                        >
+                          {label}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+                {hasAffiliateCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveAffiliatePage(1)}
+                    disabled={clampedAffiliatePage >= affiliatePageCount - 1 && !hasMoreAffiliateMerchants}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor:
+                        clampedAffiliatePage >= affiliatePageCount - 1 && !hasMoreAffiliateMerchants
+                          ? 'default'
+                          : 'pointer',
+                      opacity: clampedAffiliatePage >= affiliatePageCount - 1 && !hasMoreAffiliateMerchants ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Next affiliate sites"
+                  >
+                    {'>'}
+                  </button>
+                )}
+              </div>
+            </div>
+          )}
+
           {showCouponsPanel && (
             <div style={{
                 display: 'flex',
@@ -1258,31 +1665,66 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
               </div>
               <div
                 style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: mode === 'mobile' ? 10 : 8,
+                  width: '100%'
+                }}
+                onTouchStart={handleCouponTouchStart}
+                onTouchEnd={handleCouponTouchEnd}
+              >
+                {hasCouponCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveCouponPage(-1)}
+                    disabled={clampedCouponPage === 0}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor: clampedCouponPage === 0 ? 'default' : 'pointer',
+                      opacity: clampedCouponPage === 0 ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Previous coupon sites"
+                  >
+                    {'<'}
+                  </button>
+                )}
+              <div
+                style={{
                   display: 'grid',
                   gridTemplateColumns: `repeat(auto-fit, minmax(${cardMinSize}px, ${cardMaxSize}px))`,
                   gap,
+                  flex: 1,
                   width: '100%',
                   maxWidth: '100%',
-                  justifyContent: sortedCouponMerchants?.length < 5 ? 'start' : 'space-between'
+                  justifyContent: visibleCouponMerchants.length < 5 ? 'start' : 'space-between'
                 }}
               >
-                {sortedCouponMerchants.map((merchant) => {
+                {visibleCouponMerchants.map((merchant) => {
                   const label = merchant.name?.trim() || merchant.domain;
+                  const affiliateLink = affiliateLinkByDomain.get(merchant.domain);
+                  const couponIconSize = affiliateLink ? affiliateIconSize : iconSize;
                   return (
                     <button
                       key={merchant.domain}
                       type="button"
-                      onClick={() => openInTab(`https://${merchant.domain}`)}
+                      onClick={() => openInTab(affiliateLink || `https://${merchant.domain}`)}
                       style={{
                         display: 'flex',
                         flexDirection: 'column',
                         alignItems: 'center',
                         justifyContent: 'center',
-                        padding: mode === 'mobile' ? 18 : 10,
+                        padding: shortcutPadding,
                         borderRadius: cardRadius,
                         border: '1px solid var(--mzr-border-strong)',
                         background: 'var(--mzr-surface-weak)',
-                        gap: mode === 'mobile' ? 14 : 8,
+                        gap: shortcutGap,
                         width: '100%',
                         maxWidth: cardMaxSize,
                         maxHeight: cardMaxSize,
@@ -1298,9 +1740,11 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                           src={merchant.imageUrl}
                           alt=""
                           style={{
-                            height: iconSize,
+                            width: affiliateLink ? couponIconSize * 1.7 : undefined,
+                            maxWidth: affiliateLink ? '100%' : undefined,
+                            height: couponIconSize,
                             objectFit: 'contain',
-                            borderRadius: Math.round(iconSize * 0.16),
+                            borderRadius: Math.round(couponIconSize * 0.16),
                             background: 'var(--mzr-surface)'
                           }}
                         />
@@ -1321,10 +1765,44 @@ const StartPage: React.FC<ServicePageProps> = ({ mode, openInTab }) => {
                   );
                 })}
               </div>
+                {hasCouponCarousel && (
+                  <button
+                    type="button"
+                    onClick={() => moveCouponPage(1)}
+                    disabled={clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants}
+                    style={{
+                      width: mode === 'mobile' ? 40 : 28,
+                      height: mode === 'mobile' ? 56 : 40,
+                      borderRadius: cardRadius,
+                      border: '1px solid var(--mzr-border-strong)',
+                      background: 'var(--mzr-surface-weak)',
+                      color: 'var(--mzr-text-primary)',
+                      cursor:
+                        clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants
+                          ? 'default'
+                          : 'pointer',
+                      opacity: clampedCouponPage >= couponPageCount - 1 && !hasMoreCouponMerchants ? 0.35 : 1,
+                      fontSize: mode === 'mobile' ? 30 : 18,
+                      lineHeight: 1
+                    }}
+                    aria-label="Next coupon sites"
+                  >
+                    {'>'}
+                  </button>
+                )}
+              </div>
             </div>
           )}
         </div>
       )}
+
+      <SavingsSupportDisableDialog
+        open={disableConfirmKind !== null}
+        mode={mode}
+        kind={disableConfirmKind ?? 'coupons'}
+        onKeep={() => setDisableConfirmKind(null)}
+        onDisable={handleConfirmDisable}
+      />
 
       <button
         type="button"

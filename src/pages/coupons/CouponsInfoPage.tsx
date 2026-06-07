@@ -68,7 +68,15 @@ type CouponsInfoPageProps = ServicePageProps & {
   savingsSettings: SavingsSettings;
   effectiveCountry: string;
   onCountryChange: (value: string | null) => void;
-  performCatalogFetch: (country: string, etag: string | null) => void;
+  performCatalogFetch: (
+    country: string,
+    options: {
+      merchantEtag: string | null;
+      affiliateEtag: string | null;
+      fetchMerchants: boolean;
+      fetchAffiliates: boolean;
+    }
+  ) => void;
 };
 
 const formatBoldMarkup = (value: string): React.ReactNode => {
@@ -198,7 +206,12 @@ const CouponsInfoPage: React.FC<CouponsInfoPageProps> = ({
     const canRetry = Number.isFinite(nextAllowedAt) && (nextAllowedAt as number) <= Date.now();
     if (isCurrent && catalog.lastFetchAttemptAt && !canRetry) return;
     setIsFetching(true);
-    performCatalogFetch(selectedCountry, isCurrent ? catalog.etag : null);
+    performCatalogFetch(selectedCountry, {
+      merchantEtag: isCurrent ? catalog.etag : null,
+      affiliateEtag: isCurrent ? catalog.affiliatesEtag : null,
+      fetchMerchants: true,
+      fetchAffiliates: true
+    });
   }, [
     selectedCountry,
     savingsSettings.catalog,

@@ -99,7 +99,7 @@ export const ipc = {
       }
     },
     network: {
-      async updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings | null> {
+      async updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedTimezone?: string | null; detectedAt?: string | null }): Promise<NetworkSettings | null> {
         try {
           const res = await getApi()?.settings?.network?.updateDetected?.(payload ?? {});
           return (res ?? null) as NetworkSettings | null;
@@ -107,6 +107,26 @@ export const ipc = {
           console.error('settings.network.updateDetected failed', err);
           return null;
         }
+      },
+      async detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null; timezone?: string | null }> {
+        try {
+          const res = await getApi()?.settings?.network?.detectCountry?.(payload ?? {});
+          return (res ?? { countryCode: null, ip: null, timezone: null }) as { countryCode: string | null; ip: string | null; timezone?: string | null };
+        } catch (err) {
+          console.error('settings.network.detectCountry failed', err);
+          return { countryCode: null, ip: null, timezone: null };
+        }
+      },
+      async getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }> {
+        try {
+          const res = await getApi()?.settings?.network?.getDirectIp?.();
+          if (res && typeof res === 'object') {
+            return res as { ok: boolean; ip?: string; error?: string };
+          }
+        } catch (err) {
+          console.error('settings.network.getDirectIp failed', err);
+        }
+        return { ok: false, error: 'Direct IP lookup failed' };
       }
     },
     savings: {
@@ -136,7 +156,7 @@ export const ipc = {
           return (res ?? null) as StartPageSettings;
         } catch (err) {
           console.error('settings.startPage.get failed', err);
-          return { showTopSites: true, showFavorites: true, hidePanels: false, showCouponStores: true, favorites: [] };
+          return { showTopSites: true, showFavorites: true, hidePanels: false, showAffiliates: true, showCouponStores: true, favorites: [] };
         }
       },
       async update(payload: Partial<StartPageSettings>): Promise<StartPageSettings> {
@@ -145,7 +165,7 @@ export const ipc = {
           return (res ?? payload) as StartPageSettings;
         } catch (err) {
           console.error('settings.startPage.update failed', err);
-          return { showTopSites: true, showFavorites: true, hidePanels: false, showCouponStores: true, favorites: [] };
+          return { showTopSites: true, showFavorites: true, hidePanels: false, showAffiliates: true, showCouponStores: true, favorites: [] };
         }
       }
     },
@@ -400,9 +420,9 @@ export const ipc = {
     }
   },
 
-  openContextMenuAt(x: number, y: number, dpr?: number): void {
+  openContextMenuAt(x: number, y: number, dpr?: number, webContentsId?: number): void {
     try {
-      getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1);
+      getApi()?.openContextMenuAt?.(x, y, dpr ?? window.devicePixelRatio ?? 1, webContentsId);
     } catch {}
   },
 
@@ -426,6 +446,14 @@ export const ipc = {
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ) {
       return window.merezhyvo?.osk.key(wcId, key, modifiers);
+    },
+    debug(_payload: Record<string, unknown>) {},
+    onFocusEvent(handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void): Unsubscribe {
+      try {
+        return window.merezhyvo?.osk.onFocusEvent?.(handler) ?? (() => {});
+      } catch {
+        return () => {};
+      }
     },
   },
   permissions: {

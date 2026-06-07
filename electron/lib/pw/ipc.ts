@@ -337,6 +337,11 @@ const registerFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'times
   cancelFocusClear(wcId);
   focusFieldMap.set(wcId, { ...payload, timestamp: Date.now() });
 };
+
+export const registerPasswordFieldFocus = (wcId: number, payload: Omit<FocusFieldDetail, 'timestamp'>): void => {
+  registerFieldFocus(wcId, payload);
+};
+
 const toString = (value: unknown): string | undefined =>
   typeof value === 'string' && value.trim().length > 0 ? value.trim() : undefined;
 
@@ -353,11 +358,20 @@ type QueryPayload = { query?: string };
 let autoLockTimer: NodeJS.Timeout | null = null;
 let autoLockDurationMs: number | null = null;
 
+const normalizeAutoLockMinutes = (value: unknown): number | null => {
+  if (typeof value !== 'number' || !Number.isFinite(value) || value < 0) return null;
+  return value;
+};
+
 const clearAutoLock = (): void => {
   if (autoLockTimer) {
     clearTimeout(autoLockTimer);
     autoLockTimer = null;
   }
+};
+
+const broadcastLocked = (): void => {
+  broadcastToRenderers('merezhyvo:pw:locked', { locked: true });
 };
 
 const scheduleAutoLock = (): void => {
@@ -367,12 +381,21 @@ const scheduleAutoLock = (): void => {
     lockVault();
     clearAutoLock();
     autoLockDurationMs = null;
+    broadcastLocked();
   }, autoLockDurationMs);
 };
 
 const resetAutoLock = (): void => {
   if (!autoLockDurationMs || autoLockDurationMs <= 0) return;
   scheduleAutoLock();
+};
+
+const setAutoLockDuration = (minutes: number | null): void => {
+  clearAutoLock();
+  autoLockDurationMs = minutes && minutes > 0 ? minutes * 60000 : null;
+  if (autoLockDurationMs) {
+    scheduleAutoLock();
+  }
 };
 
 const buildEntryInput = (payload: unknown, requireId = false): EntryInput | null => {
@@ -433,12 +456,8 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     } catch (err) {
       return { error: String(err) };
     }
-    const minutes =
-      typeof durationMinutes === 'number' && Number.isFinite(durationMinutes) && durationMinutes > 0
-        ? durationMinutes
-        : null;
-    autoLockDurationMs = minutes ? minutes * 60000 : null;
-    resetAutoLock();
+    const minutes = normalizeAutoLockMinutes(durationMinutes);
+    setAutoLockDuration(minutes);
     return { ok: true };
   });
 
@@ -446,6 +465,7 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     lockVault();
     clearAutoLock();
     autoLockDurationMs = null;
+    broadcastLocked();
     return { ok: true };
   });
 
@@ -570,7 +590,11 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     const patch = payload as Partial<Settings>;
     const result = setSettings(patch);
     await save();
-    resetAutoLock();
+    if ('autoLockMinutes' in patch && isVaultUnlocked()) {
+      setAutoLockDuration(normalizeAutoLockMinutes(result.autoLockMinutes));
+    } else {
+      resetAutoLock();
+    }
     return result;
   });
 

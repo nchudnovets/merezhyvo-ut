@@ -11,7 +11,7 @@ import type {
 } from '../types/models';
 import type { TabViewEntry } from '../types/tabView';
 import type { CouponsPopupStatus } from '../components/coupons/CouponsPopup';
-import { fetchCouponsForPage, fetchMerchantsCatalog, reportInvalidCoupon } from '../services/coupons/api';
+import { fetchAffiliatesCatalog, fetchCouponsForPage, fetchMerchantsCatalog, reportInvalidCoupon } from '../services/coupons/api';
 import { getCachedCouponsForPage, setCachedCouponsForPage } from '../services/coupons/cache';
 import { ipc } from '../services/ipc/ipc';
 import { normalizeHost } from '../utils/security';
@@ -36,7 +36,6 @@ type CouponActionState = Record<
   { applying?: boolean; inserting?: boolean; reporting?: boolean }
 >;
 
-const CATALOG_TTL_MS = 24 * 60 * 60 * 1000;
 const PENDING_COUPON_TTL_MS = 2 * 60 * 60 * 1000;
 
 const COUPON_FIELD_KEYWORDS = [
@@ -295,7 +294,15 @@ type UseCouponsResult = {
   handleInsertCoupon: (coupon: CouponEntry) => void;
   handleReportInvalidCoupon: (coupon: CouponEntry) => void;
   handleCouponsPositionChange: (pos: SavingsFloatingButtonPosState) => void;
-  performCatalogFetch: (country: string, etag: string | null) => void;
+  performCatalogFetch: (
+    country: string,
+    options: {
+      merchantEtag: string | null;
+      affiliateEtag: string | null;
+      fetchMerchants: boolean;
+      fetchAffiliates: boolean;
+    }
+  ) => void;
   handleCouponsDomReady: (tabId: string) => void;
 };
 
@@ -327,6 +334,7 @@ export const useCoupons = ({
   const detectedCountryTimerRef = useRef<number | null>(null);
   const [savingsLoaded, setSavingsLoaded] = useState<boolean>(false);
   const catalogFetchInFlightRef = useRef<boolean>(false);
+  const catalogStartupFetchAttemptRef = useRef<string | null>(null);
 
   const applySavingsSettings = useCallback((next: SavingsSettings | null | undefined) => {
     const payload = next ?? DEFAULT_SAVINGS_SETTINGS;
@@ -413,56 +421,92 @@ export const useCoupons = ({
     [updateSavingsSettings]
   );
 
-  const performCatalogFetch = useCallback(async (country: string, etag: string | null) => {
+  const performCatalogFetch = useCallback(async (
+    country: string,
+    options: {
+      merchantEtag: string | null;
+      affiliateEtag: string | null;
+      fetchMerchants: boolean;
+      fetchAffiliates: boolean;
+    }
+  ) => {
     if (catalogFetchInFlightRef.current) return;
     catalogFetchInFlightRef.current = true;
-    const baseCatalog = savingsSettingsRef.current.catalog;
     try {
-      const result = await fetchMerchantsCatalog(country, etag ?? undefined, appVersion);
+      const baseCatalog = savingsSettingsRef.current.catalog;
       const nowIso = new Date().toISOString();
-      if (result.status === 'ok') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            merchants: result.merchants,
-            etag: result.etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'not_modified') {
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            etag: result.etag ?? etag ?? baseCatalog.etag ?? null,
-            updatedAt: nowIso,
-            nextAllowedFetchAt: null,
-            lastFetchAttemptAt: nowIso
-          }
-        });
-      } else if (result.status === 'syncing') {
-        const nextAllowedFetchAt = new Date(Date.now() + result.retryAfterSeconds * 1000).toISOString();
-        void updateSavingsSettings({
-          catalog: {
-            ...baseCatalog,
-            country,
-            nextAllowedFetchAt,
-            lastFetchAttemptAt: nowIso
-          }
-        });
+      const [merchantResult, affiliateResult] = await Promise.all([
+        options.fetchMerchants
+          ? fetchMerchantsCatalog(country, options.merchantEtag ?? undefined, appVersion)
+          : Promise.resolve(null),
+        options.fetchAffiliates
+          ? fetchAffiliatesCatalog(country, options.affiliateEtag ?? undefined, appVersion)
+          : Promise.resolve(null)
+      ]);
+      let nextCatalog = { ...baseCatalog, country };
+      let catalogChanged = false;
+
+      if (merchantResult?.status === 'ok') {
+        nextCatalog = {
+          ...nextCatalog,
+          merchants: merchantResult.merchants,
+          etag: merchantResult.etag ?? nextCatalog.etag ?? null,
+          updatedAt: nowIso,
+          nextAllowedFetchAt: null,
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (merchantResult?.status === 'not_modified') {
+        nextCatalog = {
+          ...nextCatalog,
+          etag: merchantResult.etag ?? options.merchantEtag ?? nextCatalog.etag ?? null,
+          updatedAt: nowIso,
+          nextAllowedFetchAt: null,
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (merchantResult?.status === 'syncing') {
+        nextCatalog = {
+          ...nextCatalog,
+          nextAllowedFetchAt: new Date(Date.now() + merchantResult.retryAfterSeconds * 1000).toISOString(),
+          lastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      }
+
+      if (affiliateResult?.status === 'ok') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliates: affiliateResult.affiliates,
+          affiliatesEtag: affiliateResult.etag ?? nextCatalog.affiliatesEtag ?? null,
+          affiliatesUpdatedAt: nowIso,
+          affiliatesNextAllowedFetchAt: null,
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (affiliateResult?.status === 'not_modified') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliatesEtag: affiliateResult.etag ?? options.affiliateEtag ?? nextCatalog.affiliatesEtag ?? null,
+          affiliatesUpdatedAt: nowIso,
+          affiliatesNextAllowedFetchAt: null,
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      } else if (affiliateResult?.status === 'syncing') {
+        nextCatalog = {
+          ...nextCatalog,
+          affiliatesNextAllowedFetchAt: new Date(Date.now() + affiliateResult.retryAfterSeconds * 1000).toISOString(),
+          affiliatesLastFetchAttemptAt: nowIso
+        };
+        catalogChanged = true;
+      }
+
+      if (catalogChanged) {
+        void updateSavingsSettings({ catalog: nextCatalog });
       }
     } catch {
-      const nowIso = new Date().toISOString();
-      void updateSavingsSettings({
-        catalog: {
-          ...baseCatalog,
-          country,
-          lastFetchAttemptAt: nowIso
-        }
-      });
+      // Keep the persisted catalog untouched on transient failures.
     } finally {
       catalogFetchInFlightRef.current = false;
     }
@@ -480,25 +524,29 @@ export const useCoupons = ({
     const hasKnownCountry = hasExplicitCountry || Boolean(detectedCountry);
     if (!hasKnownCountry) return;
     const effectiveCountry = effectiveSavingsCountry;
-    const nextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
-    if (Number.isFinite(nextAllowedAt) && nextAllowedAt > now) return;
     if (hasKnownCountry && catalog.country && catalog.country !== effectiveSavingsCountry) {
-      if (isCouponsInfoService) return;
       void updateSavingsSettings({
         catalog: { ...DEFAULT_SAVINGS_CATALOG, country: effectiveSavingsCountry }
       });
       return;
     }
-    const updatedAt = catalog.updatedAt ? Date.parse(catalog.updatedAt) : 0;
-    const isFresh = catalog.country === effectiveCountry
-      && Number.isFinite(updatedAt)
-      && now - updatedAt < CATALOG_TTL_MS;
-    if (isFresh) return;
-    void performCatalogFetch(effectiveCountry, catalog.etag);
+    const merchantNextAllowedAt = catalog.nextAllowedFetchAt ? Date.parse(catalog.nextAllowedFetchAt) : 0;
+    const affiliateNextAllowedAt = catalog.affiliatesNextAllowedFetchAt ? Date.parse(catalog.affiliatesNextAllowedFetchAt) : 0;
+    const fetchMerchants = !Number.isFinite(merchantNextAllowedAt) || merchantNextAllowedAt <= now;
+    const fetchAffiliates = !Number.isFinite(affiliateNextAllowedAt) || affiliateNextAllowedAt <= now;
+    if (!fetchMerchants && !fetchAffiliates) return;
+    const startupFetchKey = `${effectiveCountry}:${fetchMerchants ? 'm' : ''}${fetchAffiliates ? 'a' : ''}`;
+    if (catalogStartupFetchAttemptRef.current === startupFetchKey) return;
+    catalogStartupFetchAttemptRef.current = startupFetchKey;
+    void performCatalogFetch(effectiveCountry, {
+      merchantEtag: catalog.etag,
+      affiliateEtag: catalog.affiliatesEtag,
+      fetchMerchants,
+      fetchAffiliates
+    });
   }, [
     detectedCountry,
     effectiveSavingsCountry,
-    isCouponsInfoService,
     performCatalogFetch,
     savingsLoaded,
     savingsSettings.catalog,
@@ -788,45 +836,11 @@ export const useCoupons = ({
       } catch {
         // ignore cache read failures
       }
-      const fetchPrimary = async (): Promise<{ country: string | null; ip: string | null }> => {
-        const response = await fetch('https://ipwho.is/', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Primary geo failed');
-        const payload = (await response.json().catch(() => ({}))) as {
-          country_code?: unknown;
-          ip?: unknown;
-          success?: unknown;
-        };
-        if (payload.success === false) throw new Error('Primary geo failed');
-        return {
-          country: normalizeCountryCode(payload.country_code),
-          ip: typeof payload.ip === 'string' ? payload.ip : null
-        };
-      };
-      const fetchFallback = async (): Promise<{ country: string | null; ip: string | null }> => {
-        const response = await fetch('https://ipapi.co/json/', { cache: 'no-store' });
-        if (!response.ok) throw new Error('Fallback geo failed');
-        const payload = (await response.json().catch(() => ({}))) as { country_code?: unknown; ip?: unknown };
-        return {
-          country: normalizeCountryCode(payload.country_code),
-          ip: typeof payload.ip === 'string' ? payload.ip : null
-        };
-      };
       try {
-        let result = await fetchPrimary();
-        if (!result.country) {
-          result = await fetchFallback();
-        }
-        const code = result.country;
-        const ip = result.ip;
+        const result = await ipc.settings.network.detectCountry();
+        const code = normalizeCountryCode(result.countryCode);
         if (!cancelled) {
           setDetectedCountry(code ?? cachedCountry ?? 'US');
-        }
-        if (code && ip) {
-          void ipc.settings.network.updateDetected({
-            detectedIp: ip,
-            detectedCountry: code,
-            detectedAt: new Date().toISOString()
-          });
         }
       } catch {
         if (!cancelled) {

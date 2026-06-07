@@ -303,7 +303,9 @@ export interface MerezhyvoAPI {
       update(payload: Partial<SecureDnsSettings>): Promise<{ ok: boolean; settings?: SecureDnsSettings; error?: string }>;
     };
     network: {
-      updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
+      updateDetected(payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedTimezone?: string | null; detectedAt?: string | null }): Promise<NetworkSettings>;
+      detectCountry(payload?: { ip?: string | null; persist?: boolean }): Promise<{ countryCode: string | null; ip: string | null; timezone?: string | null }>;
+      getDirectIp(): Promise<{ ok: boolean; ip?: string; error?: string }>;
     };
     savings: {
       get(): Promise<SavingsSettings>;
@@ -392,6 +394,11 @@ export interface MerezhyvoAPI {
       key: string,
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ): Promise<{ ok: boolean; error?: string }>;
+
+    debug(payload: Record<string, unknown>): void;
+    onFocusEvent(
+      handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void
+    ): MerezhyvoUnsubscribe;
   };
   history: MerezhyvoHistoryApi;
   bookmarks: MerezhyvoBookmarksApi;

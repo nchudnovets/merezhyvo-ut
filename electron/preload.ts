@@ -360,6 +360,7 @@ const exposeApi: MerezhyvoAPI = {
             showTopSites: true,
             showFavorites: true,
             hidePanels: false,
+            showAffiliates: true,
             showCouponStores: true,
             favorites: []
           },
@@ -461,12 +462,32 @@ const exposeApi: MerezhyvoAPI = {
       }
     },
     network: {
-      updateDetected: async (payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedAt?: string | null }) => {
+      updateDetected: async (payload: { detectedIp?: string | null; detectedCountry?: string | null; detectedTimezone?: string | null; detectedAt?: string | null }) => {
         try {
           return (await ipcRenderer.invoke('merezhyvo:settings:network:update-detected', payload ?? {})) as NetworkSettings;
         } catch (err) {
           console.error('[merezhyvo] settings.network.updateDetected failed', err);
           throw err;
+        }
+      },
+      detectCountry: async (payload?: { ip?: string | null; persist?: boolean }) => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:settings:network:detect-country', payload ?? {})) as {
+            countryCode: string | null;
+            ip: string | null;
+            timezone?: string | null;
+          };
+        } catch (err) {
+          console.error('[merezhyvo] settings.network.detectCountry failed', err);
+          return { countryCode: null, ip: null, timezone: null };
+        }
+      },
+      getDirectIp: async () => {
+        try {
+          return (await ipcRenderer.invoke('merezhyvo:network:get-direct-ip')) as { ok: boolean; ip?: string; error?: string };
+        } catch (err) {
+          console.error('[merezhyvo] settings.network.getDirectIp failed', err);
+          return { ok: false, error: String(err) };
         }
       }
     },
@@ -812,6 +833,27 @@ const exposeApi: MerezhyvoAPI = {
       key: string,
       modifiers?: Array<'shift' | 'control' | 'alt' | 'meta'>
     ) => ipcRenderer.invoke('mzr:osk:key', { wcId, key, modifiers }),
+
+    debug: () => {},
+    onFocusEvent: (handler: (payload: { webContentsId?: number; message?: string; sessionId?: string }) => void) => {
+      if (typeof handler !== 'function') return noopUnsubscribe;
+      const channel = 'mzr:osk:focus-event';
+      const listener = (
+        _event: IpcRendererEvent,
+        payload: { webContentsId?: number; message?: string; sessionId?: string } | null | undefined
+      ) => {
+        if (!payload || typeof payload !== 'object') return;
+        handler(payload);
+      };
+      ipcRenderer.on(channel, listener);
+      return () => {
+        try {
+          ipcRenderer.removeListener(channel, listener);
+        } catch {
+          // noop
+        }
+      };
+    },
   },
   jsDialog: {
     attach: (webContentsId: number) => {
@@ -1309,6 +1351,14 @@ ipcRenderer.on('merezhyvo:pw:prompt', (_event, payload) => {
 ipcRenderer.on('merezhyvo:pw:unlock-required', (_event, payload: unknown) => {
   try {
     window.dispatchEvent(new CustomEvent('merezhyvo:pw:unlock-required', { detail: payload }));
+  } catch {
+    // noop
+  }
+});
+
+ipcRenderer.on('merezhyvo:pw:locked', (_event, payload: unknown) => {
+  try {
+    window.dispatchEvent(new CustomEvent('merezhyvo:pw:locked', { detail: payload }));
   } catch {
     // noop
   }

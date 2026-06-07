@@ -83,6 +83,14 @@ export const usePasswordFlows = ({
     void fetchPasswordStatus();
   }, [fetchPasswordStatus]);
 
+  useEffect(() => {
+    const handler = () => {
+      setPasswordStatus((current) => (current ? { ...current, locked: true } : current));
+    };
+    window.addEventListener('merezhyvo:pw:locked', handler);
+    return () => window.removeEventListener('merezhyvo:pw:locked', handler);
+  }, []);
+
   const handlePasswordPromptAction = useCallback(
     async (action: PasswordCaptureAction) => {
       if (!passwordPrompt) return;

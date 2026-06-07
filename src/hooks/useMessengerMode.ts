@@ -1,4 +1,4 @@
-import { useCallback, useRef, useState } from 'react';
+import { useCallback, useMemo, useRef, useState } from 'react';
 import type { Mode, MessengerDefinition, MessengerId, MessengerSettings } from '../types/models';
 import { tabsActions, getTabsState } from '../store/tabs';
 import { sanitizeMessengerSettings, resolveOrderedMessengers } from '../shared/messengers';
@@ -32,7 +32,10 @@ export const useMessengerMode = ({
   const lastMessengerIdRef = useRef<MessengerId | null>(null);
   const [activeMessengerId, setActiveMessengerId] = useState<MessengerId | null>(null);
 
-  const orderedMessengers = resolveOrderedMessengers(messengerSettingsState);
+  const orderedMessengers = useMemo(
+    () => resolveOrderedMessengers(messengerSettingsState),
+    [messengerSettingsState]
+  );
 
   const { activateTab: activateTabAction, closeTab: closeTabAction } = tabsActions;
 

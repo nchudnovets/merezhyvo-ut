@@ -5,11 +5,11 @@ import { ipcRenderer, webFrame } from 'electron';
 const SELECTION_CODE = `
       (function(){
         try {
-          // Skip injection on excluded hosts (e.g., Telegram Web)
+          // Telegram Web keeps its own context menu fragile, but DOM-range
+          // selection handles are needed across chat content as well as inputs.
           var host = (location && location.hostname) || '';
-          if (/(^|\\.)web\\.telegram\\.org$/i.test(host)) {
-            return true; // do nothing on Telegram
-          }
+          var isTelegramHost = /(^|\\.)web\\.telegram\\.org$/i.test(host);
+          var selectionLimitedToEditableText = false;
 
           if (!window.__mzrSel) {
             window.__mzrSel = {
@@ -20,6 +20,8 @@ const SELECTION_CODE = `
               lpY: 0,
               moved: false,
               menuReq: null,
+              syntheticMenuShown: false,
+              lastSelectionText: '',
               selectionCreated: false,
               pointerTouching: false,
               pointerId: null,
@@ -29,6 +31,7 @@ const SELECTION_CODE = `
               handleDrag: false,
               handleSide: null,
               handleAnchor: null,
+              handleScope: null,
               handleTextControl: null,
               handleAnchorIndex: null,
               handleGrabDx: 0,
@@ -63,7 +66,7 @@ const SELECTION_CODE = `
           }
 
           function selLog(){
-            // debug logging disabled
+            // Intentionally quiet in production; keep call sites lightweight.
           }
 
           // Hide default touch-callout bubble inside the page
@@ -93,6 +96,41 @@ const SELECTION_CODE = `
               if (tag === 'textarea' || tag === 'input') return true;
             } catch(_) {}
             return false;
+          }
+
+          function asElement(node){
+            return node && node.nodeType === 1 ? node : (node && node.parentElement);
+          }
+
+          function getContentEditableRoot(node){
+            try {
+              var el = asElement(node);
+              return el && el.closest ? el.closest('[contenteditable]') : null;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getRangeContentEditableRoot(range){
+            if (!range) return null;
+            try {
+              var startRoot = getContentEditableRoot(range.startContainer);
+              if (!startRoot) return null;
+              var endRoot = getContentEditableRoot(range.endContainer);
+              return startRoot === endRoot ? startRoot : null;
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function canUseDomRangeAt(node){
+            if (!selectionLimitedToEditableText) return true;
+            return !!getContentEditableRoot(node);
+          }
+
+          function canUseDomRangeSelection(range, node){
+            if (!selectionLimitedToEditableText) return true;
+            return !!(getRangeContentEditableRoot(range) || getContentEditableRoot(node));
           }
 
           function isTextControl(node){
@@ -143,6 +181,18 @@ const SELECTION_CODE = `
             } catch(_) {
               return null;
             }
+          }
+
+          function rememberSelectionText(text){
+            try {
+              S.lastSelectionText = String(text || '');
+            } catch(_) {}
+          }
+
+          function rememberRangeSelectionText(range){
+            try {
+              rememberSelectionText(range ? range.toString() : '');
+            } catch(_) {}
           }
 
           function getTextControlLineHeight(el){
@@ -303,6 +353,7 @@ const SELECTION_CODE = `
               if (typeof el.setSelectionRange === 'function') {
                 el.setSelectionRange(start, end, target >= anchor ? 'forward' : 'backward');
               }
+              rememberSelectionText(value.slice(start, end));
               S.selectionCreated = end > start;
               try { document.dispatchEvent(new Event('selectionchange', { bubbles: true })); } catch(_) {}
             } catch(_) {}
@@ -368,6 +419,7 @@ const SELECTION_CODE = `
               }
               S.selectionCreated = true;
               S.dragRange = next.cloneRange();
+              rememberRangeSelectionText(next);
             } catch(_) {}
           }
 
@@ -378,6 +430,78 @@ const SELECTION_CODE = `
               return r;
             } catch(_) {
               return null;
+            }
+          }
+
+          function asScopeElement(node){
+            try {
+              return node && node.nodeType === Node.ELEMENT_NODE
+                ? node
+                : (node && node.parentElement);
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function getTelegramMessageScope(node){
+            if (!isTelegramHost) return null;
+            try {
+              var el = asScopeElement(node);
+              while (el && el !== document.documentElement && el !== document.body) {
+                var cls = String(el.className || '').toLowerCase();
+                var role = el.getAttribute ? String(el.getAttribute('role') || '').toLowerCase() : '';
+                if (
+                  cls.indexOf('message') !== -1 ||
+                  cls.indexOf('bubble') !== -1 ||
+                  cls.indexOf('text-content') !== -1 ||
+                  role === 'listitem'
+                ) {
+                  return el;
+                }
+                el = el.parentElement;
+              }
+            } catch(_) {}
+            return null;
+          }
+
+          function getRangeScope(range){
+            if (!range) return null;
+            try {
+              var node = range.commonAncestorContainer || range.startContainer;
+              var telegramScope = getTelegramMessageScope(node);
+              if (telegramScope) return telegramScope;
+              var el = asScopeElement(node);
+              while (el && el !== document.documentElement && el !== document.body) {
+                var style = window.getComputedStyle(el);
+                var display = style && style.display ? style.display : '';
+                if (
+                  display === 'block' ||
+                  display === 'flex' ||
+                  display === 'grid' ||
+                  display === 'list-item' ||
+                  display === 'table-cell'
+                ) {
+                  return el;
+                }
+                el = el.parentElement;
+              }
+              return asScopeElement(range.commonAncestorContainer || range.startContainer);
+            } catch(_) {
+              return null;
+            }
+          }
+
+          function rangeIsInsideScope(range, scope){
+            if (!range || !scope) return true;
+            try {
+              var start = asScopeElement(range.startContainer);
+              var end = asScopeElement(range.endContainer);
+              return !!(
+                (!start || scope.contains(start) || start === scope) &&
+                (!end || scope.contains(end) || end === scope)
+              );
+            } catch(_) {
+              return true;
             }
           }
 
@@ -418,11 +542,13 @@ const SELECTION_CODE = `
             var sel = window.getSelection && window.getSelection();
             if (!sel || sel.rangeCount === 0) return false;
             var r = sel.getRangeAt(0);
+            var editableRoot = getRangeContentEditableRoot(r);
+            if (selectionLimitedToEditableText && !editableRoot) return false;
             if (r.collapsed) return false;
             var node = r.startContainer && r.startContainer.nodeType === 3
               ? r.startContainer.parentElement
               : r.startContainer;
-            if (isEditable(node)) return false;
+            if (isEditable(node)) return !!editableRoot;
             return true;
           }
 
@@ -490,6 +616,7 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleScope = null;
               S.handleTextControl = null;
               S.handleAnchorIndex = null;
               S.handleGrabDx = 0;
@@ -498,6 +625,8 @@ const SELECTION_CODE = `
               S.dragRange = null;
               S.dragTextControl = null;
               S.dragAnchorIndex = null;
+              S.syntheticMenuShown = false;
+              rememberSelectionText('');
               S.selectionCreated = false;
               return;
             }
@@ -625,6 +754,7 @@ const SELECTION_CODE = `
                   }
                   S.handleSide = side;
                   S.handleAnchor = null;
+                  S.handleScope = null;
                   S.handleTextControl = textControl;
                   S.handleAnchorIndex = anchorIndex;
                   setHandleGrabOffset(side, startX, startY);
@@ -648,6 +778,7 @@ const SELECTION_CODE = `
               }
               S.handleSide = side;
               S.handleAnchor = anchor;
+              S.handleScope = isTelegramHost ? getRangeScope(r) : null;
               setHandleGrabOffset(side, startX, startY);
               S.dragActive = true;
               S.dragRange = anchor;
@@ -691,6 +822,9 @@ const SELECTION_CODE = `
               }
               if (!S.handleAnchor) return;
               var endRange = ensureRangeFromPoint(probeX, probeY);
+              if (isTelegramHost && S.handleScope && !rangeIsInsideScope(endRange, S.handleScope)) {
+                return;
+              }
               setSelectionFromAnchor(S.handleAnchor, endRange);
               selLog('handle-drag-move', { x: x, y: y, sel: selInfo() });
               updateHandles();
@@ -705,6 +839,7 @@ const SELECTION_CODE = `
               S.handleDrag = false;
               S.handleSide = null;
               S.handleAnchor = null;
+              S.handleScope = null;
               S.handleTextControl = null;
               S.handleAnchorIndex = null;
               S.handleGrabDx = 0;
@@ -735,6 +870,7 @@ const SELECTION_CODE = `
               if (!t) return;
               S.touching = true;
               S.moved = false;
+              S.syntheticMenuShown = false;
               S.lpX = t.clientX;
               S.lpY = t.clientY;
               selLog('touchstart', { x: S.lpX, y: S.lpY });
@@ -759,7 +895,7 @@ const SELECTION_CODE = `
                 S.dragAnchorIndex = textAnchor;
                 selLog('drag-start', { editable: true, start: textSel.start, end: textSel.end });
               }
-            } else if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            } else if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && (!isEditable(active) || getRangeContentEditableRoot(sel.getRangeAt(0))) && canUseDomRangeSelection(sel.getRangeAt(0), active)) {
               var range = sel.getRangeAt(0);
               var rects = getSelectionHandleRects(range);
               var distStart = rects.startRect ? Math.hypot(S.lpX - rects.startRect.left, S.lpY - rects.startRect.top) : 9999;
@@ -792,6 +928,9 @@ const SELECTION_CODE = `
                       return;
                     }
                   }
+                  if (!canUseDomRangeAt(el)) {
+                    return;
+                  }
                   var sel = window.getSelection && window.getSelection();
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
                   selLog('longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
@@ -813,6 +952,7 @@ const SELECTION_CODE = `
                     S.dragActive = !!S.dragRange;
                     S.dragTextControl = null;
                     S.dragAnchorIndex = null;
+                    rememberRangeSelectionText(S.dragRange);
                     if (S.dragActive) {
                       selLog('drag-start', selInfo());
                     }
@@ -905,7 +1045,7 @@ const SELECTION_CODE = `
                 return;
               }
             }
-            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && !isEditable(active)) {
+            if (sel && sel.rangeCount > 0 && !sel.getRangeAt(0).collapsed && (!isEditable(active) || getRangeContentEditableRoot(sel.getRangeAt(0))) && canUseDomRangeSelection(sel.getRangeAt(0), active)) {
               S.dragActive = true;
               S.dragRange = sel.getRangeAt(0).cloneRange();
               S.dragTextControl = null;
@@ -932,6 +1072,9 @@ const SELECTION_CODE = `
                       return;
                     }
                   }
+                  if (!canUseDomRangeAt(el)) {
+                    return;
+                  }
                   var range = ensureRangeFromPoint(S.lpX, S.lpY);
                   var selection = window.getSelection && window.getSelection();
                   selLog('pointer-longpress', { editable: !!(el && isEditable(el)), hasRange: !!range });
@@ -952,6 +1095,7 @@ const SELECTION_CODE = `
                   S.dragActive = !!S.dragRange;
                   S.dragTextControl = null;
                   S.dragAnchorIndex = null;
+                  rememberRangeSelectionText(S.dragRange);
                   if (S.dragActive) {
                     selLog('drag-start', selInfo());
                   }
@@ -1214,10 +1358,176 @@ const installLastEditableTracker = (): void => {
 
 installLastEditableTracker();
 
+const installSoftKeyboardFocusBridge = (): void => {
+  const code = `
+    (() => {
+      try {
+        if (window.__mzrPreloadOskFocusBridgeInstalled) return;
+        window.__mzrPreloadOskFocusBridgeInstalled = true;
+
+        const ACTIVE_MARKER = '__MZR_OSK_FOCUS_ON__';
+        const INACTIVE_MARKER = '__MZR_OSK_FOCUS_OFF__';
+        const NON_TEXT_TYPES = new Set([
+          'button', 'submit', 'reset', 'checkbox', 'radio',
+          'range', 'color', 'file', 'image', 'hidden'
+        ]);
+
+        const asElement = (target) => {
+          if (!target) return null;
+          if (target.nodeType === Node.ELEMENT_NODE) return target;
+          return target.parentElement || null;
+        };
+
+        const isEditable = (target) => {
+          const el = asElement(target);
+          if (!el) return false;
+          if (el.isContentEditable) return true;
+          const editableHost = el.closest
+            ? el.closest('[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]')
+            : null;
+          if (editableHost) return true;
+          const tag = (el.tagName || '').toLowerCase();
+          if (tag === 'textarea') return !el.disabled && !el.readOnly;
+          if (tag !== 'input') return false;
+          const type = String(el.getAttribute('type') || el.type || '').toLowerCase();
+          if (NON_TEXT_TYPES.has(type)) return false;
+          return !el.disabled && !el.readOnly;
+        };
+
+        const editableElement = (target) => {
+          const el = asElement(target);
+          if (!el) return null;
+          if (isEditable(el)) return el;
+          return el.closest
+            ? el.closest('input,textarea,[contenteditable="true"],[contenteditable=""],[contenteditable="plaintext-only"]')
+            : null;
+        };
+
+        const likelyTextIframe = (target) => {
+          const el = asElement(target);
+          if (!el || String(el.tagName || '').toUpperCase() !== 'IFRAME') return null;
+          try {
+            const haystack = [
+              el.getAttribute('src'),
+              el.getAttribute('title'),
+              el.getAttribute('name'),
+              el.getAttribute('aria-label'),
+              el.getAttribute('id'),
+              el.getAttribute('class')
+            ].map((value) => String(value || '').toLowerCase()).join(' ');
+            if (!haystack) return null;
+            return /login|log-in|signin|sign-in|auth|connexion|connect|identifiant|identifier|password|account|client|espace/.test(haystack)
+              ? el
+              : null;
+          } catch {
+            return null;
+          }
+        };
+
+        const deepActive = () => {
+          let current = document.activeElement;
+          let depth = 0;
+          while (current && depth < 5) {
+            const shadow = current.shadowRoot;
+            if (shadow && shadow.activeElement) {
+              current = shadow.activeElement;
+              depth += 1;
+              continue;
+            }
+            break;
+          }
+          return current;
+        };
+
+        const markLast = (el) => {
+          try {
+            if (el && isEditable(el)) window.__mzrLastEditable = el;
+          } catch {}
+        };
+
+        const debug = () => {};
+
+        const notify = (flag, reason, el) => {
+          try {
+            console.info(flag ? ACTIVE_MARKER : INACTIVE_MARKER);
+          } catch {}
+          debug(flag ? 'preload.focus.active' : 'preload.focus.inactive', reason, el || null);
+        };
+
+        const handleCandidate = (reason, target) => {
+          const direct = editableElement(target);
+          const active = editableElement(deepActive());
+          const textFrame = likelyTextIframe(target) || likelyTextIframe(deepActive());
+          const el = direct && isEditable(direct) ? direct : active && isEditable(active) ? active : textFrame;
+          if (!el) return;
+          markLast(el);
+          notify(true, reason, el);
+        };
+
+        const handlePointerCandidate = (target) => {
+          const direct = editableElement(target);
+          const textFrame = likelyTextIframe(target);
+          if (direct && isEditable(direct)) {
+            markLast(direct);
+            notify(true, 'pointerdown', direct);
+            return;
+          }
+          if (textFrame) {
+            notify(true, 'pointerdown-iframe-candidate', textFrame);
+            return;
+          }
+          notify(false, 'pointerdown-noneditable', asElement(target));
+        };
+
+        document.addEventListener('pointerdown', (event) => {
+          handlePointerCandidate(event.target);
+        }, true);
+
+        document.addEventListener('focusin', (event) => {
+          handleCandidate('focusin', event.target);
+        }, true);
+
+        document.addEventListener('focusout', () => {
+          setTimeout(() => {
+            const active = editableElement(deepActive());
+            const textFrame = likelyTextIframe(deepActive());
+            if (active && isEditable(active)) {
+              markLast(active);
+              notify(true, 'focusout-still-editable', active);
+            } else if (textFrame) {
+              notify(true, 'focusout-still-editable-frame', textFrame);
+            } else {
+              notify(false, 'focusout', active || null);
+            }
+          }, 0);
+        }, true);
+      } catch {}
+    })();
+  `;
+  try {
+    void webFrame.executeJavaScriptInIsolatedWorld(0, [{ code }]);
+  } catch {
+    // ignore
+  }
+};
+
+installSoftKeyboardFocusBridge();
+
 /** -------------------------------
  *  Open links in host tab
  *  ------------------------------- */
 const installOpenUrlBridge = (): void => {
+  const isTelegramDeepLink = (rawUrl: string): boolean => {
+    try {
+      const parsed = new URL(String(rawUrl || '').trim());
+      if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') return false;
+      const host = parsed.hostname.toLowerCase().replace(/^www\./, '');
+      return host === 't.me' || host === 'telegram.me' || host === 'telegram.dog';
+    } catch {
+      return false;
+    }
+  };
+
   const resolveUrl = (raw: string): string => {
     const trimmed = String(raw || '').trim();
     if (!trimmed) return '';
@@ -1267,11 +1577,16 @@ const installOpenUrlBridge = (): void => {
         if (!anchor) return;
         const href = anchor.getAttribute('href') ?? '';
         if (!href) return;
+        const resolved = resolveUrl(href);
+        if (!resolved) return;
+        if (isTelegramDeepLink(resolved)) {
+          event.preventDefault();
+          sendOpenUrl(resolved);
+          return;
+        }
         const targetAttr = (anchor.getAttribute('target') || '').toLowerCase();
         if (targetAttr !== '_blank' && targetAttr !== '_new') return;
         if (anchor.hasAttribute('download')) return;
-        const resolved = resolveUrl(href);
-        if (!resolved) return;
         event.preventDefault();
         sendOpenUrl(resolved);
       },
@@ -1708,7 +2023,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
 })();
 
 (() => {
-  if (window.top !== window) return;
   const lastCapture = new Map<string, number>();
 
   const findUsernameInput = (form: HTMLFormElement): HTMLInputElement | null => {
@@ -1767,8 +2081,6 @@ window.addEventListener('message', async (ev: MessageEvent) => {
 })();
 
 (() => {
-  if (window.top !== window) return;
-
   let lastUsernameInput: HTMLInputElement | null = null;
   let lastPasswordInput: HTMLInputElement | null = null;
 
