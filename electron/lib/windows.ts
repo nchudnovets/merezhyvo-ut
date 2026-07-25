@@ -31,6 +31,7 @@ import '../js-dialog-handler';
 import { DOCUMENTS_FOLDER } from './internal-paths';
 import * as downloads from './downloads';
 import { ModuleKind, ScriptTarget, transpileModule } from 'typescript';
+import { getDomain } from 'tldts';
 // temporary commented out
 // import { installPermissionHandlers, connectPermissionPromptTarget } from './permissions';
 
@@ -57,7 +58,7 @@ export const MOBILE_USER_AGENT =
   `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Mobile Safari/537.36`;
 export const DESKTOP_USER_AGENT =
   `Mozilla/5.0 (${uaPlatformToken}) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Safari/537.36`;
-export const GOOGLE_MOBILE_USER_AGENT =
+export const ANDROID_MOBILE_USER_AGENT =
   `Mozilla/5.0 (Linux; Android 13; Pixel 7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/${chromeVersion.full} Mobile Safari/537.36`;
 
 const UA_DEBUG_ENABLED = process.env.MZR_UA_DEBUG === '1';
@@ -707,8 +708,17 @@ function isMailServiceUrl(url: string): boolean {
   }
 }
 
+function isAmazonUrl(url: string): boolean {
+  try {
+    const domain = getDomain(new URL(url).hostname);
+    return Boolean(domain && /^amazon\.(?:[a-z]{2,}|(?:com|co)\.[a-z]{2,})$/.test(domain));
+  } catch {
+    return false;
+  }
+}
+
 function shouldUseAndroidMobileUa(url: string): boolean {
-  return isGoogleServiceUrl(url) || isMailServiceUrl(url);
+  return isGoogleServiceUrl(url) || isMailServiceUrl(url) || isAmazonUrl(url);
 }
 
 type MutableRequestHeaders = Record<string, string | string[] | undefined>;
@@ -739,14 +749,14 @@ const normalizeRequestHeaders = (headers: MutableRequestHeaders): RequestHeaders
 };
 
 const clientHintsForProfile = (
-  profile: 'desktop' | 'google-mobile' | 'mobile'
+  profile: 'desktop' | 'android-mobile' | 'mobile'
 ): {
   platform: string;
   mobile: string;
   arch: string;
   bitness: string;
 } => {
-  if (profile === 'google-mobile') {
+  if (profile === 'android-mobile') {
     return {
       platform: '"Android"',
       mobile: '?1',
@@ -765,8 +775,8 @@ const clientHintsForProfile = (
 
 const unwrapClientHintToken = (value: string): string => value.replace(/^"|"$/g, '');
 
-const navigatorPlatformForProfile = (profile: 'desktop' | 'google-mobile' | 'mobile'): string => {
-  if (profile === 'google-mobile') return 'Linux armv8l';
+const navigatorPlatformForProfile = (profile: 'desktop' | 'android-mobile' | 'mobile'): string => {
+  if (profile === 'android-mobile') return 'Linux armv8l';
   return `Linux ${uaArchToken}`;
 };
 
@@ -820,7 +830,7 @@ const TOUCH_FEATURE_OVERRIDE_SCRIPT = `
 })();
 `;
 
-const userAgentMetadataForProfile = (profile: 'desktop' | 'google-mobile' | 'mobile') => {
+const userAgentMetadataForProfile = (profile: 'desktop' | 'android-mobile' | 'mobile') => {
   const hints = clientHintsForProfile(profile);
   const chromiumMajor = String(chromeVersion.major || 0);
   const chromiumFull = chromeVersion.full || `${chromiumMajor}.0.0.0`;
@@ -835,9 +845,9 @@ const userAgentMetadataForProfile = (profile: 'desktop' | 'google-mobile' | 'mob
     ],
     fullVersion: chromiumFull,
     platform: unwrapClientHintToken(hints.platform),
-    platformVersion: profile === 'google-mobile' ? '13' : '',
+    platformVersion: profile === 'android-mobile' ? '13' : '',
     architecture: unwrapClientHintToken(hints.arch),
-    model: profile === 'google-mobile' ? 'Pixel 7' : '',
+    model: profile === 'android-mobile' ? 'Pixel 7' : '',
     mobile: hints.mobile === '?1',
     bitness: unwrapClientHintToken(hints.bitness),
     wow64: false
@@ -914,9 +924,9 @@ const appendUserAgentDebugBlock = (source: string, payload: Record<string, unkno
   }
 };
 
-const userAgentProfileForUrl = (url: string | null | undefined): 'desktop' | 'google-mobile' | 'mobile' => {
+const userAgentProfileForUrl = (url: string | null | undefined): 'desktop' | 'android-mobile' | 'mobile' => {
   if (url && isDesktopOnlyUrl(url)) return 'desktop';
-  if (url && currentUserAgentMode === 'mobile' && shouldUseAndroidMobileUa(url)) return 'google-mobile';
+  if (url && currentUserAgentMode === 'mobile' && shouldUseAndroidMobileUa(url)) return 'android-mobile';
   return currentUserAgentMode === 'mobile' ? 'mobile' : 'desktop';
 };
 
@@ -1224,7 +1234,7 @@ export const getUserAgentForUrl = (url: string | null | undefined): string => {
   if (!url) return baseUA;
   if (isDesktopOnlyUrl(url)) return DESKTOP_USER_AGENT;
   if (currentUserAgentMode === 'mobile' && shouldUseAndroidMobileUa(url)) {
-    return GOOGLE_MOBILE_USER_AGENT;
+    return ANDROID_MOBILE_USER_AGENT;
   }
   return baseUA;
 };
