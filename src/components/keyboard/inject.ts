@@ -636,7 +636,20 @@ export function makeWebInjects(
               }
             }catch(_){}
           }
-          var el = document.activeElement;
+          function deepActive(startEl){
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while(current && depth < 8){
+              if(current.shadowRoot && current.shadowRoot.activeElement){
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          var el = deepActive(document.activeElement);
           if(!el) { console.info('[osk-inject] no active el'); return false; }
           var tag = (el.tagName||'').toLowerCase();
           var type = (el.getAttribute ? (el.getAttribute('type')||'').toLowerCase() : '');
@@ -705,7 +718,20 @@ export function makeWebInjects(
             }
             return false;
           }
-          var el = document.activeElement;
+          function deepActive(startEl){
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while(current && depth < 8){
+              if(current.shadowRoot && current.shadowRoot.activeElement){
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
+          var el = deepActive(document.activeElement);
           if(!isEditable(el) && window.__mzrLastEditable && isEditable(window.__mzrLastEditable)){
             try { window.__mzrLastEditable.focus({ preventScroll: true }); el = window.__mzrLastEditable; } catch(e) { try{ window.__mzrLastEditable.focus(); el = window.__mzrLastEditable; }catch(_){} }
           }
@@ -738,13 +764,8 @@ export function makeWebInjects(
     const wcId = getWcId();
     if (wcId == null) return false;
     const hadEditableFocus = await ensureEditableFocus();
-    if (hadEditableFocus) {
-      focusWebviewElement();
-    }
     await ipc.osk.char(wcId, String(text));
-    if (hadEditableFocus) {
-      await restoreTopEditableVisualState(false);
-    } else {
+    if (!hadEditableFocus) {
       await ensureEditableFocus();
     }
     return true;
@@ -754,9 +775,6 @@ export function makeWebInjects(
     const wcId = getWcId();
     if (wcId == null) return false;
     const hadEditableFocus = await ensureEditableFocus();
-    if (hadEditableFocus) {
-      focusWebviewElement();
-    }
     await ipc.osk.key(wcId, key);
     if (hadEditableFocus) {
       await restoreTopEditableVisualState();

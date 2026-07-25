@@ -134,10 +134,23 @@ const probeWebContentsActiveElement = async (wc: WebContents): Promise<Record<st
               selectionEnd: typeof el.selectionEnd === 'number' ? el.selectionEnd : null,
             };
           }
+          function deepActive(startEl) {
+            var current = startEl || document.activeElement;
+            var depth = 0;
+            while (current && depth < 8) {
+              if (current.shadowRoot && current.shadowRoot.activeElement) {
+                current = current.shadowRoot.activeElement;
+                depth++;
+                continue;
+              }
+              break;
+            }
+            return current;
+          }
           return {
             href: location.href,
             hasFocus: !!document.hasFocus(),
-            active: describe(document.activeElement),
+            active: describe(deepActive(document.activeElement)),
           };
         } catch (error) {
           return {
@@ -173,9 +186,18 @@ const withTimeout = async <T>(promise: Promise<T>, timeoutMs: number, fallback: 
   }
 };
 
-const findEditableFrame = async (
-  wc: WebContents
-): Promise<{ frame: Electron.WebFrameMain | null; probeDetail?: Record<string, unknown>; reason?: string }> => {
+type EditableFrameTarget = {
+  frame: Electron.WebFrameMain | null;
+  isMainFrame: boolean;
+  probeDetail?: Record<string, unknown>;
+  reason?: string;
+};
+
+const isDirectTopLevelEditable = (active: Record<string, unknown> | null): boolean => {
+  return active?.editable === true && active.tag !== 'iframe';
+};
+
+const findEditableFrame = async (wc: WebContents): Promise<EditableFrameTarget> => {
   try {
     const nonTextTypes = new Set(['button', 'submit', 'reset', 'checkbox', 'radio', 'range', 'color', 'file', 'image', 'hidden']);
     const probeFrame = async (frame: Electron.WebFrameMain): Promise<{ editable: boolean; detail?: Record<string, unknown> }> => {
@@ -259,12 +281,17 @@ const findEditableFrame = async (
       break;
     }
     if (!frame) {
-      return { frame: null, reason: 'no-editable-frame' };
+      return { frame: null, isMainFrame: false, reason: 'no-editable-frame' };
     }
-    return { frame, probeDetail };
+    return {
+      frame,
+      isMainFrame: frame.frameTreeNodeId === wc.mainFrame.frameTreeNodeId,
+      probeDetail
+    };
   } catch (error) {
     return {
       frame: null,
+      isMainFrame: false,
       reason: error instanceof Error ? error.message : String(error),
     };
   }
@@ -459,12 +486,14 @@ const fillCredentialsIntoFocusedFrame = async (
   return false;
 };
 
-const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
+const insertTextIntoFocusedFrame = async (
+  target: EditableFrameTarget,
+  text: string
+): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
   try {
-    const found = await findEditableFrame(wc);
-    const frame = found.frame;
+    const frame = target.frame;
     if (!frame) {
-      return { ok: false, reason: found.reason ?? 'no-editable-frame' };
+      return { ok: false, reason: target.reason ?? 'no-editable-frame' };
     }
     const payload = JSON.stringify(text);
     const result = await withTimeout(frame.executeJavaScript(
@@ -583,7 +612,7 @@ const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promis
     return {
       ok: result === true,
       reason: result === true ? 'focused-frame-dom' : 'focused-frame-dom-false',
-      ...(found.probeDetail ? { probeDetail: found.probeDetail } : {}),
+      ...(target.probeDetail ? { probeDetail: target.probeDetail } : {}),
     };
   } catch (error) {
     return {
@@ -594,14 +623,13 @@ const insertTextIntoFocusedFrame = async (wc: WebContents, text: string): Promis
 };
 
 const handleKeyInEditableFrame = async (
-  wc: WebContents,
+  target: EditableFrameTarget,
   key: string
 ): Promise<{ ok: boolean; reason: string; probeDetail?: Record<string, unknown> }> => {
   try {
-    const found = await findEditableFrame(wc);
-    const frame = found.frame;
+    const frame = target.frame;
     if (!frame) {
-      return { ok: false, reason: found.reason ?? 'no-editable-frame' };
+      return { ok: false, reason: target.reason ?? 'no-editable-frame' };
     }
     const payload = JSON.stringify(key);
     const result = await withTimeout(frame.executeJavaScript(
@@ -771,7 +799,7 @@ const handleKeyInEditableFrame = async (
     return {
       ok: result === true,
       reason: result === true ? 'focused-frame-key-dom' : 'focused-frame-key-dom-false',
-      ...(found.probeDetail ? { probeDetail: found.probeDetail } : {}),
+      ...(target.probeDetail ? { probeDetail: target.probeDetail } : {}),
     };
   } catch (error) {
     return {
@@ -781,10 +809,9 @@ const handleKeyInEditableFrame = async (
   }
 };
 
-const restoreCaretInEditableFrame = async (wc: WebContents): Promise<boolean> => {
+const restoreCaretInEditableFrame = async (target: EditableFrameTarget): Promise<boolean> => {
   try {
-    const found = await findEditableFrame(wc);
-    const frame = found.frame;
+    const frame = target.frame;
     if (!frame) return false;
     const result = await withTimeout(frame.executeJavaScript(
       `(function(){
@@ -3054,27 +3081,31 @@ ipcMain.handle(
         : null;
     const activeTag = typeof active?.tag === 'string' ? active.tag : '';
     const hasFocus = before?.hasFocus === true;
-    const preferInsertText = !hasFocus || activeTag === 'iframe';
-    // Prefer direct DOM insertion into the actual focused frame. On Ubuntu Touch,
-    // tapping the OSK can blur the top-level webview while the real target remains
-    // cached as window.__mzrLastEditable inside an iframe; trusted char events then
-    // miss the field.
-    const frameInsert = await insertTextIntoFocusedFrame(wc, payload);
+    // Trusted Chromium input is the default for top-level fields. DOM insertion is
+    // reserved for a real child frame, where Ubuntu Touch can lose webview focus.
+    const directTopLevelEditable = isDirectTopLevelEditable(active);
+    const editableFrame = directTopLevelEditable ? null : await findEditableFrame(wc);
+    const useFrameDom = editableFrame?.frame != null && !editableFrame.isMainFrame;
+    const frameInsert = useFrameDom && editableFrame
+      ? await insertTextIntoFocusedFrame(editableFrame, payload)
+      : null;
     windows.logUserAgentDebug('osk.char.route', {
       webContentsId: wc.id,
       url: typeof wc.getURL === 'function' ? wc.getURL() : '',
       targetUrl: typeof wc.getURL === 'function' ? wc.getURL() : '',
+      resourceType: 'mainFrame',
       payload: {
-        route: frameInsert.ok ? 'focused-frame-dom' : 'native-input-fallback',
-        reason: frameInsert.reason,
-        preferInsertText,
+        route: frameInsert?.ok ? 'subframe-dom' : 'trusted-native',
+        reason: frameInsert?.reason ?? (directTopLevelEditable ? 'top-level-editable' : editableFrame?.reason ?? 'main-frame-or-no-editable-frame'),
+        directTopLevelEditable,
+        selectedFrameIsMain: editableFrame?.isMainFrame ?? null,
         hasFocus,
         activeTag,
-        probeDetail: frameInsert.probeDetail ?? null
+        probeDetail: frameInsert?.probeDetail ?? editableFrame?.probeDetail ?? null
       }
     });
-    if (frameInsert.ok) {
-      await restoreCaretInEditableFrame(wc);
+    if (frameInsert?.ok && editableFrame) {
+      await restoreCaretInEditableFrame(editableFrame);
       return { ok: true };
     }
     // Keep complex Unicode sequences (emoji with ZWJ/VS/modifiers, flags, etc.) atomic.
@@ -3114,18 +3145,22 @@ ipcMain.handle(
         : null;
     const activeTag = typeof active?.tag === 'string' ? active.tag : '';
     const hasFocus = before?.hasFocus === true;
-    const preferFrameDom = !hasFocus || activeTag === 'iframe';
+    const directTopLevelEditable = isDirectTopLevelEditable(active);
+    const editableFrame = directTopLevelEditable ? null : await findEditableFrame(wc);
+    const useFrameDom = editableFrame?.frame != null && !editableFrame.isMainFrame;
 
-    if (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter') {
-      const frameKey = await handleKeyInEditableFrame(wc, key);
+    if (editableFrame && useFrameDom && (key === 'Backspace' || key === 'ArrowLeft' || key === 'ArrowRight' || key === 'Enter')) {
+      const frameKey = await handleKeyInEditableFrame(editableFrame, key);
       windows.logUserAgentDebug('osk.key.route', {
         webContentsId: wc.id,
         url: typeof wc.getURL === 'function' ? wc.getURL() : '',
         targetUrl: typeof wc.getURL === 'function' ? wc.getURL() : '',
+        resourceType: 'mainFrame',
         payload: {
-          route: frameKey.ok ? 'focused-frame-dom' : 'native-input-fallback',
+          route: frameKey.ok ? 'subframe-dom' : 'trusted-native',
           reason: frameKey.reason,
-          preferFrameDom,
+          directTopLevelEditable,
+          selectedFrameIsMain: editableFrame.isMainFrame,
           hasFocus,
           activeTag,
           key,
@@ -3133,7 +3168,7 @@ ipcMain.handle(
         }
       });
       if (frameKey.ok) {
-        await restoreCaretInEditableFrame(wc);
+        await restoreCaretInEditableFrame(editableFrame);
         return { ok: true };
       }
     }

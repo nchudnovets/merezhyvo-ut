@@ -51,7 +51,6 @@ type CapturePayload = {
 };
 
 const captureStore = new Map<string, CapturePayload>();
-const pendingActions = new Map<string, { action: CaptureAction; entryId?: string }>();
 type CaptureAction = 'save' | 'update' | 'keep-both' | 'never';
 const captureActionSet: Set<CaptureAction> = new Set(['save', 'update', 'keep-both', 'never']);
 
@@ -75,7 +74,6 @@ const applyCaptureAction = async (captureId: string, record: { action: CaptureAc
     await save();
     resetAutoLock();
     clearCapturePayload(captureId);
-    pendingActions.delete(captureId);
     return { ok: true };
   }
   const entryResult = addOrUpdateEntry({
@@ -89,19 +87,7 @@ const applyCaptureAction = async (captureId: string, record: { action: CaptureAc
   await save();
   resetAutoLock();
   clearCapturePayload(captureId);
-  pendingActions.delete(captureId);
   return { ok: true, updated: entryResult.updated };
-};
-
-const processPendingActions = async (): Promise<void> => {
-  if (!isVaultUnlocked()) return;
-  for (const [captureId, record] of Array.from(pendingActions.entries())) {
-    try {
-      await applyCaptureAction(captureId, record);
-    } catch {
-      // ignore errors
-    }
-  }
 };
 
 const getSiteName = (origin: string): string => {
@@ -452,7 +438,6 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     }
     try {
       await loadVault(masterValue);
-      await processPendingActions();
     } catch (err) {
       return { error: String(err) };
     }
@@ -617,12 +602,10 @@ export const registerPasswordsIpc = (ipcMain: IpcMain): void => {
     if (!capture) {
       return { error: 'Capture data unavailable' };
     }
-    const queuedEntry = { action, entryId };
     if (!isVaultUnlocked()) {
-      pendingActions.set(captureId, queuedEntry);
-      return { ok: true, queued: true };
+      return { requiresUnlock: true };
     }
-    return applyCaptureAction(captureId, queuedEntry);
+    return applyCaptureAction(captureId, { action, entryId });
   });
 
   ipcMain.handle('merezhyvo:pw:notify-field-focus', (_event, payload) => {

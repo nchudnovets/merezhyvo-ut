@@ -14,6 +14,12 @@ type UsePasswordFlowsParams = {
   setSettingsScrollTarget: (target: 'passwords' | null) => void;
 };
 
+type PendingCaptureAction = {
+  captureId: string;
+  action: PasswordCaptureAction;
+  entryId?: string;
+};
+
 export const usePasswordFlows = ({
   t,
   showGlobalToast,
@@ -24,6 +30,7 @@ export const usePasswordFlows = ({
   const [passwordStatus, setPasswordStatus] = useState<PasswordStatus | null>(null);
   const [passwordPrompt, setPasswordPrompt] = useState<PasswordPromptPayload | null>(null);
   const [passwordPromptBusy, setPasswordPromptBusy] = useState(false);
+  const [pendingCaptureAction, setPendingCaptureAction] = useState<PendingCaptureAction | null>(null);
   const [showUnlockModal, setShowUnlockModal] = useState<boolean>(false);
   const [unlockPayload, setUnlockPayload] = useState<PasswordUnlockPayload | null>(null);
   const [unlockError, setUnlockError] = useState<string | null>(null);
@@ -91,6 +98,19 @@ export const usePasswordFlows = ({
     return () => window.removeEventListener('merezhyvo:pw:locked', handler);
   }, []);
 
+  const showCaptureActionSuccess = useCallback(
+    (action: PasswordCaptureAction) => {
+      if (action === 'update') {
+        showGlobalToast('Password updated');
+      } else if (action === 'never') {
+        showGlobalToast('This site will not ask again');
+      } else {
+        showGlobalToast('Password saved');
+      }
+    },
+    [showGlobalToast]
+  );
+
   const handlePasswordPromptAction = useCallback(
     async (action: PasswordCaptureAction) => {
       if (!passwordPrompt) return;
@@ -101,19 +121,25 @@ export const usePasswordFlows = ({
       }
       setPasswordPromptBusy(true);
       try {
-        const result = await api.captureAction({
+        const captureAction: PendingCaptureAction = {
           captureId: passwordPrompt.captureId,
           action,
           entryId: passwordPrompt.entryId
-        });
+        };
+        const result = await api.captureAction(captureAction);
+        if (result?.requiresUnlock) {
+          setPendingCaptureAction(captureAction);
+          setUnlockPayload({
+            siteName: passwordPrompt.siteName,
+            origin: passwordPrompt.origin,
+            username: passwordPrompt.username
+          });
+          setUnlockError(null);
+          setShowUnlockModal(true);
+          return;
+        }
         if (result?.ok) {
-          if (action === 'update') {
-            showGlobalToast('Password updated');
-          } else if (action === 'never') {
-            showGlobalToast('This site will not ask again');
-          } else {
-            showGlobalToast('Password saved');
-          }
+          showCaptureActionSuccess(action);
           setPasswordPrompt(null);
         } else {
           showGlobalToast(result?.error ?? 'Unable to save password');
@@ -124,17 +150,19 @@ export const usePasswordFlows = ({
         setPasswordPromptBusy(false);
       }
     },
-    [passwordPrompt, showGlobalToast]
+    [passwordPrompt, showCaptureActionSuccess, showGlobalToast]
   );
 
   const handlePasswordPromptClose = useCallback(() => {
     setPasswordPrompt(null);
     setPasswordPromptBusy(false);
+    setPendingCaptureAction(null);
   }, []);
 
   const closeUnlockModal = useCallback(() => {
     setShowUnlockModal(false);
     setUnlockError(null);
+    setPendingCaptureAction(null);
   }, []);
 
   const handlePasswordUnlock = useCallback(
@@ -149,6 +177,16 @@ export const usePasswordFlows = ({
       try {
         const result = await api.unlock(master, durationMinutes);
         if (result?.ok) {
+          if (pendingCaptureAction) {
+            const captureResult = await api.captureAction(pendingCaptureAction);
+            if (!captureResult?.ok) {
+              setUnlockError(captureResult?.error ?? 'Unable to save password');
+              return false;
+            }
+            showCaptureActionSuccess(pendingCaptureAction.action);
+            setPasswordPrompt(null);
+            setPendingCaptureAction(null);
+          }
           await fetchPasswordStatus();
           setShowUnlockModal(false);
           setUnlockPayload(null);
@@ -171,7 +209,7 @@ export const usePasswordFlows = ({
         setUnlockSubmitting(false);
       }
     },
-    [fetchPasswordStatus, openSettingsModal, pendingSettingsReopen, setSettingsScrollTarget, t]
+    [fetchPasswordStatus, openSettingsModal, pendingCaptureAction, pendingSettingsReopen, setSettingsScrollTarget, showCaptureActionSuccess, t]
   );
 
   return {

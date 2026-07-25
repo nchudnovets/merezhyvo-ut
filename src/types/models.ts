@@ -485,6 +485,7 @@ export type PasswordCaptureAction = 'save' | 'update' | 'keep-both' | 'never';
 export interface PasswordCaptureActionResult {
   ok?: true;
   updated?: boolean;
+  requiresUnlock?: boolean;
   error?: string;
 }
 
