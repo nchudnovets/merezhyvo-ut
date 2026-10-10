@@ -10920,7 +10920,7 @@ LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING FROM,
 OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
 SOFTWARE.
 ----------------------------------------------------------------------------
-merezhyvo@0.5.5-RC-100
+merezhyvo@0.5.5
 License: UNLICENSED
 Source: Unknown
 Copyright: Naz.R

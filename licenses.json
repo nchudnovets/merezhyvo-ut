@@ -1930,7 +1930,7 @@
     "path": "/Users/nazar/UT/projects/merezhyvo/node_modules/math-intrinsics",
     "licenseFile": "node_modules/math-intrinsics/LICENSE"
   },
-  "merezhyvo@0.5.5-RC-100": {
+  "merezhyvo@0.5.5": {
     "licenses": "UNLICENSED",
     "private": true,
     "publisher": "Naz.R",

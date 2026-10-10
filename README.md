@@ -22,6 +22,8 @@ This repository contains the full source code and build scripts for the Ubuntu T
 ## Status
 
 *   **MVP / early access** – the browser is usable for daily browsing, but development is still ongoing.
+
+*   Current stable release: **0.5.5** (2026-10-10), published on OpenStore. It was installed and launched successfully on an Ubuntu Touch phone.
     
 *   Target platform: **Ubuntu Touch 24.04** (Lomiri).
     
