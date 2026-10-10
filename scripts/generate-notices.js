@@ -248,6 +248,10 @@ const sections = Object.entries(PARSED)
   .sort((a, b) => a.packageName.localeCompare(b.packageName, 'en', { sensitivity: 'base' }))
   .map(({ packageName, version, entry }) => buildSection(packageName, version, entry));
 
+const notices = `${header}\n\n${sections.join('\n')}\n`
+  .replace(/\r\n?/g, '\n')
+  .replace(/[\t ]+$/gm, '');
+
 fs.mkdirSync(OUT_DIR, { recursive: true });
-fs.writeFileSync(OUT_FILE, `${header}\n\n${sections.join('\n')}\n`, 'utf8');
+fs.writeFileSync(OUT_FILE, notices, 'utf8');
 console.log(`Wrote ${OUT_FILE} with ${sections.length} entries.`);

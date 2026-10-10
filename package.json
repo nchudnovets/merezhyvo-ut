@@ -1,6 +1,6 @@
 {
   "name": "merezhyvo",
-  "version": "0.5.4",
+  "version": "0.5.5",
   "description": "Minimal Chromium-based browser for Ubuntu Touch built with Electron and React.",
   "author": "Naz.R",
   "license": "Proprietary",
@@ -31,12 +31,11 @@
     "click:build": "clickable clean || true && clickable build --arch arm64 --accept-review-errors",
     "click:make": "npm run package && npm run click:build",
     "click:install": "adb push build/*.click /home/phablet/Downloads/ && adb shell 'click install --allow-untrusted /home/phablet/Downloads/*.click'",
-    "licenses:json": "license-checker --production --json --relativeLicensePath > licenses.json",
+    "licenses:json": "license-checker --json --relativeLicensePath > licenses.json",
     "licenses:generate": "node scripts/generate-notices.js",
     "prepack": "npm run licenses:json && npm run licenses:generate"
   },
   "dependencies": {
-    "dbus-next": "^0.10.2",
     "emoji-picker-react": "^4.19.1",
     "i18n-iso-countries": "^7.14.0",
     "psl": "^1.15.0",
@@ -48,13 +47,14 @@
     "tldts": "^6.1.86"
   },
   "devDependencies": {
-    "@electron/packager": "^20.0.0",
+    "@electron/packager": "20.3.0",
     "@types/node": "^25.7.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.2.3",
     "@typescript-eslint/eslint-plugin": "^8.59.3",
     "@typescript-eslint/parser": "^8.59.3",
-    "electron": "^42.0.1",
+    "dbus-next": "^0.10.2",
+    "electron": "44.5.1",
     "esbuild": "^0.28.0",
     "eslint": "^9.39.4",
     "eslint-plugin-electron": "^7.0.0",

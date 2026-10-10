@@ -1,7 +1,24 @@
 # Changelog
 
 ----
-## 0.5.4 - 2029-06-07
+## 0.5.5 - 2026-10-10
+
+### Updated:
+
+- Updated the bundled Electron/Chromium runtime to Electron 44.5.1.
+
+- Updated the bundled Tor client to 0.4.9.13, including the upstream high-severity security fixes.
+
+### Fixes:
+
+- Mobile keyboard input now keeps Chromium's trusted input path for top-level fields and supports active fields inside shadow DOM and child frames.
+
+- Password-save actions now unlock first and complete only after a successful unlock instead of being queued in the main process.
+
+- Amazon uses its required browser compatibility exception.
+
+----
+## 0.5.4 - 2026-06-07
 
 ### New / Improved:
 

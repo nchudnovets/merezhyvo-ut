@@ -7,6 +7,7 @@ import path from 'path';
 import {
   app,
   BrowserWindow,
+  ClipboardItem,
   Menu,
   clipboard,
   ipcMain,
@@ -1403,7 +1404,7 @@ const buildCtxMenuState = async (): Promise<{
 
     let canPaste = false;
     try {
-      const text = clipboard.readText() ?? '';
+      const text = (await clipboard.readText()) ?? '';
       canPaste = Boolean(isEditable && text.length > 0);
     } catch {
       // noop
@@ -1914,12 +1915,12 @@ ipcMain.on('mzr:ctxmenu:click', async (_event, payload: ContextMenuPayload) => {
       void (async () => {
         const liveText = (await readSelectionFromPage()).trim();
         if (liveText) {
-          clipboard.writeText(liveText);
+          await clipboard.writeText(liveText);
           return;
         }
         const fallbackText = (ctx?.params?.selectionText ?? '').trim();
         if (fallbackText) {
-          clipboard.writeText(fallbackText);
+          await clipboard.writeText(fallbackText);
           return;
         }
         try {
@@ -1945,7 +1946,7 @@ ipcMain.on('mzr:ctxmenu:click', async (_event, payload: ContextMenuPayload) => {
     }
     if (id === 'copy-link') {
       const url = ctx?.linkUrl;
-      if (url) clipboard.writeText(url);
+      if (url) await clipboard.writeText(url);
       return;
     }
     if (id === 'download-link') {
@@ -1975,7 +1976,11 @@ ipcMain.on('mzr:ctxmenu:click', async (_event, payload: ContextMenuPayload) => {
       if (src.startsWith('data:')) {
         try {
           const image = nativeImage.createFromDataURL(src);
-          if (!image.isEmpty()) clipboard.writeImage(image);
+          if (!image.isEmpty()) {
+            const png = image.toPNG();
+            const pngBytes = Uint8Array.from(png);
+            await clipboard.write([new ClipboardItem({ 'image/png': new Blob([pngBytes], { type: 'image/png' }) })]);
+          }
         } catch {
           // noop
         }
@@ -1996,7 +2001,7 @@ ipcMain.on('mzr:ctxmenu:click', async (_event, payload: ContextMenuPayload) => {
       } catch {
         // noop
       }
-      const text = clipboard.readText() ?? '';
+      const text = (await clipboard.readText()) ?? '';
       if (text) {
         try {
           wc.insertText(text);
@@ -2114,9 +2119,9 @@ ipcMain.handle('merezhyvo:settings:load', async () => {
   }
 });
 
-ipcMain.handle('merezhyvo:clipboard:read-text', () => {
+ipcMain.handle('merezhyvo:clipboard:read-text', async () => {
   try {
-    return clipboard.readText();
+    return await clipboard.readText();
   } catch {
     return '';
   }
@@ -3026,13 +3031,12 @@ ipcMain.handle('merezhyvo:tabs:clean-data', async (_event, payload: unknown) => 
       return { ok: false, error: 'No session available.' };
     }
 
-    const storages: Array<'cookies' | 'filesystem' | 'indexdb' | 'localstorage' | 'shadercache' | 'websql' | 'serviceworkers' | 'cachestorage'> = [
+    const storages: Array<'cookies' | 'filesystem' | 'indexdb' | 'localstorage' | 'shadercache' | 'serviceworkers' | 'cachestorage'> = [
       'cookies',
       'filesystem',
       'indexdb',
       'localstorage',
       'shadercache',
-      'websql',
       'serviceworkers',
       'cachestorage'
     ];

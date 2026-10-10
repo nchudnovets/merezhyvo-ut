@@ -286,7 +286,7 @@ python3 -m pip install --user --force-reinstall 'clickable-ut==8.7.0'
 
 ## Updating the embedded Tor binary (optional)
 
-Merezhyvo embeds the `tor` binary from a Debian package. The cached copy lives under `resources/tor/`.
+Merezhyvo embeds the arm64 `tor` binary from the official Tor Project Noble package repository. The cached copy lives under `resources/tor/`.
 
 If you want to refresh it to the latest supported Tor package, run:
 
@@ -294,13 +294,15 @@ If you want to refresh it to the latest supported Tor package, run:
 
 This script will:
 
-1.  Remove any existing cached Tor files from `resources/tor/`.
+1.  Resolve the current arm64 package from the official Tor Project Noble package index.
     
-2.  Download the Tor `.deb` for arm64 (URL can be overridden via `TOR_DEB_URL`).
+2.  Download the `.deb` and verify its SHA-256 against that index before extracting it. An overridden `TOR_DEB_URL` must be paired with `TOR_DEB_SHA256`.
     
 3.  Extract `/usr/bin/tor`, the license and version.
     
-4.  Save them into `resources/tor/` as:
+4.  Stage the extracted files and replace `resources/tor/` only after every verification succeeds. The script can use `dpkg-deb` or the macOS-compatible `ar` and `bsdtar` fallback.
+
+5.  Save them into `resources/tor/` as:
     
     *   `tor` (binary),
         

@@ -140,7 +140,6 @@ export const clearSiteStorageForHost = async (host: string): Promise<void> => {
     'indexdb',
     'localstorage',
     'shadercache',
-    'websql',
     'serviceworkers',
     'cachestorage'
   ];
@@ -171,7 +170,6 @@ export const clearSiteDataGlobal = async (opts: {
     'indexdb',
     'localstorage',
     'shadercache',
-    'websql',
     'serviceworkers',
     'cachestorage'
   ];
