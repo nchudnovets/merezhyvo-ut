@@ -8,26 +8,33 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     display: 'flex',
     flexDirection: 'column',
     width: '100%',
-    maxWidth: '750px',
+    maxWidth: '960px',
     height: '100%',
     backgroundColor: 'var(--mzr-bg)',
     color: 'var(--mzr-text-primary)',
     overflow: 'hidden',
-    margin: '0 auto'
+    margin: '0 auto',
+    padding: '24px',
+    boxSizing: 'border-box',
+    gap: '16px'
   },
   pageMobile: {
     maxWidth: '100%',
+    padding: '28px',
+    gap: '22px'
   },
   header: {
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'space-between',
-    padding: '20px 24px 14px',
-    borderBottom: '1px solid var(--mzr-border)'
+    gap: '16px',
+    paddingBottom: '12px',
+    borderBottom: '1px solid var(--mzr-divider)'
   },
+  headerLead: { display: 'flex', alignItems: 'center', gap: '10px', minWidth: 0 },
   headerTitle: {
     fontSize: '24px',
-    fontWeight: 600,
+    fontWeight: 700,
     margin: 0
   },
   headerActions: {
@@ -37,14 +44,15 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     position: 'relative'
   },
   actionButton: {
-    width: '36px',
-    height: '36px',
+    minWidth: '38px',
+    height: '38px',
+    padding: '0 12px',
     borderRadius: '12px',
-    border: '1px solid var(--mzr-border)',
-    backgroundColor: 'var(--mzr-surface-elevated)',
-    color: 'var(--mzr-text-primary)',
-    fontSize: '20px',
-    display: 'flex',
+    border: '1px solid var(--mzr-accent)',
+    backgroundColor: 'var(--mzr-accent)',
+    color: '#fff',
+    fontSize: '22px',
+    display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer'
@@ -53,94 +61,119 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     fontSize: '40px'
   },
   actionButtonMobile: {
-    width: '80px',
-    height: '80px',
-    fontSize: '38px',
+    minWidth: '72px',
+    height: '72px',
+    padding: '0 22px',
+    fontSize: '40px',
     borderRadius: '24px'
   },
   overflowButton: {
-    width: '36px',
-    height: '36px',
+    width: '38px',
+    height: '38px',
     borderRadius: '12px',
     border: '1px solid var(--mzr-border)',
-    backgroundColor: 'var(--mzr-surface-elevated)',
+    backgroundColor: 'var(--mzr-surface-weak)',
     color: 'var(--mzr-text-primary)',
     fontSize: '18px',
-    display: 'flex',
+    display: 'inline-flex',
     alignItems: 'center',
     justifyContent: 'center',
     cursor: 'pointer'
   },
   overflowButtonMobile: {
-    width: '80px',
-    height: '80px',
+    width: '72px',
+    height: '72px',
     fontSize: '40px',
     borderRadius: '24px'
   },
   searchBar: {
-    padding: '0 24px',
-    marginTop: '12px',
-    marginBottom: '16px'
+    position: 'relative',
+    width: '100%'
   },
+  searchIcon: { position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)', color: 'var(--mzr-text-muted)', pointerEvents: 'none' },
   searchInput: {
-    width: '97%',
-    borderRadius: '12px',
-    border: '1px solid var(--mzr-border)',
-    backgroundColor: 'var(--mzr-surface-elevated)',
+    width: '100%',
+    height: '42px',
+    boxSizing: 'border-box',
+    borderRadius: '14px',
+    border: '1px solid var(--mzr-input-border)',
+    backgroundColor: 'var(--mzr-input-bg)',
     color: 'var(--mzr-text-primary)',
     fontSize: '16px',
-    padding: '10px 12px',
+    padding: '10px 14px 10px 42px',
     outline: 'none'
   },
   searchInputMobile: {
+    height: '76px',
     fontSize: '36px',
-    padding: '18px 14px',
-    width: '97%'
+    padding: '18px 14px 18px 74px'
   },
   list: {
     flex: 1,
     overflowY: 'auto',
-    padding: '0 24px 24px',
+    gap: '18px',
+    display: 'flex',
+    flexDirection: 'column',
+    paddingRight: '12px',
     boxSizing: 'border-box'
   },
   group: {
-    marginBottom: '20px'
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
   },
   groupHeader: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    marginBottom: '10px'
+    gap: '8px',
+    padding: '0 2px'
   },
   groupTitle: {
     fontSize: '16px',
-    fontWeight: 600
+    fontWeight: 700,
+    minWidth: 0,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   groupMeta: {
     fontSize: '12px',
     color: 'var(--mzr-text-muted)'
   },
   entryRow: {
-    borderBottom: '1px solid var(--mzr-border)',
-    padding: '14px 0'
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '12px',
+    padding: '12px 14px',
+    borderRadius: '16px',
+    border: '1px solid var(--mzr-border)',
+    backgroundColor: 'var(--mzr-surface)',
+    boxSizing: 'border-box'
   },
   entryHeader: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'space-between',
-    cursor: 'pointer'
+    gap: '12px',
+    cursor: 'pointer',
+    minWidth: 0
   },
+  siteGlyph: { width: '34px', height: '34px', borderRadius: '12px', backgroundColor: 'var(--mzr-surface-weak)', border: '1px solid var(--mzr-border)', color: 'var(--mzr-text-secondary)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0, fontSize: '14px', fontWeight: 700 },
+  entryHeading: { display: 'flex', flexDirection: 'column', gap: '3px', minWidth: 0, flex: 1 },
+  entrySummary: { fontSize: '12px', color: 'var(--mzr-text-muted)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' },
+  expandButton: { width: '30px', height: '30px', padding: 0, border: '1px solid transparent', borderRadius: '8px', background: 'transparent', color: 'var(--mzr-text-primary)', cursor: 'pointer', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 },
   entrySite: {
-    fontSize: '17px',
-    fontWeight: 600
+    fontSize: '15px',
+    fontWeight: 650,
+    overflow: 'hidden',
+    textOverflow: 'ellipsis',
+    whiteSpace: 'nowrap'
   },
   entrySiteMobile: {
     fontSize: '38px'
   },
   entryActionsRow: {
-    marginTop: '16px',
     display: 'flex',
-    gap: '10px',
+    gap: '8px',
     flexWrap: 'wrap'
   },
   entryActionButtonDanger: {
@@ -150,10 +183,11 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   entryActionButton: {
     border: '1px solid var(--mzr-border)',
     borderRadius: '10px',
-    padding: '6px 12px',
-    backgroundColor: 'var(--mzr-surface-elevated)',
+    padding: '7px 11px',
+    backgroundColor: 'var(--mzr-surface-weak)',
     color: 'var(--mzr-text-primary)',
     fontSize: '12px',
+    fontWeight: 600,
     cursor: 'pointer'
   },
   entryActionButtonMobile: {
@@ -163,11 +197,14 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     minWidth: '150px'
   },
   entryDetails: {
-    marginTop: '12px',
     display: 'flex',
     flexDirection: 'column',
-    gap: '10px'
+    gap: '10px',
+    paddingTop: '2px'
   },
+  detailCards: { display: 'grid', gridTemplateColumns: 'repeat(2, minmax(0, 1fr))', gap: '10px' },
+  detailCard: { display: 'flex', flexDirection: 'column', gap: '4px', minWidth: 0, padding: '10px 12px', borderRadius: '12px', background: 'var(--mzr-surface-weak)', border: '1px solid var(--mzr-border)' },
+  detailLabel: { fontSize: '11px', color: 'var(--mzr-text-muted)', textTransform: 'uppercase', letterSpacing: '0.06em' },
   entryDetailText: {
     fontSize: '14px',
     color: 'var(--mzr-text-secondary)'
@@ -229,9 +266,14 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     padding: '16px 20px'
   },
   emptyState: {
-    marginTop: '60px',
-    textAlign: 'center'
+    marginTop: '44px',
+    textAlign: 'center',
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center',
+    gap: '10px'
   },
+  emptyIcon: { width: '44px', height: '44px', borderRadius: '14px', background: 'var(--mzr-surface-weak)', border: '1px solid var(--mzr-border)', display: 'flex', alignItems: 'center', justifyContent: 'center', color: 'var(--mzr-text-muted)' },
   emptyTitle: {
     fontSize: '20px',
     fontWeight: 600,
@@ -241,12 +283,13 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     fontSize: '36px'
   },
   emptyAction: {
-    marginTop: '8px',
+    marginTop: '2px',
     padding: '10px 18px',
     borderRadius: '10px',
     border: '1px solid var(--mzr-accent)',
-    backgroundColor: 'var(--mzr-accent-tint)',
-    color: 'var(--mzr-accent-tint)',
+    backgroundColor: 'var(--mzr-accent)',
+    color: '#fff',
+    fontWeight: 600,
     cursor: 'pointer'
   },
   loading: {
@@ -315,12 +358,14 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     alignItems: 'center',
     justifyContent: 'center',
     zIndex: 20,
-    padding: '150px 0'
+    padding: '24px'
   },
   modal: {
     width: 'min(520px, 90vw)',
     backgroundColor: 'var(--mzr-surface-elevated)',
     borderRadius: '18px',
+    maxHeight: 'calc(100vh - 48px)',
+    overflowY: 'auto',
     padding: '24px',
     boxShadow: '0 20px 50px rgba(0,0,0,0.35)',
     border: '1px solid var(--mzr-border)'
@@ -357,8 +402,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   modalForm: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '12px',
-    paddingRight: '30px'
+    gap: '12px'
   },
   modalLabel: {
     fontSize: '12px',
@@ -371,6 +415,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
   },
   modalInput: {
     width: '100%',
+    boxSizing: 'border-box',
     borderRadius: '12px',
     border: '1px solid var(--mzr-border)',
     backgroundColor: 'var(--mzr-surface)',
@@ -404,7 +449,7 @@ export const passwordsStyles: Record<string, CSSProperties> = {
     borderRadius: '12px',
     border: 'none',
     backgroundColor: 'var(--mzr-accent)',
-    color: 'var(--mzr-text-primary)',
+    color: '#fff',
     fontWeight: 600,
     cursor: 'pointer'
   },

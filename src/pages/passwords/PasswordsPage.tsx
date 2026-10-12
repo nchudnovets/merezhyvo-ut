@@ -52,6 +52,18 @@ const groupEntries = (
   return groups;
 };
 
+const SiteGlyph: React.FC<{ origin: string; mobile: boolean }> = ({ origin, mobile }) => {
+  const label = getSiteName(origin).trim().charAt(0).toUpperCase() || '•';
+  return (
+    <span
+      aria-hidden="true"
+      style={mergeStyle(passwordsStyles.siteGlyph, mobile ? { width: '58px', height: '58px', borderRadius: '18px', fontSize: '25px' } : undefined)}
+    >
+      {label}
+    </span>
+  );
+};
+
 const copyFallback = (value: string): void => {
   const textarea = document.createElement('textarea');
   textarea.value = value;
@@ -672,7 +684,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
   return (
     <div style={pageStyle}>
       <div style={passwordsStyles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={passwordsStyles.headerLead}>
           {onClose && (
             <button
               type="button"
@@ -682,8 +694,8 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                 width: isMobile ? 56 : 36,
                 height: isMobile ? 56 : 36,
                 border: 'none',
-                background: 'rgba(15,23,42,0.6)',
-                color: 'var(--mzr-text-secondary)',
+                background: 'var(--mzr-surface-weak)',
+                color: 'var(--mzr-text-primary)',
                 display: 'inline-flex',
                 alignItems: 'center',
                 justifyContent: 'center',
@@ -760,6 +772,12 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
         </div>
       </div>
       <div style={passwordsStyles.searchBar}>
+        <span style={mergeStyle(passwordsStyles.searchIcon, isMobile ? { left: '20px' } : undefined)} aria-hidden="true">
+          <svg width={isMobile ? 36 : 18} height={isMobile ? 36 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-4-4" />
+          </svg>
+        </span>
         <input
           type="text"
           placeholder={t('passwords.page.search.placeholder')}
@@ -799,11 +817,11 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
               <div style={passwordsStyles.groupHeader}>
                 <span style={mergeStyle(
                   passwordsStyles.groupTitle,
-                  { fontSize: isMobile ? '38px' : '18px' }
+                  { fontSize: isMobile ? '28px' : '16px' }
                 )}>{group.siteName}</span>
                 <span style={mergeStyle(
                   passwordsStyles.groupMeta,
-                  { fontSize: isMobile ? '38px' : '18px' }
+                  { fontSize: isMobile ? '24px' : '12px' }
                 )}>{t('passwords.page.group.accounts', { count: group.entries.length })}</span>
               </div>
               {group.entries.map((entry) => {
@@ -814,64 +832,39 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                     <div
                       style={mergeStyle(
                         passwordsStyles.entryHeader,
-                        { fontSize: isMobile ? '42px' : '21px' }
+                        isMobile ? { minHeight: '58px' } : undefined
                       )}
                       onClick={() => toggleEntry(entry.id)}
                     >
-                      <span
-                        style={mergeStyle(
-                          passwordsStyles.entrySite,
-                          isMobile ? passwordsStyles.entrySiteMobile : undefined
-                        )}
-                      >
-                        {entry.signonRealm || entry.origin}
+                      <SiteGlyph origin={entry.origin || entry.signonRealm} mobile={isMobile} />
+                      <span style={passwordsStyles.entryHeading}>
+                        <span style={mergeStyle(passwordsStyles.entrySite, isMobile ? { fontSize: '30px' } : undefined)}>{entry.username}</span>
+                        <span style={mergeStyle(passwordsStyles.entrySummary, isMobile ? { fontSize: '22px' } : undefined)}>{entry.signonRealm || entry.origin}</span>
                       </span>
-                      <span style={{ fontSize: isMobile ? '42px' : '24px', marginLeft: '12px' }}>
-                        {isExpanded ? '⌃' : '⌄'}
-                      </span>
+                      <button type="button" aria-expanded={isExpanded} style={mergeStyle(passwordsStyles.expandButton, isMobile ? { width: '58px', height: '58px' } : undefined)} onClick={(event) => { event.stopPropagation(); toggleEntry(entry.id); }}>
+                        <svg viewBox="0 0 16 16" width={isMobile ? 38 : 18} height={isMobile ? 38 : 18} style={{ transform: isExpanded ? 'rotate(180deg)' : 'rotate(0deg)', transition: 'transform 150ms ease' }} fill="none" stroke="currentColor" strokeWidth="1.6" strokeLinecap="round" strokeLinejoin="round">
+                          <path d="M4 6l4 4 4-4" />
+                        </svg>
+                      </button>
                     </div>
                     {isExpanded && (
                       <div style={passwordsStyles.entryDetails}>
-                        <div
-                          style={{
-                            display: 'flex',
-                            alignItems: 'center',
-                            flexWrap: 'wrap',
-                            gap: '12px'
-                          }}
-                        >
-                          <span
-                            style={mergeStyle(
-                              passwordsStyles.entryDetailText,
-                              isMobile ? passwordsStyles.entryDetailTextMobile : undefined
+                        <div style={mergeStyle(passwordsStyles.detailCards, isMobile ? { gridTemplateColumns: '1fr', gap: '12px' } : undefined)}>
+                          <div style={passwordsStyles.detailCard}>
+                            <span style={mergeStyle(passwordsStyles.detailLabel, isMobile ? { fontSize: '20px' } : undefined)}>{t('passwords.page.modal.username')}</span>
+                            <span style={mergeStyle(passwordsStyles.entryDetailText, isMobile ? { fontSize: '28px' } : undefined)}>{entry.username}</span>
+                          </div>
+                          <div style={passwordsStyles.detailCard}>
+                            <span style={mergeStyle(passwordsStyles.detailLabel, isMobile ? { fontSize: '20px' } : undefined)}>{t('passwords.page.modal.password')}</span>
+                            {revealed ? (
+                              <span style={mergeStyle(passwordsStyles.entryDetailText, isMobile ? { fontSize: '28px' } : undefined)}>{revealed}</span>
+                            ) : (
+                              <button type="button" style={entryActionButtonStyle} onClick={() => handleRevealPassword(entry)}>{t('passwords.page.entry.showPassword')}</button>
                             )}
-                          >
-                            {t('passwords.page.entry.usernameLabel', { username: entry.username })}
-                          </span>
-                          {revealed ? (
-                            <span
-                              style={mergeStyle(
-                                passwordsStyles.entryDetailText,
-                                isMobile ? passwordsStyles.entryDetailTextMobile : undefined
-                              )}
-                            >
-                              {t('passwords.page.entry.passwordLabel', { password: revealed })}
-                            </span>
-                          ) : (
-                            <button
-                              type="button"
-                              style={entryActionButtonStyle}
-                              onClick={() => handleRevealPassword(entry)}
-                            >
-                              {t('passwords.page.entry.showPassword')}
-                            </button>
-                          )}
+                          </div>
                         </div>
                         <div
-                          style={mergeStyle(
-                            passwordsStyles.entryActionsRow,
-                            isMobile ? { flexDirection: 'column', gap: '10px' } : undefined
-                          )}
+                          style={mergeStyle(passwordsStyles.entryActionsRow, isMobile ? { flexDirection: 'column', gap: '10px' } : undefined)}
                         >
                           <button
                             type="button"
@@ -946,7 +939,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                           <div
                             style={mergeStyle(
                               passwordsStyles.notes,
-                              isMobile ? passwordsStyles.notesMobile : undefined
+                            isMobile ? { fontSize: '26px' } : undefined
                             )}
                           >
                             {entry.notes}
@@ -958,7 +951,7 @@ const PasswordsPage: React.FC<PasswordsPageProps> = ({ mode, openInTab, onClose 
                         <div
                           style={mergeStyle(
                             passwordsStyles.entryDetailText,
-                            isMobile ? passwordsStyles.entryDetailTextMobile : undefined
+                            isMobile ? { fontSize: '24px' } : undefined
                           )}
                         >
                           {t('passwords.page.entry.lastUsed', { time: getRelativeTime(entry.lastUsedAt) })}
