@@ -46,7 +46,7 @@ const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ favi
   }, [faviconId]);
 
   return src ? (
-    <img src={src} alt="favicon" style={{
+    <img src={src} alt="" style={{
       ...historyStyles.favicon,
         ...historyModeStyles[mode].favicon
     }} />
@@ -61,7 +61,11 @@ const FaviconIcon: React.FC<{ faviconId?: string | null, mode: Mode }> = ({ favi
         justifyContent: 'center'
       }}
     >
-      ?
+      <svg width={mode === 'mobile' ? 34 : 18} height={mode === 'mobile' ? 34 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <circle cx="12" cy="12" r="9" />
+        <path d="M3 12h18" />
+        <path d="M12 3a15 15 0 0 1 0 18a15 15 0 0 1 0-18" />
+      </svg>
     </span>
   );
 };
@@ -313,7 +317,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   return (
     <div style={{ ...styles.container, ...(modeStyles.container ?? {}) }}>
       <div style={styles.header}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: 10 }}>
+        <div style={styles.headerTitle}>
           {onClose && (
             <button
               type="button"
@@ -343,27 +347,62 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
           {t('history.clear')}
         </button>
       </div>
-      <input
-        placeholder={t('history.search.placeholder')}
-        style={profileModeStyle('searchInput')}
-        value={search}
-        onChange={(event) => setSearch(event.target.value)}
-      />
-      {feedback && <div style={{ color: '#34d399', fontSize: mode === 'mobile' ? '35px' : '12px' }}>{feedback}</div>}
-      <div style={groupsStyle} className="service-scroll" ref={listRef}>
+      <div style={profileModeStyle('searchField')}>
+        <span style={profileModeStyle('searchIcon')} aria-hidden="true">
+          <svg width={mode === 'mobile' ? 36 : 18} height={mode === 'mobile' ? 36 : 18} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
+            <circle cx="11" cy="11" r="7" />
+            <path d="m20 20-4-4" />
+          </svg>
+        </span>
+        <input
+          data-testid="history-search-input"
+          placeholder={t('history.search.placeholder')}
+          style={profileModeStyle('searchInput')}
+          value={search}
+          onChange={(event) => setSearch(event.target.value)}
+        />
+        {search && (
+          <button
+            type="button"
+            data-testid="history-search-clear"
+            style={profileModeStyle('searchClear')}
+            onClick={() => setSearch('')}
+            aria-label={t('global.close')}
+          >
+            <svg width={mode === 'mobile' ? 34 : 16} height={mode === 'mobile' ? 34 : 16} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round">
+              <path d="m6 6 12 12M18 6 6 18" />
+            </svg>
+          </button>
+        )}
+      </div>
+      {feedback && <div style={{ ...profileModeStyle('feedback'), fontSize: mode === 'mobile' ? '35px' : '12px' }}>{feedback}</div>}
+      <div style={groupsStyle} className="service-scroll" ref={listRef} data-testid="history-list">
         {loading && <div style={styles.placeholder}>{t('history.loading')}</div>}
-        {!loading && !sortedVisits.length && <div style={styles.placeholder}>{t('history.empty')}</div>}
+        {!loading && !sortedVisits.length && (
+          <div style={profileModeStyle('emptyState')}>
+            <div style={profileModeStyle('emptyIcon')} aria-hidden="true">
+              <svg width={mode === 'mobile' ? 46 : 22} height={mode === 'mobile' ? 46 : 22} viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.7" strokeLinecap="round" strokeLinejoin="round">
+                <circle cx="12" cy="12" r="9" />
+                <path d="M12 7v5l3 3" />
+              </svg>
+            </div>
+            <div style={profileModeStyle('emptyTitle')}>{t('history.empty')}</div>
+          </div>
+        )}
         {groupLabels.map((key) => {
           const entries = groups[key as GroupKey];
           if (!entries || !entries.length) return null;
           return (
             <div key={key as string} style={styles.group}>
-              <h3 style={groupsTitle}>{groupLabelMap[key as GroupKey]}</h3>
+              <div style={profileModeStyle('groupHeader')}>
+                <h3 style={groupsTitle}>{groupLabelMap[key as GroupKey]}</h3>
+                <span style={profileModeStyle('groupCount')}>{entries.length}</span>
+              </div>
               {entries.map((visit) => {
                 const isExpanded = Boolean(expandedActions[visit.id]);
                 return (
                   <React.Fragment key={visit.id}>
-                    <div style={{ ...styles.entry, ...(modeStyles.entry ?? {}), flexDirection: mode === 'mobile' && isExpanded ? 'column' : undefined }}>
+                    <div data-testid="history-entry" style={{ ...styles.entry, ...(modeStyles.entry ?? {}), flexDirection: mode === 'mobile' && isExpanded ? 'column' : undefined }}>
                       {mode === 'mobile' ? (
                         <>
                           <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', width: '100%', gap: 10 }}>
@@ -372,7 +411,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
                               <div style={styles.entryText}>
                                 <span style={entryTitleStyle}>{visit.title || visit.url}</span>
                                 <span style={entryUrlStyle}>{visit.url}</span>
-                                <span style={entryUrlStyle}>{formatTime(visit.ts)}</span>
+                                <span style={{ ...profileModeStyle('entryMeta'), fontSize: entryUrlStyle.fontSize }}>{formatTime(visit.ts)}</span>
                               </div>
                             </div>
                             <button
@@ -428,8 +467,11 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
                             <FaviconIcon faviconId={visit.faviconId} mode={mode} />
                             <div style={styles.entryText}>
                               <span style={entryTitleStyle}>{visit.title || visit.url}</span>
-                              <span style={entryUrlStyle}>{visit.url}</span>
-                              <span style={entryUrlStyle}>{formatTime(visit.ts)}</span>
+                              <div style={profileModeStyle('entryMeta')}>
+                                <span style={{ ...entryUrlStyle, flex: 1 }}>{visit.url}</span>
+                                <span style={profileModeStyle('entryDot')} aria-hidden="true">•</span>
+                                <span>{formatTime(visit.ts)}</span>
+                              </div>
                             </div>
                           </div>
                           <div style={entryActionsStyle}>

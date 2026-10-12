@@ -5,9 +5,6 @@ import type { HistoryStyleKeys } from './historyStyles';
 
 export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CSSProperties>>> = {
   desktop: {
-    entryText: {
-      maxWidth: '50%'
-    },
     actionToggle: {
       padding: '6px 8px'
     },
@@ -19,7 +16,10 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
       maxWidth: 'none'
     },
     header: {
-      marginBottom: '30px'
+      alignItems: 'flex-start'
+    },
+    headerTitle: {
+      gap: '14px'
     },
     title: { fontSize: 'clamp(42px, 6vw, 54px)' },
     button: {
@@ -27,6 +27,9 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
     },
     groupTitle: {
       fontSize: '28px'
+    },
+    groupCount: {
+      fontSize: '24px'
     },
     entryText: {
       maxWidth: '60%'
@@ -62,7 +65,39 @@ export const historyModeStyles: Record<Mode, Partial<Record<HistoryStyleKeys, CS
       width: '55px',
       height: '55px'
     },
+    searchField: {
+      minHeight: '76px'
+    },
+    searchIcon: {
+      left: '20px'
+    },
     searchInput: {
+      height: '76px',
+      paddingLeft: '74px',
+      paddingRight: '74px',
+      fontSize: '38px'
+    },
+    searchClear: {
+      width: '58px',
+      height: '58px',
+      right: '10px'
+    },
+    feedback: {
+      fontSize: '35px'
+    },
+    entryMeta: {
+      fontSize: '22px'
+    },
+    emptyState: {
+      marginTop: '72px',
+      gap: '16px'
+    },
+    emptyIcon: {
+      width: '92px',
+      height: '92px',
+      borderRadius: '28px'
+    },
+    emptyTitle: {
       fontSize: '38px'
     },
     confirmPanel: {
