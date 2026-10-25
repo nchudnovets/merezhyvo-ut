@@ -39,6 +39,10 @@ const buildTopSitesOptions = (payload: unknown): TopSitesOptions => {
 const buildRemoveOptions = (payload: unknown): HistoryRemoveOptions => {
   if (!isRecord(payload)) return {};
   const opts: HistoryRemoveOptions = {};
+  if (Object.prototype.hasOwnProperty.call(payload, 'id')) {
+    opts.id = toString(payload.id) ?? '';
+    return opts;
+  }
   const url = toString(payload.url);
   if (url) opts.url = url;
   const origin = toString(payload.origin);

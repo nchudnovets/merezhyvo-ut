@@ -1,7 +1,7 @@
 # Changelog
 
 ----
-## 0.5.6 - QA build (not published)
+## 0.5.6 - 2026-10-25
 
 ### Updated:
 
@@ -10,6 +10,8 @@
 - Redesigned the Passwords page.
 
 - Updated the bundled Electron/Chromium runtime from Electron 44.5.1 to 44.9.3, including the patched Electron 44 release line for GHSA-jr5w-w6x2-84p9.
+
+- Fixed History page Delete so it removes only the selected visit instead of every visit with the same URL.
 
 ----
 ## 0.5.5 - 2026-10-10

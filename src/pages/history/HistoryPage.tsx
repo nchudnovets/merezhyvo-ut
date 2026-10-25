@@ -80,6 +80,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   const [feedback, setFeedback] = useState<string | null>(null);
   const [showClearConfirm, setShowClearConfirm] = useState(false);
   const [clearBusy, setClearBusy] = useState(false);
+  const [removingVisitIds, setRemovingVisitIds] = useState<Set<string>>(() => new Set());
   const { t } = useI18n();
 
   const styles = historyStyles;
@@ -95,6 +96,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   const loadingRef = useRef(false);
   const loadingMoreRef = useRef(false);
   const queryRef = useRef<string>('');
+  const removingVisitIdsRef = useRef<Set<string>>(new Set());
 
   const groupLabelMap = useMemo(
     () => ({
@@ -221,10 +223,19 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
   const handleRemoveVisit = useCallback(
     async (visit: HistoryVisit) => {
       const api = typeof window !== 'undefined' ? window.merezhyvo?.history : undefined;
-      if (!api) return;
-      await api.remove({ url: visit.url });
-      setFeedback(t('history.feedback.entryRemoved'));
-      await refreshHistory();
+      const id = visit.id.trim();
+      if (!api || !id || removingVisitIdsRef.current.has(id)) return;
+      removingVisitIdsRef.current.add(id);
+      setRemovingVisitIds(new Set(removingVisitIdsRef.current));
+      try {
+        const result = await api.remove({ id });
+        if (result.removed !== 1) return;
+        setFeedback(t('history.feedback.entryRemoved'));
+        await refreshHistory();
+      } finally {
+        removingVisitIdsRef.current.delete(id);
+        setRemovingVisitIds(new Set(removingVisitIdsRef.current));
+      }
     },
     [refreshHistory, t]
   );
@@ -452,7 +463,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
                               <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
                                 {t('history.entry.open')}
                               </button>
-                              <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
+                              <button type="button" style={actionButtonStyle} disabled={removingVisitIds.has(visit.id)} onClick={() => handleRemoveVisit(visit)}>
                                 {t('history.entry.delete')}
                               </button>
                               <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>
@@ -480,7 +491,7 @@ const HistoryPage: React.FC<ServicePageProps> = ({ mode, openInNewTab, onClose }
                                 <button type="button" style={actionButtonStyle} onClick={() => openInNewTab(visit.url)}>
                                   {t('history.entry.open')}
                                 </button>
-                                <button type="button" style={actionButtonStyle} onClick={() => handleRemoveVisit(visit)}>
+                                <button type="button" style={actionButtonStyle} disabled={removingVisitIds.has(visit.id)} onClick={() => handleRemoveVisit(visit)}>
                                   {t('history.entry.delete')}
                                 </button>
                                 <button type="button" style={actionButtonStyle} onClick={() => handleRemoveDomain(visit)}>

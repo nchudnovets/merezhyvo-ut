@@ -127,7 +127,7 @@ export interface MerezhyvoTabsAPI {
 export interface MerezhyvoHistoryApi {
   query(options?: HistoryQueryOptions): Promise<HistoryQueryResult>;
   topSites(options?: TopSitesOptions): Promise<TopSite[]>;
-  remove(filter?: { url?: string; origin?: string; beforeTs?: number }): Promise<{ removed: number }>;
+  remove(filter?: { id?: string; url?: string; origin?: string; beforeTs?: number }): Promise<{ removed: number }>;
   clearAll(): Promise<void>;
 }
 

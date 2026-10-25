@@ -62,6 +62,7 @@ export type TopSite = {
 };
 
 export type HistoryRemoveOptions = {
+  id?: string;
   url?: string;
   origin?: string | null;
   beforeTs?: number;
@@ -345,6 +346,19 @@ export const clearAll = async (): Promise<void> => {
 };
 
 export const remove = async (options: HistoryRemoveOptions): Promise<number> => {
+  const hasId = Object.prototype.hasOwnProperty.call(options, 'id');
+  if (hasId) {
+    const id = typeof options.id === 'string' ? options.id.trim() : '';
+    if (!id) return 0;
+    const entries = await loadEntries();
+    const filtered = entries.filter((entry) => entry.id !== id);
+    const removed = entries.length - filtered.length;
+    if (removed > 0) {
+      await writeEntries(filtered);
+    }
+    return removed;
+  }
+
   const hasOrigin = typeof options.origin === 'string' && options.origin.trim().length > 0;
   const hasUrl = typeof options.url === 'string' && options.url.trim().length > 0;
   const hasTs = typeof options.beforeTs === 'number';

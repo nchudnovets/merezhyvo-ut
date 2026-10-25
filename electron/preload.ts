@@ -938,7 +938,8 @@ const exposeApi: MerezhyvoAPI = {
   history: {
     query: (options) => ipcRenderer.invoke('merezhyvo:history:query', options ?? {}),
     topSites: (options) => ipcRenderer.invoke('merezhyvo:history:top-sites', options ?? {}),
-    remove: (filter) => ipcRenderer.invoke('merezhyvo:history:remove', filter ?? {}),
+    remove: (filter: { id?: string; url?: string; origin?: string; beforeTs?: number } = {}) =>
+      ipcRenderer.invoke('merezhyvo:history:remove', filter),
     clearAll: async () => {
       await ipcRenderer.invoke('merezhyvo:history:clear-all');
     }
