@@ -1,6 +1,17 @@
 # Changelog
 
 ----
+## 0.5.6 - QA build (not published)
+
+### Updated:
+
+- Redesigned the History page.
+
+- Redesigned the Passwords page.
+
+- Updated the bundled Electron/Chromium runtime from Electron 44.5.1 to 44.9.3, including the patched Electron 44 release line for GHSA-jr5w-w6x2-84p9.
+
+----
 ## 0.5.5 - 2026-10-10
 
 ### Updated:
